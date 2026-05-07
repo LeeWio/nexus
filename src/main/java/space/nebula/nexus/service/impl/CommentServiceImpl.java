@@ -114,6 +114,7 @@ public class CommentServiceImpl implements ICommentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<PageResult<CommentResponse>> getPostComments(Long postId, Pageable pageable) {
         Page<Comment> comments = commentRepository.findAllByPostIdAndParentIsNullAndStatus(
                 postId, CommentStatus.APPROVED, pageable);
@@ -122,6 +123,7 @@ public class CommentServiceImpl implements ICommentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<PageResult<CommentResponse>> getAdminComments(Pageable pageable) {
         Page<Comment> comments = commentRepository.findAll(pageable);
         return ApiResponse.success(PageResult.of(comments.map(commentMapper::toResponse)));
