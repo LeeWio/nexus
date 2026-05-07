@@ -1,0 +1,61 @@
+services:
+  nexus-app:
+    build: .
+    container_name: nexus-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://nexus-db:3306/nexus_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=nexus_password
+      - SPRING_DATA_REDIS_HOST=nexus-redis
+      - MAIL_HOST=smtp.example.com
+      - MAIL_PORT=587
+      - MAIL_USERNAME=your-email@example.com
+      - MAIL_PASSWORD=your-password
+    depends_on:
+      nexus-db:
+        condition: service_healthy
+      nexus-redis:
+        condition: service_started
+    networks:
+      - nexus-network
+    restart: always
+
+  nexus-db:
+    image: mysql:9.6
+    container_name: nexus-db
+    environment:
+      - MYSQL_DATABASE=nexus_db
+      - MYSQL_ROOT_PASSWORD=nexus_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - nexus-db-data:/var/lib/mysql
+    networks:
+      - nexus-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  nexus-redis:
+    image: redis:7.4-alpine
+    container_name: nexus-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - nexus-redis-data:/data
+    networks:
+      - nexus-network
+    restart: always
+
+networks:
+  nexus-network:
+    driver: bridge
+
+volumes:
+  nexus-db-data:
+  nexus-redis-data:

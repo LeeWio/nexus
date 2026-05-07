@@ -1,0 +1,35 @@
+package space.nebula.nexus.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "sys_menu")
+public class Menu extends BaseEntity {
+
+    @Column(name = "parent_id", nullable = false)
+    private Long parentId = 0L;
+
+    @Column(nullable = false, length = 50)
+    private String name;
+
+    @Column(length = 200)
+    private String path;
+
+    @Column(length = 100)
+    private String permission;
+
+    @Column(nullable = false)
+    private Integer type; // 0-目录，1-菜单，2-按钮/API权限
+
+    @Column(length = 50)
+    private String icon;
+
+    @Column(name = "sort_order")
+    private Integer sortOrder = 0;
+}
