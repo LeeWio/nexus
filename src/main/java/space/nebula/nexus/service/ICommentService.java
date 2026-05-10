@@ -13,6 +13,7 @@ public interface ICommentService {
     // Public
     ApiResponse<Void> submitComment(CommentRequest request, HttpServletRequest servletRequest);
     ApiResponse<PageResult<CommentResponse>> getPostComments(Long postId, Pageable pageable);
+    ApiResponse<PageResult<CommentResponse>> getGuestbookComments(Pageable pageable);
 
     // Admin
     ApiResponse<PageResult<CommentResponse>> getAdminComments(Pageable pageable);

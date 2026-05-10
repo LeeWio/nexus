@@ -12,7 +12,6 @@ public record CommentRequest(
     @Size(max = 1000, message = "Comment content too long")
     String content,
 
-    @NotNull(message = "Post ID is required")
     Long postId,
 
     Long parentId

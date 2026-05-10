@@ -47,6 +47,12 @@ public class User extends BaseEntity {
     @Column(length = 100)
     private String location;
 
+    @Column(name = "github_id", length = 100, unique = true)
+    private String githubId;
+
+    @Column(name = "github_username", length = 100)
+    private String githubUsername;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserStatus status = UserStatus.ACTIVE;

@@ -1,7 +1,7 @@
 package space.nebula.nexus.service.impl;
 
-import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -34,36 +34,29 @@ import space.nebula.nexus.service.SensitiveWordService;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class CommentServiceImpl implements ICommentService {
 
-    @Resource
-    private CommentRepository commentRepository;
-
-    @Resource
-    private PostRepository postRepository;
-
-    @Resource
-    private UserRepository userRepository;
-
-    @Resource
-    private CommentMapper commentMapper;
-
-    @Resource
-    private SensitiveWordService sensitiveWordService;
-
-    @Resource
-    private ApplicationEventPublisher eventPublisher;
+    private final CommentRepository commentRepository;
+    private final PostRepository postRepository;
+    private final UserRepository userRepository;
+    private final CommentMapper commentMapper;
+    private final SensitiveWordService sensitiveWordService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
     @LogOperation("Submit Comment")
     public ApiResponse<Void> submitComment(CommentRequest request, HttpServletRequest servletRequest) {
-        // 1. Validate Post
-        Post post = postRepository.findById(request.postId())
-                .orElseThrow(() -> new BusinessException(404, "Post not found"));
-        
-        if (post.getStatus() != PostStatus.PUBLISHED) {
-            throw new BusinessException(403, "Cannot comment on unpublished posts");
+        // 1. Validate Post (if present)
+        Post post = null;
+        if (request.postId() != null) {
+            post = postRepository.findById(request.postId())
+                    .orElseThrow(() -> new BusinessException(404, "Post not found"));
+            
+            if (post.getStatus() != PostStatus.PUBLISHED) {
+                throw new BusinessException(403, "Cannot comment on unpublished posts");
+            }
         }
 
         // 2. Sensitive word filtering & Auto-Moderation
@@ -75,8 +68,13 @@ public class CommentServiceImpl implements ICommentService {
         if (request.parentId() != null) {
             parent = commentRepository.findById(request.parentId())
                     .orElseThrow(() -> new BusinessException(404, "Parent comment not found"));
-            if (!parent.getPost().getId().equals(post.getId())) {
-                throw new BusinessException(400, "Parent comment belongs to a different post");
+            
+            // Validate that parent matches the same post context (or both are guestbook)
+            boolean contextMatch = (post == null && parent.getPost() == null) ||
+                                 (post != null && parent.getPost() != null && parent.getPost().getId().equals(post.getId()));
+            
+            if (!contextMatch) {
+                throw new BusinessException(400, "Parent comment belongs to a different context");
             }
         }
 
@@ -118,6 +116,15 @@ public class CommentServiceImpl implements ICommentService {
     public ApiResponse<PageResult<CommentResponse>> getPostComments(Long postId, Pageable pageable) {
         Page<Comment> comments = commentRepository.findAllByPostIdAndParentIsNullAndStatus(
                 postId, CommentStatus.APPROVED, pageable);
+        
+        return ApiResponse.success(PageResult.of(comments.map(commentMapper::toResponse)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponse<PageResult<CommentResponse>> getGuestbookComments(Pageable pageable) {
+        Page<Comment> comments = commentRepository.findAllByPostIsNullAndParentIsNullAndStatus(
+                CommentStatus.APPROVED, pageable);
         
         return ApiResponse.success(PageResult.of(comments.map(commentMapper::toResponse)));
     }

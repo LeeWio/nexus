@@ -9,8 +9,12 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.junit.jupiter.api.BeforeEach;
 import space.nebula.nexus.payload.request.LoginRequest;
 import space.nebula.nexus.payload.request.RegisterRequest;
+import space.nebula.nexus.repository.search.PostSearchRepository;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -21,8 +25,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 public class AuthControllerIntegrationTest {
 
+    @MockitoBean
+    private PostSearchRepository postSearchRepository;
+
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @BeforeEach
+    public void setup() {
+        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
+    }
 
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 

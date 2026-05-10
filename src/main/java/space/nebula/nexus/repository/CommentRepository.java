@@ -18,9 +18,14 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     @EntityGraph(attributePaths = {"user", "children", "children.user"})
     Page<Comment> findAllByPostIdAndParentIsNullAndStatus(Long postId, CommentStatus status, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"user", "children", "children.user"})
+    Page<Comment> findAllByPostIsNullAndParentIsNullAndStatus(CommentStatus status, Pageable pageable);
+
     /**
      * Admin view: find all comments with pagination.
      */
     @EntityGraph(attributePaths = {"user", "post"})
     Page<Comment> findAll(Pageable pageable);
+
+    long countByStatus(CommentStatus status);
 }

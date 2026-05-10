@@ -16,6 +16,10 @@ public final class CacheConstants {
     public static final String POST_SLUG_KEY = "'slug:' + #slug";
     public static final String POST_VIEW_COUNT = "post:view_count:";
     
+    // Interaction constants
+    public static final String POST_LIKES_SET = "post:likes:set:";
+    public static final String POST_FAVORITES_SET = "post:favorites:set:";
+    
     // Security constants
     public static final String LOGIN_FAIL_COUNT = "security:login_fail:";
     public static final String LOGIN_LOCK = "security:login_lock:";

@@ -10,7 +10,7 @@ import java.util.Set;
 /**
  * Post response payload using Java 21 Record.
  */
-@Builder
+@Builder(toBuilder = true)
 public record PostResponse(
     Long id,
     String title,
@@ -21,6 +21,10 @@ public record PostResponse(
     PostStatus status,
     Boolean isFeatured,
     Long views,
+    Long likesCount,
+    Long favoritesCount,
+    Boolean isLiked,
+    Boolean isFavorited,
     String authorName,
     CategoryResponse category,
     Set<TagResponse> tags,

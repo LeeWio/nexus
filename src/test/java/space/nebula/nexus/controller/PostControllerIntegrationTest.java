@@ -18,6 +18,8 @@ import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.repository.CategoryRepository;
 import space.nebula.nexus.repository.UserRepository;
+import space.nebula.nexus.repository.search.PostSearchRepository;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -30,6 +32,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Transactional
 public class PostControllerIntegrationTest {
+
+    @MockitoBean
+    private PostSearchRepository postSearchRepository;
 
     @Autowired
     private MockMvc mockMvc;

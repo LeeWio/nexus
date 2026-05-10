@@ -11,17 +11,17 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import space.nebula.nexus.enums.PostStatus;
 
 import java.util.HashSet;
 import java.util.Set;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "blog_post")
-@EqualsAndHashCode(callSuper = true)
 public class Post extends BaseEntity {
 
     @Column(nullable = false, length = 200)
@@ -49,6 +49,15 @@ public class Post extends BaseEntity {
 
     @Column(nullable = false)
     private Long views = 0L;
+
+    @Column(name = "likes_count", nullable = false)
+    private Long likesCount = 0L;
+
+    @Column(name = "favorites_count", nullable = false)
+    private Long favoritesCount = 0L;
+
+    @Column(name = "published_at")
+    private java.time.LocalDateTime publishedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")

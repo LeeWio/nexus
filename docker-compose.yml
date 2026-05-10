@@ -9,6 +9,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=nexus_password
       - SPRING_DATA_REDIS_HOST=nexus-redis
+      - ES_URIS=http://nexus-elasticsearch:9200
       - MAIL_HOST=smtp.example.com
       - MAIL_PORT=587
       - MAIL_USERNAME=your-email@example.com
@@ -52,6 +53,23 @@ services:
       - nexus-network
     restart: always
 
+  nexus-elasticsearch:
+    image: elasticsearch:9.2.8
+    container_name: nexus-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - nexus-es-data:/usr/share/elasticsearch/data
+    networks:
+      - nexus-network
+    restart: always
+
 networks:
   nexus-network:
     driver: bridge
@@ -59,3 +77,4 @@ networks:
 volumes:
   nexus-db-data:
   nexus-redis-data:
+  nexus-es-data:

@@ -2,8 +2,8 @@ package space.nebula.nexus.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,16 +19,21 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.PostResponse;
+import space.nebula.nexus.payload.response.PostRevisionResponse;
 import space.nebula.nexus.service.IPostService;
+import space.nebula.nexus.service.IPostRevisionService;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin/posts")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 @Tag(name = "Admin Blog Management", description = "Endpoints for managing blog posts (Requires ADMIN role)")
 public class AdminPostController {
 
-    @Resource
-    private IPostService postService;
+    private final IPostService postService;
+    private final IPostRevisionService postRevisionService;
 
     @GetMapping
     @Operation(summary = "Get all posts (paginated)")
@@ -49,7 +54,7 @@ public class AdminPostController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update an existing post")
+    @Operation(summary = "Update a post")
     public ApiResponse<PostResponse> updatePost(@PathVariable Long id, @Valid @RequestBody PostRequest request) {
         return postService.updatePost(id, request);
     }
@@ -58,5 +63,17 @@ public class AdminPostController {
     @Operation(summary = "Delete a post")
     public ApiResponse<Void> deletePost(@PathVariable Long id) {
         return postService.deletePost(id);
+    }
+
+    @GetMapping("/{id}/revisions")
+    @Operation(summary = "Get revision history for a post")
+    public ApiResponse<List<PostRevisionResponse>> getPostRevisions(@PathVariable Long id) {
+        return postRevisionService.getPostRevisions(id);
+    }
+
+    @PostMapping("/{id}/revisions/{revisionId}/revert")
+    @Operation(summary = "Revert a post to a specific revision")
+    public ApiResponse<PostResponse> revertToRevision(@PathVariable Long id, @PathVariable Long revisionId) {
+        return postRevisionService.revertToRevision(id, revisionId);
     }
 }

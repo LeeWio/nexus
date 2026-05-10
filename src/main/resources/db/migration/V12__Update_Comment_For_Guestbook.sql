@@ -1,0 +1,1 @@
+ALTER TABLE blog_comment MODIFY COLUMN post_id BIGINT NULL;

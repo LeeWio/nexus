@@ -1,6 +1,6 @@
 package space.nebula.nexus.security.config;
 
-import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,20 +19,20 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import space.nebula.nexus.security.exception.CustomAccessDeniedHandler;
 import space.nebula.nexus.security.exception.CustomAuthenticationEntryPoint;
 import space.nebula.nexus.security.filter.JwtAuthenticationFilter;
+import space.nebula.nexus.security.handler.OAuth2AuthenticationSuccessHandler;
+import space.nebula.nexus.security.service.CustomOAuth2UserService;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity // Enables @PreAuthorize, @Secured, etc.
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Resource
-    private CustomAuthenticationEntryPoint authenticationEntryPoint;
-    
-    @Resource
-    private CustomAccessDeniedHandler accessDeniedHandler;
-    
-    @Resource
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    private final CustomAccessDeniedHandler accessDeniedHandler;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
 
     /**
      * Configure BCrypt as our password encoder.
@@ -79,10 +79,17 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/management/**"
+                                "/management/**",
+                                "/login/oauth2/**"
                         ).permitAll()
                         // All other requests must be authenticated
                         .anyRequest().authenticated()
+                )
+
+                // Configure OAuth2 Login
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                        .successHandler(oauth2AuthenticationSuccessHandler)
                 )
 
                 // Add our custom JWT filter before the standard UsernamePasswordAuthenticationFilter

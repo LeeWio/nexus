@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>New Comment Notification</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f9f9f9; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; padding: 20px 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .header { border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
+        .header h2 { color: #3498db; margin: 0; }
+        .content { margin-bottom: 20px; }
+        .comment-box { background-color: #f1f5f9; padding: 15px; border-left: 4px solid #3498db; border-radius: 4px; font-style: italic; }
+        .footer { font-size: 0.9em; color: #777; border-top: 1px solid #eee; padding-top: 15px; text-align: center; }
+        .btn { display: inline-block; padding: 10px 20px; color: #fff; background-color: #3498db; text-decoration: none; border-radius: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>New Comment Received</h2>
+    </div>
+    <div class="content">
+        <p>Hello <strong th:text="${authorName}">Author</strong>,</p>
+        <p>User <strong th:text="${commenterName}">User</strong> has left a new comment on your post <strong th:text="${postTitle}">Post Title</strong>.</p>
+        
+        <p><strong>Comment Content:</strong></p>
+        <div class="comment-box">
+            <span th:text="${commentContent}">This is the comment content.</span>
+        </div>
+        
+        <p style="margin-top: 20px;">
+            Please log in to the admin panel to moderate this comment if necessary.
+        </p>
+    </div>
+    <div class="footer">
+        &copy; 2026 Nexus System. All rights reserved.
+    </div>
+</div>
+</body>
+</html>

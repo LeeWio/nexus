@@ -38,4 +38,11 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
     @Modifying
     @Query("update Post p set p.views = p.views + :count where p.id = :id")
     void incrementViews(Long id, Long count);
+
+    @Modifying
+    @Query("update Post p set p.status = 'PUBLISHED' where p.status = 'SCHEDULED' and p.publishedAt <= :now")
+    int updateScheduledPosts(java.time.LocalDateTime now);
+
+    @Query("SELECT SUM(p.views) FROM Post p")
+    Long sumTotalViews();
 }

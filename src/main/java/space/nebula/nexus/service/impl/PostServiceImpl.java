@@ -1,8 +1,8 @@
 package space.nebula.nexus.service.impl;
 
 import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +25,9 @@ import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.TagRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.IPostService;
+import space.nebula.nexus.service.IPostSearchService;
+import space.nebula.nexus.service.IInteractionService;
+import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.utils.RedisUtil;
 import space.nebula.nexus.utils.SlugUtil;
 
@@ -36,42 +39,40 @@ import java.util.Optional;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class PostServiceImpl implements IPostService {
 
-    @Resource
-    private PostRepository postRepository;
-
-    @Resource
-    private CategoryRepository categoryRepository;
-
-    @Resource
-    private TagRepository tagRepository;
-
-    @Resource
-    private UserRepository userRepository;
-
-    @Resource
-    private PostMapper postMapper;
-
-    @Resource
-    private RedisUtil redisUtil;
+    private final PostRepository postRepository;
+    private final CategoryRepository categoryRepository;
+    private final TagRepository tagRepository;
+    private final UserRepository userRepository;
+    private final PostMapper postMapper;
+    private final RedisUtil redisUtil;
+    private final IPostSearchService postSearchService;
+    private final IInteractionService interactionService;
+    private final IPostRevisionService postRevisionService;
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<PageResult<PostResponse>> getAdminPosts(Pageable pageable) {
         Page<PostResponse> page = postRepository.findAll(pageable).map(postMapper::toResponse);
         return ApiResponse.success(PageResult.of(page));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<PostResponse> getPostById(Long id) {
-        return postRepository.findById(id)
-                .map(post -> ApiResponse.success(postMapper.toResponse(post)))
+        Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(404, "Post not found"));
+                
+        PostResponse.PostResponseBuilder builder = postMapper.toResponse(post).toBuilder();
+        interactionService.populateInteractionData(builder, id);
+        
+        return ApiResponse.success(builder.build());
     }
 
     @Override
     @Transactional
-    @CacheEvict(value = CacheConstants.BLOG_POSTS, allEntries = true)
     @LogOperation("Create Blog Post")
     public ApiResponse<PostResponse> createPost(PostRequest request) {
         String slug = validateAndGenerateSlug(request.slug(), request.title());
@@ -82,12 +83,15 @@ public class PostServiceImpl implements IPostService {
 
         postRepository.save(post);
         log.info("Blog post created: {} by {}", post.getTitle(), author.getUsername());
+        
+        postRevisionService.saveRevision(post);
+        postSearchService.indexPost(post);
+        redisUtil.delete(CacheConstants.BLOG_POSTS + "::" + CacheConstants.POST_LIST_KEY);
         return ApiResponse.success("Post created successfully", postMapper.toResponse(post));
     }
 
     @Override
     @Transactional
-    @CacheEvict(value = CacheConstants.BLOG_POSTS, allEntries = true)
     @LogOperation("Update Blog Post")
     public ApiResponse<PostResponse> updatePost(Long id, PostRequest request) {
         Post post = postRepository.findById(id)
@@ -102,19 +106,32 @@ public class PostServiceImpl implements IPostService {
 
         postRepository.save(post);
         log.info("Blog post updated: {}", post.getTitle());
+        
+        postRevisionService.saveRevision(post);
+        postSearchService.indexPost(post);
+        redisUtil.delete(CacheConstants.BLOG_POSTS + "::" + CacheConstants.POST_LIST_KEY);
+        redisUtil.delete("nexus:post:slug:" + post.getSlug());
+        if (!newSlug.equals(post.getSlug())) {
+            redisUtil.delete("nexus:post:slug:" + newSlug);
+        }
+        
         return ApiResponse.success("Post updated successfully", postMapper.toResponse(post));
     }
 
     @Override
     @Transactional
-    @CacheEvict(value = CacheConstants.BLOG_POSTS, allEntries = true)
     @LogOperation("Delete Blog Post")
     public ApiResponse<Void> deletePost(Long id) {
-        if (!postRepository.existsById(id)) {
-            throw new BusinessException(404, "Post not found");
-        }
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(404, "Post not found"));
+                
         postRepository.deleteById(id);
         log.info("Blog post deleted id: {}", id);
+        
+        postSearchService.deletePostIndex(id);
+        redisUtil.delete(CacheConstants.BLOG_POSTS + "::" + CacheConstants.POST_LIST_KEY);
+        redisUtil.delete("nexus:post:slug:" + post.getSlug());
+        
         return ApiResponse.success("Post deleted successfully", null);
     }
 

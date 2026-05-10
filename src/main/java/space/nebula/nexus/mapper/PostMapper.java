@@ -13,6 +13,8 @@ import java.util.List;
 public interface PostMapper {
 
     @Mapping(target = "authorName", source = "author", qualifiedByName = "mapAuthorName")
+    @Mapping(target = "isLiked", ignore = true)
+    @Mapping(target = "isFavorited", ignore = true)
     PostResponse toResponse(Post post);
 
     List<PostResponse> toResponseList(List<Post> posts);

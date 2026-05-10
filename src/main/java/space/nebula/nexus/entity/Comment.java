@@ -10,17 +10,17 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import space.nebula.nexus.enums.CommentStatus;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "blog_comment")
-@EqualsAndHashCode(callSuper = true)
 public class Comment extends BaseEntity {
 
     @Lob
@@ -32,7 +32,7 @@ public class Comment extends BaseEntity {
     private CommentStatus status = CommentStatus.PENDING;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id", nullable = false)
+    @JoinColumn(name = "post_id") // Nullable for guestbook
     private Post post;
 
     @ManyToOne(fetch = FetchType.LAZY)
