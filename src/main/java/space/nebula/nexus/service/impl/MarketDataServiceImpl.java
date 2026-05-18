@@ -1,17 +1,18 @@
-package space.nebula.nexus.service;
+package space.nebula.nexus.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
+import space.nebula.nexus.service.IMarketDataService;
 import space.nebula.nexus.utils.RedisUtil;
 
 import java.math.BigDecimal;
@@ -26,7 +27,7 @@ import java.util.regex.Pattern;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class MarketDataService {
+public class MarketDataServiceImpl implements IMarketDataService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -41,11 +42,12 @@ public class MarketDataService {
     // Sina Finance K-line API (US Stocks) - type=5 is 5min. We'll take last 12 bars.
     private static final String SINA_KLINE_US_URL = "http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getMinK?symbol=%s&type=5&___qn=3";
 
-    public List<MarketIndexResponse> getIndices() {
+    @Override
+    public ApiResponse<List<MarketIndexResponse>> getIndices() {
         // 1. Try to get from cache
         Optional<List> cachedData = redisUtil.get(CACHE_KEY, List.class);
         if (cachedData.isPresent()) {
-            return (List<MarketIndexResponse>) cachedData.get();
+            return ApiResponse.success((List<MarketIndexResponse>) cachedData.get());
         }
 
         // 2. Fetch from APIs
@@ -59,7 +61,7 @@ public class MarketDataService {
             ResponseEntity<byte[]> response = restTemplate.exchange(SINA_HQ_URL, HttpMethod.GET, entity, byte[].class);
             
             if (response.getBody() == null) {
-                return responses;
+                return ApiResponse.success(responses);
             }
             
             String body = new String(response.getBody(), "GBK");
@@ -87,7 +89,7 @@ public class MarketDataService {
         } catch (Exception e) {
             log.error("Failed to fetch market indices", e);
         }
-        return responses;
+        return ApiResponse.success(responses);
     }
 
     private MarketIndexResponse parseUsIndex(String body, String hqKey, String name, String sparklineSymbol) {

@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
-import space.nebula.nexus.service.MarketDataService;
+import space.nebula.nexus.service.IMarketDataService;
 
 import java.util.List;
 
@@ -18,11 +18,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PublicMarketController {
 
-    private final MarketDataService marketDataService;
+    private final IMarketDataService marketDataService;
 
     @Operation(summary = "Get market indices", description = "Fetches current data and sparkline for key market indices")
     @GetMapping("/indices")
     public ApiResponse<List<MarketIndexResponse>> getIndices() {
-        return ApiResponse.success(marketDataService.getIndices());
+        return marketDataService.getIndices();
     }
 }

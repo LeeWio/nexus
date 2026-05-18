@@ -12,7 +12,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
+import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
+import space.nebula.nexus.service.impl.MarketDataServiceImpl;
 import space.nebula.nexus.utils.RedisUtil;
 
 import java.math.BigDecimal;
@@ -32,7 +34,7 @@ class MarketDataServiceTest {
     private RedisUtil redisUtil;
 
     @InjectMocks
-    private MarketDataService marketDataService;
+    private MarketDataServiceImpl marketDataService;
 
     private byte[] mockHqResponse;
 
@@ -56,9 +58,11 @@ class MarketDataServiceTest {
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
                 .thenReturn(new ResponseEntity<>("[]", HttpStatus.OK));
 
-        List<MarketIndexResponse> indices = marketDataService.getIndices();
+        ApiResponse<List<MarketIndexResponse>> apiResponse = marketDataService.getIndices();
 
-        assertNotNull(indices);
+        assertNotNull(apiResponse);
+        assertEquals(200, apiResponse.getCode());
+        List<MarketIndexResponse> indices = apiResponse.getData();
         assertEquals(4, indices.size());
 
         MarketIndexResponse nasdaq = indices.stream().filter(i -> i.getSymbol().equals(".ixic")).findFirst().orElse(null);
