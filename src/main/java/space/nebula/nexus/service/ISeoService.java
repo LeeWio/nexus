@@ -1,16 +1,16 @@
 package space.nebula.nexus.service;
 
-import space.nebula.nexus.common.ApiResponse;
-
 public interface ISeoService {
     
     /**
-     * Generate sitemap.xml content.
+     * Generates a standard XML Sitemap for search engine crawlers.
+     * Includes posts, categories, tags, and series.
      */
-    String generateSitemap();
+    String generateSitemapXml();
 
     /**
-     * Generate RSS feed content.
+     * Generates an RSS 2.0 Feed for content distribution.
+     * Contains the most recent published posts.
      */
-    String generateRss();
+    String generateRssFeedXml();
 }

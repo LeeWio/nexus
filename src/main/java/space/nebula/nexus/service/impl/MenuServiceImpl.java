@@ -2,14 +2,16 @@ package space.nebula.nexus.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
 import space.nebula.nexus.common.exception.BusinessException;
+import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Menu;
-import space.nebula.nexus.entity.Role;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.mapper.MenuMapper;
 import space.nebula.nexus.payload.request.MenuRequest;
@@ -35,85 +37,90 @@ public class MenuServiceImpl implements IMenuService {
 
     @Override
     @Transactional(readOnly = true)
-    public ApiResponse<List<MenuResponse>> getMenuTree() {
+    public ApiResponse<List<MenuResponse>> retrieveFullMenuTree() {
         List<Menu> allMenus = menuRepository.findAllByOrderBySortOrderAsc();
-        return ApiResponse.success(buildTree(menuMapper.toResponseList(allMenus), 0L));
+        return ApiResponse.success(buildHierarchy(menuMapper.toResponseList(allMenus), 0L));
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = "navigation", allEntries = true)
     @LogOperation("Create Menu")
     public ApiResponse<MenuResponse> createMenu(MenuRequest request) {
-        Menu menu = menuMapper.toEntity(request);
-        if (menu.getParentId() == null) {
-            menu.setParentId(0L);
+        Menu newMenu = menuMapper.toEntity(request);
+        if (newMenu.getParentId() == null) {
+            newMenu.setParentId(0L);
         }
-        menuRepository.save(menu);
-        log.info("Created menu: {}", menu.getName());
-        return ApiResponse.success("Menu created successfully", menuMapper.toResponse(menu));
+        menuRepository.save(newMenu);
+        log.info("Created new menu item: {}", newMenu.getName());
+        return ApiResponse.success("Menu item created successfully", menuMapper.toResponse(newMenu));
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = "navigation", allEntries = true)
     @LogOperation("Update Menu")
     public ApiResponse<MenuResponse> updateMenu(Long id, MenuRequest request) {
-        Menu menu = menuRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(404, "Menu not found"));
+        Menu existingMenu = menuRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Menu", "id", id));
         
-        menu.setName(request.name());
-        menu.setParentId(request.parentId() != null ? request.parentId() : 0L);
-        menu.setPath(request.path());
-        menu.setPermission(request.permission());
-        menu.setType(request.type());
-        menu.setIcon(request.icon());
-        menu.setSortOrder(request.sortOrder());
+        menuMapper.updateEntity(existingMenu, request);
+        menuRepository.save(existingMenu);
         
-        menuRepository.save(menu);
-        log.info("Updated menu: {}", menu.getName());
-        return ApiResponse.success("Menu updated successfully", menuMapper.toResponse(menu));
+        log.info("Updated menu item: {}", existingMenu.getName());
+        return ApiResponse.success("Menu item updated successfully", menuMapper.toResponse(existingMenu));
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = "navigation", allEntries = true)
     @LogOperation("Delete Menu")
     public ApiResponse<Void> deleteMenu(Long id) {
         if (!menuRepository.existsById(id)) {
-            throw new BusinessException(404, "Menu not found");
+            throw new ResourceNotFoundException("Menu", "id", id);
         }
-        // Basic check for children could be added here
         menuRepository.deleteById(id);
-        log.info("Deleted menu id: {}", id);
-        return ApiResponse.success("Menu deleted successfully", null);
+        log.info("Purged menu item ID: {}", id);
+        return ApiResponse.success("Menu item deleted successfully", null);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ApiResponse<List<MenuResponse>> getCurrentUserMenuTree() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new BusinessException("User not found"));
+    public ApiResponse<List<MenuResponse>> retrieveAuthenticatedUserMenuTree() {
+        String authenticatedUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByUsername(authenticatedUsername)
+                .orElseThrow(() -> new BusinessException("Authenticated user not found"));
 
-        Set<Menu> userMenus = user.getRoles().stream()
+        Set<Menu> userAuthorizedMenus = currentUser.getRoles().stream()
                 .flatMap(role -> role.getMenus().stream())
                 .collect(Collectors.toSet());
 
-        // Filter only directory and menu types for tree display, exclude button permissions
-        List<MenuResponse> responses = menuMapper.toResponseList(
-                userMenus.stream()
-                        .filter(m -> m.getType() < 2)
+        // Filter only relevant visual types for tree display
+        List<MenuResponse> localizedMenuResponses = menuMapper.toResponseList(
+                userAuthorizedMenus.stream()
+                        .filter(menu -> menu.getType() < 2)
                         .sorted((m1, m2) -> m1.getSortOrder().compareTo(m2.getSortOrder()))
                         .collect(Collectors.toList())
         );
 
-        return ApiResponse.success(buildTree(responses, 0L));
+        return ApiResponse.success(buildHierarchy(localizedMenuResponses, 0L));
     }
 
-    private List<MenuResponse> buildTree(List<MenuResponse> menus, Long parentId) {
-        Map<Long, List<MenuResponse>> parentMap = menus.stream()
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(value = "navigation", key = "'public_tree'")
+    public ApiResponse<List<MenuResponse>> retrievePublicNavigationMenuTree() {
+        List<Menu> publicVisibleMenus = menuRepository.findByIsPublicTrueAndIsVisibleTrueOrderBySortOrderAsc();
+        List<MenuResponse> publicResponses = menuMapper.toResponseList(publicVisibleMenus);
+        return ApiResponse.success(buildHierarchy(publicResponses, 0L));
+    }
+
+    private List<MenuResponse> buildHierarchy(List<MenuResponse> flatMenus, Long rootParentId) {
+        Map<Long, List<MenuResponse>> childrenByParentMap = flatMenus.stream()
                 .collect(Collectors.groupingBy(MenuResponse::getParentId));
         
-        menus.forEach(m -> m.setChildren(parentMap.getOrDefault(m.getId(), new ArrayList<>())));
+        flatMenus.forEach(menu -> menu.setChildren(childrenByParentMap.getOrDefault(menu.getId(), new ArrayList<>())));
         
-        return parentMap.getOrDefault(parentId, new ArrayList<>());
+        return childrenByParentMap.getOrDefault(rootParentId, new ArrayList<>());
     }
 }

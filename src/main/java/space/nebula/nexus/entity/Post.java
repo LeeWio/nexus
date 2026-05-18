@@ -13,6 +13,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import space.nebula.nexus.enums.PostStatus;
 
 import java.util.HashSet;
@@ -22,6 +24,8 @@ import java.util.Set;
 @Setter
 @Entity
 @Table(name = "blog_post")
+@SQLDelete(sql = "UPDATE blog_post SET is_deleted = true WHERE id = ?")
+@SQLRestriction("is_deleted = false")
 public class Post extends BaseEntity {
 
     @Column(nullable = false, length = 200)
@@ -66,6 +70,13 @@ public class Post extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "series_id")
+    private PostSeries series;
+
+    @Column(name = "series_order")
+    private Integer seriesOrder = 0;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

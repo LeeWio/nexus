@@ -12,45 +12,73 @@ import space.nebula.nexus.utils.RedisUtil;
 
 import java.util.List;
 
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class InteractionSyncTask {
 
-    private final RedisUtil redisUtil;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final PostRepository postRepository;
 
-    @Scheduled(fixedRate = 120000) // Run every 2 minutes
+    /**
+     * Synchronizes social interaction counts (likes, favorites) from Redis sets to the database.
+     * This periodically updates the denormalized count fields in the Post table for performance.
+     */
+    @Scheduled(fixedRate = 120000) // Runs every 2 minutes
     @Transactional
-    public void syncInteractionsToDb() {
-        log.info("Starting interaction sync task from Redis to MySQL...");
+    public void synchronizeSocialInteractions() {
+        log.info("Starting social interaction synchronization (Likes/Favorites) from Redis to MySQL...");
         
-        List<Post> posts = postRepository.findAll();
-        for (Post post : posts) {
-            String likeKey = CacheConstants.POST_LIKES_SET + post.getId();
-            String favKey = CacheConstants.POST_FAVORITES_SET + post.getId();
-            
-            Long likesSize = redisUtil.setSize(likeKey);
-            Long favsSize = redisUtil.setSize(favKey);
-            
-            boolean updated = false;
-            
-            if (likesSize != null && !likesSize.equals(post.getLikesCount())) {
-                post.setLikesCount(likesSize);
-                updated = true;
+        // We scan for like keys specifically to identify active posts
+        ScanOptions interactionScanOptions = ScanOptions.scanOptions()
+                .match(CacheConstants.POST_LIKES_SET + "*")
+                .count(100)
+                .build();
+
+        int processedInteractionsCount = 0;
+        try (Cursor<String> interactionCursor = redisTemplate.scan(interactionScanOptions)) {
+            while (interactionCursor.hasNext()) {
+                String likeSetKey = interactionCursor.next();
+                try {
+                    // Extract ID from key: post:likes:set:{id}
+                    Long activePostId = Long.valueOf(likeSetKey.substring(CacheConstants.POST_LIKES_SET.length()));
+                    String favoriteSetKey = CacheConstants.POST_FAVORITES_SET + activePostId;
+
+                    // Get current sizes from Redis
+                    Long currentLikesCount = redisTemplate.opsForSet().size(likeSetKey);
+                    Long currentFavoritesCount = redisTemplate.opsForSet().size(favoriteSetKey);
+
+                    // Update DB if data found
+                    postRepository.findById(activePostId).ifPresent(postEntity -> {
+                        boolean hasStateChanged = false;
+                        
+                        if (currentLikesCount != null && !currentLikesCount.equals(postEntity.getLikesCount())) {
+                            postEntity.setLikesCount(currentLikesCount);
+                            hasStateChanged = true;
+                        }
+                        if (currentFavoritesCount != null && !currentFavoritesCount.equals(postEntity.getFavoritesCount())) {
+                            postEntity.setFavoritesCount(currentFavoritesCount);
+                            hasStateChanged = true;
+                        }
+
+                        if (hasStateChanged) {
+                            postRepository.save(postEntity);
+                            log.debug("Synchronized interactions for Post ID: {}. Likes: {}, Favs: {}", 
+                                    activePostId, currentLikesCount, currentFavoritesCount);
+                        }
+                    });
+                    processedInteractionsCount++;
+                } catch (Exception itemException) {
+                    log.error("Error synchronizing interactions for key: {}", likeSetKey, itemException);
+                }
             }
-            
-            if (favsSize != null && !favsSize.equals(post.getFavoritesCount())) {
-                post.setFavoritesCount(favsSize);
-                updated = true;
-            }
-            
-            if (updated) {
-                postRepository.save(post);
-                log.debug("Updated interaction counts for post {}", post.getId());
-            }
+            log.info("Finished social interaction synchronization. Processed {} active posts.", processedInteractionsCount);
+        } catch (Exception globalException) {
+            log.error("Critical failure during social interaction synchronization task", globalException);
         }
-        
-        log.info("Finished interaction sync task.");
     }
 }

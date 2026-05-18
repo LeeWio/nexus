@@ -19,6 +19,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @EntityGraph(attributePaths = "roles")
     Optional<User> findByUsername(String username);
 
+    /**
+     * Finds a user by their username or email.
+     */
+    @EntityGraph(attributePaths = "roles")
+    Optional<User> findByUsernameOrEmail(String username, String email);
+
+    @EntityGraph(attributePaths = "roles")
+    Optional<User> findByEmail(String email);
+
     @Override
     @EntityGraph(attributePaths = "roles")
     Page<User> findAll(Pageable pageable);

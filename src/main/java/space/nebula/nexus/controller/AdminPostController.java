@@ -7,44 +7,35 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.payload.request.PostAutosaveRequest;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.PostResponse;
-import space.nebula.nexus.payload.response.PostRevisionResponse;
-import space.nebula.nexus.service.IPostService;
 import space.nebula.nexus.service.IPostRevisionService;
+import space.nebula.nexus.service.IPostService;
 
-import java.util.List;
-
+@Tag(name = "Admin Post Management", description = "Endpoints for authors to manage blog posts")
 @RestController
 @RequestMapping("/api/v1/admin/posts")
-@PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-@Tag(name = "Admin Blog Management", description = "Endpoints for managing blog posts (Requires ADMIN role)")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminPostController {
 
     private final IPostService postService;
     private final IPostRevisionService postRevisionService;
 
     @GetMapping
-    @Operation(summary = "Get all posts (paginated)")
-    public ApiResponse<PageResult<PostResponse>> getAllPosts(@PageableDefault(size = 10) Pageable pageable) {
-        return postService.getAdminPosts(pageable);
+    @Operation(summary = "Search all posts (Management)")
+    public ApiResponse<PageResult<PostResponse>> searchPosts(@PageableDefault(size = 10) Pageable pageable) {
+        return postService.searchPostsForAdmin(pageable);
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get post by ID")
-    public ApiResponse<PostResponse> getPostById(@PathVariable Long id) {
-        return postService.getPostById(id);
+    @Operation(summary = "Retrieve post by ID")
+    public ApiResponse<PostResponse> retrievePost(@PathVariable Long id) {
+        return postService.retrievePostById(id);
     }
 
     @PostMapping
@@ -54,7 +45,7 @@ public class AdminPostController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update a post")
+    @Operation(summary = "Update an existing post")
     public ApiResponse<PostResponse> updatePost(@PathVariable Long id, @Valid @RequestBody PostRequest request) {
         return postService.updatePost(id, request);
     }
@@ -65,9 +56,22 @@ public class AdminPostController {
         return postService.deletePost(id);
     }
 
+    @PostMapping("/autosave")
+    @Operation(summary = "Temporarily save post content (Redis-backed)")
+    public ApiResponse<Void> autosavePost(@Valid @RequestBody PostAutosaveRequest request) {
+        return postService.autosavePostContent(request);
+    }
+
+    @GetMapping("/autosave/{identifier}")
+    @Operation(summary = "Retrieve autosaved content")
+    public ApiResponse<String> retrieveAutosave(@PathVariable String identifier) {
+        return postService.retrieveAutosavedContent(identifier);
+    }
+
     @GetMapping("/{id}/revisions")
-    @Operation(summary = "Get revision history for a post")
-    public ApiResponse<List<PostRevisionResponse>> getPostRevisions(@PathVariable Long id) {
+    @Operation(summary = "Retrieve revision history for a post")
+    public ApiResponse<java.util.List<space.nebula.nexus.payload.response.PostRevisionResponse>> retrieveRevisions(
+            @PathVariable Long id) {
         return postRevisionService.getPostRevisions(id);
     }
 

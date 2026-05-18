@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import space.nebula.nexus.service.ISeoService;
 
-@Tag(name = "SEO & Feeds", description = "Endpoints for Search Engine Optimization and Subscriptions")
+@Tag(name = "Public SEO & Feeds", description = "Public endpoints for search engine optimization and content subscriptions")
 @RestController
 @RequestMapping("/api/v1/public/seo")
 @RequiredArgsConstructor
@@ -17,15 +17,15 @@ public class PublicSeoController {
 
     private final ISeoService seoService;
 
-    @Operation(summary = "Get sitemap.xml", description = "Returns the site structure in standard XML format for search engines")
+    @Operation(summary = "Retrieve sitemap.xml", description = "Returns the hierarchical site structure in standard XML format for crawlers")
     @GetMapping(value = "/sitemap.xml", produces = MediaType.APPLICATION_XML_VALUE)
-    public String getSitemap() {
-        return seoService.generateSitemap();
+    public String retrieveSitemap() {
+        return seoService.generateSitemapXml();
     }
 
-    @Operation(summary = "Get RSS Feed", description = "Returns the latest posts in RSS 2.0 format for subscribers")
+    @Operation(summary = "Retrieve RSS 2.0 Feed", description = "Returns an XML feed of the most recent published posts for RSS readers")
     @GetMapping(value = "/feed.xml", produces = MediaType.APPLICATION_XML_VALUE)
-    public String getRssFeed() {
-        return seoService.generateRss();
+    public String retrieveRssFeed() {
+        return seoService.generateRssFeedXml();
     }
 }

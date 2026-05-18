@@ -10,6 +10,9 @@ import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.enums.CommentStatus;
 import space.nebula.nexus.utils.MailUtil;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Listener for comment-related events.
  */
@@ -27,50 +30,55 @@ public class CommentEventListener {
     @EventListener
     public void onCommentSubmitted(CommentSubmittedEvent event) {
         Comment comment = event.getComment();
-        String authorEmail = comment.getPost().getAuthor().getEmail();
+        
+        // Target email is post author, or admin if guestbook/missing
+        String targetEmail = null;
+        String authorName = "Admin";
+        String postTitle = "Guestbook";
 
-        if (authorEmail == null || authorEmail.isBlank()) {
-            log.warn("Cannot send notification: Author of post [{}] has no email address.", 
-                    comment.getPost().getTitle());
-            return;
+        if (comment.getPost() != null) {
+            targetEmail = comment.getPost().getAuthor().getEmail();
+            authorName = comment.getPost().getAuthor().getNickname() != null 
+                    ? comment.getPost().getAuthor().getNickname() 
+                    : comment.getPost().getAuthor().getUsername();
+            postTitle = comment.getPost().getTitle();
+        }
+
+        if (targetEmail == null || targetEmail.isBlank()) {
+            targetEmail = "admin@nexus.com"; 
         }
 
         if (comment.getStatus() == CommentStatus.REJECTED) {
-            sendViolationAlert(comment, authorEmail);
+            sendViolationAlert(comment, targetEmail, postTitle);
         } else {
-            sendNewCommentNotification(comment, authorEmail);
+            sendNewCommentNotification(comment, targetEmail, authorName, postTitle);
         }
     }
 
-    private void sendNewCommentNotification(Comment comment, String authorEmail) {
-        log.info("Sending comment notification email to: {}", authorEmail);
-        String subject = "New Comment on your post: " + comment.getPost().getTitle();
-        String content = String.format(
-                "Hello %s,\n\nUser '%s' has left a new comment on your post '%s'.\n\nContent:\n%s\n\n" +
-                "Please log in to the admin panel to moderate this comment.",
-                comment.getPost().getAuthor().getNickname(),
-                comment.getUser().getUsername(),
-                comment.getPost().getTitle(),
-                comment.getContent()
-        );
-        mailUtil.sendSimpleMail(authorEmail, subject, content);
+    private void sendNewCommentNotification(Comment comment, String email, String authorName, String postTitle) {
+        log.info("Sending HTML comment notification email to: {}", email);
+        String subject = "New Comment on: " + postTitle;
+        
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("authorName", authorName);
+        variables.put("commenterName", comment.getUser().getNickname() != null ? comment.getUser().getNickname() : comment.getUser().getUsername());
+        variables.put("postTitle", postTitle);
+        variables.put("commentContent", comment.getContent());
+
+        mailUtil.sendTemplateMail(email, subject, "new-comment", variables);
     }
 
-    private void sendViolationAlert(Comment comment, String adminEmail) {
-        log.info("Sending violation alert email to admin: {}", adminEmail);
-        String subject = "[ALERT] Content Violation Blocked: " + comment.getPost().getTitle();
-        String content = String.format(
-                "System Alert,\n\nA comment by user '%s' was automatically REJECTED on post '%s' due to sensitive content.\n\n" +
-                "Blocked Content (Masked):\n%s\n\n" +
-                "User IP: %s\n" +
-                "User Agent: %s\n\n" +
-                "No action is required as the comment is hidden from the public.",
-                comment.getUser().getUsername(),
-                comment.getPost().getTitle(),
-                comment.getContent(),
-                comment.getIpAddress(),
-                comment.getUserAgent()
-        );
-        mailUtil.sendSimpleMail(adminEmail, subject, content);
+    private void sendViolationAlert(Comment comment, String email, String postTitle) {
+        log.info("Sending HTML violation alert email to admin: {}", email);
+        String subject = "[ALERT] Content Violation Blocked on: " + postTitle;
+
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("commenterName", comment.getUser().getUsername());
+        variables.put("postTitle", postTitle);
+        variables.put("commentContent", comment.getContent());
+        variables.put("ipAddress", comment.getIpAddress());
+        variables.put("userAgent", comment.getUserAgent());
+
+        mailUtil.sendTemplateMail(email, subject, "violation-alert", variables);
     }
 }

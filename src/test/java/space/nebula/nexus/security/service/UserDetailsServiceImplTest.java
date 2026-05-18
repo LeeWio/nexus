@@ -38,7 +38,7 @@ class UserDetailsServiceImplTest {
         role.setCode("ROLE_ADMIN");
         user.setRoles(Set.of(role));
 
-        when(userRepository.findByUsername("testadmin")).thenReturn(Optional.of(user));
+        when(userRepository.findByUsernameOrEmail("testadmin", "testadmin")).thenReturn(Optional.of(user));
 
         UserDetails userDetails = userDetailsService.loadUserByUsername("testadmin");
 
@@ -49,7 +49,7 @@ class UserDetailsServiceImplTest {
 
     @Test
     void loadUserByUsername_NotFound() {
-        when(userRepository.findByUsername("unknown")).thenReturn(Optional.empty());
+        when(userRepository.findByUsernameOrEmail("unknown", "unknown")).thenReturn(Optional.empty());
 
         assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByUsername("unknown"));
     }

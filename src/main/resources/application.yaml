@@ -5,11 +5,16 @@ spring:
   application:
     name: nexus
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   mail:
-    host: ${MAIL_HOST:smtp.example.com}
+    host: ${MAIL_HOST:smtp.qq.com}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:your-email@example.com}
-    password: ${MAIL_PASSWORD:your-password}
+    username: ${MAIL_USERNAME:3499508634@qq.com}
+    password: ${MAIL_PASSWORD:ygafxbvzkzehchgg}
     properties:
       mail:
         smtp:
@@ -43,13 +48,16 @@ spring:
       client:
         registration:
           github:
-            client-id: ${GITHUB_CLIENT_ID:your_client_id}
-            client-secret: ${GITHUB_CLIENT_SECRET:your_client_secret}
+            client-id: Ov23liYVcCWgk1bl3mhC
+            client-secret: cab3348e1e8beee972eef2893562546bc5fa9d5c
             scope:
               - read:user
               - user:email
   
   data:
+    elasticsearch:
+      repositories:
+        enabled: false
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
@@ -94,11 +102,25 @@ management:
       prometheus:
         enabled: true
 
+# Logging Configuration
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId}] %logger{36} - %msg%n"
+  level:
+    space.nebula.nexus: INFO
+    org.hibernate.SQL: INFO
+
 # Custom App Properties
 app:
+  search:
+    type: ${SEARCH_TYPE:elasticsearch}
+  github:
+    username: ${GITHUB_USERNAME:LeeWio}
+    token: ${GITHUB_TOKEN:}
   upload:
     location: "uploads" # Relative to project root or absolute path
-    max-size: 5242880 # 5MB
+    max-size: 10485760 # 10MB
   jwt:
     # A 256-bit (32 byte) secure random string base64 encoded.
     secret: "4A614E645267556B58703273357638792F423F4528482B4D6251655468576D5A"

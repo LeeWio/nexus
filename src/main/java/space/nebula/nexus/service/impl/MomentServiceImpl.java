@@ -19,6 +19,8 @@ import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.MomentRepository;
 import space.nebula.nexus.service.IMomentService;
 
+import space.nebula.nexus.common.exception.ResourceNotFoundException;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -37,9 +39,8 @@ public class MomentServiceImpl implements IMomentService {
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<MomentResponse> getMomentById(Long id) {
-        return momentRepository.findById(id)
-                .map(moment -> ApiResponse.success(momentMapper.toResponse(moment)))
-                .orElseThrow(() -> new BusinessException(404, "Moment not found"));
+        Moment moment = findMomentOrThrow(id);
+        return ApiResponse.success(momentMapper.toResponse(moment));
     }
 
     @Override
@@ -58,11 +59,8 @@ public class MomentServiceImpl implements IMomentService {
     @CacheEvict(value = "moments", allEntries = true)
     @LogOperation("Update Moment")
     public ApiResponse<MomentResponse> updateMoment(Long id, MomentRequest request) {
-        Moment moment = momentRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(404, "Moment not found"));
-
-        moment.setContent(request.content());
-        moment.setIsPublished(request.isPublished());
+        Moment moment = findMomentOrThrow(id);
+        momentMapper.updateEntity(moment, request);
         momentRepository.save(moment);
 
         log.info("Moment updated: {}", id);
@@ -75,7 +73,7 @@ public class MomentServiceImpl implements IMomentService {
     @LogOperation("Delete Moment")
     public ApiResponse<Void> deleteMoment(Long id) {
         if (!momentRepository.existsById(id)) {
-            throw new BusinessException(404, "Moment not found");
+            throw new ResourceNotFoundException("Moment", "id", id);
         }
         momentRepository.deleteById(id);
         log.info("Moment deleted: {}", id);
@@ -94,14 +92,14 @@ public class MomentServiceImpl implements IMomentService {
     @Transactional
     @CacheEvict(value = "moments", allEntries = true)
     public ApiResponse<Void> likeMoment(Long id) {
-        Moment moment = momentRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(404, "Moment not found"));
-        
-        // Simpler synchronous like for moments. 
-        // Can be refactored to Redis Set like Posts if concurrency gets high.
+        Moment moment = findMomentOrThrow(id);
         moment.setLikesCount(moment.getLikesCount() + 1);
         momentRepository.save(moment);
-        
         return ApiResponse.success("Moment liked", null);
+    }
+
+    private Moment findMomentOrThrow(Long id) {
+        return momentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Moment", "id", id));
     }
 }

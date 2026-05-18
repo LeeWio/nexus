@@ -2,6 +2,7 @@ package space.nebula.nexus.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
@@ -22,7 +23,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PostSearchServiceImpl implements IPostSearchService {
+@ConditionalOnProperty(name = "app.search.type", havingValue = "elasticsearch", matchIfMissing = true)
+public class ElasticsearchPostSearchServiceImpl implements IPostSearchService {
 
     private final PostSearchRepository postSearchRepository;
     private final PostRepository postRepository;

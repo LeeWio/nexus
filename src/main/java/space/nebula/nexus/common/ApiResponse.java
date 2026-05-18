@@ -20,6 +20,10 @@ public class ApiResponse<T> implements Serializable {
     private String message;
     private T data;
 
+    public static <T> ApiResponse<T> success() {
+        return success(null);
+    }
+
     public static <T> ApiResponse<T> success(T data) {
         return new ApiResponse<>(200, "Success", data);
     }

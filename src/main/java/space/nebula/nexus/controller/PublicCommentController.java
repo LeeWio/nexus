@@ -31,19 +31,19 @@ public class PublicCommentController {
     private ICommentService commentService;
 
     @PostMapping
-    @Operation(summary = "Submit a new comment (Requires Login)")
+    @Operation(summary = "Publish a new comment (Requires Login)")
     @RateLimit(count = 5, time = 15, unit = TimeUnit.MINUTES, message = "Comment frequency too high. Please wait 15 minutes.")
-    public ApiResponse<Void> submitComment(
+    public ApiResponse<Void> publishComment(
             @Valid @RequestBody CommentRequest request, 
             HttpServletRequest servletRequest) {
-        return commentService.submitComment(request, servletRequest);
+        return commentService.publishComment(request, servletRequest);
     }
 
     @GetMapping("/post/{postId}")
-    @Operation(summary = "Get hierarchical comments for a post")
-    public ApiResponse<PageResult<CommentResponse>> getPostComments(
+    @Operation(summary = "Retrieve hierarchical comments for a post")
+    public ApiResponse<PageResult<CommentResponse>> retrieveComments(
             @PathVariable Long postId,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
-        return commentService.getPostComments(postId, pageable);
+        return commentService.retrieveCommentsByPost(postId, pageable);
     }
 }

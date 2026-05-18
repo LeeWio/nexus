@@ -30,9 +30,9 @@ public class CategoryController {
     private ICategoryService categoryService;
 
     @GetMapping
-    @Operation(summary = "Get all categories")
-    public ApiResponse<List<CategoryResponse>> getAllCategories() {
-        return categoryService.getAllCategories();
+    @Operation(summary = "Retrieve all categories")
+    public ApiResponse<List<CategoryResponse>> retrieveCategories() {
+        return categoryService.retrieveAllCategories();
     }
 
     @PostMapping

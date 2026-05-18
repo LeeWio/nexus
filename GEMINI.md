@@ -43,6 +43,13 @@ The application will be available at `http://localhost:8080`.
 
 ### Local Development
 To run locally, ensure you have a MySQL and Redis instance running and configured in `application.yaml` (or override via environment variables).
+
+By default, the application requires Elasticsearch for search functionality. If you want to run the application without Elasticsearch, you can switch to database-backed search:
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--app.search.type=database"
+```
+Or set the environment variable `SEARCH_TYPE=database`.
+
 ```bash
 ./mvnw clean package
 ./mvnw spring-boot:run

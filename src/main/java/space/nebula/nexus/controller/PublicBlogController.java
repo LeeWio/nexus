@@ -24,18 +24,18 @@ public class PublicBlogController {
     private IPostService postService;
 
     @GetMapping("/posts")
-    @Operation(summary = "Get published posts with filtering")
-    public ApiResponse<PageResult<PostResponse>> getPosts(
+    @Operation(summary = "Search published posts with filtering")
+    public ApiResponse<PageResult<PostResponse>> searchPosts(
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long tagId,
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
-        return postService.getPublishedPosts(categoryId, tagId, keyword, pageable);
+        return postService.searchPublicPosts(categoryId, tagId, keyword, pageable);
     }
 
     @GetMapping("/posts/{slug}")
-    @Operation(summary = "Get post details by slug")
-    public ApiResponse<PostResponse> getPostBySlug(@PathVariable String slug) {
-        return postService.getPostBySlug(slug);
+    @Operation(summary = "Retrieve post details by slug")
+    public ApiResponse<PostResponse> retrievePost(@PathVariable String slug) {
+        return postService.retrievePostBySlug(slug);
     }
 }

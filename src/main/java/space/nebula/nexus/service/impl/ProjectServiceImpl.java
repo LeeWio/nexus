@@ -21,6 +21,8 @@ import space.nebula.nexus.service.IProjectService;
 
 import java.util.List;
 
+import space.nebula.nexus.common.exception.ResourceNotFoundException;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -39,9 +41,9 @@ public class ProjectServiceImpl implements IProjectService {
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<ProjectResponse> getProjectById(Long id) {
-        return projectRepository.findById(id)
-                .map(project -> ApiResponse.success(projectMapper.toResponse(project)))
-                .orElseThrow(() -> new BusinessException(404, "Project not found"));
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
+        return ApiResponse.success(projectMapper.toResponse(project));
     }
 
     @Override
@@ -50,6 +52,8 @@ public class ProjectServiceImpl implements IProjectService {
     @LogOperation("Create Project")
     public ApiResponse<ProjectResponse> createProject(ProjectRequest request) {
         Project project = projectMapper.toEntity(request);
+        if (project.getSortOrder() == null) project.setSortOrder(0);
+        
         projectRepository.save(project);
         log.info("Project created: {}", project.getName());
         return ApiResponse.success("Project created successfully", projectMapper.toResponse(project));
@@ -61,16 +65,9 @@ public class ProjectServiceImpl implements IProjectService {
     @LogOperation("Update Project")
     public ApiResponse<ProjectResponse> updateProject(Long id, ProjectRequest request) {
         Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(404, "Project not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
 
-        project.setName(request.name());
-        project.setDescription(request.description());
-        project.setCoverImage(request.coverImage());
-        project.setGithubUrl(request.githubUrl());
-        project.setPreviewUrl(request.previewUrl());
-        project.setTechStack(request.techStack());
-        project.setSortOrder(request.sortOrder() != null ? request.sortOrder() : 0);
-        project.setIsPublished(request.isPublished());
+        projectMapper.updateEntity(project, request);
 
         projectRepository.save(project);
         log.info("Project updated: {}", project.getName());
@@ -83,7 +80,7 @@ public class ProjectServiceImpl implements IProjectService {
     @LogOperation("Delete Project")
     public ApiResponse<Void> deleteProject(Long id) {
         if (!projectRepository.existsById(id)) {
-            throw new BusinessException(404, "Project not found");
+            throw new ResourceNotFoundException("Project", "id", id);
         }
         projectRepository.deleteById(id);
         log.info("Project deleted id: {}", id);

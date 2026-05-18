@@ -13,22 +13,31 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.validator.UserValidator;
 import space.nebula.nexus.entity.Role;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.payload.request.LoginRequest;
+import space.nebula.nexus.payload.request.OtpLoginRequest;
 import space.nebula.nexus.payload.request.RegisterRequest;
 import space.nebula.nexus.payload.response.AuthResponse;
 import space.nebula.nexus.repository.RoleRepository;
 import space.nebula.nexus.repository.UserRepository;
+import space.nebula.nexus.security.model.SecurityUser;
 import space.nebula.nexus.security.service.LoginSecurityService;
 import space.nebula.nexus.security.util.JwtUtils;
 import space.nebula.nexus.service.IAuthService;
+import space.nebula.nexus.utils.MailUtil;
+import space.nebula.nexus.utils.RedisUtil;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -60,21 +69,27 @@ public class AuthServiceImpl implements IAuthService {
     @Resource
     private LoginSecurityService loginSecurityService;
 
+    @Resource
+    private RedisUtil redisUtil;
+
+    @Resource
+    private MailUtil mailUtil;
+
     @Override
     @Transactional
-    public ApiResponse<Void> register(RegisterRequest request) {
+    public ApiResponse<Void> registerAccount(RegisterRequest request) {
         userValidator.validateRegistration(request);
 
-        User user = createNewUser(request);
-        assignDefaultRole(user);
+        User newUser = createNewUser(request);
+        assignDefaultRole(newUser);
 
-        userRepository.save(user);
-        log.info("User registered successfully: {}", user.getUsername());
-        return ApiResponse.success("User registered successfully", null);
+        userRepository.save(newUser);
+        log.info("User account registered successfully, pending audit: {}", newUser.getUsername());
+        return ApiResponse.success("Registration successful. Your account is currently pending administrator approval.", null);
     }
 
     @Override
-    public ApiResponse<AuthResponse> login(LoginRequest request) {
+    public ApiResponse<AuthResponse> authenticate(LoginRequest request) {
         String username = request.username();
 
         // 1. Delegate lock check to specialized service
@@ -89,22 +104,23 @@ public class AuthServiceImpl implements IAuthService {
             loginSecurityService.resetLoginFailure(username);
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            SecurityUser securityUser = (SecurityUser) authentication.getPrincipal();
             
-            String token = jwtUtils.generateAccessToken(userDetails);
+            String accessToken = jwtUtils.generateAccessToken(securityUser);
             
-            Set<String> roles = userDetails.getAuthorities().stream()
+            Set<String> userRoles = securityUser.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority)
                     .collect(Collectors.toSet());
 
             AuthResponse authResponse = AuthResponse.builder()
-                    .accessToken(token)
-                    .username(userDetails.getUsername())
-                    .roles(roles)
+                    .accessToken(accessToken)
+                    .username(securityUser.getUsername())
+                    .email(securityUser.getUser().getEmail())
+                    .roles(userRoles)
                     .build();
 
-            log.info("User logged in: {}", userDetails.getUsername());
-            return ApiResponse.success("Login successful", authResponse);
+            log.info("User authenticated successfully: {}", securityUser.getUsername());
+            return ApiResponse.success("Authentication successful", authResponse);
 
         } catch (BadCredentialsException e) {
             // 3. Delegate failure recording
@@ -113,17 +129,88 @@ public class AuthServiceImpl implements IAuthService {
         } catch (BusinessException e) {
             throw e; // Rethrow business exceptions (like lockouts)
         } catch (Exception e) {
-            log.error("Login unexpected error for user: {}", username, e);
-            throw new BusinessException(500, "Login failed: " + e.getMessage());
+            log.error("Authentication failed unexpectedly for user: {}", username, e);
+            throw new BusinessException(500, "Authentication failed: " + e.getMessage());
         }
     }
 
     @Override
-    public ApiResponse<User> getCurrentUser() {
+    public ApiResponse<Void> sendOtp(String email) {
+        // 1. Check if user exists by email
+        userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(404, "No user found with this email"));
+
+        // 2. Generate 6-digit OTP
+        String otp = String.format("%06d", new Random().nextInt(1000000));
+
+        // 3. Save to Redis with 5 min expiration
+        String otpKey = CacheConstants.OTP_CODE + email;
+        redisUtil.set(otpKey, otp, 5, TimeUnit.MINUTES);
+
+        // 4. Send email
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("otp", otp);
+        variables.put("expireMin", 5);
+        mailUtil.sendTemplateMail(email, "Nexus Login OTP", "otp-login", variables);
+
+        log.info("OTP sent to email: {}", email);
+        return ApiResponse.success("OTP sent successfully. Please check your email.", null);
+    }
+
+    @Override
+    @Transactional
+    public ApiResponse<AuthResponse> loginWithOtp(OtpLoginRequest request) {
+        String email = request.email();
+        String code = request.code();
+
+        // 1. Verify OTP from Redis
+        String otpKey = CacheConstants.OTP_CODE + email;
+        String storedOtp = redisUtil.get(otpKey, String.class).orElse(null);
+
+        if (storedOtp == null || !storedOtp.equals(code)) {
+            throw new BusinessException(401, "Invalid or expired OTP");
+        }
+
+        // 2. Load user and validate status
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(404, "User not found"));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(403, "Your account is " + user.getStatus().name() + ". Please contact the administrator.");
+        }
+
+        // 3. Authenticate manually in SecurityContext
+        SecurityUser securityUser = new SecurityUser(user);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                securityUser, null, securityUser.getAuthorities()
+        );
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        // 4. Generate Token and Response
+        String accessToken = jwtUtils.generateAccessToken(securityUser);
+        redisUtil.delete(otpKey); // Consume OTP
+
+        Set<String> userRoles = securityUser.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toSet());
+
+        AuthResponse authResponse = AuthResponse.builder()
+                .accessToken(accessToken)
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .roles(userRoles)
+                .build();
+
+        log.info("User logged in via OTP: {}", user.getUsername());
+        return ApiResponse.success("Login successful", authResponse);
+    }
+
+    @Override
+    public ApiResponse<User> getAuthenticatedUser() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUsername(username)
                 .map(ApiResponse::success)
-                .orElseThrow(() -> new BusinessException(404, "Current user not found"));
+                .orElseThrow(() -> new BusinessException(404, "Authenticated user data not found"));
     }
 
     // --- Private Helpers ---
@@ -133,7 +220,7 @@ public class AuthServiceImpl implements IAuthService {
         user.setUsername(request.username());
         user.setEmail(request.email());
         user.setPassword(passwordEncoder.encode(request.password()));
-        user.setStatus(UserStatus.ACTIVE);
+        user.setStatus(UserStatus.PENDING);
         return user;
     }
 

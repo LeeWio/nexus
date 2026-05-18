@@ -1,14 +1,22 @@
 package space.nebula.nexus.service.impl;
 
-import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.exception.BusinessException;
+import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.common.storage.StorageProvider;
+import space.nebula.nexus.entity.FileMetadata;
+import space.nebula.nexus.entity.User;
+import space.nebula.nexus.mapper.FileMapper;
 import space.nebula.nexus.payload.response.FileResponse;
+import space.nebula.nexus.repository.FileRepository;
+import space.nebula.nexus.repository.UserRepository;
+import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IFileService;
 
 import java.io.IOException;
@@ -18,85 +26,115 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Enhanced FileService with storage abstraction and security validation.
+ * Professional implementation of File Management Service.
+ * Ensures synchronization between physical storage and metadata repository.
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class FileServiceImpl implements IFileService {
 
     private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList(".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf", ".txt");
     private static final List<String> ALLOWED_MIME_TYPES = Arrays.asList("image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf", "text/plain");
 
-    @Resource
-    private StorageProvider storageProvider;
+    private final StorageProvider storageProvider;
+    private final FileRepository fileRepository;
+    private final UserRepository userRepository;
+    private final FileMapper fileMapper;
 
     @Override
+    @Transactional
     public ApiResponse<FileResponse> uploadFile(MultipartFile file) {
-        // 1. Basic validation
         if (file.isEmpty()) {
-            throw new BusinessException("Cannot upload empty file");
+            throw new BusinessException("Cannot process an empty file upload request");
         }
 
-        // 2. Security validation: MIME type and extension
-        validateFile(file);
+        validateFileIntegrity(file);
 
-        // 3. Generate sanitized random filename
         String originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-        String extension = getExtension(originalFilename);
-        String newFileName = UUID.randomUUID().toString().replace("-", "") + extension;
+        String extension = extractFileExtension(originalFilename);
+        String uniqueStoredName = UUID.randomUUID().toString().replace("-", "") + extension;
+
+        // Try to get current user as uploader
+        User uploader = null;
+        try {
+            uploader = SecurityUtil.getCurrentUserOrThrow(userRepository);
+        } catch (Exception e) {
+            log.debug("Unauthenticated file upload: {}", originalFilename);
+        }
 
         try {
-            // 4. Delegate to storage provider
-            storageProvider.store(file.getInputStream(), newFileName);
+            // 1. Persist to physical/cloud storage
+            storageProvider.store(file.getInputStream(), uniqueStoredName);
+            log.debug("Physical file stored successfully: {}", uniqueStoredName);
+
+            // 2. Persist metadata to database
+            FileMetadata metadata = new FileMetadata();
+            metadata.setFileName(uniqueStoredName);
+            metadata.setOriginalName(originalFilename);
+            metadata.setFileUrl(storageProvider.getUrl(uniqueStoredName));
+            metadata.setFileSize(file.getSize());
+            metadata.setFileType(file.getContentType());
+            metadata.setUploader(uploader);
             
-            log.info("File uploaded successfully: {} (Type: {})", newFileName, file.getContentType());
-            
-            FileResponse response = new FileResponse(
-                    newFileName, 
-                    storageProvider.getUrl(newFileName), 
-                    file.getSize(), 
-                    file.getContentType()
-            );
-            return ApiResponse.success("File uploaded successfully", response);
+            FileMetadata savedMetadata = fileRepository.save(metadata);
+            log.info("File metadata indexed in database. ID: {}, Name: {}", savedMetadata.getId(), uniqueStoredName);
+
+            return ApiResponse.success("File uploaded and indexed successfully", fileMapper.toResponse(savedMetadata));
 
         } catch (IOException e) {
-            log.error("Failed to read file input stream", e);
-            throw new BusinessException(500, "File upload failed: internal error");
+            log.error("Critical I/O error during file upload: {}", originalFilename, e);
+            throw new BusinessException(500, "Internal server error during file persistence");
         }
     }
 
     @Override
+    @Transactional
     public ApiResponse<Void> deleteFile(String fileName) {
-        // Security: Prevent path traversal by cleaning the input
-        String cleanName = StringUtils.cleanPath(fileName);
-        if (cleanName.contains("..")) {
-            throw new BusinessException("Invalid filename");
+        String sanitizedFileName = StringUtils.cleanPath(fileName);
+        if (sanitizedFileName.contains("..")) {
+            throw new BusinessException(400, "Security violation: Invalid filename path");
         }
-        
-        storageProvider.delete(cleanName);
-        log.info("File deleted: {}", cleanName);
+
+        // 1. Locate metadata first
+        FileMetadata metadata = fileRepository.findByFileName(sanitizedFileName)
+                .orElseThrow(() -> new ResourceNotFoundException("File", "name", sanitizedFileName));
+
+        // 2. Remove physical file
+        try {
+            storageProvider.delete(sanitizedFileName);
+            log.debug("Physical file removed: {}", sanitizedFileName);
+        } catch (Exception e) {
+            log.error("Failed to remove physical file: {}. Purge aborted.", sanitizedFileName, e);
+            throw new BusinessException(500, "Physical file removal failed. Database record preserved.");
+        }
+
+        // 3. Remove metadata
+        fileRepository.delete(metadata);
+        log.info("File and metadata purged for: {}", sanitizedFileName);
+
         return ApiResponse.success("File deleted successfully", null);
     }
 
-    private void validateFile(MultipartFile file) {
+    private void validateFileIntegrity(MultipartFile file) {
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType.toLowerCase())) {
-            log.warn("Blocked file upload with forbidden MIME type: {}", contentType);
-            throw new BusinessException("File type not allowed: " + contentType);
+            log.warn("Security rejection: Forbidden MIME type: {}", contentType);
+            throw new BusinessException(400, "File content type not supported");
         }
 
         String originalFilename = file.getOriginalFilename();
         if (originalFilename != null) {
-            String extension = getExtension(originalFilename);
+            String extension = extractFileExtension(originalFilename);
             if (!ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
-                log.warn("Blocked file upload with forbidden extension: {}", extension);
-                throw new BusinessException("File extension not allowed: " + extension);
+                log.warn("Security rejection: Forbidden extension: {}", extension);
+                throw new BusinessException(400, "File extension not allowed");
             }
         }
     }
 
-    private String getExtension(String filename) {
-        int i = filename.lastIndexOf('.');
-        return (i > 0) ? filename.substring(i) : "";
+    private String extractFileExtension(String filename) {
+        int dotIndex = filename.lastIndexOf('.');
+        return (dotIndex > 0) ? filename.substring(dotIndex) : "";
     }
 }

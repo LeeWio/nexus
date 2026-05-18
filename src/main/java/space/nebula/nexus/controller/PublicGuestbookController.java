@@ -27,17 +27,17 @@ public class PublicGuestbookController {
     private final ICommentService commentService;
 
     @GetMapping
-    @Operation(summary = "Get guestbook comments", description = "Returns top-level approved comments for the guestbook")
-    public ApiResponse<PageResult<CommentResponse>> getGuestbookComments(@PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return commentService.getGuestbookComments(pageable);
+    @Operation(summary = "Retrieve guestbook comments", description = "Returns top-level approved comments for the guestbook")
+    public ApiResponse<PageResult<CommentResponse>> retrieveComments(@PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return commentService.retrieveGuestbookComments(pageable);
     }
 
     @PostMapping
-    @Operation(summary = "Submit a guestbook comment")
+    @Operation(summary = "Publish a guestbook comment")
     @RateLimit(count = 3, time = 10, unit = TimeUnit.MINUTES, message = "Guestbook frequency too high. Please wait.")
-    public ApiResponse<Void> submitGuestbookComment(@Valid @RequestBody CommentRequest request, HttpServletRequest servletRequest) {
+    public ApiResponse<Void> publishComment(@Valid @RequestBody CommentRequest request, HttpServletRequest servletRequest) {
         // Ensure postId is null for guestbook
         CommentRequest guestbookRequest = new CommentRequest(request.content(), null, request.parentId());
-        return commentService.submitComment(guestbookRequest, servletRequest);
+        return commentService.publishComment(guestbookRequest, servletRequest);
     }
 }

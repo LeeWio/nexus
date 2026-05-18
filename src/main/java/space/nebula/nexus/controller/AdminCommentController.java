@@ -29,18 +29,18 @@ public class AdminCommentController {
     private ICommentService commentService;
 
     @GetMapping
-    @Operation(summary = "List all comments with pagination")
-    public ApiResponse<PageResult<CommentResponse>> getComments(
+    @Operation(summary = "Search all comments (Management)")
+    public ApiResponse<PageResult<CommentResponse>> searchComments(
             @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
-        return commentService.getAdminComments(pageable);
+        return commentService.searchCommentsForManagement(pageable);
     }
 
     @PatchMapping("/{id}/status")
-    @Operation(summary = "Update comment status (Moderation)")
-    public ApiResponse<Void> updateStatus(
+    @Operation(summary = "Moderate a comment status")
+    public ApiResponse<Void> moderateComment(
             @PathVariable Long id, 
             @RequestParam CommentStatus status) {
-        return commentService.updateCommentStatus(id, status);
+        return commentService.moderateComment(id, status);
     }
 
     @DeleteMapping("/{id}")

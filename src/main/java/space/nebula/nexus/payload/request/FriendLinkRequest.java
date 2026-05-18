@@ -1,25 +1,41 @@
 package space.nebula.nexus.payload.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import space.nebula.nexus.enums.FriendLinkStatus;
 
+@Schema(description = "Friend Link creation/update or application request")
 public record FriendLinkRequest(
+    @Schema(description = "Site name", example = "Nebula Space")
     @NotBlank(message = "Site name is required")
-    @Size(max = 100, message = "Site name must not exceed 100 characters")
+    @Size(max = 100)
     String name,
 
+    @Schema(description = "Site URL", example = "https://nebula.space")
     @NotBlank(message = "URL is required")
-    @Size(max = 255, message = "URL must not exceed 255 characters")
+    @Size(max = 255)
     String url,
 
+    @Schema(description = "Site avatar URL")
     String avatar,
 
-    @Size(max = 500, message = "Description must not exceed 500 characters")
+    @Schema(description = "Site description")
+    @Size(max = 500)
     String description,
 
+    @Schema(description = "Contact email of the applicant", example = "owner@example.com")
+    @Email(message = "Invalid email format")
+    String email,
+
+    @Schema(description = "Display order")
     Integer sortOrder,
 
-    @NotNull(message = "Publish status is required")
-    Boolean isPublished
+    @Schema(description = "Whether the link is publicly visible")
+    Boolean isPublished,
+
+    @Schema(description = "Moderation status (Managed by Admin)")
+    FriendLinkStatus status
 ) {}

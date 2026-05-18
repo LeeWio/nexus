@@ -81,6 +81,8 @@ public class PostControllerIntegrationTest {
                 PostStatus.PUBLISHED,
                 false,
                 categoryId,
+                null,
+                null,
                 new HashSet<>()
         );
 
@@ -113,6 +115,8 @@ public class PostControllerIntegrationTest {
                 PostStatus.DRAFT,
                 false,
                 categoryId,
+                null,
+                null,
                 null
         );
 
@@ -132,6 +136,8 @@ public class PostControllerIntegrationTest {
                 PostStatus.PUBLISHED,
                 true,
                 categoryId,
+                null,
+                null,
                 null
         );
 

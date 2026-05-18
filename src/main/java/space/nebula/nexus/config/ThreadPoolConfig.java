@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import space.nebula.nexus.common.aspect.MdcTaskDecorator;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -37,6 +38,10 @@ public class ThreadPoolConfig {
         // Wait for tasks to complete on shutdown
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(60);
+        
+        // Transfer MDC context to async threads
+        executor.setTaskDecorator(new MdcTaskDecorator());
+        
         executor.initialize();
         return executor;
     }

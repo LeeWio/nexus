@@ -9,6 +9,10 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
+
+import java.util.Map;
 
 /**
  * Utility class for sending emails, following the project's utility pattern.
@@ -20,8 +24,26 @@ public class MailUtil {
     @Resource
     private JavaMailSender mailSender;
 
+    @Resource
+    private TemplateEngine templateEngine;
+
     @Value("${spring.mail.username}")
     private String from;
+
+    /**
+     * Sends an email using a Thymeleaf template.
+     *
+     * @param to           recipient email
+     * @param subject      email subject
+     * @param templateName name of the template file (without .html)
+     * @param variables    variables to be used in the template
+     */
+    public void sendTemplateMail(String to, String subject, String templateName, Map<String, Object> variables) {
+        Context context = new Context();
+        context.setVariables(variables);
+        String htmlContent = templateEngine.process("email/" + templateName, context);
+        sendHtmlMail(to, subject, htmlContent);
+    }
 
     /**
      * Sends a simple text email.

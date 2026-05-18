@@ -6,10 +6,15 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_menu")
+@SQLDelete(sql = "UPDATE sys_menu SET is_deleted = true WHERE id = ?")
+@SQLRestriction("is_deleted = false")
 public class Menu extends BaseEntity {
 
     @Column(name = "parent_id", nullable = false)
@@ -32,4 +37,10 @@ public class Menu extends BaseEntity {
 
     @Column(name = "sort_order")
     private Integer sortOrder = 0;
+
+    @Column(name = "is_visible", nullable = false)
+    private Boolean isVisible = true;
+
+    @Column(name = "is_public", nullable = false)
+    private Boolean isPublic = false;
 }

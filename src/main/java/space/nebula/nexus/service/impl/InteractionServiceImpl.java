@@ -14,6 +14,9 @@ import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.IInteractionService;
 import space.nebula.nexus.utils.RedisUtil;
 
+import space.nebula.nexus.common.exception.ResourceNotFoundException;
+import space.nebula.nexus.security.util.SecurityUtil;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -25,76 +28,61 @@ public class InteractionServiceImpl implements IInteractionService {
 
     @Override
     public ApiResponse<Void> likePost(Long postId) {
-        Long userId = getCurrentUserId();
+        User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
         validatePostExists(postId);
         String key = CacheConstants.POST_LIKES_SET + postId;
-        redisUtil.setAdd(key, userId.toString());
+        redisUtil.setAdd(key, user.getId().toString());
         return ApiResponse.success("Post liked", null);
     }
 
     @Override
     public ApiResponse<Void> unlikePost(Long postId) {
-        Long userId = getCurrentUserId();
+        User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
         String key = CacheConstants.POST_LIKES_SET + postId;
-        redisUtil.setRemove(key, userId.toString());
+        redisUtil.setRemove(key, user.getId().toString());
         return ApiResponse.success("Post unliked", null);
     }
 
     @Override
     public ApiResponse<Void> favoritePost(Long postId) {
-        Long userId = getCurrentUserId();
+        User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
         validatePostExists(postId);
         String key = CacheConstants.POST_FAVORITES_SET + postId;
-        redisUtil.setAdd(key, userId.toString());
-        // Note: For absolute consistency, user_favorite_post table should also be updated.
-        // We'll let the scheduled task handle the DB persistence.
+        redisUtil.setAdd(key, user.getId().toString());
         return ApiResponse.success("Post favorited", null);
     }
 
     @Override
     public ApiResponse<Void> unfavoritePost(Long postId) {
-        Long userId = getCurrentUserId();
+        User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
         String key = CacheConstants.POST_FAVORITES_SET + postId;
-        redisUtil.setRemove(key, userId.toString());
+        redisUtil.setRemove(key, user.getId().toString());
         return ApiResponse.success("Post unfavorited", null);
     }
 
     @Override
     public void populateInteractionData(space.nebula.nexus.payload.response.PostResponse.PostResponseBuilder builder, Long postId) {
-        try {
-            Long userId = getCurrentUserId();
-            String likeKey = CacheConstants.POST_LIKES_SET + postId;
-            String favKey = CacheConstants.POST_FAVORITES_SET + postId;
-            
-            Boolean isLiked = redisUtil.setIsMember(likeKey, userId.toString());
-            Boolean isFavorited = redisUtil.setIsMember(favKey, userId.toString());
-            
-            builder.isLiked(isLiked != null ? isLiked : false);
-            builder.isFavorited(isFavorited != null ? isFavorited : false);
-        } catch (BusinessException e) {
-            // User not logged in, they can't like/favorite
+        String username = SecurityUtil.getCurrentUsername();
+        if (username != null) {
+            userRepository.findByUsername(username).ifPresent(user -> {
+                String likeKey = CacheConstants.POST_LIKES_SET + postId;
+                String favKey = CacheConstants.POST_FAVORITES_SET + postId;
+                
+                Boolean isLiked = redisUtil.setIsMember(likeKey, user.getId().toString());
+                Boolean isFavorited = redisUtil.setIsMember(favKey, user.getId().toString());
+                
+                builder.isLiked(isLiked != null ? isLiked : false);
+                builder.isFavorited(isFavorited != null ? isFavorited : false);
+            });
+        } else {
             builder.isLiked(false);
             builder.isFavorited(false);
         }
-        
-        // Dynamic counts can also be aggregated here from Redis + DB if needed,
-        // but for now, we rely on the DB counts updated by the Sync Task.
-    }
-
-    private Long getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
-            throw new BusinessException(401, "Please log in to perform this action");
-        }
-        String username = auth.getName();
-        return userRepository.findByUsername(username)
-                .map(User::getId)
-                .orElseThrow(() -> new BusinessException(401, "User not found"));
     }
 
     private void validatePostExists(Long postId) {
         if (!postRepository.existsById(postId)) {
-            throw new BusinessException(404, "Post not found");
+            throw new ResourceNotFoundException("Post", "id", postId);
         }
     }
 }

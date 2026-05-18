@@ -1,5 +1,6 @@
 package space.nebula.nexus.payload.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,13 +16,23 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "Paginated data wrapper")
 public class PageResult<T> implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    @Schema(description = "List of data items for current page")
     private List<T> list;
+
+    @Schema(description = "Total number of items matching filter", example = "100")
     private long total;
+
+    @Schema(description = "Current page number (1-based)", example = "1")
     private int page;
+
+    @Schema(description = "Number of items per page", example = "10")
     private int size;
+
+    @Schema(description = "Total number of pages", example = "10")
     private int totalPages;
 
     /**
