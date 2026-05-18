@@ -12,11 +12,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
+import space.nebula.nexus.utils.RedisUtil;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,7 +30,9 @@ public class MarketDataService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RedisUtil redisUtil;
 
+    private static final String CACHE_KEY = "marketIndices::default";
     // Sina Finance HQ API (Current Prices)
     // s_ prefixes for CN indices return simplified data: name, price, change, changePct, volume, amount
     private static final String SINA_HQ_URL = "http://hq.sinajs.cn/list=gb_ixic,gb_inx,s_sh000001,s_sz399001";
@@ -36,8 +41,14 @@ public class MarketDataService {
     // Sina Finance K-line API (US Stocks) - type=5 is 5min. We'll take last 12 bars.
     private static final String SINA_KLINE_US_URL = "http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getMinK?symbol=%s&type=5&___qn=3";
 
-    @Cacheable(value = "marketIndices", key = "'default'", unless = "#result == null || #result.isEmpty()")
     public List<MarketIndexResponse> getIndices() {
+        // 1. Try to get from cache
+        Optional<List> cachedData = redisUtil.get(CACHE_KEY, List.class);
+        if (cachedData.isPresent()) {
+            return (List<MarketIndexResponse>) cachedData.get();
+        }
+
+        // 2. Fetch from APIs
         List<MarketIndexResponse> responses = new ArrayList<>();
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -67,6 +78,11 @@ public class MarketDataService {
             
             MarketIndexResponse szse = parseCnIndex(body, "s_sz399001", "SZSE Component", "sz399001");
             if (szse != null) responses.add(szse);
+            
+            // 3. Save to cache with 1 minute TTL
+            if (!responses.isEmpty()) {
+                redisUtil.set(CACHE_KEY, responses, 1, TimeUnit.MINUTES);
+            }
             
         } catch (Exception e) {
             log.error("Failed to fetch market indices", e);

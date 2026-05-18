@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
+import space.nebula.nexus.utils.RedisUtil;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -26,6 +27,9 @@ class MarketDataServiceTest {
 
     @Mock
     private RestTemplate restTemplate;
+
+    @Mock
+    private RedisUtil redisUtil;
 
     @InjectMocks
     private MarketDataService marketDataService;
@@ -43,6 +47,8 @@ class MarketDataServiceTest {
 
     @Test
     void getIndices_Success() {
+        when(redisUtil.get(anyString(), eq(List.class))).thenReturn(java.util.Optional.empty());
+
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(byte[].class)))
                 .thenReturn(new ResponseEntity<>(mockHqResponse, HttpStatus.OK));
 
