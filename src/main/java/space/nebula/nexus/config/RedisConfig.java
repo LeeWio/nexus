@@ -41,8 +41,16 @@ public class RedisConfig {
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.json()))
                 .disableCachingNullValues();
 
+        // Special configuration for market indices with a shorter TTL (1 minute)
+        RedisCacheConfiguration marketConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(1))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.string()))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.json()))
+                .disableCachingNullValues();
+
         return RedisCacheManager.builder(factory)
                 .cacheDefaults(config)
+                .withCacheConfiguration("marketIndices", marketConfig)
                 .build();
     }
 }
