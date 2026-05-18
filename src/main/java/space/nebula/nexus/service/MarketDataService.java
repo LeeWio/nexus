@@ -29,11 +29,12 @@ public class MarketDataService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Sina Finance HQ API (Current Prices)
-    private static final String SINA_HQ_URL = "http://hq.sinajs.cn/list=gb_ixic,gb_inx,sh000001,sz399001";
-    // Sina Finance K-line API (A-Shares)
+    // s_ prefixes for CN indices return simplified data: name, price, change, changePct, volume, amount
+    private static final String SINA_HQ_URL = "http://hq.sinajs.cn/list=gb_ixic,gb_inx,s_sh000001,s_sz399001";
+    // Sina Finance K-line API (A-Shares) - scale=60 is 60min, datalen=12 is last 12 bars
     private static final String SINA_KLINE_CN_URL = "https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketData.getKLineData?symbol=%s&scale=60&ma=no&datalen=12";
-    // Sina Finance K-line API (US Stocks)
-    private static final String SINA_KLINE_US_URL = "http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getMinK?symbol=%s&type=60&___qn=3";
+    // Sina Finance K-line API (US Stocks) - type=5 is 5min. We'll take last 12 bars.
+    private static final String SINA_KLINE_US_URL = "http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getMinK?symbol=%s&type=5&___qn=3";
 
     @Cacheable(value = "marketIndices", key = "'default'", unless = "#result == null || #result.isEmpty()")
     public List<MarketIndexResponse> getIndices() {
@@ -41,6 +42,7 @@ public class MarketDataService {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.set("Referer", "http://finance.sina.com.cn");
+            headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
             ResponseEntity<byte[]> response = restTemplate.exchange(SINA_HQ_URL, HttpMethod.GET, entity, byte[].class);
@@ -50,17 +52,20 @@ public class MarketDataService {
             }
             
             String body = new String(response.getBody(), "GBK");
+            log.debug("Sina HQ response: {}", body);
             
+            // US Indices: gb_ixic (Nasdaq), gb_inx (S&P 500)
             MarketIndexResponse nasdaq = parseUsIndex(body, "gb_ixic", "NASDAQ", ".ixic");
             if (nasdaq != null) responses.add(nasdaq);
             
             MarketIndexResponse sp500 = parseUsIndex(body, "gb_inx", "S&P 500", ".inx");
             if (sp500 != null) responses.add(sp500);
             
-            MarketIndexResponse sse = parseCnIndex(body, "sh000001", "SSE Composite", "sh000001");
+            // CN Indices: s_sh000001 (SSE), s_sz399001 (SZSE)
+            MarketIndexResponse sse = parseCnIndex(body, "s_sh000001", "SSE Composite", "sh000001");
             if (sse != null) responses.add(sse);
             
-            MarketIndexResponse szse = parseCnIndex(body, "sz399001", "SZSE Component", "sz399001");
+            MarketIndexResponse szse = parseCnIndex(body, "s_sz399001", "SZSE Component", "sz399001");
             if (szse != null) responses.add(szse);
             
         } catch (Exception e) {
@@ -82,11 +87,11 @@ public class MarketDataService {
                     return MarketIndexResponse.builder()
                             .name(name)
                             .symbol(sparklineSymbol)
-                            .current(current)
-                            .changePct(changePct)
+                            .current(current.setScale(2, RoundingMode.HALF_UP))
+                            .changePct(changePct.setScale(2, RoundingMode.HALF_UP))
                             .sparkline(fetchUsSparkline(sparklineSymbol))
                             .build();
-                } catch (NumberFormatException e) {
+                } catch (Exception e) {
                     log.warn("Failed to parse US index numbers for {}", name);
                 }
             }
@@ -101,21 +106,18 @@ public class MarketDataService {
             String[] parts = matcher.group(1).split(",");
             if (parts.length > 3) {
                 try {
-                    BigDecimal yClose = new BigDecimal(parts[2]);
-                    BigDecimal current = new BigDecimal(parts[3]);
-                    BigDecimal changePct = BigDecimal.ZERO;
-                    if (yClose.compareTo(BigDecimal.ZERO) != 0) {
-                        changePct = current.subtract(yClose).divide(yClose, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
-                    }
+                    // Simple CN HQ: name, current, changeValue, changePct, ...
+                    BigDecimal current = new BigDecimal(parts[1]);
+                    BigDecimal changePct = new BigDecimal(parts[3]);
                     
                     return MarketIndexResponse.builder()
                             .name(name)
                             .symbol(sparklineSymbol)
-                            .current(current)
-                            .changePct(changePct)
+                            .current(current.setScale(2, RoundingMode.HALF_UP))
+                            .changePct(changePct.setScale(2, RoundingMode.HALF_UP))
                             .sparkline(fetchCnSparkline(sparklineSymbol))
                             .build();
-                } catch (NumberFormatException e) {
+                } catch (Exception e) {
                     log.warn("Failed to parse CN index numbers for {}", name);
                 }
             }
@@ -127,17 +129,24 @@ public class MarketDataService {
         List<BigDecimal> sparkline = new ArrayList<>();
         try {
             String url = String.format(SINA_KLINE_CN_URL, symbol);
-            String json = restTemplate.getForObject(url, String.class);
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Referer", "https://finance.sina.com.cn");
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+            String json = response.getBody();
+            
             if (json != null) {
                 JsonNode root = objectMapper.readTree(json);
                 if (root.isArray()) {
                     for (JsonNode node : root) {
-                        sparkline.add(new BigDecimal(node.get("close").asText()));
+                        BigDecimal close = new BigDecimal(node.get("close").asText());
+                        sparkline.add(close.setScale(2, RoundingMode.HALF_UP));
                     }
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to fetch CN sparkline for {}", symbol, e);
+            log.warn("Failed to fetch CN sparkline for {}", symbol);
         }
         return sparkline;
     }
@@ -146,18 +155,26 @@ public class MarketDataService {
         List<BigDecimal> sparkline = new ArrayList<>();
         try {
             String url = String.format(SINA_KLINE_US_URL, symbol);
-            String json = restTemplate.getForObject(url, String.class);
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Referer", "https://finance.sina.com.cn");
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+            String json = response.getBody();
+            
             if (json != null) {
                 JsonNode root = objectMapper.readTree(json);
                 if (root.isArray()) {
+                    // Take the last 12 points for the sparkline
                     int start = Math.max(0, root.size() - 12);
                     for (int i = start; i < root.size(); i++) {
-                        sparkline.add(new BigDecimal(root.get(i).get("c").asText()));
+                        BigDecimal close = new BigDecimal(root.get(i).get("c").asText());
+                        sparkline.add(close.setScale(2, RoundingMode.HALF_UP));
                     }
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to fetch US sparkline for {}", symbol, e);
+            log.warn("Failed to fetch US sparkline for {}", symbol);
         }
         return sparkline;
     }
