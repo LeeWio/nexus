@@ -128,3 +128,26 @@ app:
     refresh-token-expiration: 604800000 # 7 days
     header: "Authorization"
     prefix: "Bearer "
+  market:
+    urls:
+      hq: "http://hq.sinajs.cn/list="
+      kline-cn: "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=%s&scale=%s&ma=no&datalen=%d"
+      kline-us: "http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getMinK?symbol=%s&type=%s&___qn=3"
+      kline-us-daily: "http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getDailyK?symbol=%s"
+    indices:
+      - name: "NASDAQ"
+        symbol: ".ixic"
+        hq-key: "gb_ixic"
+        type: "US"
+      - name: "S&P 500"
+        symbol: ".inx"
+        hq-key: "gb_inx"
+        type: "US"
+      - name: "SSE Composite"
+        symbol: "sh000001"
+        hq-key: "s_sh000001"
+        type: "CN"
+      - name: "SZSE Component"
+        symbol: "sz399001"
+        hq-key: "s_sz399001"
+        type: "CN"

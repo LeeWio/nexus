@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.config.MarketProperties;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
 import space.nebula.nexus.service.impl.MarketDataServiceImpl;
 import space.nebula.nexus.utils.RedisUtil;
@@ -33,6 +34,9 @@ class MarketDataServiceTest {
     @Mock
     private RedisUtil redisUtil;
 
+    @Mock
+    private MarketProperties marketProperties;
+
     @InjectMocks
     private MarketDataServiceImpl marketDataService;
 
@@ -45,6 +49,27 @@ class MarketDataServiceTest {
                 "var hq_str_s_sh000001=\"上证指数,3050.00,10.00,3.39,627233137,1315084195447\";\n" +
                 "var hq_str_s_sz399001=\"深证成指,10100.00,20.00,2.50,73830560388,1578895897760.353\";";
         mockHqResponse = hqData.getBytes("GBK");
+        
+        MarketProperties.IndexConfig ixic = new MarketProperties.IndexConfig();
+        ixic.setName("NASDAQ"); ixic.setSymbol(".ixic"); ixic.setHqKey("gb_ixic"); ixic.setType(MarketProperties.MarketType.US);
+        
+        MarketProperties.IndexConfig inx = new MarketProperties.IndexConfig();
+        inx.setName("S&P 500"); inx.setSymbol(".inx"); inx.setHqKey("gb_inx"); inx.setType(MarketProperties.MarketType.US);
+        
+        MarketProperties.IndexConfig sh = new MarketProperties.IndexConfig();
+        sh.setName("SSE Composite"); sh.setSymbol("sh000001"); sh.setHqKey("s_sh000001"); sh.setType(MarketProperties.MarketType.CN);
+        
+        MarketProperties.IndexConfig sz = new MarketProperties.IndexConfig();
+        sz.setName("SZSE Component"); sz.setSymbol("sz399001"); sz.setHqKey("s_sz399001"); sz.setType(MarketProperties.MarketType.CN);
+        
+        MarketProperties.ApiUrls urls = new MarketProperties.ApiUrls();
+        urls.setHq("http://hq.sinajs.cn/list=");
+        urls.setKlineCn("https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketData.getKLineData?symbol=%s&scale=%s&ma=no&datalen=%d");
+        urls.setKlineUs("http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getMinK?symbol=%s&type=%s&___qn=3");
+        urls.setKlineUsDaily("http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getDailyK?symbol=%s");
+
+        lenient().when(marketProperties.getIndices()).thenReturn(List.of(ixic, inx, sh, sz));
+        lenient().when(marketProperties.getUrls()).thenReturn(urls);
     }
 
     @Test
@@ -58,7 +83,7 @@ class MarketDataServiceTest {
         when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
                 .thenReturn(new ResponseEntity<>("[]", HttpStatus.OK));
 
-        ApiResponse<List<MarketIndexResponse>> apiResponse = marketDataService.getIndices();
+        ApiResponse<List<MarketIndexResponse>> apiResponse = marketDataService.getIndices("1D");
 
         assertNotNull(apiResponse);
         assertEquals(200, apiResponse.getCode());

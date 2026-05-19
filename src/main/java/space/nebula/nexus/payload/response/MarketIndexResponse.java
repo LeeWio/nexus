@@ -18,4 +18,5 @@ public class MarketIndexResponse {
     private BigDecimal current;
     private BigDecimal changePct;
     private List<BigDecimal> sparkline;
+    private Boolean isOpen;
 }
