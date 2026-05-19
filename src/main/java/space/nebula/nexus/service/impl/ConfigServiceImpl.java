@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.entity.Config;
 import space.nebula.nexus.mapper.ConfigMapper;
@@ -34,27 +36,27 @@ public class ConfigServiceImpl implements IConfigService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "sys_config", key = "'public_configs'")
+    @Cacheable(value = CacheConstants.SYS_CONFIG, key = CacheConstants.PUBLIC_CONFIGS_KEY)
     public ApiResponse<List<ConfigResponse>> getPublicConfigs() {
         return ApiResponse.success(configMapper.toResponseList(configRepository.findByIsPublicTrue()));
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "sys_config", key = "#configKey")
+    @Cacheable(value = CacheConstants.SYS_CONFIG, key = "#configKey")
     public ApiResponse<ConfigResponse> getConfigByKey(String configKey) {
         return configRepository.findByConfigKey(configKey)
                 .map(config -> ApiResponse.success(configMapper.toResponse(config)))
-                .orElseThrow(() -> new BusinessException(404, "Config not found with key: " + configKey));
+                .orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Config not found with key: " + configKey));
     }
 
     @Override
     @Transactional
-    @CacheEvict(value = "sys_config", allEntries = true)
+    @CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
     @LogOperation("Create Config")
     public ApiResponse<ConfigResponse> createConfig(ConfigRequest request) {
         if (configRepository.existsByConfigKey(request.configKey())) {
-            throw new BusinessException("Config key already exists");
+            throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Config key already exists");
         }
 
         Config config = configMapper.toEntity(request);
@@ -66,14 +68,14 @@ public class ConfigServiceImpl implements IConfigService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "sys_config", allEntries = true)
+    @CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
     @LogOperation("Update Config")
     public ApiResponse<ConfigResponse> updateConfig(Long id, ConfigRequest request) {
         Config config = configRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(404, "Config not found"));
+                .orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Config not found"));
 
         if (!config.getConfigKey().equals(request.configKey()) && configRepository.existsByConfigKey(request.configKey())) {
-            throw new BusinessException("Config key already exists");
+            throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Config key already exists");
         }
 
         config.setConfigKey(request.configKey());
@@ -90,11 +92,11 @@ public class ConfigServiceImpl implements IConfigService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "sys_config", allEntries = true)
+    @CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
     @LogOperation("Delete Config")
     public ApiResponse<Void> deleteConfig(Long id) {
         if (!configRepository.existsById(id)) {
-            throw new BusinessException(404, "Config not found");
+            throw new BusinessException(BusinessCode.NOT_FOUND, "Config not found");
         }
         configRepository.deleteById(id);
         log.info("System configuration deleted with id: {}", id);

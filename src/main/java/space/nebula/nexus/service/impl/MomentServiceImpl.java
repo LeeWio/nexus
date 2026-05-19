@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
-import space.nebula.nexus.common.exception.BusinessException;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.entity.Moment;
 import space.nebula.nexus.mapper.MomentMapper;
 import space.nebula.nexus.payload.request.MomentRequest;
@@ -45,7 +45,7 @@ public class MomentServiceImpl implements IMomentService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "moments", allEntries = true)
+    @CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
     @LogOperation("Create Moment")
     public ApiResponse<MomentResponse> createMoment(MomentRequest request) {
         Moment moment = momentMapper.toEntity(request);
@@ -56,7 +56,7 @@ public class MomentServiceImpl implements IMomentService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "moments", allEntries = true)
+    @CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
     @LogOperation("Update Moment")
     public ApiResponse<MomentResponse> updateMoment(Long id, MomentRequest request) {
         Moment moment = findMomentOrThrow(id);
@@ -69,7 +69,7 @@ public class MomentServiceImpl implements IMomentService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "moments", allEntries = true)
+    @CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
     @LogOperation("Delete Moment")
     public ApiResponse<Void> deleteMoment(Long id) {
         if (!momentRepository.existsById(id)) {
@@ -82,7 +82,7 @@ public class MomentServiceImpl implements IMomentService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "moments", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
+    @Cacheable(value = CacheConstants.MOMENTS, key = "#pageable.pageNumber + '-' + #pageable.pageSize")
     public ApiResponse<PageResult<MomentResponse>> getPublicMoments(Pageable pageable) {
         Page<MomentResponse> page = momentRepository.findByIsPublishedTrueOrderByCreatedAtDesc(pageable).map(momentMapper::toResponse);
         return ApiResponse.success(PageResult.of(page));
@@ -90,7 +90,7 @@ public class MomentServiceImpl implements IMomentService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "moments", allEntries = true)
+    @CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
     public ApiResponse<Void> likeMoment(Long id) {
         Moment moment = findMomentOrThrow(id);
         moment.setLikesCount(moment.getLikesCount() + 1);

@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
+@DynamicUpdate
 @Table(name = "sys_visit_log")
 @SQLDelete(sql = "UPDATE sys_visit_log SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")

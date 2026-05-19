@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
-import space.nebula.nexus.common.exception.BusinessException;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.entity.Project;
 import space.nebula.nexus.mapper.ProjectMapper;
 import space.nebula.nexus.payload.request.ProjectRequest;
@@ -48,7 +48,7 @@ public class ProjectServiceImpl implements IProjectService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "projects", allEntries = true)
+    @CacheEvict(value = CacheConstants.PROJECTS, allEntries = true)
     @LogOperation("Create Project")
     public ApiResponse<ProjectResponse> createProject(ProjectRequest request) {
         Project project = projectMapper.toEntity(request);
@@ -61,7 +61,7 @@ public class ProjectServiceImpl implements IProjectService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "projects", allEntries = true)
+    @CacheEvict(value = CacheConstants.PROJECTS, allEntries = true)
     @LogOperation("Update Project")
     public ApiResponse<ProjectResponse> updateProject(Long id, ProjectRequest request) {
         Project project = projectRepository.findById(id)
@@ -76,7 +76,7 @@ public class ProjectServiceImpl implements IProjectService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "projects", allEntries = true)
+    @CacheEvict(value = CacheConstants.PROJECTS, allEntries = true)
     @LogOperation("Delete Project")
     public ApiResponse<Void> deleteProject(Long id) {
         if (!projectRepository.existsById(id)) {
@@ -89,7 +89,7 @@ public class ProjectServiceImpl implements IProjectService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "projects", key = "'public_list'")
+    @Cacheable(value = CacheConstants.PROJECTS, key = CacheConstants.PUBLIC_LIST_KEY)
     public ApiResponse<List<ProjectResponse>> getPublicProjects() {
         List<Project> projects = projectRepository.findByIsPublishedTrueOrderBySortOrderAscCreatedAtDesc();
         return ApiResponse.success(projectMapper.toResponseList(projects));

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Menu;
@@ -44,7 +45,7 @@ public class MenuServiceImpl implements IMenuService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "navigation", allEntries = true)
+    @CacheEvict(value = CacheConstants.NAVIGATION, allEntries = true)
     @LogOperation("Create Menu")
     public ApiResponse<MenuResponse> createMenu(MenuRequest request) {
         Menu newMenu = menuMapper.toEntity(request);
@@ -58,7 +59,7 @@ public class MenuServiceImpl implements IMenuService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "navigation", allEntries = true)
+    @CacheEvict(value = CacheConstants.NAVIGATION, allEntries = true)
     @LogOperation("Update Menu")
     public ApiResponse<MenuResponse> updateMenu(Long id, MenuRequest request) {
         Menu existingMenu = menuRepository.findById(id)
@@ -73,7 +74,7 @@ public class MenuServiceImpl implements IMenuService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "navigation", allEntries = true)
+    @CacheEvict(value = CacheConstants.NAVIGATION, allEntries = true)
     @LogOperation("Delete Menu")
     public ApiResponse<Void> deleteMenu(Long id) {
         if (!menuRepository.existsById(id)) {
@@ -108,7 +109,7 @@ public class MenuServiceImpl implements IMenuService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "navigation", key = "'public_tree'")
+    @Cacheable(value = CacheConstants.NAVIGATION, key = CacheConstants.PUBLIC_TREE_KEY)
     public ApiResponse<List<MenuResponse>> retrievePublicNavigationMenuTree() {
         List<Menu> publicVisibleMenus = menuRepository.findByIsPublicTrueAndIsVisibleTrueOrderBySortOrderAsc();
         List<MenuResponse> publicResponses = menuMapper.toResponseList(publicVisibleMenus);

@@ -62,16 +62,26 @@ public class ElasticsearchPostSearchServiceImpl implements IPostSearchService {
         log.info("Starting Elasticsearch index rebuild for posts...");
         postSearchRepository.deleteAll();
         
-        List<Post> publishedPosts = postRepository.findAll().stream()
-                .filter(p -> p.getStatus() == PostStatus.PUBLISHED)
-                .toList();
+        int page = 0;
+        int size = 100;
+        long totalIndexed = 0;
+        
+        org.springframework.data.domain.Page<Post> postPage;
+        do {
+            postPage = postRepository.findAll(org.springframework.data.domain.PageRequest.of(page, size));
+            List<PostDocument> documents = postPage.getContent().stream()
+                    .filter(p -> p.getStatus() == PostStatus.PUBLISHED)
+                    .map(this::mapToDocument)
+                    .toList();
+            
+            if (!documents.isEmpty()) {
+                postSearchRepository.saveAll(documents);
+                totalIndexed += documents.size();
+            }
+            page++;
+        } while (postPage.hasNext());
 
-        List<PostDocument> documents = publishedPosts.stream()
-                .map(this::mapToDocument)
-                .toList();
-                
-        postSearchRepository.saveAll(documents);
-        log.info("Finished rebuilding Elasticsearch index. Total posts indexed: {}", documents.size());
+        log.info("Finished rebuilding Elasticsearch index. Total posts indexed: {}", totalIndexed);
     }
 
     @Override

@@ -2,15 +2,15 @@ package space.nebula.nexus.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.config.MarketProperties;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
 import space.nebula.nexus.service.IMarketDataService;
@@ -18,6 +18,7 @@ import space.nebula.nexus.utils.RedisUtil;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.Charset;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,21 +39,22 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MarketDataServiceImpl implements IMarketDataService {
 
-    private final RestTemplate restTemplate;
+    private final RestClient restClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RedisUtil redisUtil;
     private final MarketProperties marketProperties;
-
-    private static final String CACHE_KEY_PREFIX = "marketIndices::";
+    private final Executor asyncExecutor;
 
     @Override
+    @CircuitBreaker(name = "marketService", fallbackMethod = "fallbackIndices")
+    @Retry(name = "marketService")
     public ApiResponse<List<MarketIndexResponse>> getIndices(String period) {
-        String normalizedPeriod = period != null ? period.toUpperCase() : "1D";
+        String normalizedPeriod = period != null ? period.toUpperCase() : CacheConstants.MARKET_1D;
         if (!List.of("1D", "1M", "1Y", "ALL").contains(normalizedPeriod)) {
-            normalizedPeriod = "1D";
+            normalizedPeriod = CacheConstants.MARKET_1D;
         }
 
-        String cacheKey = CACHE_KEY_PREFIX + normalizedPeriod;
+        String cacheKey = CacheConstants.buildFullKey(CacheConstants.MARKET_INDICES, normalizedPeriod);
         Optional<List> cachedData = redisUtil.get(cacheKey, List.class);
         if (cachedData.isPresent()) {
             return ApiResponse.success((List<MarketIndexResponse>) cachedData.get());
@@ -85,41 +88,35 @@ public class MarketDataServiceImpl implements IMarketDataService {
         
         String hqUrl = marketProperties.getUrls().getHq() + hqKeys;
 
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Referer", "http://finance.sina.com.cn");
-            headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-
-            ResponseEntity<byte[]> response = restTemplate.exchange(hqUrl, HttpMethod.GET, entity, byte[].class);
-            
-            if (response.getBody() == null) {
-                return new ArrayList<>();
-            }
-            
-            String body = new String(response.getBody(), "GBK");
-            
-            List<CompletableFuture<MarketIndexResponse>> futures = marketProperties.getIndices().stream()
-                    .map(config -> CompletableFuture.supplyAsync(() -> {
-                        if (config.getType() == MarketProperties.MarketType.US) {
-                            return parseUsIndex(body, config, normalizedPeriod);
-                        } else {
-                            return parseCnIndex(body, config, normalizedPeriod);
-                        }
-                    }))
-                    .collect(Collectors.toList());
-
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
-            return futures.stream()
-                    .map(CompletableFuture::join)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-                    
-        } catch (Exception e) {
-            log.error("Failed to fetch market indices", e);
+        byte[] responseBytes = restClient.get()
+                .uri(hqUrl)
+                .header("Referer", "http://finance.sina.com.cn")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .retrieve()
+                .body(byte[].class);
+        
+        if (responseBytes == null) {
             return new ArrayList<>();
         }
+        
+        String body = new String(responseBytes, Charset.forName("GBK"));
+        
+        List<CompletableFuture<MarketIndexResponse>> futures = marketProperties.getIndices().stream()
+                .map(config -> CompletableFuture.supplyAsync(() -> {
+                    if (config.getType() == MarketProperties.MarketType.US) {
+                        return parseUsIndex(body, config, normalizedPeriod);
+                    } else {
+                        return parseCnIndex(body, config, normalizedPeriod);
+                    }
+                }, asyncExecutor))
+                .collect(Collectors.toList());
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        return futures.stream()
+                .map(CompletableFuture::join)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -133,6 +130,11 @@ public class MarketDataServiceImpl implements IMarketDataService {
             }
         }
         return ApiResponse.error(404, "Market index not found for symbol: " + symbol);
+    }
+
+    public ApiResponse<List<MarketIndexResponse>> fallbackIndices(String period, Exception e) {
+        log.error("Market indices fallback triggered due to: {}", e.getMessage());
+        return ApiResponse.success(new ArrayList<>());
     }
 
     private MarketIndexResponse parseUsIndex(String body, MarketProperties.IndexConfig config, String period) {
@@ -246,12 +248,11 @@ public class MarketDataServiceImpl implements IMarketDataService {
 
         try {
             String url = String.format(marketProperties.getUrls().getKlineCn(), symbol, scale, datalen);
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Referer", "https://finance.sina.com.cn");
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-            
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-            String json = response.getBody();
+            String json = restClient.get()
+                    .uri(url)
+                    .header("Referer", "https://finance.sina.com.cn")
+                    .retrieve()
+                    .body(String.class);
             
             if (json != null) {
                 JsonNode root = objectMapper.readTree(json);
@@ -302,12 +303,11 @@ public class MarketDataServiceImpl implements IMarketDataService {
                 url = String.format(marketProperties.getUrls().getKlineUs(), symbol, type);
             }
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Referer", "https://finance.sina.com.cn");
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-            String json = response.getBody();
+            String json = restClient.get()
+                    .uri(url)
+                    .header("Referer", "https://finance.sina.com.cn")
+                    .retrieve()
+                    .body(String.class);
 
             if (json != null) {
                 JsonNode root = objectMapper.readTree(json);

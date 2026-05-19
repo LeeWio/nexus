@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.FriendLink;
@@ -49,7 +51,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "friendLinks", allEntries = true)
+    @CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
     @LogOperation("Create Friend Link")
     public ApiResponse<FriendLinkResponse> createFriendLink(FriendLinkRequest request) {
         validateUrlUniqueness(request.url(), null);
@@ -64,7 +66,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "friendLinks", allEntries = true)
+    @CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
     @LogOperation("Update Friend Link")
     public ApiResponse<FriendLinkResponse> updateFriendLink(Long id, FriendLinkRequest request) {
         FriendLink existingLink = findFriendLinkOrThrow(id);
@@ -79,7 +81,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "friendLinks", allEntries = true)
+    @CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
     @LogOperation("Delete Friend Link")
     public ApiResponse<Void> deleteFriendLink(Long id) {
         if (!friendLinkRepository.existsById(id)) {
@@ -92,7 +94,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "friendLinks", key = "'public_list'")
+    @Cacheable(value = CacheConstants.FRIEND_LINKS, key = CacheConstants.PUBLIC_LIST_KEY)
     public ApiResponse<List<FriendLinkResponse>> retrievePublicFriendLinks() {
         List<FriendLink> activeLinks = friendLinkRepository.findByStatusAndIsPublishedTrueOrderBySortOrderAscCreatedAtDesc(FriendLinkStatus.APPROVED);
         return ApiResponse.success(friendLinkMapper.toResponseList(activeLinks));
@@ -120,7 +122,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "friendLinks", allEntries = true)
+    @CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
     @LogOperation("Moderate Friend Link")
     public ApiResponse<Void> moderateFriendLink(Long id, FriendLinkStatus status) {
         FriendLink link = findFriendLinkOrThrow(id);
@@ -141,7 +143,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
     private void validateUrlUniqueness(String url, Long excludeId) {
         friendLinkRepository.findByUrl(url).ifPresent(link -> {
             if (excludeId == null || !link.getId().equals(excludeId)) {
-                throw new BusinessException("Friend link with this URL already exists");
+                throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Friend link with this URL already exists");
             }
         });
     }

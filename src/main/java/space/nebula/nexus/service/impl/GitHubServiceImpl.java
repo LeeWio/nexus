@@ -1,14 +1,14 @@
 package space.nebula.nexus.service.impl;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.entity.Project;
 import space.nebula.nexus.payload.response.GitHubStatsResponse;
 import space.nebula.nexus.repository.ProjectRepository;
@@ -18,7 +18,6 @@ import space.nebula.nexus.utils.RedisUtil;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -26,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class GitHubServiceImpl implements IGitHubService {
 
-    private final RestTemplate restTemplate;
+    private final RestClient restClient;
     private final RedisUtil redisUtil;
     private final ProjectRepository projectRepository;
 
@@ -37,36 +36,43 @@ public class GitHubServiceImpl implements IGitHubService {
     private String githubToken;
 
     private static final String GITHUB_API_BASE = "https://api.github.com";
-    private static final String STATS_CACHE_KEY = "nexus:github:global_stats";
 
     @Override
+    @CircuitBreaker(name = "githubService", fallbackMethod = "fallbackStats")
+    @Retry(name = "githubService")
     public GitHubStatsResponse retrieveGlobalStats() {
-        return redisUtil.get(STATS_CACHE_KEY, GitHubStatsResponse.class)
+        return redisUtil.get(CacheConstants.GITHUB_STATS_CACHE_KEY, GitHubStatsResponse.class)
                 .orElseGet(() -> {
                     log.info("GitHub global stats cache miss, fetching from API...");
                     GitHubStatsResponse stats = fetchGlobalStatsFromApi();
                     if (stats != null) {
-                        redisUtil.set(STATS_CACHE_KEY, stats, 6, TimeUnit.HOURS);
+                        redisUtil.set(CacheConstants.GITHUB_STATS_CACHE_KEY, stats, 6, TimeUnit.HOURS);
                     }
                     return stats;
                 });
     }
 
     @Override
+    @CircuitBreaker(name = "githubService", fallbackMethod = "fallbackMetrics")
+    @Retry(name = "githubService")
     public Map<String, Object> retrieveRepoMetrics(String repoName) {
-        String url = String.format("%s/repos/%s/%s", GITHUB_API_BASE, githubUsername, repoName);
-        try {
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, createAuthEntity(), Map.class);
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Map<String, Object> body = response.getBody();
-                Map<String, Object> metrics = new HashMap<>();
-                metrics.put("stars", body.get("stargazers_count"));
-                metrics.put("forks", body.get("forks_count"));
-                metrics.put("language", body.get("language"));
-                return metrics;
-            }
-        } catch (Exception e) {
-            log.error("Failed to fetch GitHub metrics for repo: {}", repoName, e);
+        Map<String, Object> body = restClient.get()
+                .uri(GITHUB_API_BASE + "/repos/{owner}/{repo}", githubUsername, repoName)
+                .accept(MediaType.parseMediaType("application/vnd.github.v3+json"))
+                .headers(headers -> {
+                    if (githubToken != null && !githubToken.isBlank()) {
+                        headers.setBearerAuth(githubToken);
+                    }
+                })
+                .retrieve()
+                .body(Map.class);
+
+        if (body != null) {
+            Map<String, Object> metrics = new HashMap<>();
+            metrics.put("stars", body.get("stargazers_count"));
+            metrics.put("forks", body.get("forks_count"));
+            metrics.put("language", body.get("language"));
+            return metrics;
         }
         return null;
     }
@@ -96,41 +102,54 @@ public class GitHubServiceImpl implements IGitHubService {
         log.info("GitHub project metrics synchronization complete. Total updated: {}", updatedCount);
         
         // Also refresh global stats
-        redisUtil.delete(STATS_CACHE_KEY);
+        redisUtil.delete(CacheConstants.GITHUB_STATS_CACHE_KEY);
     }
 
     private GitHubStatsResponse fetchGlobalStatsFromApi() {
-        String url = String.format("%s/users/%s", GITHUB_API_BASE, githubUsername);
-        try {
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, createAuthEntity(), Map.class);
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Map body = response.getBody();
-                return GitHubStatsResponse.builder()
-                        .followers((Integer) body.get("followers"))
-                        .publicRepos((Integer) body.get("public_repos"))
-                        .htmlUrl((String) body.get("html_url"))
-                        .avatarUrl((String) body.get("avatar_url"))
-                        .totalStars(0) // GitHub API doesn't provide total stars easily, we'd need to iterate
-                        .build();
-            }
-        } catch (Exception e) {
-            log.error("Failed to fetch GitHub global stats for user: {}", githubUsername, e);
+        Map body = restClient.get()
+                .uri(GITHUB_API_BASE + "/users/{username}", githubUsername)
+                .accept(MediaType.parseMediaType("application/vnd.github.v3+json"))
+                .headers(headers -> {
+                    if (githubToken != null && !githubToken.isBlank()) {
+                        headers.setBearerAuth(githubToken);
+                    }
+                })
+                .retrieve()
+                .body(Map.class);
+
+        if (body != null) {
+            return GitHubStatsResponse.builder()
+                    .followers((Integer) body.get("followers"))
+                    .publicRepos((Integer) body.get("public_repos"))
+                    .htmlUrl((String) body.get("html_url"))
+                    .avatarUrl((String) body.get("avatar_url"))
+                    .totalStars(0)
+                    .build();
         }
         return null;
     }
 
-    private HttpEntity<String> createAuthEntity() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Accept", "application/vnd.github.v3+json");
-        if (githubToken != null && !githubToken.isBlank()) {
-            headers.set("Authorization", "token " + githubToken);
-        }
-        return new HttpEntity<>(headers);
+    public GitHubStatsResponse fallbackStats(Exception e) {
+        log.error("GitHub stats fallback triggered due to: {}", e.getMessage());
+        return GitHubStatsResponse.builder()
+                .followers(0)
+                .publicRepos(0)
+                .totalStars(0)
+                .htmlUrl("https://github.com/" + githubUsername)
+                .build();
+    }
+
+    public Map<String, Object> fallbackMetrics(String repoName, Exception e) {
+        log.error("GitHub metrics fallback triggered for {} due to: {}", repoName, e.getMessage());
+        Map<String, Object> fallback = new HashMap<>();
+        fallback.put("stars", 0);
+        fallback.put("forks", 0);
+        fallback.put("language", "Unknown");
+        return fallback;
     }
 
     private String extractRepoName(String githubUrl) {
         try {
-            // Format: https://github.com/owner/repo
             String[] parts = githubUrl.split("/");
             if (parts.length >= 5) {
                 return parts[parts.length - 1].replace(".git", "");

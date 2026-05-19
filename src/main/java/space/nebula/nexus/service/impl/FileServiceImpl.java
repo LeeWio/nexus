@@ -7,6 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.common.storage.StorageProvider;
@@ -18,7 +20,9 @@ import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IFileService;
+import space.nebula.nexus.utils.FileUtil;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -27,7 +31,7 @@ import java.util.UUID;
 
 /**
  * Professional implementation of File Management Service.
- * Ensures synchronization between physical storage and metadata repository.
+ * Enhanced with deep MIME detection and image processing (thumbnails).
  */
 @Slf4j
 @Service
@@ -41,100 +45,127 @@ public class FileServiceImpl implements IFileService {
     private final FileRepository fileRepository;
     private final UserRepository userRepository;
     private final FileMapper fileMapper;
+    private final FileUtil fileUtil;
 
     @Override
     @Transactional
+    @LogOperation("Upload File")
     public ApiResponse<FileResponse> uploadFile(MultipartFile file) {
         if (file.isEmpty()) {
-            throw new BusinessException("Cannot process an empty file upload request");
-        }
-
-        validateFileIntegrity(file);
-
-        String originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-        String extension = extractFileExtension(originalFilename);
-        String uniqueStoredName = UUID.randomUUID().toString().replace("-", "") + extension;
-
-        // Try to get current user as uploader
-        User uploader = null;
-        try {
-            uploader = SecurityUtil.getCurrentUserOrThrow(userRepository);
-        } catch (Exception e) {
-            log.debug("Unauthenticated file upload: {}", originalFilename);
+            throw new BusinessException(BusinessCode.BAD_REQUEST, "Cannot process an empty file upload request");
         }
 
         try {
-            // 1. Persist to physical/cloud storage
-            storageProvider.store(file.getInputStream(), uniqueStoredName);
-            log.debug("Physical file stored successfully: {}", uniqueStoredName);
+            byte[] fileBytes = file.getBytes();
+            String originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+            String extension = extractFileExtension(originalFilename);
+            
+            // 1. Deep MIME detection
+            String detectedMimeType;
+            try (ByteArrayInputStream bais = new ByteArrayInputStream(fileBytes)) {
+                detectedMimeType = fileUtil.detectMimeType(bais);
+            }
+            log.debug("Detected MIME type: {} for file: {}", detectedMimeType, originalFilename);
 
-            // 2. Persist metadata to database
+            // 2. Validate against allowed list
+            if (!ALLOWED_MIME_TYPES.contains(detectedMimeType)) {
+                log.warn("Security rejection: Deep MIME detection failed for type: {}", detectedMimeType);
+                throw new BusinessException(BusinessCode.BAD_REQUEST, "File content type not supported or spoofed");
+            }
+
+            String uniqueStoredName = UUID.randomUUID().toString().replace("-", "") + extension;
+
+            // 3. Image specific processing
+            String thumbnailUrl = null;
+            Integer width = null;
+            Integer height = null;
+
+            if (fileUtil.isImage(detectedMimeType)) {
+                // Get dimensions
+                FileUtil.ImageDimensions dimensions = fileUtil.getImageDimensions(fileBytes);
+                if (dimensions != null) {
+                    width = dimensions.width();
+                    height = dimensions.height();
+                }
+
+                // Generate and store thumbnail
+                try {
+                    byte[] thumbnailBytes = fileUtil.generateThumbnail(fileBytes, 200, 200);
+                    String thumbnailName = "thumb_" + uniqueStoredName.substring(0, uniqueStoredName.lastIndexOf('.')) + ".jpg";
+                    storageProvider.store(new ByteArrayInputStream(thumbnailBytes), thumbnailName);
+                    thumbnailUrl = storageProvider.getUrl(thumbnailName);
+                    log.debug("Thumbnail created: {}", thumbnailName);
+                } catch (Exception e) {
+                    log.warn("Thumbnail generation failed for {}: {}", originalFilename, e.getMessage());
+                }
+            }
+
+            // 4. Store original file
+            storageProvider.store(new ByteArrayInputStream(fileBytes), uniqueStoredName);
+
+            // 5. Persist metadata
+            User uploader = null;
+            try {
+                uploader = SecurityUtil.getCurrentUserOrThrow(userRepository);
+            } catch (Exception e) {
+                log.debug("Unauthenticated file upload: {}", originalFilename);
+            }
+
             FileMetadata metadata = new FileMetadata();
             metadata.setFileName(uniqueStoredName);
             metadata.setOriginalName(originalFilename);
             metadata.setFileUrl(storageProvider.getUrl(uniqueStoredName));
-            metadata.setFileSize(file.getSize());
-            metadata.setFileType(file.getContentType());
+            metadata.setFileSize((long) fileBytes.length);
+            metadata.setFileType(detectedMimeType);
+            metadata.setThumbnailUrl(thumbnailUrl);
+            metadata.setWidth(width);
+            metadata.setHeight(height);
             metadata.setUploader(uploader);
             
             FileMetadata savedMetadata = fileRepository.save(metadata);
-            log.info("File metadata indexed in database. ID: {}, Name: {}", savedMetadata.getId(), uniqueStoredName);
+            log.info("File processed and indexed. ID: {}, Name: {}", savedMetadata.getId(), uniqueStoredName);
 
-            return ApiResponse.success("File uploaded and indexed successfully", fileMapper.toResponse(savedMetadata));
+            return ApiResponse.success("File uploaded and processed successfully", fileMapper.toResponse(savedMetadata));
 
         } catch (IOException e) {
-            log.error("Critical I/O error during file upload: {}", originalFilename, e);
-            throw new BusinessException(500, "Internal server error during file persistence");
+            log.error("Critical error during file processing: {}", file.getOriginalFilename(), e);
+            throw new BusinessException(BusinessCode.ERROR, "Internal error during file processing");
         }
     }
 
     @Override
     @Transactional
+    @LogOperation("Delete File")
     public ApiResponse<Void> deleteFile(String fileName) {
         String sanitizedFileName = StringUtils.cleanPath(fileName);
         if (sanitizedFileName.contains("..")) {
-            throw new BusinessException(400, "Security violation: Invalid filename path");
+            throw new BusinessException(BusinessCode.BAD_REQUEST, "Security violation: Invalid filename path");
         }
 
-        // 1. Locate metadata first
         FileMetadata metadata = fileRepository.findByFileName(sanitizedFileName)
                 .orElseThrow(() -> new ResourceNotFoundException("File", "name", sanitizedFileName));
 
-        // 2. Remove physical file
-        try {
-            storageProvider.delete(sanitizedFileName);
-            log.debug("Physical file removed: {}", sanitizedFileName);
-        } catch (Exception e) {
-            log.error("Failed to remove physical file: {}. Purge aborted.", sanitizedFileName, e);
-            throw new BusinessException(500, "Physical file removal failed. Database record preserved.");
+        // Remove original
+        storageProvider.delete(sanitizedFileName);
+
+        // Remove thumbnail if exists
+        if (metadata.getThumbnailUrl() != null) {
+            String thumbnailName = extractFileNameFromUrl(metadata.getThumbnailUrl());
+            storageProvider.delete(thumbnailName);
         }
 
-        // 3. Remove metadata
         fileRepository.delete(metadata);
-        log.info("File and metadata purged for: {}", sanitizedFileName);
+        log.info("File and related resources purged for: {}", sanitizedFileName);
 
         return ApiResponse.success("File deleted successfully", null);
-    }
-
-    private void validateFileIntegrity(MultipartFile file) {
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType.toLowerCase())) {
-            log.warn("Security rejection: Forbidden MIME type: {}", contentType);
-            throw new BusinessException(400, "File content type not supported");
-        }
-
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename != null) {
-            String extension = extractFileExtension(originalFilename);
-            if (!ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
-                log.warn("Security rejection: Forbidden extension: {}", extension);
-                throw new BusinessException(400, "File extension not allowed");
-            }
-        }
     }
 
     private String extractFileExtension(String filename) {
         int dotIndex = filename.lastIndexOf('.');
         return (dotIndex > 0) ? filename.substring(dotIndex) : "";
+    }
+
+    private String extractFileNameFromUrl(String url) {
+        return url.substring(url.lastIndexOf('/') + 1);
     }
 }

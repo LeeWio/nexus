@@ -6,6 +6,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.payload.response.AnalyticsOverviewResponse;
 import space.nebula.nexus.repository.VisitLogRepository;
 import space.nebula.nexus.service.IAnalyticsService;
@@ -25,7 +26,7 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "analytics", key = "'overview'")
+    @Cacheable(value = CacheConstants.ANALYTICS, key = CacheConstants.OVERVIEW_KEY)
     public ApiResponse<AnalyticsOverviewResponse> retrieveOverviewStats() {
         LocalDate today = LocalDate.now();
         LocalDate yesterday = today.minusDays(1);

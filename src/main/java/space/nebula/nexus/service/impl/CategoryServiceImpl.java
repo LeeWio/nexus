@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Category;
@@ -56,9 +58,10 @@ public class CategoryServiceImpl implements ICategoryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "id", id));
 
         validateUniqueConstraints(existingCategory, request);
-        categoryMapper.updateEntity(existingCategory, request);
 
+        categoryMapper.updateEntity(existingCategory, request);
         categoryRepository.save(existingCategory);
+
         log.info("Category updated: {}", existingCategory.getName());
         clearSeoCache();
         return ApiResponse.success("Category updated successfully", categoryMapper.toResponse(existingCategory));
@@ -72,7 +75,7 @@ public class CategoryServiceImpl implements ICategoryService {
             throw new ResourceNotFoundException("Category", "id", id);
         }
         categoryRepository.deleteById(id);
-        log.info("Category deleted from system, ID: {}", id);
+        log.info("Category deleted id: {}", id);
         clearSeoCache();
         return ApiResponse.success("Category deleted successfully", null);
     }
@@ -80,17 +83,17 @@ public class CategoryServiceImpl implements ICategoryService {
     private void validateUniqueConstraints(Category existing, CategoryRequest request) {
         if (request.name() != null && (existing == null || !existing.getName().equals(request.name()))) {
             if (categoryRepository.findByName(request.name()).isPresent()) {
-                throw new BusinessException("Category name already exists: " + request.name());
+                throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category name already exists: " + request.name());
             }
         }
         if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug()))) {
             if (categoryRepository.findBySlug(request.slug()).isPresent()) {
-                throw new BusinessException("Category slug already exists: " + request.slug());
+                throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category slug already exists: " + request.slug());
             }
         }
     }
 
     private void clearSeoCache() {
-        redisUtil.delete("nexus:cache:seo::sitemap");
+        redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
     }
 }

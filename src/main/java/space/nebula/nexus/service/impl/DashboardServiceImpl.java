@@ -6,6 +6,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.enums.CommentStatus;
 import space.nebula.nexus.payload.response.DashboardStatsResponse;
 import space.nebula.nexus.payload.response.PublicStatsResponse;
@@ -30,6 +31,7 @@ public class DashboardServiceImpl implements IDashboardService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConstants.SITE_STATS, key = "'admin_dashboard'")
     public ApiResponse<DashboardStatsResponse> getStatistics() {
         long totalUsers = userRepository.count();
         long totalPosts = postRepository.count();
@@ -52,7 +54,7 @@ public class DashboardServiceImpl implements IDashboardService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "site_stats", key = "'public_dashboard'")
+    @Cacheable(value = CacheConstants.SITE_STATS, key = CacheConstants.PUBLIC_DASHBOARD_KEY)
     public ApiResponse<PublicStatsResponse> getPublicStatistics() {
         long totalPosts = postRepository.count();
         long totalComments = commentRepository.countByStatus(CommentStatus.APPROVED);

@@ -30,6 +30,15 @@ public class FileMetadata extends BaseEntity {
     @Column(name = "file_type", nullable = false, length = 100)
     private String fileType;
 
+    @Column(name = "thumbnail_url", length = 500)
+    private String thumbnailUrl;
+
+    @Column(name = "width")
+    private Integer width;
+
+    @Column(name = "height")
+    private Integer height;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "uploader_id")
     private User uploader;

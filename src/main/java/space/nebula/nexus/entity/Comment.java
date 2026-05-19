@@ -12,6 +12,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 import space.nebula.nexus.enums.CommentStatus;
@@ -22,6 +23,7 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
+@DynamicUpdate
 @Table(name = "blog_comment")
 @SQLDelete(sql = "UPDATE blog_comment SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")

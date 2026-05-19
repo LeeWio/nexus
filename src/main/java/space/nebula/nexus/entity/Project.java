@@ -6,12 +6,14 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 @Getter
 @Setter
 @Entity
+@DynamicUpdate
 @Table(name = "blog_project")
 @SQLDelete(sql = "UPDATE blog_project SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")

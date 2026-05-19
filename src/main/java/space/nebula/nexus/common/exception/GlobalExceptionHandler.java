@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.constant.BusinessCode;
 
 import java.util.stream.Collectors;
 
@@ -51,9 +52,9 @@ public class GlobalExceptionHandler {
         if (status == null) status = HttpStatus.BAD_REQUEST;
 
         if (code >= 500) {
-            log.error("Business error [{}]: {}", code, e.getMessage());
+            log.error("[TraceId: {}] Business error [{}]: {}", org.slf4j.MDC.get("traceId"), code, e.getMessage());
         } else {
-            log.warn("Business warning [{}]: {}", code, e.getMessage());
+            log.warn("[TraceId: {}] Business warning [{}]: {}", org.slf4j.MDC.get("traceId"), code, e.getMessage());
         }
         return ResponseEntity.status(status).body(ApiResponse.error(code, e.getMessage()));
     }
@@ -63,9 +64,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
-        log.warn("Upload size limit exceeded: {}", e.getMessage());
+        log.warn("[TraceId: {}] Upload size limit exceeded: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                .body(ApiResponse.error(413, "File too large. Maximum permitted size exceeded."));
+                .body(ApiResponse.error(BusinessCode.FILE_TOO_LARGE.getCode(), BusinessCode.FILE_TOO_LARGE.getMessage()));
     }
 
     /**
@@ -83,8 +84,9 @@ public class GlobalExceptionHandler {
                     .map(FieldError::getDefaultMessage)
                     .collect(Collectors.joining(", "));
         }
-        log.warn("Validation failed: {}", message);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(400, "Validation failed: " + message));
+        log.warn("[TraceId: {}] Validation failed: {}", org.slf4j.MDC.get("traceId"), message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(BusinessCode.VALIDATION_FAILED.getCode(), "Validation failed: " + message));
     }
 
     /**
@@ -95,8 +97,9 @@ public class GlobalExceptionHandler {
         String message = e.getConstraintViolations().stream()
                 .map(ConstraintViolation::getMessage)
                 .collect(Collectors.joining(", "));
-        log.warn("Constraint violation: {}", message);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(400, "Parameter validation failed: " + message));
+        log.warn("[TraceId: {}] Constraint violation: {}", org.slf4j.MDC.get("traceId"), message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(BusinessCode.BAD_REQUEST.getCode(), "Parameter validation failed: " + message));
     }
 
     /**
@@ -104,8 +107,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException e) {
-        log.warn("Access denied: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(403, "Access denied: you do not have sufficient permissions"));
+        log.warn("[TraceId: {}] Access denied: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(BusinessCode.FORBIDDEN.getCode(), BusinessCode.FORBIDDEN.getMessage()));
     }
 
     /**
@@ -113,18 +117,23 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(AuthenticationException e) {
-        log.warn("Authentication failed: {}", e.getMessage());
-        String message = "Authentication failed";
+        log.warn("[TraceId: {}] Authentication failed: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
+        
+        BusinessCode code = BusinessCode.UNAUTHORIZED;
+        String message = code.getMessage();
+        
         if (e instanceof BadCredentialsException) {
-            message = "Invalid username or password";
+            code = BusinessCode.BAD_CREDENTIALS;
+            message = code.getMessage();
         } else if (e instanceof DisabledException) {
-            message = "Your account is currently pending audit or has been disabled. Please contact the administrator.";
+            code = BusinessCode.ACCOUNT_DISABLED;
+            message = code.getMessage();
         } else if (e instanceof LockedException) {
-            message = "Your account is locked due to security reasons.";
-        } else {
-            message += ": " + e.getMessage();
+            code = BusinessCode.ACCOUNT_LOCKED;
+            message = code.getMessage();
         }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(401, message));
+        
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(code.getCode(), message));
     }
 
     /**
@@ -132,7 +141,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception e) {
-        log.error("Unexpected system error", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(500, "Internal server error: " + e.getMessage()));
+        log.error("[TraceId: {}] Unexpected system error", org.slf4j.MDC.get("traceId"), e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(BusinessCode.ERROR.getCode(), BusinessCode.ERROR.getMessage() + ": " + e.getMessage()));
     }
 }

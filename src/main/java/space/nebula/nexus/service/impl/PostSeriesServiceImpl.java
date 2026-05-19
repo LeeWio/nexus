@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.PostSeries;
@@ -45,7 +47,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
     @LogOperation("Create Post Series")
     public ApiResponse<SeriesResponse> createSeries(SeriesRequest request) {
         if (seriesRepository.existsBySlug(request.slug())) {
-            throw new BusinessException("Series slug already exists: " + request.slug());
+            throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Series slug already exists: " + request.slug());
         }
 
         PostSeries series = new PostSeries();
@@ -65,7 +67,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 
         if (request.slug() != null && !request.slug().equals(series.getSlug())) {
             if (seriesRepository.existsBySlug(request.slug())) {
-                throw new BusinessException("Series slug already exists: " + request.slug());
+                throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Series slug already exists: " + request.slug());
             }
         }
 
@@ -108,7 +110,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
                 .orElseThrow(() -> new ResourceNotFoundException("Series", "slug", slug));
         
         if (!series.getIsPublished()) {
-            throw new BusinessException(403, "This series is not publicly available");
+            throw new BusinessException(BusinessCode.FORBIDDEN, "This series is not publicly available");
         }
 
         return ApiResponse.success(seriesMapper.toResponseWithPosts(series));
@@ -120,6 +122,6 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
     }
 
     private void clearSeoCache() {
-        redisUtil.delete("nexus:cache:seo::sitemap");
+        redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
     }
 }

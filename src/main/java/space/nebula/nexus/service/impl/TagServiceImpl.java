@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Tag;
@@ -51,16 +53,17 @@ public class TagServiceImpl implements ITagService {
     @Transactional
     @LogOperation("Update Tag")
     public ApiResponse<TagResponse> updateTag(Long id, TagRequest request) {
-        Tag tag = tagRepository.findById(id)
+        Tag existingTag = tagRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tag", "id", id));
 
-        validateUniqueConstraints(tag, request);
-        tagMapper.updateEntity(tag, request);
+        validateUniqueConstraints(existingTag, request);
 
-        tagRepository.save(tag);
-        log.info("Tag updated: {}", tag.getName());
+        tagMapper.updateEntity(existingTag, request);
+        tagRepository.save(existingTag);
+
+        log.info("Tag updated: {}", existingTag.getName());
         clearSeoCache();
-        return ApiResponse.success("Tag updated successfully", tagMapper.toResponse(tag));
+        return ApiResponse.success("Tag updated successfully", tagMapper.toResponse(existingTag));
     }
 
     @Override
@@ -79,17 +82,17 @@ public class TagServiceImpl implements ITagService {
     private void validateUniqueConstraints(Tag existing, TagRequest request) {
         if (request.name() != null && (existing == null || !existing.getName().equals(request.name()))) {
             if (tagRepository.findByName(request.name()).isPresent()) {
-                throw new BusinessException("Tag name already exists: " + request.name());
+                throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag name already exists: " + request.name());
             }
         }
         if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug()))) {
             if (tagRepository.findBySlug(request.slug()).isPresent()) {
-                throw new BusinessException("Tag slug already exists: " + request.slug());
+                throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag slug already exists: " + request.slug());
             }
         }
     }
 
     private void clearSeoCache() {
-        redisUtil.delete("nexus:cache:seo::sitemap");
+        redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
     }
 }

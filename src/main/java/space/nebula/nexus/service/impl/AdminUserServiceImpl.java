@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.UserStatus;
@@ -34,7 +35,7 @@ public class AdminUserServiceImpl implements IAdminUserService {
     @Override
     public ApiResponse<UserResponse> getUserById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(404, "User not found"));
+                .orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
         return ApiResponse.success(userMapper.toResponse(user));
     }
 
@@ -43,10 +44,10 @@ public class AdminUserServiceImpl implements IAdminUserService {
     @LogOperation("Disable User")
     public ApiResponse<Void> disableUser(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(404, "User not found"));
+                .orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
         
         if (user.getStatus() == UserStatus.INACTIVE) {
-            throw new BusinessException("User is already inactive");
+            throw new BusinessException(BusinessCode.BAD_REQUEST, "User is already inactive");
         }
         
         user.setStatus(UserStatus.INACTIVE);
@@ -60,10 +61,10 @@ public class AdminUserServiceImpl implements IAdminUserService {
     @LogOperation("Enable User")
     public ApiResponse<Void> enableUser(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(404, "User not found"));
+                .orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
         
         if (user.getStatus() == UserStatus.ACTIVE) {
-            throw new BusinessException("User is already active");
+            throw new BusinessException(BusinessCode.BAD_REQUEST, "User is already active");
         }
         
         user.setStatus(UserStatus.ACTIVE);
@@ -77,7 +78,7 @@ public class AdminUserServiceImpl implements IAdminUserService {
     @LogOperation("Delete User")
     public ApiResponse<Void> deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
-            throw new BusinessException(404, "User not found");
+            throw new BusinessException(BusinessCode.USER_NOT_FOUND);
         }
         userRepository.deleteById(id);
         log.info("Admin deleted user id: {}", id);

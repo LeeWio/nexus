@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.entity.Role;
 import space.nebula.nexus.mapper.RoleMapper;
@@ -36,7 +37,7 @@ public class AdminRoleServiceImpl implements IAdminRoleService {
     @LogOperation("Create Role")
     public ApiResponse<RoleResponse> createRole(RoleRequest request) {
         if (roleRepository.findByCode(request.code()).isPresent()) {
-            throw new BusinessException("Role code already exists");
+            throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Role code already exists");
         }
         
         Role role = new Role();
@@ -54,10 +55,10 @@ public class AdminRoleServiceImpl implements IAdminRoleService {
     @LogOperation("Update Role")
     public ApiResponse<RoleResponse> updateRole(Long id, RoleRequest request) {
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(404, "Role not found"));
+                .orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
 
         if (!role.getCode().equals(request.code()) && roleRepository.findByCode(request.code()).isPresent()) {
-            throw new BusinessException("Role code already exists");
+            throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Role code already exists");
         }
         
         role.setName(request.name());
@@ -74,7 +75,7 @@ public class AdminRoleServiceImpl implements IAdminRoleService {
     @LogOperation("Delete Role")
     public ApiResponse<Void> deleteRole(Long id) {
         if (!roleRepository.existsById(id)) {
-            throw new BusinessException(404, "Role not found");
+            throw new BusinessException(BusinessCode.NOT_FOUND, "Role not found");
         }
         roleRepository.deleteById(id);
         log.info("Admin deleted role id: {}", id);

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.event.CommentSubmittedEvent;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
@@ -57,7 +58,7 @@ public class CommentServiceImpl implements ICommentService {
                     .orElseThrow(() -> new ResourceNotFoundException("Post", "id", request.postId()));
             
             if (targetPost.getStatus() != PostStatus.PUBLISHED) {
-                throw new BusinessException(403, "Cannot comment on unpublished posts");
+                throw new BusinessException(BusinessCode.FORBIDDEN, "Cannot comment on unpublished posts");
             }
         }
 
@@ -76,7 +77,7 @@ public class CommentServiceImpl implements ICommentService {
                                  (targetPost != null && parentComment.getPost() != null && parentComment.getPost().getId().equals(targetPost.getId()));
             
             if (!contextMatch) {
-                throw new BusinessException(400, "Parent comment belongs to a different context");
+                throw new BusinessException(BusinessCode.BAD_REQUEST, "Parent comment belongs to a different context");
             }
         }
 
@@ -107,7 +108,7 @@ public class CommentServiceImpl implements ICommentService {
         eventPublisher.publishEvent(new CommentSubmittedEvent(this, newComment));
 
         if (containsViolationContent) {
-            return ApiResponse.error(400, "Comment contains prohibited content and has been rejected.");
+            return ApiResponse.error(BusinessCode.BAD_REQUEST.getCode(), "Comment contains prohibited content and has been rejected.");
         }
         
         return ApiResponse.success("Comment submitted successfully and is awaiting moderation", null);

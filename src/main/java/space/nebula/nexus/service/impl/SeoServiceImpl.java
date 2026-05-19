@@ -5,8 +5,11 @@ import com.rometools.rome.io.SyndFeedOutput;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.entity.Category;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.PostSeries;
@@ -37,7 +40,7 @@ public class SeoServiceImpl implements ISeoService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "seo", key = "'sitemap'")
+    @Cacheable(value = CacheConstants.SEO, key = CacheConstants.SITEMAP_KEY)
     public String generateSitemapXml() {
         log.info("Generating professional XML Sitemap...");
         String siteBaseUrl = getSiteBaseUrl();
@@ -48,10 +51,9 @@ public class SeoServiceImpl implements ISeoService {
         // 1. Static Home Page
         appendSitemapEntry(sitemapBuilder, siteBaseUrl, "1.0", "daily");
 
-        // 2. Published Posts
-        List<Post> publishedPosts = postRepository.findAll().stream()
-                .filter(post -> post.getStatus() == PostStatus.PUBLISHED)
-                .toList();
+        // 2. Published Posts - Fetch up to 1000 posts for the sitemap
+        List<Post> publishedPosts = postRepository.findAllByStatus(PostStatus.PUBLISHED, 
+                PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent();
         for (Post post : publishedPosts) {
             appendSitemapEntry(sitemapBuilder, siteBaseUrl + "/posts/" + post.getSlug(), "0.8", "weekly");
         }
@@ -80,7 +82,7 @@ public class SeoServiceImpl implements ISeoService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "seo", key = "'rss_feed'")
+    @Cacheable(value = CacheConstants.SEO, key = CacheConstants.RSS_FEED_SPEL)
     public String generateRssFeedXml() {
         log.info("Generating standard RSS 2.0 Feed...");
         String websiteName = getSiteConfiguration("site_name", "Nexus Professional Blog");
@@ -94,11 +96,8 @@ public class SeoServiceImpl implements ISeoService {
         syndFeed.setDescription(websiteDescription);
 
         // Fetch 20 most recent published posts
-        List<Post> recentPosts = postRepository.findAll().stream()
-                .filter(post -> post.getStatus() == PostStatus.PUBLISHED)
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .limit(20)
-                .toList();
+        List<Post> recentPosts = postRepository.findAllByStatus(PostStatus.PUBLISHED, 
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent();
 
         List<SyndEntry> feedEntries = new ArrayList<>();
         for (Post post : recentPosts) {

@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import space.nebula.nexus.common.annotation.RateLimit;
+import space.nebula.nexus.common.constant.BusinessCode;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.utils.IpUtil;
 
@@ -58,7 +60,7 @@ public class RateLimitAspect {
         // 1. Generate a unique and safe limit key
         String ip = IpUtil.getIpAddress(request);
         String methodName = ((MethodSignature) joinPoint.getSignature()).toShortString();
-        String combinedKey = "nexus:rate_limit:" + rateLimit.key() + ":" + ip + ":" + methodName;
+        String combinedKey = CacheConstants.RATE_LIMIT_PREFIX + rateLimit.key() + ":" + ip + ":" + methodName;
 
         // 2. Prepare parameters for Lua script
         long windowSizeMillis = rateLimit.unit().toMillis(rateLimit.time());
@@ -78,7 +80,7 @@ public class RateLimitAspect {
         // 4. Handle result
         if (result == null || result == 0) {
             log.warn("Rate limit exceeded for IP: {} on method: {}. Key: {}", ip, methodName, combinedKey);
-            throw new BusinessException(429, rateLimit.message());
+            throw new BusinessException(BusinessCode.TOO_MANY_REQUESTS, rateLimit.message());
         }
     }
 }

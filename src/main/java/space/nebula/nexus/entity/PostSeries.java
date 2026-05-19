@@ -8,6 +8,7 @@ import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
@@ -17,6 +18,7 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
+@DynamicUpdate
 @Table(name = "blog_series")
 @SQLDelete(sql = "UPDATE blog_series SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")

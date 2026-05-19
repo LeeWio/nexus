@@ -12,6 +12,9 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 import space.nebula.nexus.enums.UserStatus;
 
 import java.util.HashSet;
@@ -20,7 +23,10 @@ import java.util.Set;
 @Getter
 @Setter
 @Entity
+@DynamicUpdate
 @Table(name = "sys_user")
+@SQLDelete(sql = "UPDATE sys_user SET is_deleted = true WHERE id = ?")
+@SQLRestriction("is_deleted = false")
 public class User extends BaseEntity {
 
     @Column(unique = true, nullable = false, length = 50)

@@ -8,6 +8,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 import space.nebula.nexus.enums.FriendLinkStatus;
@@ -15,6 +16,7 @@ import space.nebula.nexus.enums.FriendLinkStatus;
 @Getter
 @Setter
 @Entity
+@DynamicUpdate
 @Table(name = "blog_friend_link")
 @SQLDelete(sql = "UPDATE blog_friend_link SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")

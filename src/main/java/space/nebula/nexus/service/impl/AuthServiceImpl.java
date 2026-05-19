@@ -13,6 +13,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.validator.UserValidator;
@@ -77,6 +79,7 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     @Transactional
+    @LogOperation("User Registration")
     public ApiResponse<Void> registerAccount(RegisterRequest request) {
         userValidator.validateRegistration(request);
 
@@ -89,6 +92,7 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
+    @LogOperation("User Login")
     public ApiResponse<AuthResponse> authenticate(LoginRequest request) {
         String username = request.username();
 
@@ -125,20 +129,21 @@ public class AuthServiceImpl implements IAuthService {
         } catch (BadCredentialsException e) {
             // 3. Delegate failure recording
             loginSecurityService.recordLoginFailure(username);
-            throw new BusinessException(401, "Invalid username or password");
+            throw new BusinessException(BusinessCode.BAD_CREDENTIALS);
         } catch (BusinessException e) {
             throw e; // Rethrow business exceptions (like lockouts)
         } catch (Exception e) {
             log.error("Authentication failed unexpectedly for user: {}", username, e);
-            throw new BusinessException(500, "Authentication failed: " + e.getMessage());
+            throw new BusinessException(BusinessCode.ERROR, "Authentication failed: " + e.getMessage());
         }
     }
 
     @Override
+    @LogOperation("Send Login OTP")
     public ApiResponse<Void> sendOtp(String email) {
         // 1. Check if user exists by email
         userRepository.findByEmail(email)
-                .orElseThrow(() -> new BusinessException(404, "No user found with this email"));
+                .orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "No user found with this email"));
 
         // 2. Generate 6-digit OTP
         String otp = String.format("%06d", new Random().nextInt(1000000));
@@ -159,6 +164,7 @@ public class AuthServiceImpl implements IAuthService {
 
     @Override
     @Transactional
+    @LogOperation("OTP Login")
     public ApiResponse<AuthResponse> loginWithOtp(OtpLoginRequest request) {
         String email = request.email();
         String code = request.code();
@@ -168,15 +174,15 @@ public class AuthServiceImpl implements IAuthService {
         String storedOtp = redisUtil.get(otpKey, String.class).orElse(null);
 
         if (storedOtp == null || !storedOtp.equals(code)) {
-            throw new BusinessException(401, "Invalid or expired OTP");
+            throw new BusinessException(BusinessCode.INVALID_TOKEN, "Invalid or expired OTP");
         }
 
         // 2. Load user and validate status
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new BusinessException(404, "User not found"));
+                .orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
         if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new BusinessException(403, "Your account is " + user.getStatus().name() + ". Please contact the administrator.");
+            throw new BusinessException(BusinessCode.ACCOUNT_DISABLED, "Your account is " + user.getStatus().name() + ". Please contact the administrator.");
         }
 
         // 3. Authenticate manually in SecurityContext
@@ -210,7 +216,7 @@ public class AuthServiceImpl implements IAuthService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUsername(username)
                 .map(ApiResponse::success)
-                .orElseThrow(() -> new BusinessException(404, "Authenticated user data not found"));
+                .orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "Authenticated user data not found"));
     }
 
     // --- Private Helpers ---

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.KanbanColumn;
 import space.nebula.nexus.entity.KanbanItem;
@@ -148,7 +149,7 @@ public class KanbanServiceImpl implements IKanbanService {
     @Override
     @Transactional
     public void relocateTask(KanbanItemMoveRequest request) {
-        String columnMutexKey = "nexus:lock:kanban:column:" + request.getTargetColumnId();
+        String columnMutexKey = CacheConstants.LOCK_KANBAN_COLUMN_PREFIX + request.getTargetColumnId();
         String mutexToken = UUID.randomUUID().toString();
 
         if (!redisLockUtil.tryLock(columnMutexKey, mutexToken, 5, TimeUnit.SECONDS)) {

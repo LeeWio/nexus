@@ -214,6 +214,23 @@ public class RedisUtil {
     }
   }
 
+  /**
+   * Deletes all keys matching the specified pattern.
+   *
+   * @param pattern the pattern to match (e.g., "nexus:cache:*")
+   */
+  public void deleteByPattern(String pattern) {
+    try {
+      Set<String> keys = redisTemplate.keys(pattern);
+      if (keys != null && !keys.isEmpty()) {
+        redisTemplate.delete(keys);
+        log.debug("Deleted {} keys matching pattern: {}", keys.size(), pattern);
+      }
+    } catch (Exception e) {
+      log.error("Error deleting keys by pattern: {}", pattern, e);
+    }
+  }
+
   // ==================== List Operations ====================
 
   /**
@@ -294,6 +311,66 @@ public class RedisUtil {
       return redisTemplate.opsForList().remove(key, count, value);
     } catch (Exception e) {
       log.error("Error removing from list for key: {}", key, e);
+      return null;
+    }
+  }
+
+  /**
+   * Removes and returns the first element of the list.
+   *
+   * @param key   the key
+   * @param clazz the expected class type
+   * @return Optional containing the popped value if found and of correct type
+   */
+  public <T> Optional<T> getAndPopLeft(String key, Class<T> clazz) {
+    try {
+      Object value = redisTemplate.opsForList().leftPop(key);
+      if (value == null || !clazz.isInstance(value)) {
+        return Optional.empty();
+      } else {
+        return Optional.of(clazz.cast(value));
+      }
+    } catch (Exception e) {
+      log.error("Error popping from list for key: {}", key, e);
+      return Optional.empty();
+    }
+  }
+
+  /**
+   * Removes and returns multiple elements from the beginning of the list.
+   *
+   * @param key   the key
+   * @param count the number of elements to pop
+   * @param clazz the expected class type
+   * @return the list of popped elements
+   */
+  public <T> List<T> listPopLeft(String key, long count, Class<T> clazz) {
+    try {
+      List<Object> values = redisTemplate.opsForList().leftPop(key, count);
+      if (values == null) return java.util.Collections.emptyList();
+      return values.stream()
+          .filter(clazz::isInstance)
+          .map(clazz::cast)
+          .toList();
+    } catch (Exception e) {
+      log.error("Error popping multiple from list for key: {}", key, e);
+      return java.util.Collections.emptyList();
+    }
+  }
+
+  /**
+   * Increments the value of a hash field by the specified delta.
+  ...
+   * @param key     the key
+   * @param hashKey the hash key
+   * @param delta   the increment value
+   * @return the new value after increment
+   */
+  public Long hashIncrement(String key, String hashKey, long delta) {
+    try {
+      return redisTemplate.opsForHash().increment(key, hashKey, delta);
+    } catch (Exception e) {
+      log.error("Error incrementing hash field for key: {}, hashKey: {}", key, hashKey, e);
       return null;
     }
   }

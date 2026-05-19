@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.entity.VisitLog;
 import space.nebula.nexus.utils.IpUtil;
 
@@ -23,8 +24,6 @@ public class AnalyticsInterceptor implements HandlerInterceptor {
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
 
-    private static final String ANALYTICS_BUFFER_KEY = "nexus:analytics:buffer";
-
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         try {
@@ -40,7 +39,7 @@ public class AnalyticsInterceptor implements HandlerInterceptor {
                 
                 // Note: Browser/OS/Location will be parsed in the background task to save time here
                 
-                redisTemplate.opsForList().rightPush(ANALYTICS_BUFFER_KEY, visitLog);
+                redisTemplate.opsForList().rightPush(CacheConstants.ANALYTICS_BUFFER_KEY, visitLog);
             }
         } catch (Exception e) {
             log.error("Failed to buffer analytics log", e);

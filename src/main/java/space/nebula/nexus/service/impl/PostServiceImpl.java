@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.event.PostChangedEvent;
 import space.nebula.nexus.common.event.PostDeletedEvent;
@@ -70,6 +71,10 @@ public class PostServiceImpl implements IPostService {
         PostResponse.PostResponseBuilder responseBuilder = postMapper.toResponse(post).toBuilder();
         interactionService.populateInteractionData(responseBuilder, id);
         
+        // Merge real-time views from Redis hash
+        Long mergedViews = mergeRealtimeViews(post.getId(), post.getViews());
+        responseBuilder.views(mergedViews);
+        
         return ApiResponse.success(responseBuilder.build());
     }
 
@@ -90,7 +95,7 @@ public class PostServiceImpl implements IPostService {
         postRepository.save(newPost);
         log.info("Blog post created: {} by {}", newPost.getTitle(), currentAuthor.getUsername());
         
-        // Cleanup potential autosave data (client might use slug or random UUID as identifier)
+        // Cleanup potential autosave data
         clearAutosaveData(request.slug());
 
         // Publish event for async side-effects (Search indexing, Revisions)
@@ -186,24 +191,20 @@ public class PostServiceImpl implements IPostService {
                             .orElseThrow(() -> new ResourceNotFoundException("Post", "slug", slug));
 
                     if (post.getStatus() != PostStatus.PUBLISHED) {
-                        throw new BusinessException(403, "Post is not published");
+                        throw new BusinessException(BusinessCode.FORBIDDEN, "Post is not published");
                     }
                     PostResponse mappedResponse = postMapper.toResponse(post);
                     redisUtil.set(cacheKey, mappedResponse, 1, java.util.concurrent.TimeUnit.HOURS);
                     return mappedResponse;
                 });
 
-        // Async view count increment
-        redisUtil.increment(CacheConstants.POST_VIEW_COUNT + postResponse.id());
+        // Async view count increment using Hash for easier batch sync
+        redisUtil.hashIncrement(CacheConstants.POST_VIEW_EXTRA_HASH, postResponse.id().toString(), 1L);
         
         // Merge real-time views from Redis hash
-        Long currentViews = postResponse.views();
-        Object extraViews = redisUtil.hashGet(CacheConstants.POST_VIEW_EXTRA_HASH, postResponse.id().toString());
-        if (extraViews instanceof Number extraViewCount) {
-            currentViews += extraViewCount.longValue();
-        }
+        Long mergedViews = mergeRealtimeViews(postResponse.id(), postResponse.views());
         
-        PostResponse finalPostResponse = postResponse.toBuilder().views(currentViews).build();
+        PostResponse finalPostResponse = postResponse.toBuilder().views(mergedViews).build();
         return ApiResponse.success(finalPostResponse);
     }
 
@@ -220,10 +221,19 @@ public class PostServiceImpl implements IPostService {
         String autosaveKey = CacheConstants.POST_AUTOSAVE_PREFIX + identifier;
         return redisUtil.get(autosaveKey, String.class)
                 .map(ApiResponse::success)
-                .orElse(ApiResponse.error(404, "No autosaved content found for this identifier"));
+                .orElse(ApiResponse.error(BusinessCode.NOT_FOUND.getCode(), "No autosaved content found for this identifier"));
     }
 
     // --- Private Helper Methods ---
+
+    private Long mergeRealtimeViews(Long postId, Long dbViews) {
+        Long totalViews = dbViews != null ? dbViews : 0L;
+        Object extraViews = redisUtil.hashGet(CacheConstants.POST_VIEW_EXTRA_HASH, postId.toString());
+        if (extraViews instanceof Number extraViewCount) {
+            totalViews += extraViewCount.longValue();
+        }
+        return totalViews;
+    }
 
     private void clearAutosaveData(String identifier) {
         if (identifier != null) {
@@ -242,7 +252,7 @@ public class PostServiceImpl implements IPostService {
                 : SlugUtil.toSlug(requestedSlug);
         
         if (postRepository.findBySlug(slug).isPresent()) {
-            throw new BusinessException("Post slug already exists: " + slug);
+            throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Post slug already exists: " + slug);
         }
         return slug;
     }
@@ -271,9 +281,10 @@ public class PostServiceImpl implements IPostService {
     }
 
     private void clearPostListCache() {
-        redisUtil.delete(CacheConstants.BLOG_POSTS + "::" + CacheConstants.POST_LIST_KEY);
-        redisUtil.delete("nexus:cache:seo::sitemap");
-        redisUtil.delete("nexus:cache:seo::rss_feed");
+        // Clear all paginated lists using pattern
+        redisUtil.deleteByPattern(CacheConstants.buildFullKey(CacheConstants.BLOG_POSTS, "list:*"));
+        redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
+        redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.RSS_FEED_KEY));
     }
 
     private void clearPostCache(String oldSlug, String newSlug) {
