@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +25,10 @@ import space.nebula.nexus.utils.MailUtil;
 
 import java.util.List;
 
+/**
+ * Implementation of friend link management service.
+ * Handles public applications and administrative moderation.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -38,14 +41,14 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<PageResult<FriendLinkResponse>> retrieveAdminFriendLinks(Pageable pageable) {
-        Page<FriendLinkResponse> friendLinkPage = friendLinkRepository.findAll(pageable).map(friendLinkMapper::toResponse);
+        var friendLinkPage = friendLinkRepository.findAll(pageable).map(friendLinkMapper::toResponse);
         return ApiResponse.success(PageResult.of(friendLinkPage));
     }
 
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<FriendLinkResponse> retrieveFriendLinkById(Long id) {
-        FriendLink friendLink = findFriendLinkOrThrow(id);
+        var friendLink = findFriendLinkOrThrow(id);
         return ApiResponse.success(friendLinkMapper.toResponse(friendLink));
     }
 
@@ -56,12 +59,14 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
     public ApiResponse<FriendLinkResponse> createFriendLink(FriendLinkRequest request) {
         validateUrlUniqueness(request.url(), null);
         
-        FriendLink newLink = friendLinkMapper.toEntity(request);
-        if (newLink.getStatus() == null) newLink.setStatus(FriendLinkStatus.APPROVED);
+        var newLink = friendLinkMapper.toEntity(request);
+        if (newLink.getStatus() == null) {
+            newLink.setStatus(FriendLinkStatus.APPROVED);
+        }
         
-        friendLinkRepository.save(newLink);
-        log.info("New friend link created: {}", newLink.getName());
-        return ApiResponse.success("Friend link created successfully", friendLinkMapper.toResponse(newLink));
+        var savedLink = friendLinkRepository.save(newLink);
+        log.info("New friend link created: {}", savedLink.getName());
+        return ApiResponse.success("Friend link created successfully", friendLinkMapper.toResponse(savedLink));
     }
 
     @Override
@@ -69,14 +74,14 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
     @CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
     @LogOperation("Update Friend Link")
     public ApiResponse<FriendLinkResponse> updateFriendLink(Long id, FriendLinkRequest request) {
-        FriendLink existingLink = findFriendLinkOrThrow(id);
+        var existingLink = findFriendLinkOrThrow(id);
         validateUrlUniqueness(request.url(), id);
 
         friendLinkMapper.updateEntity(existingLink, request);
-        friendLinkRepository.save(existingLink);
+        var updatedLink = friendLinkRepository.save(existingLink);
 
-        log.info("Friend link updated: {}", existingLink.getName());
-        return ApiResponse.success("Friend link updated successfully", friendLinkMapper.toResponse(existingLink));
+        log.info("Friend link updated: {}", updatedLink.getName());
+        return ApiResponse.success("Friend link updated successfully", friendLinkMapper.toResponse(updatedLink));
     }
 
     @Override
@@ -89,14 +94,14 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
         }
         friendLinkRepository.deleteById(id);
         log.info("Friend link deleted ID: {}", id);
-        return ApiResponse.success();
+        return ApiResponse.success("Friend link deleted", null);
     }
 
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = CacheConstants.FRIEND_LINKS, key = CacheConstants.PUBLIC_LIST_KEY)
     public ApiResponse<List<FriendLinkResponse>> retrievePublicFriendLinks() {
-        List<FriendLink> activeLinks = friendLinkRepository.findByStatusAndIsPublishedTrueOrderBySortOrderAscCreatedAtDesc(FriendLinkStatus.APPROVED);
+        var activeLinks = friendLinkRepository.findByStatusAndIsPublishedTrueOrderBySortOrderAscCreatedAtDesc(FriendLinkStatus.APPROVED);
         return ApiResponse.success(friendLinkMapper.toResponseList(activeLinks));
     }
 
@@ -106,7 +111,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
     public ApiResponse<Void> applyForFriendLink(FriendLinkRequest request) {
         validateUrlUniqueness(request.url(), null);
 
-        FriendLink application = friendLinkMapper.toEntity(request);
+        var application = friendLinkMapper.toEntity(request);
         application.setStatus(FriendLinkStatus.APPLYING);
         application.setIsPublished(false);
         application.setSortOrder(0);
@@ -114,7 +119,6 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
         friendLinkRepository.save(application);
         log.info("Received friend link application: {}", application.getUrl());
 
-        // Notify admin via email
         sendApplicationNotification(application);
 
         return ApiResponse.success("Application submitted successfully. It will be reviewed by the administrator.", null);
@@ -125,7 +129,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
     @CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
     @LogOperation("Moderate Friend Link")
     public ApiResponse<Void> moderateFriendLink(Long id, FriendLinkStatus status) {
-        FriendLink link = findFriendLinkOrThrow(id);
+        var link = findFriendLinkOrThrow(id);
         link.setStatus(status);
         if (status == FriendLinkStatus.APPROVED) {
             link.setIsPublished(true);
@@ -152,14 +156,10 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
         String subject = "New Friend Link Application: " + link.getName();
         String content = String.format(
                 "Hello Admin,\n\nA new friend link application has been submitted:\n\n" +
-                "Site Name: %s\n" +
-                "Site URL: %s\n" +
-                "Description: %s\n" +
-                "Contact Email: %s\n\n" +
-                "Please log in to the admin panel to moderate this application.",
+                "Site Name: %s\nSite URL: %s\nDescription: %s\nContact Email: %s\n\n" +
+                "Please log in to moderate this application.",
                 link.getName(), link.getUrl(), link.getDescription(), link.getEmail()
         );
-        // Fallback email if no admin-email property, assuming admin@nexus.com
         mailUtil.sendSimpleMail("admin@nexus.com", subject, content);
     }
 }

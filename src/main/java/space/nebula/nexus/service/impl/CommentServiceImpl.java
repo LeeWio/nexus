@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +32,7 @@ import space.nebula.nexus.utils.IpUtil;
 
 /**
  * Professional implementation of ICommentService with hierarchical support, moderation,
- * sensitive word filtering, and async event notification.
+ * sensitive word filtering, and asynchronous event notification.
  */
 @Slf4j
 @Service
@@ -51,7 +50,7 @@ public class CommentServiceImpl implements ICommentService {
     @Transactional
     @LogOperation("Publish Comment")
     public ApiResponse<Void> publishComment(CommentRequest request, HttpServletRequest servletRequest) {
-        // 1. Validate Target Post (if present)
+        // 1. Validate Target Post context
         Post targetPost = null;
         if (request.postId() != null) {
             targetPost = postRepository.findById(request.postId())
@@ -62,53 +61,48 @@ public class CommentServiceImpl implements ICommentService {
             }
         }
 
-        // 2. Sensitive word filtering & Auto-Moderation
-        boolean containsViolationContent = sensitiveWordService.containsSensitiveWord(request.content());
-        String sanitizedContent = sensitiveWordService.filter(request.content());
+        // 2. Content Moderation
+        boolean hasViolation = sensitiveWordService.containsSensitiveWord(request.content());
+        String filteredContent = sensitiveWordService.filter(request.content());
 
-        // 3. Validate Parent Comment if exists
+        // 3. Hierarchy Validation
         Comment parentComment = null;
         if (request.parentId() != null) {
             parentComment = commentRepository.findById(request.parentId())
                     .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", request.parentId()));
             
-            // Validate that parent matches the same post context (or both are guestbook)
             boolean contextMatch = (targetPost == null && parentComment.getPost() == null) ||
-                                 (targetPost != null && parentComment.getPost() != null && parentComment.getPost().getId().equals(targetPost.getId()));
+                                 (targetPost != null && parentComment.getPost() != null && 
+                                  parentComment.getPost().getId().equals(targetPost.getId()));
             
             if (!contextMatch) {
-                throw new BusinessException(BusinessCode.BAD_REQUEST, "Parent comment belongs to a different context");
+                throw new BusinessException(BusinessCode.BAD_REQUEST, "Comment context mismatch with parent");
             }
         }
 
-        // 4. Get Authenticated Author
-        User commentAuthor = SecurityUtil.getCurrentUserOrThrow(userRepository);
+        User author = SecurityUtil.getCurrentUserOrThrow(userRepository);
 
-        // 5. Build and Save Comment Entity
-        Comment newComment = new Comment();
-        newComment.setContent(sanitizedContent);
-        newComment.setPost(targetPost);
-        newComment.setUser(commentAuthor);
-        newComment.setParent(parentComment);
+        // 4. Persistence
+        var comment = new Comment();
+        comment.setContent(filteredContent);
+        comment.setPost(targetPost);
+        comment.setUser(author);
+        comment.setParent(parentComment);
+        comment.setIpAddress(IpUtil.getIpAddress(servletRequest));
+        comment.setUserAgent(servletRequest.getHeader("User-Agent"));
         
-        // Auto-reject if sensitive words detected
-        if (containsViolationContent) {
-            newComment.setStatus(CommentStatus.REJECTED);
-            log.warn("Comment by {} rejected due to content violation: {}", commentAuthor.getUsername(), request.content());
+        if (hasViolation) {
+            comment.setStatus(CommentStatus.REJECTED);
+            log.warn("Comment by {} automatically rejected due to policy violation", author.getUsername());
         } else {
-            newComment.setStatus(CommentStatus.PENDING);
+            comment.setStatus(CommentStatus.PENDING);
         }
 
-        newComment.setIpAddress(IpUtil.getIpAddress(servletRequest));
-        newComment.setUserAgent(servletRequest.getHeader("User-Agent"));
+        commentRepository.save(comment);
+        eventPublisher.publishEvent(new CommentSubmittedEvent(this, comment));
 
-        commentRepository.save(newComment);
-        
-        // 6. Publish async notification event
-        eventPublisher.publishEvent(new CommentSubmittedEvent(this, newComment));
-
-        if (containsViolationContent) {
-            return ApiResponse.error(BusinessCode.BAD_REQUEST.getCode(), "Comment contains prohibited content and has been rejected.");
+        if (hasViolation) {
+            return ApiResponse.error(BusinessCode.BAD_REQUEST, "Content policy violation detected. Comment rejected.");
         }
         
         return ApiResponse.success("Comment submitted successfully and is awaiting moderation", null);
@@ -117,39 +111,37 @@ public class CommentServiceImpl implements ICommentService {
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<PageResult<CommentResponse>> retrieveCommentsByPost(Long postId, Pageable pageable) {
-        Page<Comment> postComments = commentRepository.findAllByPostIdAndParentIsNullAndStatus(
+        var comments = commentRepository.findAllByPostIdAndParentIsNullAndStatus(
                 postId, CommentStatus.APPROVED, pageable);
-        
-        return ApiResponse.success(PageResult.of(postComments.map(commentMapper::toResponse)));
+        return ApiResponse.success(PageResult.of(comments.map(commentMapper::toResponse)));
     }
 
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<PageResult<CommentResponse>> retrieveGuestbookComments(Pageable pageable) {
-        Page<Comment> guestbookComments = commentRepository.findAllByPostIsNullAndParentIsNullAndStatus(
+        var comments = commentRepository.findAllByPostIsNullAndParentIsNullAndStatus(
                 CommentStatus.APPROVED, pageable);
-        
-        return ApiResponse.success(PageResult.of(guestbookComments.map(commentMapper::toResponse)));
+        return ApiResponse.success(PageResult.of(comments.map(commentMapper::toResponse)));
     }
 
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<PageResult<CommentResponse>> searchCommentsForManagement(Pageable pageable) {
-        Page<Comment> allComments = commentRepository.findAll(pageable);
-        return ApiResponse.success(PageResult.of(allComments.map(commentMapper::toResponse)));
+        var comments = commentRepository.findAll(pageable);
+        return ApiResponse.success(PageResult.of(comments.map(commentMapper::toResponse)));
     }
 
     @Override
     @Transactional
     @LogOperation("Moderate Comment")
     public ApiResponse<Void> moderateComment(Long id, CommentStatus status) {
-        Comment targetComment = commentRepository.findById(id)
+        var comment = commentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
         
-        targetComment.setStatus(status);
-        commentRepository.save(targetComment);
-        log.info("Comment {} moderated status updated to {}", id, status);
-        return ApiResponse.success("Comment moderation completed successfully", null);
+        comment.setStatus(status);
+        commentRepository.save(comment);
+        log.info("Comment {} moderation status updated to {}", id, status);
+        return ApiResponse.success("Moderation successful", null);
     }
 
     @Override
@@ -160,7 +152,7 @@ public class CommentServiceImpl implements ICommentService {
             throw new ResourceNotFoundException("Comment", "id", id);
         }
         commentRepository.deleteById(id);
-        log.info("Comment {} deleted from system", id);
-        return ApiResponse.success("Comment deleted successfully", null);
+        log.info("Comment {} permanently deleted", id);
+        return ApiResponse.success("Comment deleted", null);
     }
 }

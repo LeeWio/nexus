@@ -4,11 +4,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
+import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.KanbanColumn;
 import space.nebula.nexus.entity.KanbanItem;
-import space.nebula.nexus.entity.Tag;
 import space.nebula.nexus.mapper.KanbanMapper;
 import space.nebula.nexus.payload.request.KanbanColumnRequest;
 import space.nebula.nexus.payload.request.KanbanItemMoveRequest;
@@ -23,11 +25,14 @@ import space.nebula.nexus.utils.RedisLockUtil;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
+/**
+ * Implementation of Kanban board management service.
+ * Standardized with ApiResponse and enhanced with concurrency protection.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -41,15 +46,15 @@ public class KanbanServiceImpl implements IKanbanService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<KanbanColumnResponse> retrieveFullBoard() {
-        List<KanbanColumn> boardColumns = columnRepository.findAllWithItemsOrderByOrderIndexAsc();
-        return kanbanMapper.toColumnResponseList(boardColumns);
+    public ApiResponse<List<KanbanColumnResponse>> retrieveFullBoard() {
+        var boardColumns = columnRepository.findAllWithItemsOrderByOrderIndexAsc();
+        return ApiResponse.success(kanbanMapper.toColumnResponseList(boardColumns));
     }
 
     @Override
     @Transactional
-    public KanbanColumnResponse createColumn(KanbanColumnRequest request) {
-        KanbanColumn newColumn = new KanbanColumn();
+    public ApiResponse<KanbanColumnResponse> createColumn(KanbanColumnRequest request) {
+        var newColumn = new KanbanColumn();
         newColumn.setName(request.getName());
         newColumn.setColor(request.getColor());
         
@@ -60,141 +65,157 @@ public class KanbanServiceImpl implements IKanbanService {
             newColumn.setOrderIndex(maxSequence != null ? maxSequence + 1 : 0);
         }
 
-        return kanbanMapper.toResponse(columnRepository.save(newColumn));
+        var savedColumn = columnRepository.save(newColumn);
+        log.info("Kanban column created: {}", savedColumn.getName());
+        return ApiResponse.success("Column created", kanbanMapper.toResponse(savedColumn));
     }
 
     @Override
     @Transactional
-    public KanbanColumnResponse updateColumn(Long id, KanbanColumnRequest request) {
-        KanbanColumn columnToUpdate = columnRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("KanbanColumn", "id", id));
+    public ApiResponse<KanbanColumnResponse> updateColumn(Long id, KanbanColumnRequest request) {
+        var column = findColumnOrThrow(id);
         
-        columnToUpdate.setName(request.getName());
-        columnToUpdate.setColor(request.getColor());
+        column.setName(request.getName());
+        column.setColor(request.getColor());
         if (request.getOrderIndex() != null) {
-            columnToUpdate.setOrderIndex(request.getOrderIndex());
+            column.setOrderIndex(request.getOrderIndex());
         }
 
-        return kanbanMapper.toResponse(columnRepository.save(columnToUpdate));
+        var updatedColumn = columnRepository.save(column);
+        log.info("Kanban column updated: {}", updatedColumn.getName());
+        return ApiResponse.success("Column updated", kanbanMapper.toResponse(updatedColumn));
     }
 
     @Override
     @Transactional
-    public void deleteColumn(Long id) {
+    public ApiResponse<Void> deleteColumn(Long id) {
         if (!columnRepository.existsById(id)) {
             throw new ResourceNotFoundException("KanbanColumn", "id", id);
         }
         columnRepository.deleteById(id);
+        log.info("Kanban column deleted: {}", id);
+        return ApiResponse.success("Column deleted", null);
     }
 
     @Override
     @Transactional
-    public KanbanItemResponse createTask(KanbanItemRequest request) {
-        KanbanColumn parentColumn = columnRepository.findById(request.getColumnId())
-                .orElseThrow(() -> new ResourceNotFoundException("KanbanColumn", "id", request.getColumnId()));
+    public ApiResponse<KanbanItemResponse> createTask(KanbanItemRequest request) {
+        var column = findColumnOrThrow(request.getColumnId());
 
-        KanbanItem newTask = new KanbanItem();
+        var newTask = new KanbanItem();
         newTask.setTitle(request.getTitle());
         newTask.setContent(request.getContent());
         newTask.setPriority(request.getPriority());
         newTask.setReminderAt(request.getReminderAt());
-        newTask.setColumn(parentColumn);
+        newTask.setColumn(column);
 
         if (request.getOrderIndex() != null) {
             newTask.setOrderIndex(request.getOrderIndex());
         } else {
-            Integer maxSequence = taskRepository.findMaxOrderIndexByColumnId(parentColumn.getId());
+            Integer maxSequence = taskRepository.findMaxOrderIndexByColumnId(column.getId());
             newTask.setOrderIndex(maxSequence != null ? maxSequence + 1 : 0);
         }
 
         if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
-            List<Tag> associatedTags = tagRepository.findAllById(request.getTagIds());
-            newTask.setTags(new HashSet<>(associatedTags));
+            var tags = tagRepository.findAllById(request.getTagIds());
+            newTask.setTags(new HashSet<>(tags));
         }
 
-        return kanbanMapper.toResponse(taskRepository.save(newTask));
+        var savedTask = taskRepository.save(newTask);
+        log.info("Kanban task created: {}", savedTask.getTitle());
+        return ApiResponse.success("Task created", kanbanMapper.toResponse(savedTask));
     }
 
     @Override
     @Transactional
-    public KanbanItemResponse updateTask(Long id, KanbanItemRequest request) {
-        KanbanItem taskToUpdate = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("KanbanItem", "id", id));
+    public ApiResponse<KanbanItemResponse> updateTask(Long id, KanbanItemRequest request) {
+        var task = findItemOrThrow(id);
 
-        kanbanMapper.updateItem(taskToUpdate, request);
+        kanbanMapper.updateItem(task, request);
 
-        if (request.getColumnId() != null && !taskToUpdate.getColumn().getId().equals(request.getColumnId())) {
-            KanbanColumn targetColumn = columnRepository.findById(request.getColumnId())
-                    .orElseThrow(() -> new ResourceNotFoundException("KanbanColumn", "id", request.getColumnId()));
-            taskToUpdate.setColumn(targetColumn);
+        if (request.getColumnId() != null && !task.getColumn().getId().equals(request.getColumnId())) {
+            var targetColumn = findColumnOrThrow(request.getColumnId());
+            task.setColumn(targetColumn);
         }
 
         if (request.getTagIds() != null) {
-            List<Tag> updatedTags = tagRepository.findAllById(request.getTagIds());
-            taskToUpdate.setTags(new HashSet<>(updatedTags));
+            var tags = tagRepository.findAllById(request.getTagIds());
+            task.setTags(new HashSet<>(tags));
         }
 
-        return kanbanMapper.toResponse(taskRepository.save(taskToUpdate));
+        var updatedTask = taskRepository.save(task);
+        log.info("Kanban task updated: {}", updatedTask.getTitle());
+        return ApiResponse.success("Task updated", kanbanMapper.toResponse(updatedTask));
     }
 
     @Override
     @Transactional
-    public void deleteTask(Long id) {
+    public ApiResponse<Void> deleteTask(Long id) {
         if (!taskRepository.existsById(id)) {
             throw new ResourceNotFoundException("KanbanItem", "id", id);
         }
         taskRepository.deleteById(id);
+        log.info("Kanban task deleted: {}", id);
+        return ApiResponse.success("Task deleted", null);
     }
 
     @Override
     @Transactional
-    public void relocateTask(KanbanItemMoveRequest request) {
-        String columnMutexKey = CacheConstants.LOCK_KANBAN_COLUMN_PREFIX + request.getTargetColumnId();
-        String mutexToken = UUID.randomUUID().toString();
+    public ApiResponse<Void> relocateTask(KanbanItemMoveRequest request) {
+        String lockKey = CacheConstants.LOCK_KANBAN_COLUMN_PREFIX + request.getTargetColumnId();
+        String lockToken = UUID.randomUUID().toString();
 
-        if (!redisLockUtil.tryLock(columnMutexKey, mutexToken, 5, TimeUnit.SECONDS)) {
-            throw new space.nebula.nexus.common.exception.BusinessException("Board is currently busy, please try again in a moment");
+        if (!redisLockUtil.tryLock(lockKey, lockToken, 5, TimeUnit.SECONDS)) {
+            throw new BusinessException(BusinessCode.ERROR, "Board is busy, please try again");
         }
 
         try {
-            KanbanItem targetTask = taskRepository.findById(request.getItemId())
-                    .orElseThrow(() -> new ResourceNotFoundException("KanbanItem", "id", request.getItemId()));
+            var task = findItemOrThrow(request.getItemId());
+            var destColumn = findColumnOrThrow(request.getTargetColumnId());
 
-            KanbanColumn destinationColumn = columnRepository.findById(request.getTargetColumnId())
-                    .orElseThrow(() -> new ResourceNotFoundException("KanbanColumn", "id", request.getTargetColumnId()));
+            task.setColumn(destColumn);
+            task.setOrderIndex(request.getTargetOrderIndex());
+            taskRepository.save(task);
 
-            targetTask.setColumn(destinationColumn);
-            targetTask.setOrderIndex(request.getTargetOrderIndex());
-            taskRepository.save(targetTask);
-
-            List<KanbanItem> destinationColumnTasks = destinationColumn.getItems();
-            if (!destinationColumnTasks.contains(targetTask)) {
-                destinationColumnTasks.add(targetTask);
+            var tasks = destColumn.getItems();
+            if (!tasks.contains(task)) {
+                tasks.add(task);
             }
 
-            destinationColumnTasks.sort((a, b) -> {
-                if (a.getId().equals(targetTask.getId())) return -1;
-                if (b.getId().equals(targetTask.getId())) return 1;
+            tasks.sort((a, b) -> {
+                if (a.getId().equals(task.getId())) return -1;
+                if (b.getId().equals(task.getId())) return 1;
                 return a.getOrderIndex().compareTo(b.getOrderIndex());
             });
 
-            for (int i = 0; i < destinationColumnTasks.size(); i++) {
-                destinationColumnTasks.get(i).setOrderIndex(i);
-            }
-            taskRepository.saveAll(destinationColumnTasks);
+            IntStream.range(0, tasks.size()).forEach(i -> tasks.get(i).setOrderIndex(i));
+            taskRepository.saveAll(tasks);
+            
+            return ApiResponse.success("Task relocated", null);
         } finally {
-            redisLockUtil.unlock(columnMutexKey, mutexToken);
+            redisLockUtil.unlock(lockKey, lockToken);
         }
     }
 
     @Override
     @Transactional
-    public void adjustColumnSequence(List<Long> columnIds) {
+    public ApiResponse<Void> adjustColumnSequence(List<Long> columnIds) {
         IntStream.range(0, columnIds.size()).forEach(i -> {
             columnRepository.findById(columnIds.get(i)).ifPresent(column -> {
                 column.setOrderIndex(i);
                 columnRepository.save(column);
             });
         });
+        return ApiResponse.success("Sequence adjusted", null);
+    }
+
+    private KanbanColumn findColumnOrThrow(Long id) {
+        return columnRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("KanbanColumn", "id", id));
+    }
+
+    private KanbanItem findItemOrThrow(Long id) {
+        return taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("KanbanItem", "id", id));
     }
 }

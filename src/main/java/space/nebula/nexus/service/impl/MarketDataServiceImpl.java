@@ -122,8 +122,8 @@ public class MarketDataServiceImpl implements IMarketDataService {
     @Override
     public ApiResponse<MarketIndexResponse> getIndex(String symbol, String period) {
         ApiResponse<List<MarketIndexResponse>> allIndicesResponse = getIndices(period);
-        if (allIndicesResponse.getCode() == 200 && allIndicesResponse.getData() != null) {
-            for (MarketIndexResponse index : allIndicesResponse.getData()) {
+        if (allIndicesResponse.code() == 200 && allIndicesResponse.data() != null) {
+            for (MarketIndexResponse index : allIndicesResponse.data()) {
                 if (index.getSymbol().equalsIgnoreCase(symbol)) {
                     return ApiResponse.success(index);
                 }

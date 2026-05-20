@@ -1,6 +1,7 @@
 package space.nebula.nexus.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -11,7 +12,11 @@ import org.springframework.web.bind.annotation.RestController;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.service.IInteractionService;
 
-@Tag(name = "User Interactions", description = "Endpoints for social interactions (like, favorite)")
+/**
+ * Controller for handling public user social interactions.
+ * Provides mechanism for liking and favoriting blog content.
+ */
+@Tag(name = "User Interactions", description = "Endpoints for social interactions including likes and favorites")
 @RestController
 @RequestMapping("/api/v1/public/interactions")
 @RequiredArgsConstructor
@@ -19,31 +24,31 @@ public class PublicInteractionController {
 
     private final IInteractionService interactionService;
 
-    @Operation(summary = "Like a post")
-    @PreAuthorize("isAuthenticated()")
     @PostMapping("/posts/{postId}/like")
-    public ApiResponse<Void> likePost(@PathVariable Long postId) {
+    @Operation(summary = "Like a post", description = "Add a like to a specific blog post. Requires user authentication.")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> likePost(@Parameter(description = "Post ID") @PathVariable Long postId) {
         return interactionService.likePost(postId);
     }
 
-    @Operation(summary = "Unlike a post")
-    @PreAuthorize("isAuthenticated()")
     @PostMapping("/posts/{postId}/unlike")
-    public ApiResponse<Void> unlikePost(@PathVariable Long postId) {
+    @Operation(summary = "Unlike a post", description = "Remove a previously added like from a blog post.")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> unlikePost(@Parameter(description = "Post ID") @PathVariable Long postId) {
         return interactionService.unlikePost(postId);
     }
 
-    @Operation(summary = "Favorite a post")
-    @PreAuthorize("isAuthenticated()")
     @PostMapping("/posts/{postId}/favorite")
-    public ApiResponse<Void> favoritePost(@PathVariable Long postId) {
+    @Operation(summary = "Favorite a post", description = "Bookmark a post as a user favorite. Requires user authentication.")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> favoritePost(@Parameter(description = "Post ID") @PathVariable Long postId) {
         return interactionService.favoritePost(postId);
     }
 
-    @Operation(summary = "Unfavorite a post")
-    @PreAuthorize("isAuthenticated()")
     @PostMapping("/posts/{postId}/unfavorite")
-    public ApiResponse<Void> unfavoritePost(@PathVariable Long postId) {
+    @Operation(summary = "Unfavorite a post", description = "Remove a post from the user's bookmarks.")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> unfavoritePost(@Parameter(description = "Post ID") @PathVariable Long postId) {
         return interactionService.unfavoritePost(postId);
     }
 }

@@ -1,18 +1,12 @@
 package space.nebula.nexus.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.request.KanbanColumnRequest;
 import space.nebula.nexus.payload.request.KanbanItemMoveRequest;
@@ -23,70 +17,74 @@ import space.nebula.nexus.service.IKanbanService;
 
 import java.util.List;
 
-@Tag(name = "Admin Kanban", description = "Kanban board management APIs for admin")
+/**
+ * Controller for administrative Kanban board management.
+ * Provides endpoints for columns, tasks, and board organization.
+ */
+@Tag(name = "Admin Kanban", description = "Kanban board management APIs for administrators")
 @RestController
-@RequestMapping("/api/admin/kanban")
+@RequestMapping("/api/v1/admin/kanban")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminKanbanController {
 
     private final IKanbanService kanbanService;
 
-    @Operation(summary = "Retrieve the full Kanban board state")
     @GetMapping
+    @Operation(summary = "Retrieve Kanban board", description = "Fetch the full board state including all columns and items.")
     public ApiResponse<List<KanbanColumnResponse>> retrieveBoard() {
-        return ApiResponse.success(kanbanService.retrieveFullBoard());
+        return kanbanService.retrieveFullBoard();
     }
 
-    @Operation(summary = "Create a new Kanban column")
     @PostMapping("/columns")
+    @Operation(summary = "Create column", description = "Add a new column to the Kanban board.")
     public ApiResponse<KanbanColumnResponse> createColumn(@Valid @RequestBody KanbanColumnRequest request) {
-        return ApiResponse.success(kanbanService.createColumn(request));
+        return kanbanService.createColumn(request);
     }
 
-    @Operation(summary = "Update a Kanban column")
     @PutMapping("/columns/{id}")
-    public ApiResponse<KanbanColumnResponse> updateColumn(@PathVariable Long id, @Valid @RequestBody KanbanColumnRequest request) {
-        return ApiResponse.success(kanbanService.updateColumn(id, request));
+    @Operation(summary = "Update column", description = "Modify the name, color, or order of an existing column.")
+    public ApiResponse<KanbanColumnResponse> updateColumn(
+            @Parameter(description = "Column ID") @PathVariable Long id, 
+            @Valid @RequestBody KanbanColumnRequest request) {
+        return kanbanService.updateColumn(id, request);
     }
 
-    @Operation(summary = "Delete a Kanban column")
     @DeleteMapping("/columns/{id}")
-    public ApiResponse<Void> deleteColumn(@PathVariable Long id) {
-        kanbanService.deleteColumn(id);
-        return ApiResponse.success();
+    @Operation(summary = "Delete column", description = "Remove a column and all its associated tasks.")
+    public ApiResponse<Void> deleteColumn(@Parameter(description = "Column ID") @PathVariable Long id) {
+        return kanbanService.deleteColumn(id);
     }
 
-    @Operation(summary = "Create a new task")
     @PostMapping("/tasks")
+    @Operation(summary = "Create task", description = "Add a new task item to a specific column.")
     public ApiResponse<KanbanItemResponse> createTask(@Valid @RequestBody KanbanItemRequest request) {
-        return ApiResponse.success(kanbanService.createTask(request));
+        return kanbanService.createTask(request);
     }
 
-    @Operation(summary = "Update a task")
     @PutMapping("/tasks/{id}")
-    public ApiResponse<KanbanItemResponse> updateTask(@PathVariable Long id, @Valid @RequestBody KanbanItemRequest request) {
-        return ApiResponse.success(kanbanService.updateTask(id, request));
+    @Operation(summary = "Update task", description = "Modify task details, priority, or tags.")
+    public ApiResponse<KanbanItemResponse> updateTask(
+            @Parameter(description = "Task ID") @PathVariable Long id, 
+            @Valid @RequestBody KanbanItemRequest request) {
+        return kanbanService.updateTask(id, request);
     }
 
-    @Operation(summary = "Delete a task")
     @DeleteMapping("/tasks/{id}")
-    public ApiResponse<Void> deleteTask(@PathVariable Long id) {
-        kanbanService.deleteTask(id);
-        return ApiResponse.success();
+    @Operation(summary = "Delete task", description = "Permanently remove a task item.")
+    public ApiResponse<Void> deleteTask(@Parameter(description = "Task ID") @PathVariable Long id) {
+        return kanbanService.deleteTask(id);
     }
 
-    @Operation(summary = "Relocate a task between columns or adjust position")
     @PostMapping("/tasks/relocate")
+    @Operation(summary = "Relocate task", description = "Move a task to another column or change its position.")
     public ApiResponse<Void> relocateTask(@Valid @RequestBody KanbanItemMoveRequest request) {
-        kanbanService.relocateTask(request);
-        return ApiResponse.success();
+        return kanbanService.relocateTask(request);
     }
 
-    @Operation(summary = "Adjust column display sequence")
     @PostMapping("/columns/sequence")
+    @Operation(summary = "Adjust column sequence", description = "Reorder the horizontal positions of columns.")
     public ApiResponse<Void> adjustColumnSequence(@RequestBody List<Long> columnIds) {
-        kanbanService.adjustColumnSequence(columnIds);
-        return ApiResponse.success();
+        return kanbanService.adjustColumnSequence(columnIds);
     }
 }

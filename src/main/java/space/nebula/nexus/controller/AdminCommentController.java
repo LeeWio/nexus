@@ -1,51 +1,52 @@
 package space.nebula.nexus.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.enums.CommentStatus;
 import space.nebula.nexus.payload.response.CommentResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.service.ICommentService;
 
+/**
+ * Controller for administrative comment management.
+ * Provides endpoints for moderation, status updates, and cleanup of user comments.
+ */
+@Tag(name = "Admin Comment Management", description = "Endpoints for moderating and managing user-generated comments")
 @RestController
 @RequestMapping("/api/v1/admin/comments")
-@Tag(name = "Admin Comment API", description = "Endpoints for comment moderation and management")
+@RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminCommentController {
 
-    @Resource
-    private ICommentService commentService;
+    private final ICommentService commentService;
 
     @GetMapping
-    @Operation(summary = "Search all comments (Management)")
+    @Operation(summary = "Search all comments", description = "Retrieve a paginated list of all comments for moderation purposes.")
     public ApiResponse<PageResult<CommentResponse>> searchComments(
-            @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+            @Parameter(description = "Pagination and sorting parameters") 
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return commentService.searchCommentsForManagement(pageable);
     }
 
     @PatchMapping("/{id}/status")
-    @Operation(summary = "Moderate a comment status")
+    @Operation(summary = "Moderate comment status", description = "Approve, reject, or mark a comment as spam.")
     public ApiResponse<Void> moderateComment(
-            @PathVariable Long id, 
-            @RequestParam CommentStatus status) {
+            @Parameter(description = "Comment ID") @PathVariable Long id, 
+            @Parameter(description = "Target status for the comment") @RequestParam CommentStatus status) {
         return commentService.moderateComment(id, status);
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Hard delete a comment")
-    public ApiResponse<Void> deleteComment(@PathVariable Long id) {
+    @Operation(summary = "Delete comment", description = "Permanently remove a comment from the system.")
+    public ApiResponse<Void> deleteComment(@Parameter(description = "Comment ID") @PathVariable Long id) {
         return commentService.deleteComment(id);
     }
 }

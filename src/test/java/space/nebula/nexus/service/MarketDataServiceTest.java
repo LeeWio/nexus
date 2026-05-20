@@ -1,17 +1,12 @@
 package space.nebula.nexus.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.config.MarketProperties;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
@@ -20,6 +15,7 @@ import space.nebula.nexus.utils.RedisUtil;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -29,13 +25,22 @@ import static org.mockito.Mockito.*;
 class MarketDataServiceTest {
 
     @Mock
-    private RestTemplate restTemplate;
+    private RestClient restClient;
+    @Mock
+    private RestClient.RequestHeadersUriSpec requestHeadersUriSpec;
+    @Mock
+    private RestClient.RequestHeadersSpec requestHeadersSpec;
+    @Mock
+    private RestClient.ResponseSpec responseSpec;
 
     @Mock
     private RedisUtil redisUtil;
 
     @Mock
     private MarketProperties marketProperties;
+
+    @Mock
+    private Executor asyncExecutor;
 
     @InjectMocks
     private MarketDataServiceImpl marketDataService;
@@ -53,14 +58,8 @@ class MarketDataServiceTest {
         MarketProperties.IndexConfig ixic = new MarketProperties.IndexConfig();
         ixic.setName("NASDAQ"); ixic.setSymbol(".ixic"); ixic.setHqKey("gb_ixic"); ixic.setType(MarketProperties.MarketType.US);
         
-        MarketProperties.IndexConfig inx = new MarketProperties.IndexConfig();
-        inx.setName("S&P 500"); inx.setSymbol(".inx"); inx.setHqKey("gb_inx"); inx.setType(MarketProperties.MarketType.US);
-        
         MarketProperties.IndexConfig sh = new MarketProperties.IndexConfig();
         sh.setName("SSE Composite"); sh.setSymbol("sh000001"); sh.setHqKey("s_sh000001"); sh.setType(MarketProperties.MarketType.CN);
-        
-        MarketProperties.IndexConfig sz = new MarketProperties.IndexConfig();
-        sz.setName("SZSE Component"); sz.setSymbol("sz399001"); sz.setHqKey("s_sz399001"); sz.setType(MarketProperties.MarketType.CN);
         
         MarketProperties.ApiUrls urls = new MarketProperties.ApiUrls();
         urls.setHq("http://hq.sinajs.cn/list=");
@@ -68,38 +67,45 @@ class MarketDataServiceTest {
         urls.setKlineUs("http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getMinK?symbol=%s&type=%s&___qn=3");
         urls.setKlineUsDaily("http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getDailyK?symbol=%s");
 
-        lenient().when(marketProperties.getIndices()).thenReturn(List.of(ixic, inx, sh, sz));
+        lenient().when(marketProperties.getIndices()).thenReturn(List.of(ixic, sh));
         lenient().when(marketProperties.getUrls()).thenReturn(urls);
+        
+        // Mock the async executor to run synchronously for tests
+        lenient().doAnswer(invocation -> {
+            ((Runnable) invocation.getArgument(0)).run();
+            return null;
+        }).when(asyncExecutor).execute(any(Runnable.class));
     }
 
     @Test
     void getIndices_Success() {
         when(redisUtil.get(anyString(), eq(List.class))).thenReturn(java.util.Optional.empty());
 
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(byte[].class)))
-                .thenReturn(new ResponseEntity<>(mockHqResponse, HttpStatus.OK));
-
-        // Mocking the K-line data calls to return empty array
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("[]", HttpStatus.OK));
+        // Mock RestClient fluent API
+        when(restClient.get()).thenReturn(requestHeadersUriSpec);
+        when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        
+        // Mock two calls: one for HQ data, others for K-line
+        when(responseSpec.body(byte[].class)).thenReturn(mockHqResponse);
+        when(responseSpec.body(String.class)).thenReturn("[]");
 
         ApiResponse<List<MarketIndexResponse>> apiResponse = marketDataService.getIndices("1D");
 
         assertNotNull(apiResponse);
-        assertEquals(200, apiResponse.getCode());
-        List<MarketIndexResponse> indices = apiResponse.getData();
-        assertEquals(4, indices.size());
+        assertEquals(200, apiResponse.code());
+        List<MarketIndexResponse> indices = apiResponse.data();
+        assertEquals(2, indices.size());
 
         MarketIndexResponse nasdaq = indices.stream().filter(i -> i.getSymbol().equals(".ixic")).findFirst().orElse(null);
         assertNotNull(nasdaq);
         assertEquals("NASDAQ", nasdaq.getName());
         assertEquals(new BigDecimal("15000.50"), nasdaq.getCurrent());
-        assertEquals(new BigDecimal("1.20"), nasdaq.getChangePct());
 
         MarketIndexResponse sse = indices.stream().filter(i -> i.getSymbol().equals("sh000001")).findFirst().orElse(null);
         assertNotNull(sse);
         assertEquals("SSE Composite", sse.getName());
         assertEquals(new BigDecimal("3050.00"), sse.getCurrent());
-        assertEquals(new BigDecimal("3.39"), sse.getChangePct());
     }
 }

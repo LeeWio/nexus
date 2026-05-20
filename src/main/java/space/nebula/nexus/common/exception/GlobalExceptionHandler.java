@@ -26,35 +26,35 @@ import java.util.stream.Collectors;
 
 /**
  * Global exception handler and data binder to unify error responses and parameter handling.
- * Refined for RESTful standards: returning appropriate HTTP status codes.
+ * Adheres to RESTful standards by returning appropriate HTTP status codes and structured payloads.
  */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
-     * Globally trim all strings in request parameters and body.
+     * Globally trim all strings in request parameters and body to prevent whitespace pollution.
      */
     @InitBinder
     public void initBinder(WebDataBinder binder) {
-        StringTrimmerEditor stringTrimmerEditor = new StringTrimmerEditor(true);
+        var stringTrimmerEditor = new StringTrimmerEditor(true);
         binder.registerCustomEditor(String.class, stringTrimmerEditor);
     }
 
     /**
      * Handle custom business exceptions.
-     * Maps the internal business code to HTTP status if they are standard (4xx, 500).
      */
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
-        int code = e.getCode();
-        HttpStatus status = HttpStatus.resolve(code);
+        var code = e.getCode();
+        var status = HttpStatus.resolve(code);
         if (status == null) status = HttpStatus.BAD_REQUEST;
 
+        var traceId = org.slf4j.MDC.get("traceId");
         if (code >= 500) {
-            log.error("[TraceId: {}] Business error [{}]: {}", org.slf4j.MDC.get("traceId"), code, e.getMessage());
+            log.error("[TraceId: {}] Business error [{}]: {}", traceId, code, e.getMessage());
         } else {
-            log.warn("[TraceId: {}] Business warning [{}]: {}", org.slf4j.MDC.get("traceId"), code, e.getMessage());
+            log.warn("[TraceId: {}] Business warning [{}]: {}", traceId, code, e.getMessage());
         }
         return ResponseEntity.status(status).body(ApiResponse.error(code, e.getMessage()));
     }
@@ -66,11 +66,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
         log.warn("[TraceId: {}] Upload size limit exceeded: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                .body(ApiResponse.error(BusinessCode.FILE_TOO_LARGE.getCode(), BusinessCode.FILE_TOO_LARGE.getMessage()));
+                .body(ApiResponse.error(BusinessCode.FILE_TOO_LARGE));
     }
 
     /**
-     * Handle validation exceptions for @Valid on RequestBody.
+     * Handle validation exceptions for @Valid annotated payloads.
      */
     @ExceptionHandler({MethodArgumentNotValidException.class, BindException.class})
     public ResponseEntity<ApiResponse<Void>> handleValidationException(Exception e) {
@@ -86,7 +86,7 @@ public class GlobalExceptionHandler {
         }
         log.warn("[TraceId: {}] Validation failed: {}", org.slf4j.MDC.get("traceId"), message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(BusinessCode.VALIDATION_FAILED.getCode(), "Validation failed: " + message));
+                .body(ApiResponse.error(BusinessCode.VALIDATION_FAILED, "Validation failed: " + message));
     }
 
     /**
@@ -94,12 +94,12 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(ConstraintViolationException e) {
-        String message = e.getConstraintViolations().stream()
+        var message = e.getConstraintViolations().stream()
                 .map(ConstraintViolation::getMessage)
                 .collect(Collectors.joining(", "));
         log.warn("[TraceId: {}] Constraint violation: {}", org.slf4j.MDC.get("traceId"), message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(BusinessCode.BAD_REQUEST.getCode(), "Parameter validation failed: " + message));
+                .body(ApiResponse.error(BusinessCode.BAD_REQUEST, "Parameter validation failed: " + message));
     }
 
     /**
@@ -109,7 +109,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException e) {
         log.warn("[TraceId: {}] Access denied: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(BusinessCode.FORBIDDEN.getCode(), BusinessCode.FORBIDDEN.getMessage()));
+                .body(ApiResponse.error(BusinessCode.FORBIDDEN));
     }
 
     /**
@@ -119,30 +119,25 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(AuthenticationException e) {
         log.warn("[TraceId: {}] Authentication failed: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
         
-        BusinessCode code = BusinessCode.UNAUTHORIZED;
-        String message = code.getMessage();
-        
+        var businessCode = BusinessCode.UNAUTHORIZED;
         if (e instanceof BadCredentialsException) {
-            code = BusinessCode.BAD_CREDENTIALS;
-            message = code.getMessage();
+            businessCode = BusinessCode.BAD_CREDENTIALS;
         } else if (e instanceof DisabledException) {
-            code = BusinessCode.ACCOUNT_DISABLED;
-            message = code.getMessage();
+            businessCode = BusinessCode.ACCOUNT_DISABLED;
         } else if (e instanceof LockedException) {
-            code = BusinessCode.ACCOUNT_LOCKED;
-            message = code.getMessage();
+            businessCode = BusinessCode.ACCOUNT_LOCKED;
         }
         
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(code.getCode(), message));
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(businessCode));
     }
 
     /**
-     * Handle all other unexpected exceptions.
+     * Handle all other unexpected system exceptions.
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception e) {
         log.error("[TraceId: {}] Unexpected system error", org.slf4j.MDC.get("traceId"), e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(BusinessCode.ERROR.getCode(), BusinessCode.ERROR.getMessage() + ": " + e.getMessage()));
+                .body(ApiResponse.error(BusinessCode.ERROR, "System error: " + e.getMessage()));
     }
 }

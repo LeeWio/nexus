@@ -1,10 +1,10 @@
 package space.nebula.nexus.controller;
-import lombok.RequiredArgsConstructor;
-
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
@@ -14,39 +14,42 @@ import space.nebula.nexus.service.IConfigService;
 
 import java.util.List;
 
-@Tag(name = "Admin System Config", description = "System configuration management APIs")
+/**
+ * Controller for administrative system configuration management.
+ * Allows administrators to manage system settings, feature flags, and global constants.
+ */
+@Tag(name = "Admin System Config", description = "Endpoints for managing system-wide configurations and settings")
 @RestController
 @RequestMapping("/api/v1/admin/configs")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminConfigController {
 
     private final IConfigService configService;
 
-    @Operation(summary = "Get All Configs")
-    @PreAuthorize("hasAuthority('admin')")
     @GetMapping
+    @Operation(summary = "Get all configs", description = "Retrieve a full list of all system configurations.")
     public ApiResponse<List<ConfigResponse>> getAllConfigs() {
         return configService.getAllConfigs();
     }
 
-    @Operation(summary = "Create Config")
-    @PreAuthorize("hasAuthority('admin')")
     @PostMapping
+    @Operation(summary = "Create config", description = "Define a new system configuration key-value pair.")
     public ApiResponse<ConfigResponse> createConfig(@Valid @RequestBody ConfigRequest request) {
         return configService.createConfig(request);
     }
 
-    @Operation(summary = "Update Config")
-    @PreAuthorize("hasAuthority('admin')")
     @PutMapping("/{id}")
-    public ApiResponse<ConfigResponse> updateConfig(@PathVariable Long id, @Valid @RequestBody ConfigRequest request) {
+    @Operation(summary = "Update config", description = "Modify an existing system configuration.")
+    public ApiResponse<ConfigResponse> updateConfig(
+            @Parameter(description = "Config ID") @PathVariable Long id, 
+            @Valid @RequestBody ConfigRequest request) {
         return configService.updateConfig(id, request);
     }
 
-    @Operation(summary = "Delete Config")
-    @PreAuthorize("hasAuthority('admin')")
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> deleteConfig(@PathVariable Long id) {
+    @Operation(summary = "Delete config", description = "Permanently remove a system configuration.")
+    public ApiResponse<Void> deleteConfig(@Parameter(description = "Config ID") @PathVariable Long id) {
         return configService.deleteConfig(id);
     }
 }

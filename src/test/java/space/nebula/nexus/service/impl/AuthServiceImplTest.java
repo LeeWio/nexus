@@ -11,7 +11,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.exception.BusinessException;
@@ -23,6 +22,7 @@ import space.nebula.nexus.payload.request.RegisterRequest;
 import space.nebula.nexus.payload.response.AuthResponse;
 import space.nebula.nexus.repository.RoleRepository;
 import space.nebula.nexus.repository.UserRepository;
+import space.nebula.nexus.security.model.SecurityUser;
 import space.nebula.nexus.security.service.LoginSecurityService;
 import space.nebula.nexus.security.util.JwtUtils;
 
@@ -76,7 +76,7 @@ class AuthServiceImplTest {
         ApiResponse<Void> response = authService.registerAccount(registerRequest);
 
         // Assert
-        assertEquals(200, response.getCode());
+        assertEquals(200, response.code());
         verify(userValidator).validateRegistration(registerRequest);
         verify(userRepository).save(any(User.class));
     }
@@ -86,10 +86,12 @@ class AuthServiceImplTest {
     void authenticate_Success() {
         // Arrange
         Authentication auth = mock(Authentication.class);
-        UserDetails userDetails = mock(UserDetails.class);
-        when(userDetails.getUsername()).thenReturn("testuser");
-        when(userDetails.getAuthorities()).thenReturn(Collections.emptyList());
-        when(auth.getPrincipal()).thenReturn(userDetails);
+        User user = new User();
+        user.setUsername("testuser");
+        user.setEmail("test@example.com");
+        SecurityUser securityUser = new SecurityUser(user);
+        
+        when(auth.getPrincipal()).thenReturn(securityUser);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(auth);
         when(jwtUtils.generateAccessToken(any())).thenReturn("mock-token");
 
@@ -97,8 +99,8 @@ class AuthServiceImplTest {
         ApiResponse<AuthResponse> response = authService.authenticate(loginRequest);
 
         // Assert
-        assertEquals(200, response.getCode());
-        assertEquals("mock-token", response.getData().accessToken());
+        assertEquals(200, response.code());
+        assertEquals("mock-token", response.data().accessToken());
         verify(loginSecurityService).validateLoginLock("testuser");
         verify(loginSecurityService).resetLoginFailure("testuser");
     }

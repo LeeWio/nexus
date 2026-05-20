@@ -73,8 +73,8 @@ class PostServiceImplTest {
         ApiResponse<PageResult<PostResponse>> apiResponse = postService.searchPostsForAdmin(pageable);
 
         // Assert
-        assertEquals(200, apiResponse.getCode());
-        assertEquals(1, apiResponse.getData().getList().size());
+        assertEquals(200, apiResponse.code());
+        assertEquals(1, apiResponse.data().getList().size());
         verify(postRepository).findAll(pageable);
     }
 
@@ -94,7 +94,7 @@ class PostServiceImplTest {
             ApiResponse<PostResponse> response = postService.createPost(request);
 
             // Assert
-            assertEquals(200, response.getCode());
+            assertEquals(200, response.code());
             verify(postRepository).save(any(Post.class));
             verify(eventPublisher).publishEvent(any());
         }

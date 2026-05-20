@@ -1,6 +1,6 @@
 package space.nebula.nexus.service.impl;
 
-import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,19 +17,22 @@ import space.nebula.nexus.service.IAdminRoleService;
 
 import java.util.List;
 
+/**
+ * Implementation of administrative role management service.
+ */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AdminRoleServiceImpl implements IAdminRoleService {
 
-    @Resource
-    private RoleRepository roleRepository;
-
-    @Resource
-    private RoleMapper roleMapper;
+    private final RoleRepository roleRepository;
+    private final RoleMapper roleMapper;
 
     @Override
+    @Transactional(readOnly = true)
     public ApiResponse<List<RoleResponse>> getAllRoles() {
-        return ApiResponse.success(roleMapper.toResponseList(roleRepository.findAll()));
+        var roles = roleRepository.findAll();
+        return ApiResponse.success(roleMapper.toResponseList(roles));
     }
 
     @Override
@@ -40,21 +43,21 @@ public class AdminRoleServiceImpl implements IAdminRoleService {
             throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Role code already exists");
         }
         
-        Role role = new Role();
+        var role = new Role();
         role.setName(request.name());
         role.setCode(request.code());
         role.setDescription(request.description());
         
-        roleRepository.save(role);
-        log.info("Admin created new role: {}", role.getCode());
-        return ApiResponse.success("Role created successfully", roleMapper.toResponse(role));
+        var savedRole = roleRepository.save(role);
+        log.info("Admin created new role: {}", savedRole.getCode());
+        return ApiResponse.success("Role created successfully", roleMapper.toResponse(savedRole));
     }
 
     @Override
     @Transactional
     @LogOperation("Update Role")
     public ApiResponse<RoleResponse> updateRole(Long id, RoleRequest request) {
-        Role role = roleRepository.findById(id)
+        var role = roleRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
 
         if (!role.getCode().equals(request.code()) && roleRepository.findByCode(request.code()).isPresent()) {
@@ -65,9 +68,9 @@ public class AdminRoleServiceImpl implements IAdminRoleService {
         role.setCode(request.code());
         role.setDescription(request.description());
         
-        roleRepository.save(role);
+        var updatedRole = roleRepository.save(role);
         log.info("Admin updated role id: {}", id);
-        return ApiResponse.success("Role updated successfully", roleMapper.toResponse(role));
+        return ApiResponse.success("Role updated successfully", roleMapper.toResponse(updatedRole));
     }
 
     @Override
