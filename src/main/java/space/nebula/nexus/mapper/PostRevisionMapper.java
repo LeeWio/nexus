@@ -11,9 +11,9 @@ import java.util.List;
 @Mapper(config = CentralMapperConfig.class)
 public interface PostRevisionMapper {
 
-    @Mapping(target = "createdBy", source = "createdBy.username")
-    @Mapping(target = "postId", source = "post.id")
-    PostRevisionResponse toResponse(PostRevision revision);
+	@Mapping(target = "createdBy", source = "createdBy.username")
+	@Mapping(target = "postId", source = "post.id")
+	PostRevisionResponse toResponse(PostRevision revision);
 
-    List<PostRevisionResponse> toResponseList(List<PostRevision> revisions);
+	List<PostRevisionResponse> toResponseList(List<PostRevision> revisions);
 }

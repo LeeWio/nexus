@@ -9,7 +9,7 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface FileMapper {
 
-    FileResponse toResponse(FileMetadata metadata);
+	FileResponse toResponse(FileMetadata metadata);
 
-    List<FileResponse> toResponseList(List<FileMetadata> metadataList);
+	List<FileResponse> toResponseList(List<FileMetadata> metadataList);
 }

@@ -11,21 +11,24 @@ import space.nebula.nexus.enums.CommentStatus;
 @Repository
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
-    /**
-     * Find top-level comments (parent is null) for a specific post with specific status.
-     * Uses EntityGraph to fetch user and children to avoid N+1.
-     */
-    @EntityGraph(attributePaths = {"user", "children", "children.user"})
-    Page<Comment> findAllByPostIdAndParentIsNullAndStatus(Long postId, CommentStatus status, Pageable pageable);
+	/**
+	 * Find top-level comments (parent is null) for a specific post with specific
+	 * status. Uses EntityGraph to fetch user and children to avoid N+1.
+	 */
+	@EntityGraph(attributePaths = {"user", "children", "children.user"})
+	Page<Comment> findAllByPostIdAndParentIsNullAndStatus(Long postId, CommentStatus status, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"user", "children", "children.user"})
-    Page<Comment> findAllByPostIsNullAndParentIsNullAndStatus(CommentStatus status, Pageable pageable);
+	@EntityGraph(attributePaths = {"user", "children", "children.user"})
+	Page<Comment> findAllByPostIsNullAndParentIsNullAndStatus(CommentStatus status, Pageable pageable);
 
-    /**
-     * Admin view: find all comments with pagination.
-     */
-    @EntityGraph(attributePaths = {"user", "post"})
-    Page<Comment> findAll(Pageable pageable);
+	/**
+	 * Admin view: find all comments with pagination.
+	 */
+	@EntityGraph(attributePaths = {"user", "post"})
+	Page<Comment> findAll(Pageable pageable);
 
-    long countByStatus(CommentStatus status);
+	@EntityGraph(attributePaths = {"user", "post"})
+	Page<Comment> findAllByStatus(CommentStatus status, Pageable pageable);
+
+	long countByStatus(CommentStatus status);
 }

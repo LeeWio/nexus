@@ -6,19 +6,21 @@ import java.util.Map;
 
 public interface IGitHubService {
 
-    /**
-     * Retrieves global stats for the configured GitHub user.
-     */
-    GitHubStatsResponse retrieveGlobalStats();
+	/**
+	 * Retrieves global stats for the configured GitHub user.
+	 */
+	GitHubStatsResponse retrieveGlobalStats();
 
-    /**
-     * Retrieves metrics for a specific repository.
-     * @param repoName repository name (e.g. "nexus")
-     */
-    Map<String, Object> retrieveRepoMetrics(String repoName);
+	/**
+	 * Retrieves metrics for a specific repository.
+	 * 
+	 * @param repoName
+	 *            repository name (e.g. "nexus")
+	 */
+	Map<String, Object> retrieveRepoMetrics(String repoName);
 
-    /**
-     * Triggers a full synchronization of project metrics.
-     */
-    void synchronizeProjectMetrics();
+	/**
+	 * Triggers a full synchronization of project metrics.
+	 */
+	void synchronizeProjectMetrics();
 }

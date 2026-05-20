@@ -6,7 +6,5 @@ import java.util.List;
 
 @Schema(description = "Request for batch deleting entities by ID")
 public record BatchDeleteRequest(
-    @Schema(description = "List of unique identifiers to delete", example = "[10, 11, 12]")
-    @NotEmpty(message = "IDs cannot be empty")
-    List<Long> ids
-) {}
+		@Schema(description = "List of unique identifiers to delete", example = "[10, 11, 12]") @NotEmpty(message = "IDs cannot be empty") List<Long> ids) {
+}

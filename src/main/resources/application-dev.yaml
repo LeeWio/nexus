@@ -1,15 +1,18 @@
 spring:
   mail:
-    host: localhost
-    port: 1025
-    username: test
-    password: testpassword
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:test}
+    password: ${MAIL_PASSWORD:testpassword}
+    protocol: smtp
+    default-encoding: UTF-8
     properties:
-      mail:
-        smtp:
-          auth: false
-          starttls:
-            enable: false
+      mail.smtp.auth: ${MAIL_AUTH:false}
+      mail.smtp.ssl.enable: ${MAIL_SSL:false}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
+      mail.smtp.starttls.required: ${MAIL_STARTTLS:false}
+      mail.smtp.timeout: 5000
+      mail.smtp.connectiontimeout: 5000
 
   datasource:
     url: jdbc:mysql://localhost:3306/nexus_db?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC
@@ -58,11 +61,14 @@ spring:
           min-idle: 0
 
   elasticsearch:
-    uris: http://localhost:9200
+    uris: ${ES_URIS:http://localhost:9200}
     connection-timeout: 3s
     socket-timeout: 10s
 
 app:
+  security:
+    rate-limit:
+      enabled: false
   jwt:
     secret: "4A614E645267556B58703273357638792F423F4528482B4D6251655468576D5A" # Dev only
   github:

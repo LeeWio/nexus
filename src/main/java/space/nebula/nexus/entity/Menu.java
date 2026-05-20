@@ -19,30 +19,30 @@ import org.hibernate.annotations.SQLRestriction;
 @SQLRestriction("is_deleted = false")
 public class Menu extends BaseEntity {
 
-    @Column(name = "parent_id", nullable = false)
-    private Long parentId = 0L;
+	@Column(name = "parent_id", nullable = false)
+	private Long parentId = 0L;
 
-    @Column(nullable = false, length = 50)
-    private String name;
+	@Column(nullable = false, length = 50)
+	private String name;
 
-    @Column(length = 200)
-    private String path;
+	@Column(length = 200)
+	private String path;
 
-    @Column(length = 100)
-    private String permission;
+	@Column(length = 100)
+	private String permission;
 
-    @Column(nullable = false)
-    private Integer type; // 0-目录，1-菜单，2-按钮/API权限
+	@Column(nullable = false)
+	private Integer type; // 0-目录，1-菜单，2-按钮/API权限
 
-    @Column(length = 50)
-    private String icon;
+	@Column(length = 50)
+	private String icon;
 
-    @Column(name = "sort_order")
-    private Integer sortOrder = 0;
+	@Column(name = "sort_order")
+	private Integer sortOrder = 0;
 
-    @Column(name = "is_visible", nullable = false)
-    private Boolean isVisible = true;
+	@Column(name = "is_visible", nullable = false)
+	private Boolean isVisible = true;
 
-    @Column(name = "is_public", nullable = false)
-    private Boolean isPublic = false;
+	@Column(name = "is_public", nullable = false)
+	private Boolean isPublic = false;
 }

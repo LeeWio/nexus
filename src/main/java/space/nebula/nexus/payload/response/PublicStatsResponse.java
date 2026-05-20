@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PublicStatsResponse {
-    private long totalPosts;
-    private long totalComments;
-    private long totalViews;
-    private long runtimeDays;
+	private long totalPosts;
+	private long totalComments;
+	private long totalViews;
+	private long runtimeDays;
 }

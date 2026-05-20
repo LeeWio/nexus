@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
@@ -21,18 +20,18 @@ import java.util.concurrent.TimeUnit;
 @Tag(name = "Public Moments", description = "Public endpoints for viewing and interacting with microblogs")
 public class PublicMomentController {
 
-    private final IMomentService momentService;
+	private final IMomentService momentService;
 
-    @GetMapping
-    @Operation(summary = "Get published moments timeline")
-    public ApiResponse<PageResult<MomentResponse>> getPublicMoments(@PageableDefault(size = 20) Pageable pageable) {
-        return momentService.getPublicMoments(pageable);
-    }
+	@GetMapping
+	@Operation(summary = "Get published moments timeline")
+	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(@PageableDefault(size = 20) Pageable pageable) {
+		return momentService.getPublicMoments(pageable);
+	}
 
-    @PostMapping("/{id}/like")
-    @Operation(summary = "Like a moment (anonymous allowed with rate limit)")
-    @RateLimit(count = 5, time = 1, unit = TimeUnit.MINUTES, message = "Too many likes, please slow down")
-    public ApiResponse<Void> likeMoment(@PathVariable Long id) {
-        return momentService.likeMoment(id);
-    }
+	@PostMapping("/{id}/like")
+	@Operation(summary = "Like a moment (anonymous allowed with rate limit)")
+	@RateLimit(count = 5, time = 1, unit = TimeUnit.MINUTES, message = "Too many likes, please slow down")
+	public ApiResponse<Void> likeMoment(@PathVariable Long id) {
+		return momentService.likeMoment(id);
+	}
 }

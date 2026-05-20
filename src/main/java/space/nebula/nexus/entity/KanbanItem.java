@@ -29,32 +29,28 @@ import java.util.Set;
 @SQLRestriction("is_deleted = false")
 public class KanbanItem extends BaseEntity {
 
-    @Column(nullable = false, length = 255)
-    private String title;
+	@Column(nullable = false, length = 255)
+	private String title;
 
-    @Lob
-    @Column(columnDefinition = "TEXT")
-    private String content;
+	@Lob
+	@Column(columnDefinition = "TEXT")
+	private String content;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private KanbanPriority priority = KanbanPriority.MEDIUM;
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private KanbanPriority priority = KanbanPriority.MEDIUM;
 
-    @Column(name = "order_index", nullable = false)
-    private Integer orderIndex = 0;
+	@Column(name = "order_index", nullable = false)
+	private Integer orderIndex = 0;
 
-    @Column(name = "reminder_at")
-    private LocalDateTime reminderAt;
+	@Column(name = "reminder_at")
+	private LocalDateTime reminderAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "column_id", nullable = false)
-    private KanbanColumn column;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "column_id", nullable = false)
+	private KanbanColumn column;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "kanban_item_tag",
-            joinColumns = @JoinColumn(name = "item_id"),
-            inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
-    private Set<Tag> tags = new HashSet<>();
+	@ManyToMany(fetch = FetchType.LAZY)
+	@JoinTable(name = "kanban_item_tag", joinColumns = @JoinColumn(name = "item_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
+	private Set<Tag> tags = new HashSet<>();
 }

@@ -25,103 +25,103 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PostSeriesServiceImpl implements IPostSeriesService {
 
-    private final PostSeriesRepository seriesRepository;
-    private final PostSeriesMapper seriesMapper;
-    private final RedisUtil redisUtil;
+	private final PostSeriesRepository seriesRepository;
+	private final PostSeriesMapper seriesMapper;
+	private final RedisUtil redisUtil;
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<List<SeriesResponse>> retrieveAllSeriesForAdmin() {
-        return ApiResponse.success(seriesMapper.toResponseList(seriesRepository.findAll()));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<List<SeriesResponse>> retrieveAllSeriesForAdmin() {
+		return ApiResponse.success(seriesMapper.toResponseList(seriesRepository.findAll()));
+	}
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<SeriesResponse> retrieveSeriesById(Long id) {
-        PostSeries series = findSeriesOrThrow(id);
-        return ApiResponse.success(seriesMapper.toResponse(series));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<SeriesResponse> retrieveSeriesById(Long id) {
+		PostSeries series = findSeriesOrThrow(id);
+		return ApiResponse.success(seriesMapper.toResponse(series));
+	}
 
-    @Override
-    @Transactional
-    @LogOperation("Create Post Series")
-    public ApiResponse<SeriesResponse> createSeries(SeriesRequest request) {
-        if (seriesRepository.existsBySlug(request.slug())) {
-            throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Series slug already exists: " + request.slug());
-        }
+	@Override
+	@Transactional
+	@LogOperation("Create Post Series")
+	public ApiResponse<SeriesResponse> createSeries(SeriesRequest request) {
+		if (seriesRepository.existsBySlug(request.slug())) {
+			throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Series slug already exists: " + request.slug());
+		}
 
-        PostSeries series = new PostSeries();
-        seriesMapper.updateEntity(series, request);
-        
-        PostSeries savedSeries = seriesRepository.save(series);
-        log.info("Created new post series: {}", savedSeries.getName());
-        clearSeoCache();
-        return ApiResponse.success("Series created successfully", seriesMapper.toResponse(savedSeries));
-    }
+		PostSeries series = new PostSeries();
+		seriesMapper.updateEntity(series, request);
 
-    @Override
-    @Transactional
-    @LogOperation("Update Post Series")
-    public ApiResponse<SeriesResponse> updateSeries(Long id, SeriesRequest request) {
-        PostSeries series = findSeriesOrThrow(id);
+		PostSeries savedSeries = seriesRepository.save(series);
+		log.info("Created new post series: {}", savedSeries.getName());
+		clearSeoCache();
+		return ApiResponse.success("Series created successfully", seriesMapper.toResponse(savedSeries));
+	}
 
-        if (request.slug() != null && !request.slug().equals(series.getSlug())) {
-            if (seriesRepository.existsBySlug(request.slug())) {
-                throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Series slug already exists: " + request.slug());
-            }
-        }
+	@Override
+	@Transactional
+	@LogOperation("Update Post Series")
+	public ApiResponse<SeriesResponse> updateSeries(Long id, SeriesRequest request) {
+		PostSeries series = findSeriesOrThrow(id);
 
-        seriesMapper.updateEntity(series, request);
-        PostSeries updatedSeries = seriesRepository.save(series);
-        log.info("Updated post series: {}", updatedSeries.getName());
-        clearSeoCache();
-        return ApiResponse.success("Series updated successfully", seriesMapper.toResponse(updatedSeries));
-    }
+		if (request.slug() != null && !request.slug().equals(series.getSlug())) {
+			if (seriesRepository.existsBySlug(request.slug())) {
+				throw new BusinessException(BusinessCode.DUPLICATE_KEY,
+						"Series slug already exists: " + request.slug());
+			}
+		}
 
-    @Override
-    @Transactional
-    @LogOperation("Delete Post Series")
-    public ApiResponse<Void> deleteSeries(Long id) {
-        PostSeries series = findSeriesOrThrow(id);
-        
-        // Unlink posts from this series
-        series.getPosts().forEach(post -> {
-            post.setSeries(null);
-            post.setSeriesOrder(0);
-        });
-        
-        seriesRepository.delete(series);
-        log.info("Deleted post series ID: {}", id);
-        clearSeoCache();
-        return ApiResponse.success("Series deleted successfully", null);
-    }
+		seriesMapper.updateEntity(series, request);
+		PostSeries updatedSeries = seriesRepository.save(series);
+		log.info("Updated post series: {}", updatedSeries.getName());
+		clearSeoCache();
+		return ApiResponse.success("Series updated successfully", seriesMapper.toResponse(updatedSeries));
+	}
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<List<SeriesResponse>> retrievePublicSeriesList() {
-        List<PostSeries> publicSeries = seriesRepository.findByIsPublishedTrueOrderByCreatedAtDesc();
-        return ApiResponse.success(seriesMapper.toResponseList(publicSeries));
-    }
+	@Override
+	@Transactional
+	@LogOperation("Delete Post Series")
+	public ApiResponse<Void> deleteSeries(Long id) {
+		PostSeries series = findSeriesOrThrow(id);
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<SeriesResponse> retrieveSeriesWithPosts(String slug) {
-        PostSeries series = seriesRepository.findBySlug(slug)
-                .orElseThrow(() -> new ResourceNotFoundException("Series", "slug", slug));
-        
-        if (!series.getIsPublished()) {
-            throw new BusinessException(BusinessCode.FORBIDDEN, "This series is not publicly available");
-        }
+		// Unlink posts from this series
+		series.getPosts().forEach(post -> {
+			post.setSeries(null);
+			post.setSeriesOrder(0);
+		});
 
-        return ApiResponse.success(seriesMapper.toResponseWithPosts(series));
-    }
+		seriesRepository.delete(series);
+		log.info("Deleted post series ID: {}", id);
+		clearSeoCache();
+		return ApiResponse.success("Series deleted successfully", null);
+	}
 
-    private PostSeries findSeriesOrThrow(Long id) {
-        return seriesRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Series", "id", id));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<List<SeriesResponse>> retrievePublicSeriesList() {
+		List<PostSeries> publicSeries = seriesRepository.findByIsPublishedTrueOrderByCreatedAtDesc();
+		return ApiResponse.success(seriesMapper.toResponseList(publicSeries));
+	}
 
-    private void clearSeoCache() {
-        redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<SeriesResponse> retrieveSeriesWithPosts(String slug) {
+		PostSeries series = seriesRepository.findBySlug(slug)
+				.orElseThrow(() -> new ResourceNotFoundException("Series", "slug", slug));
+
+		if (!series.getIsPublished()) {
+			throw new BusinessException(BusinessCode.FORBIDDEN, "This series is not publicly available");
+		}
+
+		return ApiResponse.success(seriesMapper.toResponseWithPosts(series));
+	}
+
+	private PostSeries findSeriesOrThrow(Long id) {
+		return seriesRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Series", "id", id));
+	}
+
+	private void clearSeoCache() {
+		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
+	}
 }

@@ -17,32 +17,34 @@ import java.util.Optional;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificationExecutor<Post> {
-    
-    @EntityGraph(attributePaths = {"category", "author", "tags"})
-    Optional<Post> findBySlug(String slug);
-    
-    @EntityGraph(attributePaths = {"category", "author", "tags"})
-    Page<Post> findAllByStatus(PostStatus status, Pageable pageable);
-    
-    @EntityGraph(attributePaths = {"category", "author", "tags"})
-    Page<Post> findAllByCategoryIdAndStatus(Long categoryId, PostStatus status, Pageable pageable);
 
-    @Override
-    @EntityGraph(attributePaths = {"category", "author", "tags"})
-    Page<Post> findAll(Pageable pageable);
+	@EntityGraph(attributePaths = {"category", "author", "tags"})
+	Optional<Post> findBySlug(String slug);
 
-    @Override
-    @EntityGraph(attributePaths = {"category", "author", "tags"})
-    Page<Post> findAll(@Nullable Specification<Post> spec, Pageable pageable);
+	@EntityGraph(attributePaths = {"category", "author", "tags"})
+	Page<Post> findAllByStatus(PostStatus status, Pageable pageable);
 
-    @Modifying
-    @Query("update Post p set p.views = p.views + :count where p.id = :id")
-    void incrementViews(Long id, Long count);
+	@EntityGraph(attributePaths = {"category", "author", "tags"})
+	Page<Post> findAllByCategoryIdAndStatus(Long categoryId, PostStatus status, Pageable pageable);
 
-    @Modifying
-    @Query("update Post p set p.status = 'PUBLISHED' where p.status = 'SCHEDULED' and p.publishedAt <= :now")
-    int updateScheduledPosts(java.time.LocalDateTime now);
+	@Override
+	@EntityGraph(attributePaths = {"category", "author", "tags"})
+	Page<Post> findAll(Pageable pageable);
 
-    @Query("SELECT SUM(p.views) FROM Post p")
-    Long sumTotalViews();
+	@Override
+	@EntityGraph(attributePaths = {"category", "author", "tags"})
+	Page<Post> findAll(@Nullable Specification<Post> spec, Pageable pageable);
+
+	@Modifying
+	@Query("update Post p set p.views = p.views + :count where p.id = :id")
+	void incrementViews(Long id, Long count);
+
+	@Modifying
+	@Query("update Post p set p.status = 'PUBLISHED' where p.status = 'SCHEDULED' and p.publishedAt <= :now")
+	int updateScheduledPosts(java.time.LocalDateTime now);
+
+	@Query("SELECT SUM(p.views) FROM Post p")
+	Long sumTotalViews();
+
+	java.util.List<Post> findTop5ByTitleContainingIgnoreCaseAndStatus(String title, PostStatus status);
 }

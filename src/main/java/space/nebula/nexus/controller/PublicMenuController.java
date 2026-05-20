@@ -18,11 +18,11 @@ import java.util.List;
 @Tag(name = "Public Navigation", description = "Public endpoints for dynamic website navigation")
 public class PublicMenuController {
 
-    private final IMenuService menuService;
+	private final IMenuService menuService;
 
-    @GetMapping("/navigation")
-    @Operation(summary = "Retrieve the public navigation menu tree")
-    public ApiResponse<List<MenuResponse>> retrieveNavigation() {
-        return menuService.retrievePublicNavigationMenuTree();
-    }
+	@GetMapping("/navigation")
+	@Operation(summary = "Retrieve the public navigation menu tree")
+	public ApiResponse<List<MenuResponse>> retrieveNavigation() {
+		return menuService.retrievePublicNavigationMenuTree();
+	}
 }

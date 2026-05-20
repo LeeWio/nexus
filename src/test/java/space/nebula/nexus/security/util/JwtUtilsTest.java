@@ -18,15 +18,15 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class JwtUtilsTest {
 
-    @Mock
-    private JwtProperties jwtProperties;
+	@Mock
+	private JwtProperties jwtProperties;
 
-    @InjectMocks
-    private JwtUtils jwtUtils;
+	@InjectMocks
+	private JwtUtils jwtUtils;
 
-    private UserDetails userDetails;
+	private UserDetails userDetails;
 
-    @BeforeEach
+	@BeforeEach
     void setUp() {
         when(jwtProperties.getSecret()).thenReturn("4A614E645267556B58703273357638792F423F4528482B4D6251655468576D5A");
         when(jwtProperties.getAccessTokenExpiration()).thenReturn(7200000L);
@@ -36,14 +36,14 @@ class JwtUtilsTest {
         userDetails = new User("testuser", "password", Collections.emptyList());
     }
 
-    @Test
-    void generateAndValidateToken() {
-        String token = jwtUtils.generateAccessToken(userDetails);
-        assertNotNull(token);
-        
-        String username = jwtUtils.extractUsername(token);
-        assertEquals("testuser", username);
-        
-        assertTrue(jwtUtils.isTokenValid(token, userDetails));
-    }
+	@Test
+	void generateAndValidateToken() {
+		String token = jwtUtils.generateAccessToken(userDetails);
+		assertNotNull(token);
+
+		String username = jwtUtils.extractUsername(token);
+		assertEquals("testuser", username);
+
+		assertTrue(jwtUtils.isTokenValid(token, userDetails));
+	}
 }

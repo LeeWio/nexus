@@ -12,29 +12,29 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    /**
-     * Finds a user by their username.
-     * Uses EntityGraph to eagerly fetch the roles to avoid LazyInitializationException during authentication.
-     */
-    @EntityGraph(attributePaths = "roles")
-    Optional<User> findByUsername(String username);
+	/**
+	 * Finds a user by their username. Uses EntityGraph to eagerly fetch the roles
+	 * to avoid LazyInitializationException during authentication.
+	 */
+	@EntityGraph(attributePaths = "roles")
+	Optional<User> findByUsername(String username);
 
-    /**
-     * Finds a user by their username or email.
-     */
-    @EntityGraph(attributePaths = "roles")
-    Optional<User> findByUsernameOrEmail(String username, String email);
+	/**
+	 * Finds a user by their username or email.
+	 */
+	@EntityGraph(attributePaths = "roles")
+	Optional<User> findByUsernameOrEmail(String username, String email);
 
-    @EntityGraph(attributePaths = "roles")
-    Optional<User> findByEmail(String email);
+	@EntityGraph(attributePaths = "roles")
+	Optional<User> findByEmail(String email);
 
-    @Override
-    @EntityGraph(attributePaths = "roles")
-    Page<User> findAll(Pageable pageable);
+	@Override
+	@EntityGraph(attributePaths = "roles")
+	Page<User> findAll(Pageable pageable);
 
-    boolean existsByUsername(String username);
+	boolean existsByUsername(String username);
 
-    boolean existsByEmail(String email);
+	boolean existsByEmail(String email);
 
-    java.util.Optional<User> findByGithubId(String githubId);
+	java.util.Optional<User> findByGithubId(String githubId);
 }

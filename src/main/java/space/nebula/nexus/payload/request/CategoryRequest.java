@@ -10,18 +10,9 @@ import space.nebula.nexus.common.validator.annotation.Slug;
  */
 @Schema(description = "Category creation/update request")
 public record CategoryRequest(
-    @Schema(description = "Name of the category", example = "Backend Development")
-    @NotBlank(message = "Name cannot be empty")
-    @Size(max = 50)
-    String name,
+		@Schema(description = "Name of the category", example = "Backend Development") @NotBlank(message = "Name cannot be empty") @Size(max = 50) String name,
 
-    @Schema(description = "SEO URL slug", example = "backend")
-    @NotBlank(message = "Slug cannot be empty")
-    @Slug
-    @Size(max = 50)
-    String slug,
+		@Schema(description = "SEO URL slug", example = "backend") @NotBlank(message = "Slug cannot be empty") @Slug @Size(max = 50) String slug,
 
-    @Schema(description = "Brief description", example = "Posts related to Java, Spring, and MySQL")
-    @Size(max = 200)
-    String description
-) {}
+		@Schema(description = "Brief description", example = "Posts related to Java, Spring, and MySQL") @Size(max = 200) String description) {
+}

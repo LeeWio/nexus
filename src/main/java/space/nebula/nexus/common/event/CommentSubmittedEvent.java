@@ -10,10 +10,10 @@ import space.nebula.nexus.entity.Comment;
 @Getter
 public class CommentSubmittedEvent extends ApplicationEvent {
 
-    private final Comment comment;
+	private final Comment comment;
 
-    public CommentSubmittedEvent(Object source, Comment comment) {
-        super(source);
-        this.comment = comment;
-    }
+	public CommentSubmittedEvent(Object source, Comment comment) {
+		super(source);
+		this.comment = comment;
+	}
 }

@@ -10,9 +10,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DashboardStatsResponse {
-    private long totalUsers;
-    private long totalPosts;
-    private long totalComments;
-    private long pendingComments;
-    private long totalViews;
+	private long totalUsers;
+	private long totalPosts;
+	private long totalComments;
+	private long pendingComments;
+	private long totalViews;
 }

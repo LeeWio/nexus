@@ -25,75 +25,77 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements ICategoryService {
 
-    private final CategoryRepository categoryRepository;
-    private final CategoryMapper categoryMapper;
-    private final RedisUtil redisUtil;
+	private final CategoryRepository categoryRepository;
+	private final CategoryMapper categoryMapper;
+	private final RedisUtil redisUtil;
 
-    @Override
-    public ApiResponse<List<CategoryResponse>> retrieveAllCategories() {
-        List<Category> allCategories = categoryRepository.findAll();
-        return ApiResponse.success(categoryMapper.toResponseList(allCategories));
-    }
+	@Override
+	public ApiResponse<List<CategoryResponse>> retrieveAllCategories() {
+		List<Category> allCategories = categoryRepository.findAll();
+		return ApiResponse.success(categoryMapper.toResponseList(allCategories));
+	}
 
-    @Override
-    @Transactional
-    @LogOperation("Create Category")
-    public ApiResponse<CategoryResponse> createCategory(CategoryRequest request) {
-        validateUniqueConstraints(null, request);
+	@Override
+	@Transactional
+	@LogOperation("Create Category")
+	public ApiResponse<CategoryResponse> createCategory(CategoryRequest request) {
+		validateUniqueConstraints(null, request);
 
-        Category newCategory = new Category();
-        categoryMapper.updateEntity(newCategory, request);
+		Category newCategory = new Category();
+		categoryMapper.updateEntity(newCategory, request);
 
-        categoryRepository.save(newCategory);
-        log.info("New category created: {}", newCategory.getName());
-        clearSeoCache();
-        return ApiResponse.success("Category created successfully", categoryMapper.toResponse(newCategory));
-    }
+		categoryRepository.save(newCategory);
+		log.info("New category created: {}", newCategory.getName());
+		clearSeoCache();
+		return ApiResponse.success("Category created successfully", categoryMapper.toResponse(newCategory));
+	}
 
-    @Override
-    @Transactional
-    @LogOperation("Update Category")
-    public ApiResponse<CategoryResponse> updateCategory(Long id, CategoryRequest request) {
-        Category existingCategory = categoryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Category", "id", id));
+	@Override
+	@Transactional
+	@LogOperation("Update Category")
+	public ApiResponse<CategoryResponse> updateCategory(Long id, CategoryRequest request) {
+		Category existingCategory = categoryRepository.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Category", "id", id));
 
-        validateUniqueConstraints(existingCategory, request);
+		validateUniqueConstraints(existingCategory, request);
 
-        categoryMapper.updateEntity(existingCategory, request);
-        categoryRepository.save(existingCategory);
+		categoryMapper.updateEntity(existingCategory, request);
+		categoryRepository.save(existingCategory);
 
-        log.info("Category updated: {}", existingCategory.getName());
-        clearSeoCache();
-        return ApiResponse.success("Category updated successfully", categoryMapper.toResponse(existingCategory));
-    }
+		log.info("Category updated: {}", existingCategory.getName());
+		clearSeoCache();
+		return ApiResponse.success("Category updated successfully", categoryMapper.toResponse(existingCategory));
+	}
 
-    @Override
-    @Transactional
-    @LogOperation("Delete Category")
-    public ApiResponse<Void> deleteCategory(Long id) {
-        if (!categoryRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Category", "id", id);
-        }
-        categoryRepository.deleteById(id);
-        log.info("Category deleted id: {}", id);
-        clearSeoCache();
-        return ApiResponse.success("Category deleted successfully", null);
-    }
+	@Override
+	@Transactional
+	@LogOperation("Delete Category")
+	public ApiResponse<Void> deleteCategory(Long id) {
+		if (!categoryRepository.existsById(id)) {
+			throw new ResourceNotFoundException("Category", "id", id);
+		}
+		categoryRepository.deleteById(id);
+		log.info("Category deleted id: {}", id);
+		clearSeoCache();
+		return ApiResponse.success("Category deleted successfully", null);
+	}
 
-    private void validateUniqueConstraints(Category existing, CategoryRequest request) {
-        if (request.name() != null && (existing == null || !existing.getName().equals(request.name()))) {
-            if (categoryRepository.findByName(request.name()).isPresent()) {
-                throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category name already exists: " + request.name());
-            }
-        }
-        if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug()))) {
-            if (categoryRepository.findBySlug(request.slug()).isPresent()) {
-                throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category slug already exists: " + request.slug());
-            }
-        }
-    }
+	private void validateUniqueConstraints(Category existing, CategoryRequest request) {
+		if (request.name() != null && (existing == null || !existing.getName().equals(request.name()))) {
+			if (categoryRepository.findByName(request.name()).isPresent()) {
+				throw new BusinessException(BusinessCode.DUPLICATE_KEY,
+						"Category name already exists: " + request.name());
+			}
+		}
+		if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug()))) {
+			if (categoryRepository.findBySlug(request.slug()).isPresent()) {
+				throw new BusinessException(BusinessCode.DUPLICATE_KEY,
+						"Category slug already exists: " + request.slug());
+			}
+		}
+	}
 
-    private void clearSeoCache() {
-        redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
-    }
+	private void clearSeoCache() {
+		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
+	}
 }

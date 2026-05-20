@@ -11,28 +11,28 @@ import java.util.concurrent.TimeUnit;
 @Documented
 public @interface RateLimit {
 
-    /**
-     * Cache key prefix.
-     */
-    String key() default "rate_limit:";
+	/**
+	 * Cache key prefix.
+	 */
+	String key() default "rate_limit:";
 
-    /**
-     * Limit count.
-     */
-    int count() default 10;
+	/**
+	 * Limit count.
+	 */
+	int count() default 10;
 
-    /**
-     * Time window.
-     */
-    long time() default 1;
+	/**
+	 * Time window.
+	 */
+	long time() default 1;
 
-    /**
-     * Time unit.
-     */
-    TimeUnit unit() default TimeUnit.MINUTES;
+	/**
+	 * Time unit.
+	 */
+	TimeUnit unit() default TimeUnit.MINUTES;
 
-    /**
-     * Error message.
-     */
-    String message() default "Request frequency is too high, please try again later.";
+	/**
+	 * Error message.
+	 */
+	String message() default "Request frequency is too high, please try again later.";
 }

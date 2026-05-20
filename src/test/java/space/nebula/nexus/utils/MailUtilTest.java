@@ -18,26 +18,26 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 public class MailUtilTest {
 
-    @InjectMocks
-    private MailUtil mailUtil;
+	@InjectMocks
+	private MailUtil mailUtil;
 
-    @Mock
-    private JavaMailSender mailSender;
+	@Mock
+	private JavaMailSender mailSender;
 
-    @Test
-    public void testSendSimpleMail() {
-        ReflectionTestUtils.setField(mailUtil, "from", "admin@nexus.com");
-        
-        mailUtil.sendSimpleMail("test@example.com", "Subject", "Content");
-        verify(mailSender, times(1)).send(any(SimpleMailMessage.class));
-    }
+	@Test
+	public void testSendSimpleMail() {
+		ReflectionTestUtils.setField(mailUtil, "from", "admin@nexus.com");
 
-    @Test
-    public void testSendHtmlMail() {
-        ReflectionTestUtils.setField(mailUtil, "from", "admin@nexus.com");
-        when(mailSender.createMimeMessage()).thenReturn(org.mockito.Mockito.mock(MimeMessage.class));
+		mailUtil.sendSimpleMail("test@example.com", "Subject", "Content");
+		verify(mailSender, times(1)).send(any(SimpleMailMessage.class));
+	}
 
-        mailUtil.sendHtmlMail("test@example.com", "Subject", "<h1>Content</h1>");
-        verify(mailSender, times(1)).send(any(MimeMessage.class));
-    }
+	@Test
+	public void testSendHtmlMail() {
+		ReflectionTestUtils.setField(mailUtil, "from", "admin@nexus.com");
+		when(mailSender.createMimeMessage()).thenReturn(org.mockito.Mockito.mock(MimeMessage.class));
+
+		mailUtil.sendHtmlMail("test@example.com", "Subject", "<h1>Content</h1>");
+		verify(mailSender, times(1)).send(any(MimeMessage.class));
+	}
 }

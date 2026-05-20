@@ -7,18 +7,18 @@ import java.io.InputStream;
  */
 public interface StorageProvider {
 
-    /**
-     * Stores a file and returns its access name or path.
-     */
-    String store(InputStream inputStream, String filename);
+	/**
+	 * Stores a file and returns its access name or path.
+	 */
+	String store(InputStream inputStream, String filename);
 
-    /**
-     * Deletes a file.
-     */
-    void delete(String filename);
+	/**
+	 * Deletes a file.
+	 */
+	void delete(String filename);
 
-    /**
-     * Generates a public URL for the file.
-     */
-    String getUrl(String filename);
+	/**
+	 * Generates a public URL for the file.
+	 */
+	String getUrl(String filename);
 }

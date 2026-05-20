@@ -4,12 +4,15 @@ spring:
     port: ${MAIL_PORT}
     username: ${MAIL_USERNAME}
     password: ${MAIL_PASSWORD}
+    protocol: smtp
+    default-encoding: UTF-8
     properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
+      mail.smtp.auth: ${MAIL_AUTH:true}
+      mail.smtp.ssl.enable: ${MAIL_SSL:false}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:true}
+      mail.smtp.starttls.required: ${MAIL_STARTTLS:false}
+      mail.smtp.timeout: ${MAIL_TIMEOUT:5000}
+      mail.smtp.connectiontimeout: ${MAIL_CONNECTION_TIMEOUT:5000}
 
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:nexus_db}?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC

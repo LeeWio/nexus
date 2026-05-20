@@ -6,7 +6,6 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import space.nebula.nexus.common.ApiResponse;
@@ -39,321 +38,298 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MarketDataServiceImpl implements IMarketDataService {
 
-    private final RestClient restClient;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final RedisUtil redisUtil;
-    private final MarketProperties marketProperties;
-    private final Executor asyncExecutor;
+	private final RestClient restClient;
+	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final RedisUtil redisUtil;
+	private final MarketProperties marketProperties;
+	private final Executor asyncExecutor;
 
-    @Override
-    @CircuitBreaker(name = "marketService", fallbackMethod = "fallbackIndices")
-    @Retry(name = "marketService")
-    public ApiResponse<List<MarketIndexResponse>> getIndices(String period) {
-        String normalizedPeriod = period != null ? period.toUpperCase() : CacheConstants.MARKET_1D;
-        if (!List.of("1D", "1M", "1Y", "ALL").contains(normalizedPeriod)) {
-            normalizedPeriod = CacheConstants.MARKET_1D;
-        }
+	@Override
+	@CircuitBreaker(name = "marketService", fallbackMethod = "fallbackIndices")
+	@Retry(name = "marketService")
+	public ApiResponse<List<MarketIndexResponse>> getIndices(String period) {
+		String normalizedPeriod = period != null ? period.toUpperCase() : CacheConstants.MARKET_1D;
+		if (!List.of("1D", "1M", "1Y", "ALL").contains(normalizedPeriod)) {
+			normalizedPeriod = CacheConstants.MARKET_1D;
+		}
 
-        String cacheKey = CacheConstants.buildFullKey(CacheConstants.MARKET_INDICES, normalizedPeriod);
-        Optional<List> cachedData = redisUtil.get(cacheKey, List.class);
-        if (cachedData.isPresent()) {
-            return ApiResponse.success((List<MarketIndexResponse>) cachedData.get());
-        }
+		String cacheKey = CacheConstants.buildFullKey(CacheConstants.MARKET_INDICES, normalizedPeriod);
+		Optional<List> cachedData = redisUtil.get(cacheKey, List.class);
+		if (cachedData.isPresent()) {
+			return ApiResponse.success((List<MarketIndexResponse>) cachedData.get());
+		}
 
-        List<MarketIndexResponse> responses = fetchIndicesFromApi(normalizedPeriod);
+		List<MarketIndexResponse> responses = fetchIndicesFromApi(normalizedPeriod);
 
-        if (!responses.isEmpty()) {
-            long ttl = 1;
-            TimeUnit unit = TimeUnit.MINUTES;
-            if ("1M".equals(normalizedPeriod)) {
-                ttl = 30;
-            } else if ("1Y".equals(normalizedPeriod) || "ALL".equals(normalizedPeriod)) {
-                ttl = 6;
-                unit = TimeUnit.HOURS;
-            }
-            redisUtil.set(cacheKey, responses, ttl, unit);
-        }
+		if (!responses.isEmpty()) {
+			long ttl = 1;
+			TimeUnit unit = TimeUnit.MINUTES;
+			if ("1M".equals(normalizedPeriod)) {
+				ttl = 30;
+			} else if ("1Y".equals(normalizedPeriod) || "ALL".equals(normalizedPeriod)) {
+				ttl = 6;
+				unit = TimeUnit.HOURS;
+			}
+			redisUtil.set(cacheKey, responses, ttl, unit);
+		}
 
-        return ApiResponse.success(responses);
-    }
+		return ApiResponse.success(responses);
+	}
 
-    public List<MarketIndexResponse> fetchIndicesFromApi(String normalizedPeriod) {
-        if (marketProperties.getIndices() == null || marketProperties.getIndices().isEmpty()) {
-            return new ArrayList<>();
-        }
+	public List<MarketIndexResponse> fetchIndicesFromApi(String normalizedPeriod) {
+		if (marketProperties.getIndices() == null || marketProperties.getIndices().isEmpty()) {
+			return new ArrayList<>();
+		}
 
-        String hqKeys = marketProperties.getIndices().stream()
-                .map(MarketProperties.IndexConfig::getHqKey)
-                .collect(Collectors.joining(","));
-        
-        String hqUrl = marketProperties.getUrls().getHq() + hqKeys;
+		String hqKeys = marketProperties.getIndices().stream().map(MarketProperties.IndexConfig::getHqKey)
+				.collect(Collectors.joining(","));
 
-        byte[] responseBytes = restClient.get()
-                .uri(hqUrl)
-                .header("Referer", "http://finance.sina.com.cn")
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .retrieve()
-                .body(byte[].class);
-        
-        if (responseBytes == null) {
-            return new ArrayList<>();
-        }
-        
-        String body = new String(responseBytes, Charset.forName("GBK"));
-        
-        List<CompletableFuture<MarketIndexResponse>> futures = marketProperties.getIndices().stream()
-                .map(config -> CompletableFuture.supplyAsync(() -> {
-                    if (config.getType() == MarketProperties.MarketType.US) {
-                        return parseUsIndex(body, config, normalizedPeriod);
-                    } else {
-                        return parseCnIndex(body, config, normalizedPeriod);
-                    }
-                }, asyncExecutor))
-                .collect(Collectors.toList());
+		String hqUrl = marketProperties.getUrls().getHq() + hqKeys;
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+		byte[] responseBytes = restClient.get().uri(hqUrl).header("Referer", "http://finance.sina.com.cn").header(
+				"User-Agent",
+				"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+				.retrieve().body(byte[].class);
 
-        return futures.stream()
-                .map(CompletableFuture::join)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-    }
+		if (responseBytes == null) {
+			return new ArrayList<>();
+		}
 
-    @Override
-    public ApiResponse<MarketIndexResponse> getIndex(String symbol, String period) {
-        ApiResponse<List<MarketIndexResponse>> allIndicesResponse = getIndices(period);
-        if (allIndicesResponse.code() == 200 && allIndicesResponse.data() != null) {
-            for (MarketIndexResponse index : allIndicesResponse.data()) {
-                if (index.getSymbol().equalsIgnoreCase(symbol)) {
-                    return ApiResponse.success(index);
-                }
-            }
-        }
-        return ApiResponse.error(404, "Market index not found for symbol: " + symbol);
-    }
+		String body = new String(responseBytes, Charset.forName("GBK"));
 
-    public ApiResponse<List<MarketIndexResponse>> fallbackIndices(String period, Exception e) {
-        log.error("Market indices fallback triggered due to: {}", e.getMessage());
-        return ApiResponse.success(new ArrayList<>());
-    }
+		List<CompletableFuture<MarketIndexResponse>> futures = marketProperties.getIndices().stream()
+				.map(config -> CompletableFuture.supplyAsync(() -> {
+					if (config.getType() == MarketProperties.MarketType.US) {
+						return parseUsIndex(body, config, normalizedPeriod);
+					} else {
+						return parseCnIndex(body, config, normalizedPeriod);
+					}
+				}, asyncExecutor)).collect(Collectors.toList());
 
-    private MarketIndexResponse parseUsIndex(String body, MarketProperties.IndexConfig config, String period) {
-        Pattern pattern = Pattern.compile("var hq_str_" + config.getHqKey() + "=\"([^\"]+)\";");
-        Matcher matcher = pattern.matcher(body);
-        if (matcher.find()) {
-            String[] parts = matcher.group(1).split(",");
-            if (parts.length > 2) {
-                try {
-                    BigDecimal current = new BigDecimal(parts[1]);
-                    List<BigDecimal> sparkline = fetchUsSparkline(config.getSymbol(), period);
-                    
-                    BigDecimal changePct;
-                    if ("1D".equalsIgnoreCase(period)) {
-                        changePct = new BigDecimal(parts[2]);
-                    } else if (sparkline != null && !sparkline.isEmpty()) {
-                        BigDecimal startPrice = sparkline.get(0);
-                        if (startPrice.compareTo(BigDecimal.ZERO) != 0) {
-                            changePct = current.subtract(startPrice)
-                                    .divide(startPrice, 4, RoundingMode.HALF_UP)
-                                    .multiply(new BigDecimal("100"));
-                        } else {
-                            changePct = BigDecimal.ZERO;
-                        }
-                    } else {
-                        changePct = BigDecimal.ZERO;
-                    }
+		CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
-                    return MarketIndexResponse.builder()
-                            .name(config.getName())
-                            .symbol(config.getSymbol())
-                            .current(current.setScale(2, RoundingMode.HALF_UP))
-                            .changePct(changePct.setScale(2, RoundingMode.HALF_UP))
-                            .sparkline(sparkline)
-                            .isOpen(isUsMarketOpen())
-                            .build();
-                } catch (Exception e) {
-                    log.warn("Failed to parse US index numbers for {}", config.getName());
-                }
-            }
-        }
-        return null;
-    }
+		return futures.stream().map(CompletableFuture::join).filter(Objects::nonNull).collect(Collectors.toList());
+	}
 
-    private MarketIndexResponse parseCnIndex(String body, MarketProperties.IndexConfig config, String period) {
-        Pattern pattern = Pattern.compile("var hq_str_" + config.getHqKey() + "=\"([^\"]+)\";");
-        Matcher matcher = pattern.matcher(body);
-        if (matcher.find()) {
-            String[] parts = matcher.group(1).split(",");
-            if (parts.length > 3) {
-                try {
-                    BigDecimal current = new BigDecimal(parts[1]);
-                    List<BigDecimal> sparkline = fetchCnSparkline(config.getSymbol(), period);
+	@Override
+	public ApiResponse<MarketIndexResponse> getIndex(String symbol, String period) {
+		ApiResponse<List<MarketIndexResponse>> allIndicesResponse = getIndices(period);
+		if (allIndicesResponse.code() == 200 && allIndicesResponse.data() != null) {
+			for (MarketIndexResponse index : allIndicesResponse.data()) {
+				if (index.getSymbol().equalsIgnoreCase(symbol)) {
+					return ApiResponse.success(index);
+				}
+			}
+		}
+		return ApiResponse.error(404, "Market index not found for symbol: " + symbol);
+	}
 
-                    BigDecimal changePct;
-                    if ("1D".equalsIgnoreCase(period)) {
-                        changePct = new BigDecimal(parts[3]);
-                    } else if (sparkline != null && !sparkline.isEmpty()) {
-                        BigDecimal startPrice = sparkline.get(0);
-                        if (startPrice.compareTo(BigDecimal.ZERO) != 0) {
-                            changePct = current.subtract(startPrice)
-                                    .divide(startPrice, 4, RoundingMode.HALF_UP)
-                                    .multiply(new BigDecimal("100"));
-                        } else {
-                            changePct = BigDecimal.ZERO;
-                        }
-                    } else {
-                        changePct = BigDecimal.ZERO;
-                    }
-                    
-                    return MarketIndexResponse.builder()
-                            .name(config.getName())
-                            .symbol(config.getSymbol())
-                            .current(current.setScale(2, RoundingMode.HALF_UP))
-                            .changePct(changePct.setScale(2, RoundingMode.HALF_UP))
-                            .sparkline(sparkline)
-                            .isOpen(isCnMarketOpen())
-                            .build();
-                } catch (Exception e) {
-                    log.warn("Failed to parse CN index numbers for {}", config.getName());
-                }
-            }
-        }
-        return null;
-    }
+	public ApiResponse<List<MarketIndexResponse>> fallbackIndices(String period, Exception e) {
+		log.error("Market indices fallback triggered due to: {}", e.getMessage());
+		return ApiResponse.success(new ArrayList<>());
+	}
 
-    private List<BigDecimal> fetchCnSparkline(String symbol, String period) {
-        List<BigDecimal> sparkline = new ArrayList<>();
-        String scale = "5";
-        int datalen = 48; 
+	private MarketIndexResponse parseUsIndex(String body, MarketProperties.IndexConfig config, String period) {
+		Pattern pattern = Pattern.compile("var hq_str_" + config.getHqKey() + "=\"([^\"]+)\";");
+		Matcher matcher = pattern.matcher(body);
+		if (matcher.find()) {
+			String[] parts = matcher.group(1).split(",");
+			if (parts.length > 2) {
+				try {
+					BigDecimal current = new BigDecimal(parts[1]);
+					List<BigDecimal> sparkline = fetchUsSparkline(config.getSymbol(), period);
 
-        switch (period) {
-            case "1M":
-                scale = "240";
-                datalen = 22;
-                break;
-            case "1Y":
-                scale = "240";
-                datalen = 250;
-                break;
-            case "ALL":
-                scale = "240"; 
-                datalen = 1000;
-                break;
-            case "1D":
-            default:
-                scale = "5";
-                datalen = 48;
-                break;
-        }
+					BigDecimal changePct;
+					if ("1D".equalsIgnoreCase(period)) {
+						changePct = new BigDecimal(parts[2]);
+					} else if (sparkline != null && !sparkline.isEmpty()) {
+						BigDecimal startPrice = sparkline.get(0);
+						if (startPrice.compareTo(BigDecimal.ZERO) != 0) {
+							changePct = current.subtract(startPrice).divide(startPrice, 4, RoundingMode.HALF_UP)
+									.multiply(new BigDecimal("100"));
+						} else {
+							changePct = BigDecimal.ZERO;
+						}
+					} else {
+						changePct = BigDecimal.ZERO;
+					}
 
-        try {
-            String url = String.format(marketProperties.getUrls().getKlineCn(), symbol, scale, datalen);
-            String json = restClient.get()
-                    .uri(url)
-                    .header("Referer", "https://finance.sina.com.cn")
-                    .retrieve()
-                    .body(String.class);
-            
-            if (json != null) {
-                JsonNode root = objectMapper.readTree(json);
-                if (root.isArray()) {
-                    for (JsonNode node : root) {
-                        BigDecimal close = new BigDecimal(node.get("close").asText());
-                        sparkline.add(close.setScale(2, RoundingMode.HALF_UP));
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to fetch CN sparkline for {}", symbol);
-        }
-        return sparkline;
-    }
+					return MarketIndexResponse.builder().name(config.getName()).symbol(config.getSymbol())
+							.current(current.setScale(2, RoundingMode.HALF_UP))
+							.changePct(changePct.setScale(2, RoundingMode.HALF_UP)).sparkline(sparkline)
+							.isOpen(isUsMarketOpen()).build();
+				} catch (Exception e) {
+					log.warn("Failed to parse US index numbers for {}", config.getName());
+				}
+			}
+		}
+		return null;
+	}
 
-    private List<BigDecimal> fetchUsSparkline(String symbol, String period) {
-        List<BigDecimal> sparkline = new ArrayList<>();
-        String type = "5";
-        int datalen = 78;
-        boolean isDaily = false;
+	private MarketIndexResponse parseCnIndex(String body, MarketProperties.IndexConfig config, String period) {
+		Pattern pattern = Pattern.compile("var hq_str_" + config.getHqKey() + "=\"([^\"]+)\";");
+		Matcher matcher = pattern.matcher(body);
+		if (matcher.find()) {
+			String[] parts = matcher.group(1).split(",");
+			if (parts.length > 3) {
+				try {
+					BigDecimal current = new BigDecimal(parts[1]);
+					List<BigDecimal> sparkline = fetchCnSparkline(config.getSymbol(), period);
 
-        switch (period) {
-            case "1M":
-                isDaily = true;
-                datalen = 22;
-                break;
-            case "1Y":
-                isDaily = true;
-                datalen = 250;
-                break;
-            case "ALL":
-                isDaily = true;
-                datalen = 1000;
-                break;
-            case "1D":
-            default:
-                type = "5";
-                datalen = 78;
-                break;
-        }
+					BigDecimal changePct;
+					if ("1D".equalsIgnoreCase(period)) {
+						changePct = new BigDecimal(parts[3]);
+					} else if (sparkline != null && !sparkline.isEmpty()) {
+						BigDecimal startPrice = sparkline.get(0);
+						if (startPrice.compareTo(BigDecimal.ZERO) != 0) {
+							changePct = current.subtract(startPrice).divide(startPrice, 4, RoundingMode.HALF_UP)
+									.multiply(new BigDecimal("100"));
+						} else {
+							changePct = BigDecimal.ZERO;
+						}
+					} else {
+						changePct = BigDecimal.ZERO;
+					}
 
-        try {
-            String url;
-            if (isDaily) {
-                url = String.format(marketProperties.getUrls().getKlineUsDaily(), symbol);
-            } else {
-                url = String.format(marketProperties.getUrls().getKlineUs(), symbol, type);
-            }
+					return MarketIndexResponse.builder().name(config.getName()).symbol(config.getSymbol())
+							.current(current.setScale(2, RoundingMode.HALF_UP))
+							.changePct(changePct.setScale(2, RoundingMode.HALF_UP)).sparkline(sparkline)
+							.isOpen(isCnMarketOpen()).build();
+				} catch (Exception e) {
+					log.warn("Failed to parse CN index numbers for {}", config.getName());
+				}
+			}
+		}
+		return null;
+	}
 
-            String json = restClient.get()
-                    .uri(url)
-                    .header("Referer", "https://finance.sina.com.cn")
-                    .retrieve()
-                    .body(String.class);
+	private List<BigDecimal> fetchCnSparkline(String symbol, String period) {
+		List<BigDecimal> sparkline = new ArrayList<>();
+		String scale = "5";
+		int datalen = 48;
 
-            if (json != null) {
-                JsonNode root = objectMapper.readTree(json);
-                if (root.isArray()) {
-                    int start = Math.max(0, root.size() - datalen);
-                    for (int i = start; i < root.size(); i++) {
-                        JsonNode node = root.get(i);
-                        if (node.has("c")) {
-                            BigDecimal close = new BigDecimal(node.get("c").asText());
-                            sparkline.add(close.setScale(2, RoundingMode.HALF_UP));
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to fetch US sparkline for {}", symbol);
-        }
-        return sparkline;
-    }
+		switch (period) {
+			case "1M" :
+				scale = "240";
+				datalen = 22;
+				break;
+			case "1Y" :
+				scale = "240";
+				datalen = 250;
+				break;
+			case "ALL" :
+				scale = "240";
+				datalen = 1000;
+				break;
+			case "1D" :
+			default :
+				scale = "5";
+				datalen = 48;
+				break;
+		}
 
-    private boolean isUsMarketOpen() {
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York"));
-        DayOfWeek day = now.getDayOfWeek();
-        if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY) {
-            return false;
-        }
-        LocalTime time = now.toLocalTime();
-        LocalTime openTime = LocalTime.of(9, 30);
-        LocalTime closeTime = LocalTime.of(16, 0);
-        return !time.isBefore(openTime) && !time.isAfter(closeTime);
-    }
+		try {
+			String url = String.format(marketProperties.getUrls().getKlineCn(), symbol, scale, datalen);
+			String json = restClient.get().uri(url).header("Referer", "https://finance.sina.com.cn").retrieve()
+					.body(String.class);
 
-    private boolean isCnMarketOpen() {
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Shanghai"));
-        DayOfWeek day = now.getDayOfWeek();
-        if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY) {
-            return false;
-        }
-        LocalTime time = now.toLocalTime();
-        LocalTime amOpen = LocalTime.of(9, 30);
-        LocalTime amClose = LocalTime.of(11, 30);
-        LocalTime pmOpen = LocalTime.of(13, 0);
-        LocalTime pmClose = LocalTime.of(15, 0);
+			if (json != null) {
+				JsonNode root = objectMapper.readTree(json);
+				if (root.isArray()) {
+					for (JsonNode node : root) {
+						BigDecimal close = new BigDecimal(node.get("close").asText());
+						sparkline.add(close.setScale(2, RoundingMode.HALF_UP));
+					}
+				}
+			}
+		} catch (Exception e) {
+			log.warn("Failed to fetch CN sparkline for {}", symbol);
+		}
+		return sparkline;
+	}
 
-        boolean isAmOpen = !time.isBefore(amOpen) && !time.isAfter(amClose);
-        boolean isPmOpen = !time.isBefore(pmOpen) && !time.isAfter(pmClose);
-        return isAmOpen || isPmOpen;
-    }
+	private List<BigDecimal> fetchUsSparkline(String symbol, String period) {
+		List<BigDecimal> sparkline = new ArrayList<>();
+		String type = "5";
+		int datalen = 78;
+		boolean isDaily = false;
+
+		switch (period) {
+			case "1M" :
+				isDaily = true;
+				datalen = 22;
+				break;
+			case "1Y" :
+				isDaily = true;
+				datalen = 250;
+				break;
+			case "ALL" :
+				isDaily = true;
+				datalen = 1000;
+				break;
+			case "1D" :
+			default :
+				type = "5";
+				datalen = 78;
+				break;
+		}
+
+		try {
+			String url;
+			if (isDaily) {
+				url = String.format(marketProperties.getUrls().getKlineUsDaily(), symbol);
+			} else {
+				url = String.format(marketProperties.getUrls().getKlineUs(), symbol, type);
+			}
+
+			String json = restClient.get().uri(url).header("Referer", "https://finance.sina.com.cn").retrieve()
+					.body(String.class);
+
+			if (json != null) {
+				JsonNode root = objectMapper.readTree(json);
+				if (root.isArray()) {
+					int start = Math.max(0, root.size() - datalen);
+					for (int i = start; i < root.size(); i++) {
+						JsonNode node = root.get(i);
+						if (node.has("c")) {
+							BigDecimal close = new BigDecimal(node.get("c").asText());
+							sparkline.add(close.setScale(2, RoundingMode.HALF_UP));
+						}
+					}
+				}
+			}
+		} catch (Exception e) {
+			log.warn("Failed to fetch US sparkline for {}", symbol);
+		}
+		return sparkline;
+	}
+
+	private boolean isUsMarketOpen() {
+		ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York"));
+		DayOfWeek day = now.getDayOfWeek();
+		if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY) {
+			return false;
+		}
+		LocalTime time = now.toLocalTime();
+		LocalTime openTime = LocalTime.of(9, 30);
+		LocalTime closeTime = LocalTime.of(16, 0);
+		return !time.isBefore(openTime) && !time.isAfter(closeTime);
+	}
+
+	private boolean isCnMarketOpen() {
+		ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Shanghai"));
+		DayOfWeek day = now.getDayOfWeek();
+		if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY) {
+			return false;
+		}
+		LocalTime time = now.toLocalTime();
+		LocalTime amOpen = LocalTime.of(9, 30);
+		LocalTime amClose = LocalTime.of(11, 30);
+		LocalTime pmOpen = LocalTime.of(13, 0);
+		LocalTime pmClose = LocalTime.of(15, 0);
+
+		boolean isAmOpen = !time.isBefore(amOpen) && !time.isAfter(amClose);
+		boolean isPmOpen = !time.isBefore(pmOpen) && !time.isAfter(pmClose);
+		return isAmOpen || isPmOpen;
+	}
 }

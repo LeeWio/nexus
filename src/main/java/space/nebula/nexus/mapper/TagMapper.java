@@ -15,16 +15,16 @@ import java.util.List;
 @Mapper(config = CentralMapperConfig.class)
 public interface TagMapper {
 
-    TagResponse toResponse(Tag tag);
+	TagResponse toResponse(Tag tag);
 
-    List<TagResponse> toResponseList(List<Tag> tags);
+	List<TagResponse> toResponseList(List<Tag> tags);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    void updateEntity(@MappingTarget Tag tag, TagRequest request);
+	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	void updateEntity(@MappingTarget Tag tag, TagRequest request);
 }

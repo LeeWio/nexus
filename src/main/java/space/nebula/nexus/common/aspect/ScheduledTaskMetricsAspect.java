@@ -17,24 +17,22 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ScheduledTaskMetricsAspect {
 
-    @Resource
-    private MeterRegistry meterRegistry;
+	@Resource
+	private MeterRegistry meterRegistry;
 
-    /**
-     * Measure the execution time of methods annotated with @Scheduled.
-     */
-    @Around("@annotation(org.springframework.scheduling.annotation.Scheduled)")
-    public Object profile(ProceedingJoinPoint pjp) throws Throwable {
-        String methodName = pjp.getSignature().toShortString();
-        
-        Timer.Sample sample = Timer.start(meterRegistry);
-        try {
-            return pjp.proceed();
-        } finally {
-            sample.stop(Timer.builder("nexus.scheduled.task")
-                    .description("Duration of scheduled tasks")
-                    .tag("method", methodName)
-                    .register(meterRegistry));
-        }
-    }
+	/**
+	 * Measure the execution time of methods annotated with @Scheduled.
+	 */
+	@Around("@annotation(org.springframework.scheduling.annotation.Scheduled)")
+	public Object profile(ProceedingJoinPoint pjp) throws Throwable {
+		String methodName = pjp.getSignature().toShortString();
+
+		Timer.Sample sample = Timer.start(meterRegistry);
+		try {
+			return pjp.proceed();
+		} finally {
+			sample.stop(Timer.builder("nexus.scheduled.task").description("Duration of scheduled tasks")
+					.tag("method", methodName).register(meterRegistry));
+		}
+	}
 }

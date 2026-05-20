@@ -5,13 +5,13 @@ package space.nebula.nexus.service;
  */
 public interface SensitiveWordService {
 
-    /**
-     * Checks if the text contains sensitive words.
-     */
-    boolean containsSensitiveWord(String text);
+	/**
+	 * Checks if the text contains sensitive words.
+	 */
+	boolean containsSensitiveWord(String text);
 
-    /**
-     * Replaces sensitive words in the text with a mask (e.g., ***).
-     */
-    String filter(String text);
+	/**
+	 * Replaces sensitive words in the text with a mask (e.g., ***).
+	 */
+	String filter(String text);
 }

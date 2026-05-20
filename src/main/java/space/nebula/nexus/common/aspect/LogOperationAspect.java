@@ -26,129 +26,129 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * Enhanced Aspect for handling @LogOperation.
- * Captures detailed metadata and buffers to Redis for async persistence.
+ * Enhanced Aspect for handling @LogOperation. Captures detailed metadata and
+ * buffers to Redis for async persistence.
  */
 @Aspect
 @Component
 @Slf4j
 public class LogOperationAspect {
 
-    @Resource
-    private RedisUtil redisUtil;
+	@Resource
+	private RedisUtil redisUtil;
 
-    @Around("@annotation(logOperation)")
-    public Object around(ProceedingJoinPoint joinPoint, LogOperation logOperation) throws Throwable {
-        long startTime = System.currentTimeMillis();
-        
-        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        HttpServletRequest request = attributes != null ? attributes.getRequest() : null;
-        
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = (authentication != null) ? authentication.getName() : "Anonymous";
-        
-        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-        Method method = signature.getMethod();
-        String methodName = method.getDeclaringClass().getSimpleName() + "." + method.getName();
-        
-        Object result = null;
-        Throwable exception = null;
-        int status = 1; // Success
-        
-        try {
-            result = joinPoint.proceed();
-        } catch (Throwable e) {
-            exception = e;
-            status = 0; // Failure
-            throw e;
-        } finally {
-            try {
-                saveLog(username, logOperation, methodName, startTime, request, joinPoint, result, exception, status);
-            } catch (Exception e) {
-                log.error("Failed to buffer operation log", e);
-            }
-        }
-        
-        return result;
-    }
+	@Around("@annotation(logOperation)")
+	public Object around(ProceedingJoinPoint joinPoint, LogOperation logOperation) throws Throwable {
+		long startTime = System.currentTimeMillis();
 
-    private void saveLog(String username, LogOperation annotation, String methodName, long startTime, 
-                         HttpServletRequest request, ProceedingJoinPoint joinPoint, Object result, Throwable exception, int status) {
-        long duration = System.currentTimeMillis() - startTime;
-        
-        OperationLog opLog = new OperationLog();
-        opLog.setUsername(username);
-        opLog.setDescription(annotation.value());
-        opLog.setMethodName(methodName);
-        opLog.setDuration(duration);
-        opLog.setStatus(status);
-        opLog.setTraceId(MDC.get("traceId"));
+		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+		HttpServletRequest request = attributes != null ? attributes.getRequest() : null;
 
-        if (request != null) {
-            opLog.setRequestMethod(request.getMethod());
-            opLog.setRequestUrl(request.getRequestURI());
-            opLog.setIpAddress(IpUtil.getIpAddress(request));
-            opLog.setUserAgent(request.getHeader("User-Agent"));
-        }
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		String username = (authentication != null) ? authentication.getName() : "Anonymous";
 
-        if (annotation.logArgs() && joinPoint.getArgs() != null) {
-            opLog.setParameters(getSafeArgsJson((MethodSignature) joinPoint.getSignature(), joinPoint.getArgs()));
-        }
-        
-        if (annotation.logResult() && result != null) {
-            opLog.setResult(JSONUtil.toJsonStr(result));
-        }
+		MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+		Method method = signature.getMethod();
+		String methodName = method.getDeclaringClass().getSimpleName() + "." + method.getName();
 
-        if (exception != null) {
-            opLog.setErrorMessage(exception.getMessage());
-        }
+		Object result = null;
+		Throwable exception = null;
+		int status = 1; // Success
 
-        // Buffer to Redis list for async flush
-        redisUtil.listAdd(CacheConstants.OPERATION_LOG_BUFFER_KEY, opLog);
-        log.debug("Operation buffered: {} by {}", annotation.value(), username);
-    }
+		try {
+			result = joinPoint.proceed();
+		} catch (Throwable e) {
+			exception = e;
+			status = 0; // Failure
+			throw e;
+		} finally {
+			try {
+				saveLog(username, logOperation, methodName, startTime, request, joinPoint, result, exception, status);
+			} catch (Exception e) {
+				log.error("Failed to buffer operation log", e);
+			}
+		}
 
-    private String getSafeArgsJson(MethodSignature signature, Object[] args) {
-        try {
-            String[] parameterNames = signature.getParameterNames();
-            if (parameterNames == null || args == null) return "[]";
+		return result;
+	}
 
-            Map<String, Object> paramsMap = IntStream.range(0, parameterNames.length)
-                .boxed()
-                .collect(Collectors.toMap(
-                    i -> parameterNames[i],
-                    i -> {
-                        Object arg = args[i];
-                        if (arg == null) return "null";
-                        
-                        String name = parameterNames[i].toLowerCase();
-                        if (name.contains("password") || name.contains("secret") || name.contains("token")) {
-                            return "******";
-                        }
-                        
-                        // Mask if it's an object with sensitive fields (e.g. RegisterRequest, LoginRequest)
-                        if (arg instanceof space.nebula.nexus.payload.request.LoginRequest || 
-                            arg instanceof space.nebula.nexus.payload.request.RegisterRequest) {
-                            try {
-                                Map<String, Object> beanMap = cn.hutool.core.bean.BeanUtil.beanToMap(arg);
-                                beanMap.keySet().forEach(key -> {
-                                    String keyLower = key.toLowerCase();
-                                    if (keyLower.contains("password") || keyLower.contains("secret") || keyLower.contains("token")) {
-                                        beanMap.put(key, "******");
-                                    }
-                                });
-                                return beanMap;
-                            } catch (Exception ignored) {}
-                        }
-                        
-                        return arg;
-                    },
-                    (v1, v2) -> v1
-                ));
+	private void saveLog(String username, LogOperation annotation, String methodName, long startTime,
+			HttpServletRequest request, ProceedingJoinPoint joinPoint, Object result, Throwable exception, int status) {
+		long duration = System.currentTimeMillis() - startTime;
 
-            return JSONUtil.toJsonStr(paramsMap);
-        } catch (Exception e) {
-            return "[Serialization Failed]";
-        }
-    }
+		OperationLog opLog = new OperationLog();
+		opLog.setUsername(username);
+		opLog.setDescription(annotation.value());
+		opLog.setMethodName(methodName);
+		opLog.setDuration(duration);
+		opLog.setStatus(status);
+		opLog.setTraceId(MDC.get("traceId"));
+
+		if (request != null) {
+			opLog.setRequestMethod(request.getMethod());
+			opLog.setRequestUrl(request.getRequestURI());
+			opLog.setIpAddress(IpUtil.getIpAddress(request));
+			opLog.setUserAgent(request.getHeader("User-Agent"));
+		}
+
+		if (annotation.logArgs() && joinPoint.getArgs() != null) {
+			opLog.setParameters(getSafeArgsJson((MethodSignature) joinPoint.getSignature(), joinPoint.getArgs()));
+		}
+
+		if (annotation.logResult() && result != null) {
+			opLog.setResult(JSONUtil.toJsonStr(result));
+		}
+
+		if (exception != null) {
+			opLog.setErrorMessage(exception.getMessage());
+		}
+
+		// Buffer to Redis list for async flush
+		redisUtil.listAdd(CacheConstants.OPERATION_LOG_BUFFER_KEY, opLog);
+		log.debug("Operation buffered: {} by {}", annotation.value(), username);
+	}
+
+	private String getSafeArgsJson(MethodSignature signature, Object[] args) {
+		try {
+			String[] parameterNames = signature.getParameterNames();
+			if (parameterNames == null || args == null)
+				return "[]";
+
+			Map<String, Object> paramsMap = IntStream.range(0, parameterNames.length).boxed()
+					.collect(Collectors.toMap(i -> parameterNames[i], i -> {
+						Object arg = args[i];
+						if (arg == null)
+							return "null";
+
+						String name = parameterNames[i].toLowerCase();
+						if (name.contains("password") || name.contains("secret") || name.contains("token")) {
+							return "******";
+						}
+
+						// Mask if it's an object with sensitive fields (e.g. RegisterRequest,
+						// LoginRequest)
+						if (arg instanceof space.nebula.nexus.payload.request.LoginRequest
+								|| arg instanceof space.nebula.nexus.payload.request.RegisterRequest) {
+							try {
+								Map<String, Object> beanMap = cn.hutool.core.bean.BeanUtil.beanToMap(arg);
+								beanMap.keySet().forEach(key -> {
+									String keyLower = key.toLowerCase();
+									if (keyLower.contains("password") || keyLower.contains("secret")
+											|| keyLower.contains("token")) {
+										beanMap.put(key, "******");
+									}
+								});
+								return beanMap;
+							} catch (Exception ignored) {
+							}
+						}
+
+						return arg;
+					}, (v1, v2) -> v1));
+
+			return JSONUtil.toJsonStr(paramsMap);
+		} catch (Exception e) {
+			return "[Serialization Failed]";
+		}
+	}
 }

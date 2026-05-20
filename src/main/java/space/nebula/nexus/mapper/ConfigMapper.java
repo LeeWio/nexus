@@ -15,24 +15,24 @@ import java.util.List;
 @Mapper(config = CentralMapperConfig.class)
 public interface ConfigMapper {
 
-    ConfigResponse toResponse(Config config);
+	ConfigResponse toResponse(Config config);
 
-    List<ConfigResponse> toResponseList(List<Config> configs);
+	List<ConfigResponse> toResponseList(List<Config> configs);
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    Config toEntity(ConfigRequest request);
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	Config toEntity(ConfigRequest request);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    void updateEntity(@MappingTarget Config config, ConfigRequest request);
+	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	void updateEntity(@MappingTarget Config config, ConfigRequest request);
 }

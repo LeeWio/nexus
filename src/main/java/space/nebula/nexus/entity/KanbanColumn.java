@@ -18,16 +18,16 @@ import java.util.List;
 @Table(name = "kanban_column")
 public class KanbanColumn extends BaseEntity {
 
-    @Column(nullable = false, length = 100)
-    private String name;
+	@Column(nullable = false, length = 100)
+	private String name;
 
-    @Column(length = 50)
-    private String color;
+	@Column(length = 50)
+	private String color;
 
-    @Column(name = "order_index", nullable = false)
-    private Integer orderIndex = 0;
+	@Column(name = "order_index", nullable = false)
+	private Integer orderIndex = 0;
 
-    @OneToMany(mappedBy = "column", cascade = CascadeType.ALL)
-    @OrderBy("orderIndex ASC")
-    private List<KanbanItem> items = new ArrayList<>();
+	@OneToMany(mappedBy = "column", cascade = CascadeType.ALL)
+	@OrderBy("orderIndex ASC")
+	private List<KanbanItem> items = new ArrayList<>();
 }

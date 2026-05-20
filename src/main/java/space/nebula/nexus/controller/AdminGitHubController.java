@@ -17,12 +17,12 @@ import space.nebula.nexus.service.IGitHubService;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminGitHubController {
 
-    private final IGitHubService githubService;
+	private final IGitHubService githubService;
 
-    @Operation(summary = "Manually trigger GitHub project metrics synchronization")
-    @PostMapping("/sync")
-    public ApiResponse<Void> triggerSync() {
-        githubService.synchronizeProjectMetrics();
-        return ApiResponse.success("GitHub synchronization triggered successfully", null);
-    }
+	@Operation(summary = "Manually trigger GitHub project metrics synchronization")
+	@PostMapping("/sync")
+	public ApiResponse<Void> triggerSync() {
+		githubService.synchronizeProjectMetrics();
+		return ApiResponse.success("GitHub synchronization triggered successfully", null);
+	}
 }

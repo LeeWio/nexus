@@ -8,7 +8,7 @@ import space.nebula.nexus.entity.document.PostDocument;
 
 @Repository
 public interface PostSearchRepository extends ElasticsearchRepository<PostDocument, String> {
-    
-    Page<PostDocument> findByTitleOrSummaryOrContent(String title, String summary, String content, Pageable pageable);
-    
+
+	Page<PostDocument> findByTitleOrSummaryOrContent(String title, String summary, String content, Pageable pageable);
+
 }

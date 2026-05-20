@@ -4,13 +4,11 @@ import lombok.Getter;
 
 @Getter
 public enum PostStatus {
-    DRAFT("Draft"),
-    PUBLISHED("Published"),
-    ARCHIVED("Archived");
+	DRAFT("Draft"), PUBLISHED("Published"), ARCHIVED("Archived");
 
-    private final String description;
+	private final String description;
 
-    PostStatus(String description) {
-        this.description = description;
-    }
+	PostStatus(String description) {
+		this.description = description;
+	}
 }

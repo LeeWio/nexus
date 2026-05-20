@@ -13,34 +13,30 @@ import java.nio.file.Paths;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Resource
-    private StorageProperties storageProperties;
+	@Resource
+	private StorageProperties storageProperties;
 
-    @Resource
-    private AnalyticsInterceptor analyticsInterceptor;
+	@Resource
+	private AnalyticsInterceptor analyticsInterceptor;
 
-    @Resource
-    private TraceInterceptor traceInterceptor;
+	@Resource
+	private TraceInterceptor traceInterceptor;
 
-    @Override
-    public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(traceInterceptor)
-                .addPathPatterns("/**")
-                .order(-1); // Highest priority
+	@Override
+	public void addInterceptors(InterceptorRegistry registry) {
+		registry.addInterceptor(traceInterceptor).addPathPatterns("/**").order(-1); // Highest priority
 
-        registry.addInterceptor(analyticsInterceptor)
-                .addPathPatterns("/api/v1/public/**")
-                .excludePathPatterns("/api/v1/public/files/**", "/api/v1/public/seo/**");
-    }
+		registry.addInterceptor(analyticsInterceptor).addPathPatterns("/api/v1/public/**")
+				.excludePathPatterns("/api/v1/public/files/**", "/api/v1/public/seo/**");
+	}
 
-    @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String location = storageProperties.getLocal().getLocation();
-        String baseUrl = storageProperties.getLocal().getBaseUrl();
-        
-        String path = Paths.get(location).toAbsolutePath().toUri().toString();
-        
-        registry.addResourceHandler(baseUrl + "**")
-                .addResourceLocations(path);
-    }
+	@Override
+	public void addResourceHandlers(ResourceHandlerRegistry registry) {
+		String location = storageProperties.getLocal().getLocation();
+		String baseUrl = storageProperties.getLocal().getBaseUrl();
+
+		String path = Paths.get(location).toAbsolutePath().toUri().toString();
+
+		registry.addResourceHandler(baseUrl + "**").addResourceLocations(path);
+	}
 }

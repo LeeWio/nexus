@@ -10,6 +10,7 @@ import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.PostRevision;
 import space.nebula.nexus.mapper.PostMapper;
 import space.nebula.nexus.mapper.PostRevisionMapper;
+import space.nebula.nexus.payload.response.PostDiffResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.payload.response.PostRevisionResponse;
 import space.nebula.nexus.repository.PostRepository;
@@ -18,74 +19,99 @@ import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostSearchService;
 
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PostRevisionServiceImpl implements IPostRevisionService {
 
-    private final PostRevisionRepository postRevisionRepository;
-    private final PostRevisionMapper postRevisionMapper;
-    private final PostRepository postRepository;
-    private final PostMapper postMapper;
-    private final IPostSearchService postSearchService;
+	private final PostRevisionRepository postRevisionRepository;
+	private final PostRevisionMapper postRevisionMapper;
+	private final PostRepository postRepository;
+	private final PostMapper postMapper;
+	private final IPostSearchService postSearchService;
 
-    @Override
-    @Transactional
-    public void saveRevision(Post post) {
-        int nextVersion = postRevisionRepository.findMaxVersionByPostId(post.getId()).orElse(0) + 1;
-        
-        PostRevision revision = new PostRevision();
-        revision.setPost(post);
-        revision.setTitle(post.getTitle());
-        revision.setSummary(post.getSummary());
-        revision.setContent(post.getContent());
-        revision.setVersionNumber(nextVersion);
-        revision.setCreatedBy(post.getAuthor()); // In a real scenario, use currently logged in user
+	@Override
+	@Transactional
+	public void saveRevision(Post post) {
+		int nextVersion = postRevisionRepository.findMaxVersionByPostId(post.getId()).orElse(0) + 1;
 
-        postRevisionRepository.save(revision);
-        log.info("Saved revision {} for post {}", nextVersion, post.getId());
-    }
+		PostRevision revision = new PostRevision();
+		revision.setPost(post);
+		revision.setTitle(post.getTitle());
+		revision.setSummary(post.getSummary());
+		revision.setContent(post.getContent());
+		revision.setVersionNumber(nextVersion);
+		revision.setCreatedBy(post.getAuthor()); // In a real scenario, use currently logged in user
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<List<PostRevisionResponse>> getPostRevisions(Long postId) {
-        if (!postRepository.existsById(postId)) {
-            throw new BusinessException(404, "Post not found");
-        }
-        List<PostRevision> revisions = postRevisionRepository.findByPostIdOrderByVersionNumberDesc(postId);
-        return ApiResponse.success(postRevisionMapper.toResponseList(revisions));
-    }
+		postRevisionRepository.save(revision);
+		log.info("Saved revision {} for post {}", nextVersion, post.getId());
+	}
 
-    @Override
-    @Transactional
-    public ApiResponse<PostResponse> revertToRevision(Long postId, Long revisionId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new BusinessException(404, "Post not found"));
-                
-        PostRevision revision = postRevisionRepository.findById(revisionId)
-                .orElseThrow(() -> new BusinessException(404, "Revision not found"));
-                
-        if (!revision.getPost().getId().equals(postId)) {
-            throw new BusinessException(400, "Revision does not belong to this post");
-        }
-        
-        // Revert fields
-        post.setTitle(revision.getTitle());
-        post.setSummary(revision.getSummary());
-        post.setContent(revision.getContent());
-        
-        // Save post
-        postRepository.save(post);
-        
-        // Save a new revision of this reversion
-        saveRevision(post);
-        
-        // Update Search Index
-        postSearchService.indexPost(post);
-        
-        log.info("Reverted post {} to revision {}", postId, revisionId);
-        
-        return ApiResponse.success("Post reverted to revision " + revision.getVersionNumber(), postMapper.toResponse(post));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<List<PostRevisionResponse>> getPostRevisions(Long postId) {
+		if (!postRepository.existsById(postId)) {
+			throw new BusinessException(404, "Post not found");
+		}
+		List<PostRevision> revisions = postRevisionRepository.findByPostIdOrderByVersionNumberDesc(postId);
+		return ApiResponse.success(postRevisionMapper.toResponseList(revisions));
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<PostResponse> revertToRevision(Long postId, Long revisionId) {
+		Post post = postRepository.findById(postId).orElseThrow(() -> new BusinessException(404, "Post not found"));
+
+		PostRevision revision = postRevisionRepository.findById(revisionId)
+				.orElseThrow(() -> new BusinessException(404, "Revision not found"));
+
+		if (!revision.getPost().getId().equals(postId)) {
+			throw new BusinessException(400, "Revision does not belong to this post");
+		}
+
+		// Revert fields
+		post.setTitle(revision.getTitle());
+		post.setSummary(revision.getSummary());
+		post.setContent(revision.getContent());
+
+		// Save post
+		postRepository.save(post);
+
+		// Save a new revision of this reversion
+		saveRevision(post);
+
+		// Update Search Index
+		postSearchService.indexPost(post);
+
+		log.info("Reverted post {} to revision {}", postId, revisionId);
+
+		return ApiResponse.success("Post reverted to revision " + revision.getVersionNumber(),
+				postMapper.toResponse(post));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PostDiffResponse> compareRevisions(Long postId, Long baseRevisionId, Long targetRevisionId) {
+		PostRevision base = postRevisionRepository.findById(baseRevisionId)
+				.orElseThrow(() -> new BusinessException(404, "Base revision not found"));
+		PostRevision target = postRevisionRepository.findById(targetRevisionId)
+				.orElseThrow(() -> new BusinessException(404, "Target revision not found"));
+
+		if (!base.getPost().getId().equals(postId) || !target.getPost().getId().equals(postId)) {
+			throw new BusinessException(400, "Revisions do not belong to the specified post");
+		}
+
+		PostDiffResponse.FieldDiff titleDiff = new PostDiffResponse.FieldDiff(base.getTitle(), target.getTitle(),
+				!Objects.equals(base.getTitle(), target.getTitle()));
+
+		PostDiffResponse.FieldDiff summaryDiff = new PostDiffResponse.FieldDiff(base.getSummary(), target.getSummary(),
+				!Objects.equals(base.getSummary(), target.getSummary()));
+
+		PostDiffResponse.FieldDiff contentDiff = new PostDiffResponse.FieldDiff(base.getContent(), target.getContent(),
+				!Objects.equals(base.getContent(), target.getContent()));
+
+		return ApiResponse.success(new PostDiffResponse(titleDiff, summaryDiff, contentDiff));
+	}
 }

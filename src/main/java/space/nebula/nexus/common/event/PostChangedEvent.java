@@ -9,13 +9,13 @@ import space.nebula.nexus.entity.Post;
  */
 @Getter
 public class PostChangedEvent extends ApplicationEvent {
-    
-    private final Post post;
-    private final boolean isNew;
 
-    public PostChangedEvent(Object source, Post post, boolean isNew) {
-        super(source);
-        this.post = post;
-        this.isNew = isNew;
-    }
+	private final Post post;
+	private final boolean isNew;
+
+	public PostChangedEvent(Object source, Post post, boolean isNew) {
+		super(source);
+		this.post = post;
+		this.isNew = isNew;
+	}
 }

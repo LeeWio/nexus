@@ -18,12 +18,12 @@ import org.hibernate.annotations.SQLRestriction;
 @SQLRestriction("is_deleted = false")
 public class Moment extends BaseEntity {
 
-    @Column(nullable = false, length = 2000)
-    private String content;
+	@Column(nullable = false, length = 2000)
+	private String content;
 
-    @Column(name = "likes_count")
-    private Long likesCount = 0L;
+	@Column(name = "likes_count")
+	private Long likesCount = 0L;
 
-    @Column(name = "is_published", nullable = false)
-    private Boolean isPublished = true;
+	@Column(name = "is_published", nullable = false)
+	private Boolean isPublished = true;
 }

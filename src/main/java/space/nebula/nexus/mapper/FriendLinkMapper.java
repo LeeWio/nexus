@@ -15,24 +15,24 @@ import java.util.List;
 @Mapper(config = CentralMapperConfig.class)
 public interface FriendLinkMapper {
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    FriendLink toEntity(FriendLinkRequest request);
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	FriendLink toEntity(FriendLinkRequest request);
 
-    FriendLinkResponse toResponse(FriendLink friendLink);
+	FriendLinkResponse toResponse(FriendLink friendLink);
 
-    List<FriendLinkResponse> toResponseList(List<FriendLink> friendLinks);
+	List<FriendLinkResponse> toResponseList(List<FriendLink> friendLinks);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    void updateEntity(@MappingTarget FriendLink friendLink, FriendLinkRequest request);
+	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	void updateEntity(@MappingTarget FriendLink friendLink, FriendLinkRequest request);
 }

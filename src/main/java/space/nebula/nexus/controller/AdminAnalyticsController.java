@@ -18,11 +18,11 @@ import space.nebula.nexus.service.IAnalyticsService;
 @RequiredArgsConstructor
 public class AdminAnalyticsController {
 
-    private final IAnalyticsService analyticsService;
+	private final IAnalyticsService analyticsService;
 
-    @Operation(summary = "Retrieve today's traffic overview")
-    @GetMapping("/overview")
-    public ApiResponse<AnalyticsOverviewResponse> retrieveOverview() {
-        return analyticsService.retrieveOverviewStats();
-    }
+	@Operation(summary = "Retrieve today's traffic overview")
+	@GetMapping("/overview")
+	public ApiResponse<AnalyticsOverviewResponse> retrieveOverview() {
+		return analyticsService.retrieveOverviewStats();
+	}
 }

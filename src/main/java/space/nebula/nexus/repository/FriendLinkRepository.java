@@ -10,8 +10,8 @@ import java.util.Optional;
 
 @Repository
 public interface FriendLinkRepository extends JpaRepository<FriendLink, Long> {
-    
-    List<FriendLink> findByStatusAndIsPublishedTrueOrderBySortOrderAscCreatedAtDesc(FriendLinkStatus status);
 
-    Optional<FriendLink> findByUrl(String url);
+	List<FriendLink> findByStatusAndIsPublishedTrueOrderBySortOrderAscCreatedAtDesc(FriendLinkStatus status);
+
+	Optional<FriendLink> findByUrl(String url);
 }

@@ -15,32 +15,32 @@ import java.util.List;
 @Mapper(config = CentralMapperConfig.class)
 public interface ProjectMapper {
 
-    ProjectResponse toResponse(Project project);
+	ProjectResponse toResponse(Project project);
 
-    List<ProjectResponse> toResponseList(List<Project> projects);
+	List<ProjectResponse> toResponseList(List<Project> projects);
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "starsCount", ignore = true)
-    @Mapping(target = "forksCount", ignore = true)
-    @Mapping(target = "language", ignore = true)
-    @Mapping(target = "repoName", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    Project toEntity(ProjectRequest request);
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "starsCount", ignore = true)
+	@Mapping(target = "forksCount", ignore = true)
+	@Mapping(target = "language", ignore = true)
+	@Mapping(target = "repoName", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	Project toEntity(ProjectRequest request);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "starsCount", ignore = true)
-    @Mapping(target = "forksCount", ignore = true)
-    @Mapping(target = "language", ignore = true)
-    @Mapping(target = "repoName", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    void updateEntity(@MappingTarget Project project, ProjectRequest request);
+	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "starsCount", ignore = true)
+	@Mapping(target = "forksCount", ignore = true)
+	@Mapping(target = "language", ignore = true)
+	@Mapping(target = "repoName", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	void updateEntity(@MappingTarget Project project, ProjectRequest request);
 }

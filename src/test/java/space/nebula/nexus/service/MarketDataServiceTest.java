@@ -24,60 +24,69 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class MarketDataServiceTest {
 
-    @Mock
-    private RestClient restClient;
-    @Mock
-    private RestClient.RequestHeadersUriSpec requestHeadersUriSpec;
-    @Mock
-    private RestClient.RequestHeadersSpec requestHeadersSpec;
-    @Mock
-    private RestClient.ResponseSpec responseSpec;
+	@Mock
+	private RestClient restClient;
+	@Mock
+	private RestClient.RequestHeadersUriSpec requestHeadersUriSpec;
+	@Mock
+	private RestClient.RequestHeadersSpec requestHeadersSpec;
+	@Mock
+	private RestClient.ResponseSpec responseSpec;
 
-    @Mock
-    private RedisUtil redisUtil;
+	@Mock
+	private RedisUtil redisUtil;
 
-    @Mock
-    private MarketProperties marketProperties;
+	@Mock
+	private MarketProperties marketProperties;
 
-    @Mock
-    private Executor asyncExecutor;
+	@Mock
+	private Executor asyncExecutor;
 
-    @InjectMocks
-    private MarketDataServiceImpl marketDataService;
+	@InjectMocks
+	private MarketDataServiceImpl marketDataService;
 
-    private byte[] mockHqResponse;
+	private byte[] mockHqResponse;
 
-    @BeforeEach
-    void setUp() throws Exception {
-        String hqData = "var hq_str_gb_ixic=\"纳斯达克,15000.50,1.20,2026-05-18 22:01:04,-6.5749,26289.4902,26309.1049,26134.1761,26707.1406,18599.6875,2469627073,7997042033,0,0.00,--,0.00,0.00,0.00,0.00,0,0,0.0000,0.00,0.00,,May 18 10:01AM EDT,26225.1445,0,1,2026,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000\";\n" +
-                "var hq_str_gb_inx=\"标普500指数,5000.75,0.80,2026-05-18 22:00:46,11.2600,7418.3901,7434.0601,7394.1099,7517.1201,5767.4102,429201675,3305076297,0,0.00,--,0.00,0.00,0.00,0.00,0,0,0.0000,0.00,0.0000,,May 18 10:00AM EDT,7408.5000,0,1,2026\";\n" +
-                "var hq_str_s_sh000001=\"上证指数,3050.00,10.00,3.39,627233137,1315084195447\";\n" +
-                "var hq_str_s_sz399001=\"深证成指,10100.00,20.00,2.50,73830560388,1578895897760.353\";";
-        mockHqResponse = hqData.getBytes("GBK");
-        
-        MarketProperties.IndexConfig ixic = new MarketProperties.IndexConfig();
-        ixic.setName("NASDAQ"); ixic.setSymbol(".ixic"); ixic.setHqKey("gb_ixic"); ixic.setType(MarketProperties.MarketType.US);
-        
-        MarketProperties.IndexConfig sh = new MarketProperties.IndexConfig();
-        sh.setName("SSE Composite"); sh.setSymbol("sh000001"); sh.setHqKey("s_sh000001"); sh.setType(MarketProperties.MarketType.CN);
-        
-        MarketProperties.ApiUrls urls = new MarketProperties.ApiUrls();
-        urls.setHq("http://hq.sinajs.cn/list=");
-        urls.setKlineCn("https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketData.getKLineData?symbol=%s&scale=%s&ma=no&datalen=%d");
-        urls.setKlineUs("http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getMinK?symbol=%s&type=%s&___qn=3");
-        urls.setKlineUsDaily("http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getDailyK?symbol=%s");
+	@BeforeEach
+	void setUp() throws Exception {
+		String hqData = "var hq_str_gb_ixic=\"纳斯达克,15000.50,1.20,2026-05-18 22:01:04,-6.5749,26289.4902,26309.1049,26134.1761,26707.1406,18599.6875,2469627073,7997042033,0,0.00,--,0.00,0.00,0.00,0.00,0,0,0.0000,0.00,0.00,,May 18 10:01AM EDT,26225.1445,0,1,2026,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000\";\n"
+				+ "var hq_str_gb_inx=\"标普500指数,5000.75,0.80,2026-05-18 22:00:46,11.2600,7418.3901,7434.0601,7394.1099,7517.1201,5767.4102,429201675,3305076297,0,0.00,--,0.00,0.00,0.00,0.00,0,0,0.0000,0.00,0.0000,,May 18 10:00AM EDT,7408.5000,0,1,2026\";\n"
+				+ "var hq_str_s_sh000001=\"上证指数,3050.00,10.00,3.39,627233137,1315084195447\";\n"
+				+ "var hq_str_s_sz399001=\"深证成指,10100.00,20.00,2.50,73830560388,1578895897760.353\";";
+		mockHqResponse = hqData.getBytes("GBK");
 
-        lenient().when(marketProperties.getIndices()).thenReturn(List.of(ixic, sh));
-        lenient().when(marketProperties.getUrls()).thenReturn(urls);
-        
-        // Mock the async executor to run synchronously for tests
-        lenient().doAnswer(invocation -> {
-            ((Runnable) invocation.getArgument(0)).run();
-            return null;
-        }).when(asyncExecutor).execute(any(Runnable.class));
-    }
+		MarketProperties.IndexConfig ixic = new MarketProperties.IndexConfig();
+		ixic.setName("NASDAQ");
+		ixic.setSymbol(".ixic");
+		ixic.setHqKey("gb_ixic");
+		ixic.setType(MarketProperties.MarketType.US);
 
-    @Test
+		MarketProperties.IndexConfig sh = new MarketProperties.IndexConfig();
+		sh.setName("SSE Composite");
+		sh.setSymbol("sh000001");
+		sh.setHqKey("s_sh000001");
+		sh.setType(MarketProperties.MarketType.CN);
+
+		MarketProperties.ApiUrls urls = new MarketProperties.ApiUrls();
+		urls.setHq("http://hq.sinajs.cn/list=");
+		urls.setKlineCn(
+				"https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketData.getKLineData?symbol=%s&scale=%s&ma=no&datalen=%d");
+		urls.setKlineUs(
+				"http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getMinK?symbol=%s&type=%s&___qn=3");
+		urls.setKlineUsDaily(
+				"http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getDailyK?symbol=%s");
+
+		lenient().when(marketProperties.getIndices()).thenReturn(List.of(ixic, sh));
+		lenient().when(marketProperties.getUrls()).thenReturn(urls);
+
+		// Mock the async executor to run synchronously for tests
+		lenient().doAnswer(invocation -> {
+			((Runnable) invocation.getArgument(0)).run();
+			return null;
+		}).when(asyncExecutor).execute(any(Runnable.class));
+	}
+
+	@Test
     void getIndices_Success() {
         when(redisUtil.get(anyString(), eq(List.class))).thenReturn(java.util.Optional.empty());
 

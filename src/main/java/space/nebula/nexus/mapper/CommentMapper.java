@@ -10,9 +10,9 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface CommentMapper {
 
-    @Mapping(target = "username", source = "user.username")
-    @Mapping(target = "avatar", source = "user.avatar")
-    CommentResponse toResponse(Comment comment);
+	@Mapping(target = "username", source = "user.username")
+	@Mapping(target = "avatar", source = "user.avatar")
+	CommentResponse toResponse(Comment comment);
 
-    List<CommentResponse> toResponseList(List<Comment> comments);
+	List<CommentResponse> toResponseList(List<Comment> comments);
 }

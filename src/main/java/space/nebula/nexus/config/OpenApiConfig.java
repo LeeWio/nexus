@@ -11,28 +11,11 @@ import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@OpenAPIDefinition(
-        info = @Info(
-                title = "Nexus API", 
-                version = "v1.2", 
-                description = "### Professional Blog & CMS Backend \n" +
-                        "Nexus provides a robust foundation for modern web applications with built-in: \n" +
-                        "- **Full-Link Tracing** (TraceId in every response) \n" +
-                        "- **Asynchronous Auditing** \n" +
-                        "- **Automated Image Processing** (Thumbnails, WebP) \n" +
-                        "- **Multi-Driver Storage** (Local, Aliyun OSS, S3)",
-                contact = @Contact(name = "Nebula Space Team", url = "https://nebula.space"),
-                license = @License(name = "MIT License", url = "https://opensource.org/licenses/MIT")
-        ),
-        security = @SecurityRequirement(name = "bearerAuth")
-)
-@SecurityScheme(
-        name = "bearerAuth",
-        description = "Enter JWT Bearer token obtained from `/api/v1/auth/login`",
-        scheme = "bearer",
-        type = SecuritySchemeType.HTTP,
-        bearerFormat = "JWT",
-        in = SecuritySchemeIn.HEADER
-)
+@OpenAPIDefinition(info = @Info(title = "Nexus API", version = "v1.2", description = "### Professional Blog & CMS Backend \n"
+		+ "Nexus provides a robust foundation for modern web applications with built-in: \n"
+		+ "- **Full-Link Tracing** (TraceId in every response) \n" + "- **Asynchronous Auditing** \n"
+		+ "- **Automated Image Processing** (Thumbnails, WebP) \n"
+		+ "- **Multi-Driver Storage** (Local, Aliyun OSS, S3)", contact = @Contact(name = "Nebula Space Team", url = "https://nebula.space"), license = @License(name = "MIT License", url = "https://opensource.org/licenses/MIT")), security = @SecurityRequirement(name = "bearerAuth"))
+@SecurityScheme(name = "bearerAuth", description = "Enter JWT Bearer token obtained from `/api/v1/auth/login`", scheme = "bearer", type = SecuritySchemeType.HTTP, bearerFormat = "JWT", in = SecuritySchemeIn.HEADER)
 public class OpenApiConfig {
 }

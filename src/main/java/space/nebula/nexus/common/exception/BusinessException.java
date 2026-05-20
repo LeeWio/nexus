@@ -8,25 +8,25 @@ import space.nebula.nexus.common.constant.BusinessCode;
  */
 @Getter
 public class BusinessException extends RuntimeException {
-    
-    private final int code;
 
-    public BusinessException(String message) {
-        this(400, message);
-    }
+	private final int code;
 
-    public BusinessException(int code, String message) {
-        super(message);
-        this.code = code;
-    }
+	public BusinessException(String message) {
+		this(400, message);
+	}
 
-    public BusinessException(BusinessCode businessCode) {
-        super(businessCode.getMessage());
-        this.code = businessCode.getCode();
-    }
+	public BusinessException(int code, String message) {
+		super(message);
+		this.code = code;
+	}
 
-    public BusinessException(BusinessCode businessCode, String customMessage) {
-        super(customMessage);
-        this.code = businessCode.getCode();
-    }
+	public BusinessException(BusinessCode businessCode) {
+		super(businessCode.getMessage());
+		this.code = businessCode.getCode();
+	}
+
+	public BusinessException(BusinessCode businessCode, String customMessage) {
+		super(customMessage);
+		this.code = businessCode.getCode();
+	}
 }

@@ -10,9 +10,9 @@ import java.util.Optional;
 
 @Repository
 public interface PostRevisionRepository extends JpaRepository<PostRevision, Long> {
-    
-    List<PostRevision> findByPostIdOrderByVersionNumberDesc(Long postId);
 
-    @Query("SELECT MAX(pr.versionNumber) FROM PostRevision pr WHERE pr.post.id = :postId")
-    Optional<Integer> findMaxVersionByPostId(Long postId);
+	List<PostRevision> findByPostIdOrderByVersionNumberDesc(Long postId);
+
+	@Query("SELECT MAX(pr.versionNumber) FROM PostRevision pr WHERE pr.post.id = :postId")
+	Optional<Integer> findMaxVersionByPostId(Long postId);
 }

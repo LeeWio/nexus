@@ -26,58 +26,51 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 public class AuthControllerIntegrationTest {
 
-    @MockitoBean
-    private PostSearchRepository postSearchRepository;
+	@MockitoBean
+	private PostSearchRepository postSearchRepository;
 
-    @Autowired
-    private MockMvc mockMvc;
+	@Autowired
+	private MockMvc mockMvc;
 
-    @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+	@Autowired
+	private RedisTemplate<String, Object> redisTemplate;
 
-    @BeforeEach
-    public void setup() {
-        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
-    }
+	@BeforeEach
+	public void setup() {
+		redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
+	}
 
-    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+	private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
-    @Test
-    public void testRegisterAndLogin() throws Exception {
-        // 1. Register
-        RegisterRequest registerRequest = new RegisterRequest("testuser", "test@example.com", "P@ssw0rd123!");
+	@Test
+	public void testRegisterAndLogin() throws Exception {
+		// 1. Register
+		RegisterRequest registerRequest = new RegisterRequest("testuser", "test@example.com", "P@ssw0rd123!");
 
-        mockMvc.perform(post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Registration successful. Your account is pending administrator approval."));
+		mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(registerRequest))).andExpect(status().isOk())
+				.andExpect(jsonPath("$.message")
+						.value("Registration successful. Your account is pending administrator approval."));
 
-        // 2. Login
-        LoginRequest loginRequest = new LoginRequest("testuser", "P@ssw0rd123!");
+		// 2. Login
+		LoginRequest loginRequest = new LoginRequest("testuser", "P@ssw0rd123!");
 
-        mockMvc.perform(post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.message").value("Authentication service error"));
-    }
+		mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(loginRequest))).andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.message").value("Authentication service error"));
+	}
 
-    @Test
-    public void testRegisterDuplicateUsername() throws Exception {
-        RegisterRequest registerRequest = new RegisterRequest("testuser", "test@example.com", "P@ssw0rd123!");
+	@Test
+	public void testRegisterDuplicateUsername() throws Exception {
+		RegisterRequest registerRequest = new RegisterRequest("testuser", "test@example.com", "P@ssw0rd123!");
 
-        // First registration
-        mockMvc.perform(post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isOk());
+		// First registration
+		mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(registerRequest))).andExpect(status().isOk());
 
-        // Second registration with same username
-        mockMvc.perform(post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value(40002));
-    }
+		// Second registration with same username
+		mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(registerRequest))).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value(40002));
+	}
 }

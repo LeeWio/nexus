@@ -29,32 +29,32 @@ import java.util.List;
 @SQLRestriction("is_deleted = false")
 public class Comment extends BaseEntity {
 
-    @Lob
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String content;
+	@Lob
+	@Column(nullable = false, columnDefinition = "TEXT")
+	private String content;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private CommentStatus status = CommentStatus.PENDING;
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private CommentStatus status = CommentStatus.PENDING;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id") // Nullable for guestbook
-    private Post post;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "post_id") // Nullable for guestbook
+	private Post post;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "user_id", nullable = false)
+	private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
-    private Comment parent;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "parent_id")
+	private Comment parent;
 
-    @OneToMany(mappedBy = "parent", fetch = FetchType.LAZY)
-    private List<Comment> children = new ArrayList<>();
+	@OneToMany(mappedBy = "parent", fetch = FetchType.LAZY)
+	private List<Comment> children = new ArrayList<>();
 
-    @Column(name = "ip_address", length = 50)
-    private String ipAddress;
+	@Column(name = "ip_address", length = 50)
+	private String ipAddress;
 
-    @Column(name = "user_agent")
-    private String userAgent;
+	@Column(name = "user_agent")
+	private String userAgent;
 }

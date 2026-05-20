@@ -14,14 +14,14 @@ import space.nebula.nexus.security.model.SecurityUser;
 @RequiredArgsConstructor
 public class UserDetailsServiceImpl implements UserDetailsService {
 
-    private final UserRepository userRepository;
+	private final UserRepository userRepository;
 
-    @Override
-    @Transactional(readOnly = true)
-    public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
-        User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with identifier: " + usernameOrEmail));
-        
-        return new SecurityUser(user);
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
+		User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
+				.orElseThrow(() -> new UsernameNotFoundException("User not found with identifier: " + usernameOrEmail));
+
+		return new SecurityUser(user);
+	}
 }

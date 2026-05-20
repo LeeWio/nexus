@@ -13,10 +13,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MarketIndexResponse {
-    private String name;
-    private String symbol;
-    private BigDecimal current;
-    private BigDecimal changePct;
-    private List<BigDecimal> sparkline;
-    private Boolean isOpen;
+	private String name;
+	private String symbol;
+	private BigDecimal current;
+	private BigDecimal changePct;
+	private List<BigDecimal> sparkline;
+	private Boolean isOpen;
 }

@@ -18,12 +18,12 @@ import org.hibernate.annotations.SQLRestriction;
 @SQLRestriction("is_deleted = false")
 public class Category extends BaseEntity {
 
-    @Column(nullable = false, unique = true, length = 50)
-    private String name;
+	@Column(nullable = false, unique = true, length = 50)
+	private String name;
 
-    @Column(nullable = false, unique = true, length = 50)
-    private String slug;
+	@Column(nullable = false, unique = true, length = 50)
+	private String slug;
 
-    @Column(length = 200)
-    private String description;
+	@Column(length = 200)
+	private String description;
 }

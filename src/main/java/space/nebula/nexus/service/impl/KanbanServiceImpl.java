@@ -30,192 +30,192 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 /**
- * Implementation of Kanban board management service.
- * Standardized with ApiResponse and enhanced with concurrency protection.
+ * Implementation of Kanban board management service. Standardized with
+ * ApiResponse and enhanced with concurrency protection.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class KanbanServiceImpl implements IKanbanService {
 
-    private final KanbanColumnRepository columnRepository;
-    private final KanbanItemRepository taskRepository;
-    private final TagRepository tagRepository;
-    private final KanbanMapper kanbanMapper;
-    private final RedisLockUtil redisLockUtil;
+	private final KanbanColumnRepository columnRepository;
+	private final KanbanItemRepository taskRepository;
+	private final TagRepository tagRepository;
+	private final KanbanMapper kanbanMapper;
+	private final RedisLockUtil redisLockUtil;
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<List<KanbanColumnResponse>> retrieveFullBoard() {
-        var boardColumns = columnRepository.findAllWithItemsOrderByOrderIndexAsc();
-        return ApiResponse.success(kanbanMapper.toColumnResponseList(boardColumns));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<List<KanbanColumnResponse>> retrieveFullBoard() {
+		var boardColumns = columnRepository.findAllWithItemsOrderByOrderIndexAsc();
+		return ApiResponse.success(kanbanMapper.toColumnResponseList(boardColumns));
+	}
 
-    @Override
-    @Transactional
-    public ApiResponse<KanbanColumnResponse> createColumn(KanbanColumnRequest request) {
-        var newColumn = new KanbanColumn();
-        newColumn.setName(request.getName());
-        newColumn.setColor(request.getColor());
-        
-        if (request.getOrderIndex() != null) {
-            newColumn.setOrderIndex(request.getOrderIndex());
-        } else {
-            Integer maxSequence = columnRepository.findMaxOrderIndex();
-            newColumn.setOrderIndex(maxSequence != null ? maxSequence + 1 : 0);
-        }
+	@Override
+	@Transactional
+	public ApiResponse<KanbanColumnResponse> createColumn(KanbanColumnRequest request) {
+		var newColumn = new KanbanColumn();
+		newColumn.setName(request.getName());
+		newColumn.setColor(request.getColor());
 
-        var savedColumn = columnRepository.save(newColumn);
-        log.info("Kanban column created: {}", savedColumn.getName());
-        return ApiResponse.success("Column created", kanbanMapper.toResponse(savedColumn));
-    }
+		if (request.getOrderIndex() != null) {
+			newColumn.setOrderIndex(request.getOrderIndex());
+		} else {
+			Integer maxSequence = columnRepository.findMaxOrderIndex();
+			newColumn.setOrderIndex(maxSequence != null ? maxSequence + 1 : 0);
+		}
 
-    @Override
-    @Transactional
-    public ApiResponse<KanbanColumnResponse> updateColumn(Long id, KanbanColumnRequest request) {
-        var column = findColumnOrThrow(id);
-        
-        column.setName(request.getName());
-        column.setColor(request.getColor());
-        if (request.getOrderIndex() != null) {
-            column.setOrderIndex(request.getOrderIndex());
-        }
+		var savedColumn = columnRepository.save(newColumn);
+		log.info("Kanban column created: {}", savedColumn.getName());
+		return ApiResponse.success("Column created", kanbanMapper.toResponse(savedColumn));
+	}
 
-        var updatedColumn = columnRepository.save(column);
-        log.info("Kanban column updated: {}", updatedColumn.getName());
-        return ApiResponse.success("Column updated", kanbanMapper.toResponse(updatedColumn));
-    }
+	@Override
+	@Transactional
+	public ApiResponse<KanbanColumnResponse> updateColumn(Long id, KanbanColumnRequest request) {
+		var column = findColumnOrThrow(id);
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> deleteColumn(Long id) {
-        if (!columnRepository.existsById(id)) {
-            throw new ResourceNotFoundException("KanbanColumn", "id", id);
-        }
-        columnRepository.deleteById(id);
-        log.info("Kanban column deleted: {}", id);
-        return ApiResponse.success("Column deleted", null);
-    }
+		column.setName(request.getName());
+		column.setColor(request.getColor());
+		if (request.getOrderIndex() != null) {
+			column.setOrderIndex(request.getOrderIndex());
+		}
 
-    @Override
-    @Transactional
-    public ApiResponse<KanbanItemResponse> createTask(KanbanItemRequest request) {
-        var column = findColumnOrThrow(request.getColumnId());
+		var updatedColumn = columnRepository.save(column);
+		log.info("Kanban column updated: {}", updatedColumn.getName());
+		return ApiResponse.success("Column updated", kanbanMapper.toResponse(updatedColumn));
+	}
 
-        var newTask = new KanbanItem();
-        newTask.setTitle(request.getTitle());
-        newTask.setContent(request.getContent());
-        newTask.setPriority(request.getPriority());
-        newTask.setReminderAt(request.getReminderAt());
-        newTask.setColumn(column);
+	@Override
+	@Transactional
+	public ApiResponse<Void> deleteColumn(Long id) {
+		if (!columnRepository.existsById(id)) {
+			throw new ResourceNotFoundException("KanbanColumn", "id", id);
+		}
+		columnRepository.deleteById(id);
+		log.info("Kanban column deleted: {}", id);
+		return ApiResponse.success("Column deleted", null);
+	}
 
-        if (request.getOrderIndex() != null) {
-            newTask.setOrderIndex(request.getOrderIndex());
-        } else {
-            Integer maxSequence = taskRepository.findMaxOrderIndexByColumnId(column.getId());
-            newTask.setOrderIndex(maxSequence != null ? maxSequence + 1 : 0);
-        }
+	@Override
+	@Transactional
+	public ApiResponse<KanbanItemResponse> createTask(KanbanItemRequest request) {
+		var column = findColumnOrThrow(request.getColumnId());
 
-        if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
-            var tags = tagRepository.findAllById(request.getTagIds());
-            newTask.setTags(new HashSet<>(tags));
-        }
+		var newTask = new KanbanItem();
+		newTask.setTitle(request.getTitle());
+		newTask.setContent(request.getContent());
+		newTask.setPriority(request.getPriority());
+		newTask.setReminderAt(request.getReminderAt());
+		newTask.setColumn(column);
 
-        var savedTask = taskRepository.save(newTask);
-        log.info("Kanban task created: {}", savedTask.getTitle());
-        return ApiResponse.success("Task created", kanbanMapper.toResponse(savedTask));
-    }
+		if (request.getOrderIndex() != null) {
+			newTask.setOrderIndex(request.getOrderIndex());
+		} else {
+			Integer maxSequence = taskRepository.findMaxOrderIndexByColumnId(column.getId());
+			newTask.setOrderIndex(maxSequence != null ? maxSequence + 1 : 0);
+		}
 
-    @Override
-    @Transactional
-    public ApiResponse<KanbanItemResponse> updateTask(Long id, KanbanItemRequest request) {
-        var task = findItemOrThrow(id);
+		if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
+			var tags = tagRepository.findAllById(request.getTagIds());
+			newTask.setTags(new HashSet<>(tags));
+		}
 
-        kanbanMapper.updateItem(task, request);
+		var savedTask = taskRepository.save(newTask);
+		log.info("Kanban task created: {}", savedTask.getTitle());
+		return ApiResponse.success("Task created", kanbanMapper.toResponse(savedTask));
+	}
 
-        if (request.getColumnId() != null && !task.getColumn().getId().equals(request.getColumnId())) {
-            var targetColumn = findColumnOrThrow(request.getColumnId());
-            task.setColumn(targetColumn);
-        }
+	@Override
+	@Transactional
+	public ApiResponse<KanbanItemResponse> updateTask(Long id, KanbanItemRequest request) {
+		var task = findItemOrThrow(id);
 
-        if (request.getTagIds() != null) {
-            var tags = tagRepository.findAllById(request.getTagIds());
-            task.setTags(new HashSet<>(tags));
-        }
+		kanbanMapper.updateItem(task, request);
 
-        var updatedTask = taskRepository.save(task);
-        log.info("Kanban task updated: {}", updatedTask.getTitle());
-        return ApiResponse.success("Task updated", kanbanMapper.toResponse(updatedTask));
-    }
+		if (request.getColumnId() != null && !task.getColumn().getId().equals(request.getColumnId())) {
+			var targetColumn = findColumnOrThrow(request.getColumnId());
+			task.setColumn(targetColumn);
+		}
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> deleteTask(Long id) {
-        if (!taskRepository.existsById(id)) {
-            throw new ResourceNotFoundException("KanbanItem", "id", id);
-        }
-        taskRepository.deleteById(id);
-        log.info("Kanban task deleted: {}", id);
-        return ApiResponse.success("Task deleted", null);
-    }
+		if (request.getTagIds() != null) {
+			var tags = tagRepository.findAllById(request.getTagIds());
+			task.setTags(new HashSet<>(tags));
+		}
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> relocateTask(KanbanItemMoveRequest request) {
-        String lockKey = CacheConstants.LOCK_KANBAN_COLUMN_PREFIX + request.getTargetColumnId();
-        String lockToken = UUID.randomUUID().toString();
+		var updatedTask = taskRepository.save(task);
+		log.info("Kanban task updated: {}", updatedTask.getTitle());
+		return ApiResponse.success("Task updated", kanbanMapper.toResponse(updatedTask));
+	}
 
-        if (!redisLockUtil.tryLock(lockKey, lockToken, 5, TimeUnit.SECONDS)) {
-            throw new BusinessException(BusinessCode.ERROR, "Board is busy, please try again");
-        }
+	@Override
+	@Transactional
+	public ApiResponse<Void> deleteTask(Long id) {
+		if (!taskRepository.existsById(id)) {
+			throw new ResourceNotFoundException("KanbanItem", "id", id);
+		}
+		taskRepository.deleteById(id);
+		log.info("Kanban task deleted: {}", id);
+		return ApiResponse.success("Task deleted", null);
+	}
 
-        try {
-            var task = findItemOrThrow(request.getItemId());
-            var destColumn = findColumnOrThrow(request.getTargetColumnId());
+	@Override
+	@Transactional
+	public ApiResponse<Void> relocateTask(KanbanItemMoveRequest request) {
+		String lockKey = CacheConstants.LOCK_KANBAN_COLUMN_PREFIX + request.getTargetColumnId();
+		String lockToken = UUID.randomUUID().toString();
 
-            task.setColumn(destColumn);
-            task.setOrderIndex(request.getTargetOrderIndex());
-            taskRepository.save(task);
+		if (!redisLockUtil.tryLock(lockKey, lockToken, 5, TimeUnit.SECONDS)) {
+			throw new BusinessException(BusinessCode.ERROR, "Board is busy, please try again");
+		}
 
-            var tasks = destColumn.getItems();
-            if (!tasks.contains(task)) {
-                tasks.add(task);
-            }
+		try {
+			var task = findItemOrThrow(request.getItemId());
+			var destColumn = findColumnOrThrow(request.getTargetColumnId());
 
-            tasks.sort((a, b) -> {
-                if (a.getId().equals(task.getId())) return -1;
-                if (b.getId().equals(task.getId())) return 1;
-                return a.getOrderIndex().compareTo(b.getOrderIndex());
-            });
+			task.setColumn(destColumn);
+			task.setOrderIndex(request.getTargetOrderIndex());
+			taskRepository.save(task);
 
-            IntStream.range(0, tasks.size()).forEach(i -> tasks.get(i).setOrderIndex(i));
-            taskRepository.saveAll(tasks);
-            
-            return ApiResponse.success("Task relocated", null);
-        } finally {
-            redisLockUtil.unlock(lockKey, lockToken);
-        }
-    }
+			var tasks = destColumn.getItems();
+			if (!tasks.contains(task)) {
+				tasks.add(task);
+			}
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> adjustColumnSequence(List<Long> columnIds) {
-        IntStream.range(0, columnIds.size()).forEach(i -> {
-            columnRepository.findById(columnIds.get(i)).ifPresent(column -> {
-                column.setOrderIndex(i);
-                columnRepository.save(column);
-            });
-        });
-        return ApiResponse.success("Sequence adjusted", null);
-    }
+			tasks.sort((a, b) -> {
+				if (a.getId().equals(task.getId()))
+					return -1;
+				if (b.getId().equals(task.getId()))
+					return 1;
+				return a.getOrderIndex().compareTo(b.getOrderIndex());
+			});
 
-    private KanbanColumn findColumnOrThrow(Long id) {
-        return columnRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("KanbanColumn", "id", id));
-    }
+			IntStream.range(0, tasks.size()).forEach(i -> tasks.get(i).setOrderIndex(i));
+			taskRepository.saveAll(tasks);
 
-    private KanbanItem findItemOrThrow(Long id) {
-        return taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("KanbanItem", "id", id));
-    }
+			return ApiResponse.success("Task relocated", null);
+		} finally {
+			redisLockUtil.unlock(lockKey, lockToken);
+		}
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<Void> adjustColumnSequence(List<Long> columnIds) {
+		IntStream.range(0, columnIds.size()).forEach(i -> {
+			columnRepository.findById(columnIds.get(i)).ifPresent(column -> {
+				column.setOrderIndex(i);
+				columnRepository.save(column);
+			});
+		});
+		return ApiResponse.success("Sequence adjusted", null);
+	}
+
+	private KanbanColumn findColumnOrThrow(Long id) {
+		return columnRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("KanbanColumn", "id", id));
+	}
+
+	private KanbanItem findItemOrThrow(Long id) {
+		return taskRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("KanbanItem", "id", id));
+	}
 }

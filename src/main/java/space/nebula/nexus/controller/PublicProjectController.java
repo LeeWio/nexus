@@ -18,11 +18,11 @@ import java.util.List;
 @Tag(name = "Public Projects", description = "Public endpoints for portfolio projects")
 public class PublicProjectController {
 
-    private final IProjectService projectService;
+	private final IProjectService projectService;
 
-    @GetMapping
-    @Operation(summary = "Get published projects", description = "Returns all published projects sorted by priority and date")
-    public ApiResponse<List<ProjectResponse>> getPublicProjects() {
-        return projectService.getPublicProjects();
-    }
+	@GetMapping
+	@Operation(summary = "Get published projects", description = "Returns all published projects sorted by priority and date")
+	public ApiResponse<List<ProjectResponse>> getPublicProjects() {
+		return projectService.getPublicProjects();
+	}
 }

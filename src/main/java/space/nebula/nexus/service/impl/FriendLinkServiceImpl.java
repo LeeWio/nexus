@@ -26,140 +26,141 @@ import space.nebula.nexus.utils.MailUtil;
 import java.util.List;
 
 /**
- * Implementation of friend link management service.
- * Handles public applications and administrative moderation.
+ * Implementation of friend link management service. Handles public applications
+ * and administrative moderation.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class FriendLinkServiceImpl implements IFriendLinkService {
 
-    private final FriendLinkRepository friendLinkRepository;
-    private final FriendLinkMapper friendLinkMapper;
-    private final MailUtil mailUtil;
+	private final FriendLinkRepository friendLinkRepository;
+	private final FriendLinkMapper friendLinkMapper;
+	private final MailUtil mailUtil;
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<PageResult<FriendLinkResponse>> retrieveAdminFriendLinks(Pageable pageable) {
-        var friendLinkPage = friendLinkRepository.findAll(pageable).map(friendLinkMapper::toResponse);
-        return ApiResponse.success(PageResult.of(friendLinkPage));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<FriendLinkResponse>> retrieveAdminFriendLinks(Pageable pageable) {
+		var friendLinkPage = friendLinkRepository.findAll(pageable).map(friendLinkMapper::toResponse);
+		return ApiResponse.success(PageResult.of(friendLinkPage));
+	}
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<FriendLinkResponse> retrieveFriendLinkById(Long id) {
-        var friendLink = findFriendLinkOrThrow(id);
-        return ApiResponse.success(friendLinkMapper.toResponse(friendLink));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<FriendLinkResponse> retrieveFriendLinkById(Long id) {
+		var friendLink = findFriendLinkOrThrow(id);
+		return ApiResponse.success(friendLinkMapper.toResponse(friendLink));
+	}
 
-    @Override
-    @Transactional
-    @CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
-    @LogOperation("Create Friend Link")
-    public ApiResponse<FriendLinkResponse> createFriendLink(FriendLinkRequest request) {
-        validateUrlUniqueness(request.url(), null);
-        
-        var newLink = friendLinkMapper.toEntity(request);
-        if (newLink.getStatus() == null) {
-            newLink.setStatus(FriendLinkStatus.APPROVED);
-        }
-        
-        var savedLink = friendLinkRepository.save(newLink);
-        log.info("New friend link created: {}", savedLink.getName());
-        return ApiResponse.success("Friend link created successfully", friendLinkMapper.toResponse(savedLink));
-    }
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
+	@LogOperation("Create Friend Link")
+	public ApiResponse<FriendLinkResponse> createFriendLink(FriendLinkRequest request) {
+		validateUrlUniqueness(request.url(), null);
 
-    @Override
-    @Transactional
-    @CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
-    @LogOperation("Update Friend Link")
-    public ApiResponse<FriendLinkResponse> updateFriendLink(Long id, FriendLinkRequest request) {
-        var existingLink = findFriendLinkOrThrow(id);
-        validateUrlUniqueness(request.url(), id);
+		var newLink = friendLinkMapper.toEntity(request);
+		if (newLink.getStatus() == null) {
+			newLink.setStatus(FriendLinkStatus.APPROVED);
+		}
 
-        friendLinkMapper.updateEntity(existingLink, request);
-        var updatedLink = friendLinkRepository.save(existingLink);
+		var savedLink = friendLinkRepository.save(newLink);
+		log.info("New friend link created: {}", savedLink.getName());
+		return ApiResponse.success("Friend link created successfully", friendLinkMapper.toResponse(savedLink));
+	}
 
-        log.info("Friend link updated: {}", updatedLink.getName());
-        return ApiResponse.success("Friend link updated successfully", friendLinkMapper.toResponse(updatedLink));
-    }
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
+	@LogOperation("Update Friend Link")
+	public ApiResponse<FriendLinkResponse> updateFriendLink(Long id, FriendLinkRequest request) {
+		var existingLink = findFriendLinkOrThrow(id);
+		validateUrlUniqueness(request.url(), id);
 
-    @Override
-    @Transactional
-    @CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
-    @LogOperation("Delete Friend Link")
-    public ApiResponse<Void> deleteFriendLink(Long id) {
-        if (!friendLinkRepository.existsById(id)) {
-            throw new ResourceNotFoundException("FriendLink", "id", id);
-        }
-        friendLinkRepository.deleteById(id);
-        log.info("Friend link deleted ID: {}", id);
-        return ApiResponse.success("Friend link deleted", null);
-    }
+		friendLinkMapper.updateEntity(existingLink, request);
+		var updatedLink = friendLinkRepository.save(existingLink);
 
-    @Override
-    @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.FRIEND_LINKS, key = CacheConstants.PUBLIC_LIST_KEY)
-    public ApiResponse<List<FriendLinkResponse>> retrievePublicFriendLinks() {
-        var activeLinks = friendLinkRepository.findByStatusAndIsPublishedTrueOrderBySortOrderAscCreatedAtDesc(FriendLinkStatus.APPROVED);
-        return ApiResponse.success(friendLinkMapper.toResponseList(activeLinks));
-    }
+		log.info("Friend link updated: {}", updatedLink.getName());
+		return ApiResponse.success("Friend link updated successfully", friendLinkMapper.toResponse(updatedLink));
+	}
 
-    @Override
-    @Transactional
-    @LogOperation("Apply for Friend Link")
-    public ApiResponse<Void> applyForFriendLink(FriendLinkRequest request) {
-        validateUrlUniqueness(request.url(), null);
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
+	@LogOperation("Delete Friend Link")
+	public ApiResponse<Void> deleteFriendLink(Long id) {
+		if (!friendLinkRepository.existsById(id)) {
+			throw new ResourceNotFoundException("FriendLink", "id", id);
+		}
+		friendLinkRepository.deleteById(id);
+		log.info("Friend link deleted ID: {}", id);
+		return ApiResponse.success("Friend link deleted", null);
+	}
 
-        var application = friendLinkMapper.toEntity(request);
-        application.setStatus(FriendLinkStatus.APPLYING);
-        application.setIsPublished(false);
-        application.setSortOrder(0);
+	@Override
+	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.FRIEND_LINKS, key = CacheConstants.PUBLIC_LIST_KEY)
+	public ApiResponse<List<FriendLinkResponse>> retrievePublicFriendLinks() {
+		var activeLinks = friendLinkRepository
+				.findByStatusAndIsPublishedTrueOrderBySortOrderAscCreatedAtDesc(FriendLinkStatus.APPROVED);
+		return ApiResponse.success(friendLinkMapper.toResponseList(activeLinks));
+	}
 
-        friendLinkRepository.save(application);
-        log.info("Received friend link application: {}", application.getUrl());
+	@Override
+	@Transactional
+	@LogOperation("Apply for Friend Link")
+	public ApiResponse<Void> applyForFriendLink(FriendLinkRequest request) {
+		validateUrlUniqueness(request.url(), null);
 
-        sendApplicationNotification(application);
+		var application = friendLinkMapper.toEntity(request);
+		application.setStatus(FriendLinkStatus.APPLYING);
+		application.setIsPublished(false);
+		application.setSortOrder(0);
 
-        return ApiResponse.success("Application submitted successfully. It will be reviewed by the administrator.", null);
-    }
+		friendLinkRepository.save(application);
+		log.info("Received friend link application: {}", application.getUrl());
 
-    @Override
-    @Transactional
-    @CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
-    @LogOperation("Moderate Friend Link")
-    public ApiResponse<Void> moderateFriendLink(Long id, FriendLinkStatus status) {
-        var link = findFriendLinkOrThrow(id);
-        link.setStatus(status);
-        if (status == FriendLinkStatus.APPROVED) {
-            link.setIsPublished(true);
-        }
-        friendLinkRepository.save(link);
-        log.info("Friend link ID {} status updated to {}", id, status);
-        return ApiResponse.success("Friend link status updated to " + status, null);
-    }
+		sendApplicationNotification(application);
 
-    private FriendLink findFriendLinkOrThrow(Long id) {
-        return friendLinkRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("FriendLink", "id", id));
-    }
+		return ApiResponse.success("Application submitted successfully. It will be reviewed by the administrator.",
+				null);
+	}
 
-    private void validateUrlUniqueness(String url, Long excludeId) {
-        friendLinkRepository.findByUrl(url).ifPresent(link -> {
-            if (excludeId == null || !link.getId().equals(excludeId)) {
-                throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Friend link with this URL already exists");
-            }
-        });
-    }
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
+	@LogOperation("Moderate Friend Link")
+	public ApiResponse<Void> moderateFriendLink(Long id, FriendLinkStatus status) {
+		var link = findFriendLinkOrThrow(id);
+		link.setStatus(status);
+		if (status == FriendLinkStatus.APPROVED) {
+			link.setIsPublished(true);
+		}
+		friendLinkRepository.save(link);
+		log.info("Friend link ID {} status updated to {}", id, status);
+		return ApiResponse.success("Friend link status updated to " + status, null);
+	}
 
-    private void sendApplicationNotification(FriendLink link) {
-        String subject = "New Friend Link Application: " + link.getName();
-        String content = String.format(
-                "Hello Admin,\n\nA new friend link application has been submitted:\n\n" +
-                "Site Name: %s\nSite URL: %s\nDescription: %s\nContact Email: %s\n\n" +
-                "Please log in to moderate this application.",
-                link.getName(), link.getUrl(), link.getDescription(), link.getEmail()
-        );
-        mailUtil.sendSimpleMail("admin@nexus.com", subject, content);
-    }
+	private FriendLink findFriendLinkOrThrow(Long id) {
+		return friendLinkRepository.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("FriendLink", "id", id));
+	}
+
+	private void validateUrlUniqueness(String url, Long excludeId) {
+		friendLinkRepository.findByUrl(url).ifPresent(link -> {
+			if (excludeId == null || !link.getId().equals(excludeId)) {
+				throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Friend link with this URL already exists");
+			}
+		});
+	}
+
+	private void sendApplicationNotification(FriendLink link) {
+		String subject = "New Friend Link Application: " + link.getName();
+		String content = String.format(
+				"Hello Admin,\n\nA new friend link application has been submitted:\n\n"
+						+ "Site Name: %s\nSite URL: %s\nDescription: %s\nContact Email: %s\n\n"
+						+ "Please log in to moderate this application.",
+				link.getName(), link.getUrl(), link.getDescription(), link.getEmail());
+		mailUtil.sendSimpleMail("admin@nexus.com", subject, content);
+	}
 }

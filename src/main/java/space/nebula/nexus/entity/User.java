@@ -29,45 +29,41 @@ import java.util.Set;
 @SQLRestriction("is_deleted = false")
 public class User extends BaseEntity {
 
-    @Column(unique = true, nullable = false, length = 50)
-    private String username;
+	@Column(unique = true, nullable = false, length = 50)
+	private String username;
 
-    @Column(nullable = false, length = 100)
-    private String password;
+	@Column(nullable = false, length = 100)
+	private String password;
 
-    @Column(length = 100)
-    private String email;
+	@Column(length = 100)
+	private String email;
 
-    @Column(length = 50)
-    private String nickname;
+	@Column(length = 50)
+	private String nickname;
 
-    @Column(length = 255)
-    private String avatar;
+	@Column(length = 255)
+	private String avatar;
 
-    @Column(length = 500)
-    private String bio;
+	@Column(length = 500)
+	private String bio;
 
-    @Column(length = 100)
-    private String website;
+	@Column(length = 100)
+	private String website;
 
-    @Column(length = 100)
-    private String location;
+	@Column(length = 100)
+	private String location;
 
-    @Column(name = "github_id", length = 100, unique = true)
-    private String githubId;
+	@Column(name = "github_id", length = 100, unique = true)
+	private String githubId;
 
-    @Column(name = "github_username", length = 100)
-    private String githubUsername;
+	@Column(name = "github_username", length = 100)
+	private String githubUsername;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private UserStatus status = UserStatus.ACTIVE;
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private UserStatus status = UserStatus.ACTIVE;
 
-    @ManyToMany(fetch = FetchType.EAGER, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
-    @JoinTable(
-            name = "sys_user_role",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    private Set<Role> roles = new HashSet<>();
+	@ManyToMany(fetch = FetchType.EAGER, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+	@JoinTable(name = "sys_user_role", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
+	private Set<Role> roles = new HashSet<>();
 }

@@ -6,7 +6,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import space.nebula.nexus.entity.Moment;
 
+import java.util.List;
+
 @Repository
 public interface MomentRepository extends JpaRepository<Moment, Long> {
-    Page<Moment> findByIsPublishedTrueOrderByCreatedAtDesc(Pageable pageable);
+	Page<Moment> findByIsPublishedTrueOrderByCreatedAtDesc(Pageable pageable);
+
+	List<Moment> findByContentContainingIgnoreCaseAndIsPublishedTrue(String content);
 }

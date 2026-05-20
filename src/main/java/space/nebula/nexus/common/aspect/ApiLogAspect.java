@@ -18,93 +18,89 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * Global Aspect for logging all API requests and responses.
- * Provides performance monitoring and audit tracking.
+ * Global Aspect for logging all API requests and responses. Provides
+ * performance monitoring and audit tracking.
  */
 @Aspect
 @Component
 @Slf4j
 public class ApiLogAspect {
 
-    /**
-     * Pointcut that matches all methods in any class under 'controller' package.
-     */
-    @Pointcut("execution(* space.nebula.nexus.controller..*.*(..))")
-    public void apiMethods() {}
+	/**
+	 * Pointcut that matches all methods in any class under 'controller' package.
+	 */
+	@Pointcut("execution(* space.nebula.nexus.controller..*.*(..))")
+	public void apiMethods() {
+	}
 
-    @Around("apiMethods()")
-    public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
-        long startTime = System.currentTimeMillis();
+	@Around("apiMethods()")
+	public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
+		long startTime = System.currentTimeMillis();
 
-        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (attributes == null) {
-            return joinPoint.proceed();
-        }
+		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+		if (attributes == null) {
+			return joinPoint.proceed();
+		}
 
-        HttpServletRequest request = attributes.getRequest();
-        String url = request.getRequestURL().toString();
-        String method = request.getMethod();
-        String ip = IpUtil.getIpAddress(request);
-        String className = joinPoint.getTarget().getClass().getSimpleName();
-        String methodName = joinPoint.getSignature().getName();
+		HttpServletRequest request = attributes.getRequest();
+		String url = request.getRequestURL().toString();
+		String method = request.getMethod();
+		String ip = IpUtil.getIpAddress(request);
+		String className = joinPoint.getTarget().getClass().getSimpleName();
+		String methodName = joinPoint.getSignature().getName();
 
-        // Log request
-        log.info(">>> API Request: [{} {}] from IP: {} | Controller: {}.{}", 
-                method, url, ip, className, methodName);
-        
-        // Log parameters (excluding potentially sensitive ones)
-        String params = getSafeParamsJson(joinPoint);
-        if (!params.equals("{}")) {
-            log.debug(">>> API Parameters: {}", params);
-        }
+		// Log request
+		log.info(">>> API Request: [{} {}] from IP: {} | Controller: {}.{}", method, url, ip, className, methodName);
 
-        Object result;
-        try {
-            result = joinPoint.proceed();
-        } catch (Throwable e) {
-            long duration = System.currentTimeMillis() - startTime;
-            log.error("<<< API Failed: [{} {}] | Duration: {}ms | Error: {}", 
-                    method, url, duration, e.getMessage());
-            throw e;
-        }
+		// Log parameters (excluding potentially sensitive ones)
+		String params = getSafeParamsJson(joinPoint);
+		if (!params.equals("{}")) {
+			log.debug(">>> API Parameters: {}", params);
+		}
 
-        long duration = System.currentTimeMillis() - startTime;
-        log.info("<<< API Response: [{} {}] | Duration: {}ms", method, url, duration);
-        
-        return result;
-    }
+		Object result;
+		try {
+			result = joinPoint.proceed();
+		} catch (Throwable e) {
+			long duration = System.currentTimeMillis() - startTime;
+			log.error("<<< API Failed: [{} {}] | Duration: {}ms | Error: {}", method, url, duration, e.getMessage());
+			throw e;
+		}
 
-    /**
-     * Serializes method arguments while masking sensitive fields like 'password'.
-     */
-    private String getSafeParamsJson(ProceedingJoinPoint joinPoint) {
-        try {
-            String[] parameterNames = ((MethodSignature) joinPoint.getSignature()).getParameterNames();
-            Object[] args = joinPoint.getArgs();
+		long duration = System.currentTimeMillis() - startTime;
+		log.info("<<< API Response: [{} {}] | Duration: {}ms", method, url, duration);
 
-            if (parameterNames == null || args == null) return "{}";
+		return result;
+	}
 
-            Map<String, Object> paramsMap = IntStream.range(0, parameterNames.length)
-                .boxed()
-                .collect(Collectors.toMap(
-                    i -> parameterNames[i],
-                    i -> {
-                        Object arg = args[i];
-                        if (arg == null) return "null";
-                        
-                        String name = parameterNames[i].toLowerCase();
-                        // Simple masking for common sensitive fields
-                        if (name.contains("password") || name.contains("secret") || name.contains("token")) {
-                            return "******";
-                        }
-                        return arg;
-                    },
-                    (v1, v2) -> v1
-                ));
+	/**
+	 * Serializes method arguments while masking sensitive fields like 'password'.
+	 */
+	private String getSafeParamsJson(ProceedingJoinPoint joinPoint) {
+		try {
+			String[] parameterNames = ((MethodSignature) joinPoint.getSignature()).getParameterNames();
+			Object[] args = joinPoint.getArgs();
 
-            return JSONUtil.toJsonStr(paramsMap);
-        } catch (Exception e) {
-            return "{ \"error\": \"Failed to serialize parameters\" }";
-        }
-    }
+			if (parameterNames == null || args == null)
+				return "{}";
+
+			Map<String, Object> paramsMap = IntStream.range(0, parameterNames.length).boxed()
+					.collect(Collectors.toMap(i -> parameterNames[i], i -> {
+						Object arg = args[i];
+						if (arg == null)
+							return "null";
+
+						String name = parameterNames[i].toLowerCase();
+						// Simple masking for common sensitive fields
+						if (name.contains("password") || name.contains("secret") || name.contains("token")) {
+							return "******";
+						}
+						return arg;
+					}, (v1, v2) -> v1));
+
+			return JSONUtil.toJsonStr(paramsMap);
+		} catch (Exception e) {
+			return "{ \"error\": \"Failed to serialize parameters\" }";
+		}
+	}
 }

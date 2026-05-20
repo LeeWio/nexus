@@ -10,27 +10,27 @@ import java.util.List;
 @Configuration
 @ConfigurationProperties(prefix = "app.market")
 public class MarketProperties {
-    
-    private List<IndexConfig> indices;
-    private ApiUrls urls;
 
-    @Data
-    public static class IndexConfig {
-        private String name;
-        private String symbol;
-        private String hqKey;
-        private MarketType type; // US or CN
-    }
+	private List<IndexConfig> indices;
+	private ApiUrls urls;
 
-    @Data
-    public static class ApiUrls {
-        private String hq;
-        private String klineCn;
-        private String klineUs;
-        private String klineUsDaily;
-    }
+	@Data
+	public static class IndexConfig {
+		private String name;
+		private String symbol;
+		private String hqKey;
+		private MarketType type; // US or CN
+	}
 
-    public enum MarketType {
-        US, CN
-    }
+	@Data
+	public static class ApiUrls {
+		private String hq;
+		private String klineCn;
+		private String klineUs;
+		private String klineUsDaily;
+	}
+
+	public enum MarketType {
+		US, CN
+	}
 }

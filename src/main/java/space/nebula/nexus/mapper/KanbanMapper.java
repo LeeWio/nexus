@@ -17,23 +17,23 @@ import java.util.List;
 @Mapper(config = CentralMapperConfig.class, uses = {TagMapper.class})
 public interface KanbanMapper {
 
-    KanbanColumnResponse toResponse(KanbanColumn column);
+	KanbanColumnResponse toResponse(KanbanColumn column);
 
-    List<KanbanColumnResponse> toColumnResponseList(List<KanbanColumn> columns);
+	List<KanbanColumnResponse> toColumnResponseList(List<KanbanColumn> columns);
 
-    @Mapping(target = "columnId", source = "column.id")
-    KanbanItemResponse toResponse(KanbanItem item);
+	@Mapping(target = "columnId", source = "column.id")
+	KanbanItemResponse toResponse(KanbanItem item);
 
-    List<KanbanItemResponse> toItemResponseList(List<KanbanItem> items);
+	List<KanbanItemResponse> toItemResponseList(List<KanbanItem> items);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "column", ignore = true)
-    @Mapping(target = "tags", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    void updateItem(@MappingTarget KanbanItem entity, KanbanItemRequest request);
+	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "column", ignore = true)
+	@Mapping(target = "tags", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	void updateItem(@MappingTarget KanbanItem entity, KanbanItemRequest request);
 }

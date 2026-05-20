@@ -22,8 +22,8 @@ import space.nebula.nexus.service.ICommentService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Controller for the public guestbook.
- * Provides a global message board for user interactions and feedback.
+ * Controller for the public guestbook. Provides a global message board for user
+ * interactions and feedback.
  */
 @Tag(name = "Public Guestbook", description = "Public endpoints for the global site guestbook")
 @RestController
@@ -31,23 +31,23 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class PublicGuestbookController {
 
-    private final ICommentService commentService;
+	private final ICommentService commentService;
 
-    @GetMapping
-    @Operation(summary = "Retrieve guestbook entries", description = "Fetch a paginated list of approved top-level guestbook messages.")
-    public ApiResponse<PageResult<CommentResponse>> retrieveComments(
-            @Parameter(description = "Pagination and sorting parameters") 
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return commentService.retrieveGuestbookComments(pageable);
-    }
+	@GetMapping
+	@Operation(summary = "Retrieve guestbook entries", description = "Fetch a paginated list of approved top-level guestbook messages.")
+	public ApiResponse<PageResult<CommentResponse>> retrieveComments(
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+		return commentService.retrieveGuestbookComments(pageable);
+	}
 
-    @PostMapping
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Post to guestbook", description = "Submit a new message to the global guestbook. Requires authentication.")
-    @RateLimit(count = 3, time = 10, unit = TimeUnit.MINUTES, message = "Guestbook posting frequency too high. Please try again later.")
-    public ApiResponse<Void> publishComment(@Valid @RequestBody GuestbookRequest request, HttpServletRequest servletRequest) {
-        // Ensure postId is null for guestbook entries
-        CommentRequest guestbookRequest = new CommentRequest(request.content(), null, request.parentId());
-        return commentService.publishComment(guestbookRequest, servletRequest);
-    }
+	@PostMapping
+	@PreAuthorize("isAuthenticated()")
+	@Operation(summary = "Post to guestbook", description = "Submit a new message to the global guestbook. Requires authentication.")
+	@RateLimit(count = 3, time = 10, unit = TimeUnit.MINUTES, message = "Guestbook posting frequency too high. Please try again later.")
+	public ApiResponse<Void> publishComment(@Valid @RequestBody GuestbookRequest request,
+			HttpServletRequest servletRequest) {
+		// Ensure postId is null for guestbook entries
+		CommentRequest guestbookRequest = new CommentRequest(request.content(), null, request.parentId());
+		return commentService.publishComment(guestbookRequest, servletRequest);
+	}
 }

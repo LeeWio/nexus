@@ -14,11 +14,13 @@ import org.springframework.web.bind.annotation.RestController;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.entity.document.PostDocument;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.QuickSearchResponse;
+import space.nebula.nexus.payload.response.UnifiedSearchResponse;
 import space.nebula.nexus.service.IPostSearchService;
 
 /**
- * Controller for public full-text search operations.
- * Leverages Elasticsearch to provide high-performance search across blog content.
+ * Controller for public full-text search operations. Leverages Elasticsearch to
+ * provide high-performance search across blog content.
  */
 @Tag(name = "Public Search", description = "Public full-text search endpoints for blog content")
 @RestController
@@ -26,16 +28,28 @@ import space.nebula.nexus.service.IPostSearchService;
 @RequiredArgsConstructor
 public class PublicSearchController {
 
-    private final IPostSearchService postSearchService;
+	private final IPostSearchService postSearchService;
 
-    @GetMapping("/posts")
-    @Operation(summary = "Search posts", description = "Perform a full-text search across published posts using Elasticsearch.")
-    public ApiResponse<PageResult<PostDocument>> searchPosts(
-            @Parameter(description = "Keywords to search for in title, summary, and content") 
-            @RequestParam(required = false) String keyword,
-            
-            @Parameter(description = "Pagination and sorting parameters") 
-            @PageableDefault(sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return postSearchService.searchPosts(keyword, pageable);
-    }
+	@GetMapping("/posts")
+	@Operation(summary = "Search posts", description = "Perform a full-text search across published posts using Elasticsearch.")
+	public ApiResponse<PageResult<PostDocument>> searchPosts(
+			@Parameter(description = "Keywords to search for in title, summary, and content") @RequestParam(required = false) String keyword,
+
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+		return postSearchService.searchPosts(keyword, pageable);
+	}
+
+	@GetMapping("/quick")
+	@Operation(summary = "Quick search (Command+K) - Legacy", description = "Lightweight unified search across posts, categories, and tags.")
+	public ApiResponse<QuickSearchResponse> quickSearch(
+			@Parameter(description = "Search keyword") @RequestParam String keyword) {
+		return postSearchService.quickSearch(keyword);
+	}
+
+	@GetMapping("/unified")
+	@Operation(summary = "Unified search (Professional Cmd+K)", description = "Rich grouped search across all content with Next.js routing and metadata.")
+	public ApiResponse<UnifiedSearchResponse> unifiedSearch(
+			@Parameter(description = "Search keyword") @RequestParam(required = false) String keyword) {
+		return postSearchService.unifiedSearch(keyword);
+	}
 }

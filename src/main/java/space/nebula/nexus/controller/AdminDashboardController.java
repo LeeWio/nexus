@@ -12,8 +12,8 @@ import space.nebula.nexus.payload.response.DashboardStatsResponse;
 import space.nebula.nexus.service.IDashboardService;
 
 /**
- * Controller for administrative dashboard data.
- * Provides high-level statistics and aggregated information for the management interface.
+ * Controller for administrative dashboard data. Provides high-level statistics
+ * and aggregated information for the management interface.
  */
 @Tag(name = "Admin Dashboard", description = "Endpoints for administrative dashboard metrics and overview")
 @RestController
@@ -21,12 +21,12 @@ import space.nebula.nexus.service.IDashboardService;
 @RequiredArgsConstructor
 public class AdminDashboardController {
 
-    private final IDashboardService dashboardService;
+	private final IDashboardService dashboardService;
 
-    @GetMapping("/stats")
-    @Operation(summary = "Get Dashboard Statistics", description = "Retrieve overall statistics including post counts, user activity, and system status.")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<DashboardStatsResponse> getStatistics() {
-        return dashboardService.getStatistics();
-    }
+	@GetMapping("/stats")
+	@Operation(summary = "Get Dashboard Statistics", description = "Retrieve overall statistics including post counts, user activity, and system status.")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ApiResponse<DashboardStatsResponse> getStatistics() {
+		return dashboardService.getStatistics();
+	}
 }

@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Controller for public friend link operations.
- * Allows users to view approved links and apply for a link exchange.
+ * Controller for public friend link operations. Allows users to view approved
+ * links and apply for a link exchange.
  */
 @Tag(name = "Public Friend Links", description = "Public endpoints for exploring and applying for friend links")
 @RestController
@@ -24,18 +24,18 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class PublicFriendLinkController {
 
-    private final IFriendLinkService friendLinkService;
+	private final IFriendLinkService friendLinkService;
 
-    @GetMapping
-    @Operation(summary = "Retrieve all friend links", description = "Fetch a list of all approved external links for the blogroll.")
-    public ApiResponse<List<FriendLinkResponse>> retrieveFriendLinks() {
-        return friendLinkService.retrievePublicFriendLinks();
-    }
+	@GetMapping
+	@Operation(summary = "Retrieve all friend links", description = "Fetch a list of all approved external links for the blogroll.")
+	public ApiResponse<List<FriendLinkResponse>> retrieveFriendLinks() {
+		return friendLinkService.retrievePublicFriendLinks();
+	}
 
-    @PostMapping("/apply")
-    @Operation(summary = "Apply for link exchange", description = "Submit a request to add your site to our blogroll. Requires review.")
-    @RateLimit(count = 5, time = 1, unit = TimeUnit.HOURS, message = "Link application frequency too high. Please try again later.")
-    public ApiResponse<Void> applyForFriendLink(@Valid @RequestBody FriendLinkRequest request) {
-        return friendLinkService.applyForFriendLink(request);
-    }
+	@PostMapping("/apply")
+	@Operation(summary = "Apply for link exchange", description = "Submit a request to add your site to our blogroll. Requires review.")
+	@RateLimit(count = 5, time = 1, unit = TimeUnit.HOURS, message = "Link application frequency too high. Please try again later.")
+	public ApiResponse<Void> applyForFriendLink(@Valid @RequestBody FriendLinkRequest request) {
+		return friendLinkService.applyForFriendLink(request);
+	}
 }

@@ -20,26 +20,28 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OperationLogBufferTask {
 
-    private final RedisUtil redisUtil;
-    private final OperationLogRepository operationLogRepository;
+	private final RedisUtil redisUtil;
+	private final OperationLogRepository operationLogRepository;
 
-    /**
-     * Flush operation logs every 1 minute.
-     */
-    @Scheduled(fixedRate = 60000)
-    @Transactional
-    public void flushOperationLogs() {
-        Long size = redisUtil.listSize(CacheConstants.OPERATION_LOG_BUFFER_KEY);
-        if (size == null || size == 0) return;
+	/**
+	 * Flush operation logs every 1 minute.
+	 */
+	@Scheduled(fixedRate = 60000)
+	@Transactional
+	public void flushOperationLogs() {
+		Long size = redisUtil.listSize(CacheConstants.OPERATION_LOG_BUFFER_KEY);
+		if (size == null || size == 0)
+			return;
 
-        log.info("Flushing {} operation logs from Redis buffer...", size);
-        
-        // Pop in batches to reduce network roundtrips
-        List<OperationLog> logsToPersist = redisUtil.listPopLeft(CacheConstants.OPERATION_LOG_BUFFER_KEY, size, OperationLog.class);
+		log.info("Flushing {} operation logs from Redis buffer...", size);
 
-        if (!logsToPersist.isEmpty()) {
-            operationLogRepository.saveAll(logsToPersist);
-            log.info("Successfully persisted {} operation logs to database.", logsToPersist.size());
-        }
-    }
+		// Pop in batches to reduce network roundtrips
+		List<OperationLog> logsToPersist = redisUtil.listPopLeft(CacheConstants.OPERATION_LOG_BUFFER_KEY, size,
+				OperationLog.class);
+
+		if (!logsToPersist.isEmpty()) {
+			operationLogRepository.saveAll(logsToPersist);
+			log.info("Successfully persisted {} operation logs to database.", logsToPersist.size());
+		}
+	}
 }

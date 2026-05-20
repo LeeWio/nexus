@@ -22,65 +22,59 @@ import java.util.Collections;
 import java.util.Objects;
 
 /**
- * Enterprise-grade Rate Limit Aspect using Redis Lua scripts.
- * Implements a Sliding Window algorithm for precise traffic control.
+ * Enterprise-grade Rate Limit Aspect using Redis Lua scripts. Implements a
+ * Sliding Window algorithm for precise traffic control.
  */
 @Slf4j
 @Aspect
 @Component
 public class RateLimitAspect {
 
-    @Resource
-    private StringRedisTemplate stringRedisTemplate;
+	@Resource
+	private StringRedisTemplate stringRedisTemplate;
 
-    // Lua script for Sliding Window Rate Limiting
-    // ARGV[1]: window size in milliseconds
-    // ARGV[2]: max requests in window
-    // ARGV[3]: current timestamp in milliseconds
-    private static final String RATE_LIMIT_LUA = 
-            "local key = KEYS[1] " +
-            "local window = tonumber(ARGV[1]) " +
-            "local limit = tonumber(ARGV[2]) " +
-            "local now = tonumber(ARGV[3]) " +
-            "redis.call('zremrangebyscore', key, 0, now - window) " +
-            "local current_count = redis.call('zcard', key) " +
-            "if current_count < limit then " +
-            "  redis.call('zadd', key, now, now) " +
-            "  redis.call('pexpire', key, window) " +
-            "  return 1 " +
-            "else " +
-            "  return 0 " +
-            "end";
+	@org.springframework.beans.factory.annotation.Value("${app.security.rate-limit.enabled:true}")
+	private boolean enabled;
 
-    @Before("@annotation(rateLimit)")
-    public void doBefore(JoinPoint joinPoint, RateLimit rateLimit) {
-        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        HttpServletRequest request = Objects.requireNonNull(attributes).getRequest();
+	// Lua script for Sliding Window Rate Limiting
+	// ARGV[1]: window size in milliseconds
+	// ARGV[2]: max requests in window
+	// ARGV[3]: current timestamp in milliseconds
+	private static final String RATE_LIMIT_LUA = "local key = KEYS[1] " + "local window = tonumber(ARGV[1]) "
+			+ "local limit = tonumber(ARGV[2]) " + "local now = tonumber(ARGV[3]) "
+			+ "redis.call('zremrangebyscore', key, 0, now - window) "
+			+ "local current_count = redis.call('zcard', key) " + "if current_count < limit then "
+			+ "  redis.call('zadd', key, now, now) " + "  redis.call('pexpire', key, window) " + "  return 1 " + "else "
+			+ "  return 0 " + "end";
 
-        // 1. Generate a unique and safe limit key
-        String ip = IpUtil.getIpAddress(request);
-        String methodName = ((MethodSignature) joinPoint.getSignature()).toShortString();
-        String combinedKey = CacheConstants.RATE_LIMIT_PREFIX + rateLimit.key() + ":" + ip + ":" + methodName;
+	@Before("@annotation(rateLimit)")
+	public void doBefore(JoinPoint joinPoint, RateLimit rateLimit) {
+		if (!enabled) {
+			return;
+		}
 
-        // 2. Prepare parameters for Lua script
-        long windowSizeMillis = rateLimit.unit().toMillis(rateLimit.time());
-        long maxRequests = rateLimit.count();
-        long nowMillis = System.currentTimeMillis();
+		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+		HttpServletRequest request = Objects.requireNonNull(attributes).getRequest();
 
-        // 3. Execute Lua script atomically
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>(RATE_LIMIT_LUA, Long.class);
-        Long result = stringRedisTemplate.execute(
-                script, 
-                Collections.singletonList(combinedKey), 
-                String.valueOf(windowSizeMillis), 
-                String.valueOf(maxRequests), 
-                String.valueOf(nowMillis)
-        );
+		// 1. Generate a unique and safe limit key
+		String ip = IpUtil.getIpAddress(request);
+		String methodName = ((MethodSignature) joinPoint.getSignature()).toShortString();
+		String combinedKey = CacheConstants.RATE_LIMIT_PREFIX + rateLimit.key() + ":" + ip + ":" + methodName;
 
-        // 4. Handle result
-        if (result == null || result == 0) {
-            log.warn("Rate limit exceeded for IP: {} on method: {}. Key: {}", ip, methodName, combinedKey);
-            throw new BusinessException(BusinessCode.TOO_MANY_REQUESTS, rateLimit.message());
-        }
-    }
+		// 2. Prepare parameters for Lua script
+		long windowSizeMillis = rateLimit.unit().toMillis(rateLimit.time());
+		long maxRequests = rateLimit.count();
+		long nowMillis = System.currentTimeMillis();
+
+		// 3. Execute Lua script atomically
+		DefaultRedisScript<Long> script = new DefaultRedisScript<>(RATE_LIMIT_LUA, Long.class);
+		Long result = stringRedisTemplate.execute(script, Collections.singletonList(combinedKey),
+				String.valueOf(windowSizeMillis), String.valueOf(maxRequests), String.valueOf(nowMillis));
+
+		// 4. Handle result
+		if (result == null || result == 0) {
+			log.warn("Rate limit exceeded for IP: {} on method: {}. Key: {}", ip, methodName, combinedKey);
+			throw new BusinessException(BusinessCode.TOO_MANY_REQUESTS, rateLimit.message());
+		}
+	}
 }

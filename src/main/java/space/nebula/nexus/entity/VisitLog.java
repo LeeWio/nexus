@@ -20,27 +20,27 @@ import java.time.LocalDateTime;
 @SQLRestriction("is_deleted = false")
 public class VisitLog extends BaseEntity {
 
-    @Column(name = "ip_address", nullable = false, length = 50)
-    private String ipAddress;
+	@Column(name = "ip_address", nullable = false, length = 50)
+	private String ipAddress;
 
-    @Column(length = 100)
-    private String location;
+	@Column(length = 100)
+	private String location;
 
-    @Column(name = "user_agent", length = 500)
-    private String userAgent;
+	@Column(name = "user_agent", length = 500)
+	private String userAgent;
 
-    @Column(length = 50)
-    private String browser;
+	@Column(length = 50)
+	private String browser;
 
-    @Column(length = 50)
-    private String os;
+	@Column(length = 50)
+	private String os;
 
-    @Column(name = "request_url", nullable = false, length = 255)
-    private String requestUrl;
+	@Column(name = "request_url", nullable = false, length = 255)
+	private String requestUrl;
 
-    @Column(length = 255)
-    private String referer;
+	@Column(length = 255)
+	private String referer;
 
-    @Column(name = "visit_time", nullable = false)
-    private LocalDateTime visitTime;
+	@Column(name = "visit_time", nullable = false)
+	private LocalDateTime visitTime;
 }

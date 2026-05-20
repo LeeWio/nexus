@@ -23,32 +23,32 @@ import java.time.LocalDateTime;
 @Table(name = "blog_post_revision")
 public class PostRevision implements Serializable {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id", nullable = false)
-    private Post post;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "post_id", nullable = false)
+	private Post post;
 
-    @Column(nullable = false, length = 200)
-    private String title;
+	@Column(nullable = false, length = 200)
+	private String title;
 
-    @Column(length = 500)
-    private String summary;
+	@Column(length = 500)
+	private String summary;
 
-    @Lob
-    @Column(nullable = false, columnDefinition = "LONGTEXT")
-    private String content;
+	@Lob
+	@Column(nullable = false, columnDefinition = "LONGTEXT")
+	private String content;
 
-    @Column(name = "version_number", nullable = false)
-    private Integer versionNumber;
+	@Column(name = "version_number", nullable = false)
+	private Integer versionNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
-    private User createdBy;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "created_by")
+	private User createdBy;
 
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+	@CreatedDate
+	@Column(name = "created_at", nullable = false, updatable = false)
+	private LocalDateTime createdAt = LocalDateTime.now();
 }

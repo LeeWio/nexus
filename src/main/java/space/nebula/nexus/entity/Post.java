@@ -30,61 +30,57 @@ import java.util.Set;
 @SQLRestriction("is_deleted = false")
 public class Post extends BaseEntity {
 
-    @Column(nullable = false, length = 200)
-    private String title;
+	@Column(nullable = false, length = 200)
+	private String title;
 
-    @Column(nullable = false, unique = true, length = 200)
-    private String slug;
+	@Column(nullable = false, unique = true, length = 200)
+	private String slug;
 
-    @Column(name = "cover_image", length = 255)
-    private String coverImage;
+	@Column(name = "cover_image", length = 255)
+	private String coverImage;
 
-    @Column(length = 500)
-    private String summary;
+	@Column(length = 500)
+	private String summary;
 
-    @Lob
-    @Column(nullable = false, columnDefinition = "LONGTEXT")
-    private String content;
+	@Lob
+	@Column(nullable = false, columnDefinition = "LONGTEXT")
+	private String content;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private PostStatus status = PostStatus.DRAFT;
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private PostStatus status = PostStatus.DRAFT;
 
-    @Column(name = "is_featured")
-    private Boolean isFeatured = false;
+	@Column(name = "is_featured")
+	private Boolean isFeatured = false;
 
-    @Column(nullable = false)
-    private Long views = 0L;
+	@Column(nullable = false)
+	private Long views = 0L;
 
-    @Column(name = "likes_count", nullable = false)
-    private Long likesCount = 0L;
+	@Column(name = "likes_count", nullable = false)
+	private Long likesCount = 0L;
 
-    @Column(name = "favorites_count", nullable = false)
-    private Long favoritesCount = 0L;
+	@Column(name = "favorites_count", nullable = false)
+	private Long favoritesCount = 0L;
 
-    @Column(name = "published_at")
-    private java.time.LocalDateTime publishedAt;
+	@Column(name = "published_at")
+	private java.time.LocalDateTime publishedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
-    private Category category;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "category_id")
+	private Category category;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "author_id", nullable = false)
-    private User author;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "author_id", nullable = false)
+	private User author;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "series_id")
-    private PostSeries series;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "series_id")
+	private PostSeries series;
 
-    @Column(name = "series_order")
-    private Integer seriesOrder = 0;
+	@Column(name = "series_order")
+	private Integer seriesOrder = 0;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "blog_post_tag",
-            joinColumns = @JoinColumn(name = "post_id"),
-            inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
-    private Set<Tag> tags = new HashSet<>();
+	@ManyToMany(fetch = FetchType.LAZY)
+	@JoinTable(name = "blog_post_tag", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
+	private Set<Tag> tags = new HashSet<>();
 }

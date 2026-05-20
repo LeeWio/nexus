@@ -9,10 +9,10 @@ import java.util.List;
 
 @Repository
 public interface KanbanColumnRepository extends JpaRepository<KanbanColumn, Long> {
-    
-    @Query("SELECT c FROM KanbanColumn c LEFT JOIN FETCH c.items i LEFT JOIN FETCH i.tags ORDER BY c.orderIndex ASC, i.orderIndex ASC")
-    List<KanbanColumn> findAllWithItemsOrderByOrderIndexAsc();
 
-    @Query("SELECT MAX(c.orderIndex) FROM KanbanColumn c")
-    Integer findMaxOrderIndex();
+	@Query("SELECT c FROM KanbanColumn c LEFT JOIN FETCH c.items i LEFT JOIN FETCH i.tags ORDER BY c.orderIndex ASC, i.orderIndex ASC")
+	List<KanbanColumn> findAllWithItemsOrderByOrderIndexAsc();
+
+	@Query("SELECT MAX(c.orderIndex) FROM KanbanColumn c")
+	Integer findMaxOrderIndex();
 }

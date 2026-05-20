@@ -27,61 +27,61 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class KanbanServiceImplTest {
 
-    @Mock
-    private KanbanColumnRepository columnRepository;
-    @Mock
-    private KanbanItemRepository taskRepository;
-    @Mock
-    private TagRepository tagRepository;
-    @Mock
-    private KanbanMapper kanbanMapper;
-    @Mock
-    private RedisLockUtil redisLockUtil;
+	@Mock
+	private KanbanColumnRepository columnRepository;
+	@Mock
+	private KanbanItemRepository taskRepository;
+	@Mock
+	private TagRepository tagRepository;
+	@Mock
+	private KanbanMapper kanbanMapper;
+	@Mock
+	private RedisLockUtil redisLockUtil;
 
-    @InjectMocks
-    private KanbanServiceImpl kanbanService;
+	@InjectMocks
+	private KanbanServiceImpl kanbanService;
 
-    @Test
-    @DisplayName("Should successfully relocate task and release mutex lock")
-    void relocateTask_Success() {
-        // Arrange
-        KanbanItemMoveRequest request = new KanbanItemMoveRequest();
-        request.setItemId(1L);
-        request.setTargetColumnId(2L);
-        request.setTargetOrderIndex(0);
+	@Test
+	@DisplayName("Should successfully relocate task and release mutex lock")
+	void relocateTask_Success() {
+		// Arrange
+		KanbanItemMoveRequest request = new KanbanItemMoveRequest();
+		request.setItemId(1L);
+		request.setTargetColumnId(2L);
+		request.setTargetOrderIndex(0);
 
-        KanbanItem task = new KanbanItem();
-        task.setId(1L);
-        task.setOrderIndex(5);
+		KanbanItem task = new KanbanItem();
+		task.setId(1L);
+		task.setOrderIndex(5);
 
-        KanbanColumn destinationColumn = new KanbanColumn();
-        destinationColumn.setId(2L);
-        destinationColumn.setItems(new ArrayList<>());
+		KanbanColumn destinationColumn = new KanbanColumn();
+		destinationColumn.setId(2L);
+		destinationColumn.setItems(new ArrayList<>());
 
-        when(redisLockUtil.tryLock(anyString(), anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
-        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
-        when(columnRepository.findById(2L)).thenReturn(Optional.of(destinationColumn));
+		when(redisLockUtil.tryLock(anyString(), anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+		when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+		when(columnRepository.findById(2L)).thenReturn(Optional.of(destinationColumn));
 
-        // Act
-        kanbanService.relocateTask(request);
+		// Act
+		kanbanService.relocateTask(request);
 
-        // Assert
-        assertEquals(destinationColumn, task.getColumn());
-        verify(taskRepository).saveAll(anyList());
-        verify(redisLockUtil).unlock(anyString(), anyString());
-    }
+		// Assert
+		assertEquals(destinationColumn, task.getColumn());
+		verify(taskRepository).saveAll(anyList());
+		verify(redisLockUtil).unlock(anyString(), anyString());
+	}
 
-    @Test
-    @DisplayName("Should fail to relocate task if column mutex is locked")
-    void relocateTask_MutexLocked() {
-        // Arrange
-        KanbanItemMoveRequest request = new KanbanItemMoveRequest();
-        request.setTargetColumnId(2L);
-        when(redisLockUtil.tryLock(anyString(), anyString(), anyLong(), any(TimeUnit.class))).thenReturn(false);
+	@Test
+	@DisplayName("Should fail to relocate task if column mutex is locked")
+	void relocateTask_MutexLocked() {
+		// Arrange
+		KanbanItemMoveRequest request = new KanbanItemMoveRequest();
+		request.setTargetColumnId(2L);
+		when(redisLockUtil.tryLock(anyString(), anyString(), anyLong(), any(TimeUnit.class))).thenReturn(false);
 
-        // Act & Assert
-        BusinessException exception = assertThrows(BusinessException.class, () -> kanbanService.relocateTask(request));
-        assertTrue(exception.getMessage().contains("busy"));
-        verify(taskRepository, never()).findById(anyLong());
-    }
+		// Act & Assert
+		BusinessException exception = assertThrows(BusinessException.class, () -> kanbanService.relocateTask(request));
+		assertTrue(exception.getMessage().contains("busy"));
+		verify(taskRepository, never()).findById(anyLong());
+	}
 }

@@ -15,26 +15,26 @@ import java.util.List;
 @Mapper(config = CentralMapperConfig.class)
 public interface MomentMapper {
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "likesCount", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    Moment toEntity(MomentRequest request);
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "likesCount", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	Moment toEntity(MomentRequest request);
 
-    MomentResponse toResponse(Moment moment);
+	MomentResponse toResponse(Moment moment);
 
-    List<MomentResponse> toResponseList(List<Moment> moments);
+	List<MomentResponse> toResponseList(List<Moment> moments);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "likesCount", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    void updateEntity(@MappingTarget Moment moment, MomentRequest request);
+	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "likesCount", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	void updateEntity(@MappingTarget Moment moment, MomentRequest request);
 }

@@ -21,42 +21,42 @@ import org.hibernate.annotations.SQLRestriction;
 @SQLRestriction("is_deleted = false")
 public class OperationLog extends BaseEntity {
 
-    @Column(name = "username")
-    private String username;
+	@Column(name = "username")
+	private String username;
 
-    @Column(name = "description")
-    private String description;
+	@Column(name = "description")
+	private String description;
 
-    @Column(name = "method_name")
-    private String methodName;
+	@Column(name = "method_name")
+	private String methodName;
 
-    @Column(name = "request_method")
-    private String requestMethod;
+	@Column(name = "request_method")
+	private String requestMethod;
 
-    @Column(name = "request_url")
-    private String requestUrl;
+	@Column(name = "request_url")
+	private String requestUrl;
 
-    @Column(name = "ip_address")
-    private String ipAddress;
+	@Column(name = "ip_address")
+	private String ipAddress;
 
-    @Column(name = "user_agent")
-    private String userAgent;
+	@Column(name = "user_agent")
+	private String userAgent;
 
-    @Column(name = "parameters", columnDefinition = "TEXT")
-    private String parameters;
+	@Column(name = "parameters", columnDefinition = "TEXT")
+	private String parameters;
 
-    @Column(name = "result", columnDefinition = "TEXT")
-    private String result;
+	@Column(name = "result", columnDefinition = "TEXT")
+	private String result;
 
-    @Column(name = "duration")
-    private Long duration;
+	@Column(name = "duration")
+	private Long duration;
 
-    @Column(name = "status")
-    private Integer status; // 1: Success, 0: Failure
+	@Column(name = "status")
+	private Integer status; // 1: Success, 0: Failure
 
-    @Column(name = "error_message", columnDefinition = "TEXT")
-    private String errorMessage;
+	@Column(name = "error_message", columnDefinition = "TEXT")
+	private String errorMessage;
 
-    @Column(name = "trace_id")
-    private String traceId;
+	@Column(name = "trace_id")
+	private String traceId;
 }

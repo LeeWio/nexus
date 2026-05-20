@@ -11,14 +11,14 @@ import java.util.regex.Pattern;
  */
 public class SlugValidator implements ConstraintValidator<Slug, String> {
 
-    private static final String SLUG_PATTERN = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
-    private static final Pattern PATTERN = Pattern.compile(SLUG_PATTERN);
+	private static final String SLUG_PATTERN = "^[a-z0-9]+(?:-[a-z0-9]+)*$";
+	private static final Pattern PATTERN = Pattern.compile(SLUG_PATTERN);
 
-    @Override
-    public boolean isValid(String value, ConstraintValidatorContext context) {
-        if (value == null || value.isBlank()) {
-            return true; // Use @NotBlank if it's required
-        }
-        return PATTERN.matcher(value).matches();
-    }
+	@Override
+	public boolean isValid(String value, ConstraintValidatorContext context) {
+		if (value == null || value.isBlank()) {
+			return true; // Use @NotBlank if it's required
+		}
+		return PATTERN.matcher(value).matches();
+	}
 }

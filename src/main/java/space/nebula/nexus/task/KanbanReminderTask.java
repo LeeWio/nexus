@@ -20,49 +20,49 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class KanbanReminderTask {
 
-    private final KanbanItemRepository itemRepository;
-    private final MailUtil mailUtil;
+	private final KanbanItemRepository itemRepository;
+	private final MailUtil mailUtil;
 
-    @Value("${app.admin-email:your-email@example.com}")
-    private String adminEmail;
+	@Value("${app.admin-email:your-email@example.com}")
+	private String adminEmail;
 
-    /**
-     * Scan for kanban items that have a reminder set and are due.
-     * Runs every minute.
-     */
-    @Scheduled(cron = "0 * * * * *")
-    @Transactional
-    public void checkReminders() {
-        LocalDateTime now = LocalDateTime.now();
-        List<KanbanItem> dueItems = itemRepository.findByReminderAtBefore(now);
-        
-        for (KanbanItem item : dueItems) {
-            sendReminderEmail(item);
-            
-            // Clear reminder to avoid duplicate notifications
-            item.setReminderAt(null);
-            itemRepository.save(item);
-        }
-    }
+	/**
+	 * Scan for kanban items that have a reminder set and are due. Runs every
+	 * minute.
+	 */
+	@Scheduled(cron = "0 * * * * *")
+	@Transactional
+	public void checkReminders() {
+		LocalDateTime now = LocalDateTime.now();
+		List<KanbanItem> dueItems = itemRepository.findByReminderAtBefore(now);
 
-    private void sendReminderEmail(KanbanItem item) {
-        String subject = "Kanban Task Reminder: " + item.getTitle();
-        
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("taskTitle", item.getTitle());
-        variables.put("taskContent", item.getContent() != null ? item.getContent() : "No content provided.");
-        variables.put("priority", item.getPriority().name());
-        variables.put("columnName", item.getColumn().getName());
-        
-        // CSS class for priority badge
-        String priorityClass = switch (item.getPriority()) {
-            case HIGH -> "priority-high";
-            case MEDIUM -> "priority-medium";
-            case LOW -> "priority-low";
-        };
-        variables.put("priorityClass", priorityClass);
+		for (KanbanItem item : dueItems) {
+			sendReminderEmail(item);
 
-        mailUtil.sendTemplateMail(adminEmail, subject, "kanban-reminder", variables);
-        log.info("Sent beautiful kanban reminder for item: {}", item.getId());
-    }
+			// Clear reminder to avoid duplicate notifications
+			item.setReminderAt(null);
+			itemRepository.save(item);
+		}
+	}
+
+	private void sendReminderEmail(KanbanItem item) {
+		String subject = "Kanban Task Reminder: " + item.getTitle();
+
+		Map<String, Object> variables = new HashMap<>();
+		variables.put("taskTitle", item.getTitle());
+		variables.put("taskContent", item.getContent() != null ? item.getContent() : "No content provided.");
+		variables.put("priority", item.getPriority().name());
+		variables.put("columnName", item.getColumn().getName());
+
+		// CSS class for priority badge
+		String priorityClass = switch (item.getPriority()) {
+			case HIGH -> "priority-high";
+			case MEDIUM -> "priority-medium";
+			case LOW -> "priority-low";
+		};
+		variables.put("priorityClass", priorityClass);
+
+		mailUtil.sendTemplateMail(adminEmail, subject, "kanban-reminder", variables);
+		log.info("Sent beautiful kanban reminder for item: {}", item.getId());
+	}
 }

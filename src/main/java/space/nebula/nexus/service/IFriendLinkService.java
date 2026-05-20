@@ -11,28 +11,28 @@ import java.util.List;
 
 public interface IFriendLinkService {
 
-    ApiResponse<PageResult<FriendLinkResponse>> retrieveAdminFriendLinks(Pageable pageable);
+	ApiResponse<PageResult<FriendLinkResponse>> retrieveAdminFriendLinks(Pageable pageable);
 
-    ApiResponse<FriendLinkResponse> retrieveFriendLinkById(Long id);
+	ApiResponse<FriendLinkResponse> retrieveFriendLinkById(Long id);
 
-    ApiResponse<FriendLinkResponse> createFriendLink(FriendLinkRequest request);
+	ApiResponse<FriendLinkResponse> createFriendLink(FriendLinkRequest request);
 
-    ApiResponse<FriendLinkResponse> updateFriendLink(Long id, FriendLinkRequest request);
+	ApiResponse<FriendLinkResponse> updateFriendLink(Long id, FriendLinkRequest request);
 
-    ApiResponse<Void> deleteFriendLink(Long id);
+	ApiResponse<Void> deleteFriendLink(Long id);
 
-    /**
-     * Publicly accessible list of approved friend links.
-     */
-    ApiResponse<List<FriendLinkResponse>> retrievePublicFriendLinks();
+	/**
+	 * Publicly accessible list of approved friend links.
+	 */
+	ApiResponse<List<FriendLinkResponse>> retrievePublicFriendLinks();
 
-    /**
-     * Public submission of a new friend link application.
-     */
-    ApiResponse<Void> applyForFriendLink(FriendLinkRequest request);
+	/**
+	 * Public submission of a new friend link application.
+	 */
+	ApiResponse<Void> applyForFriendLink(FriendLinkRequest request);
 
-    /**
-     * Admin moderation of a friend link application.
-     */
-    ApiResponse<Void> moderateFriendLink(Long id, FriendLinkStatus status);
+	/**
+	 * Admin moderation of a friend link application.
+	 */
+	ApiResponse<Void> moderateFriendLink(Long id, FriendLinkStatus status);
 }

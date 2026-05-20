@@ -16,33 +16,30 @@ import java.time.Duration;
 @EnableCaching
 public class RedisConfig {
 
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(factory);
+	@Bean
+	public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
+		RedisTemplate<String, Object> template = new RedisTemplate<>();
+		template.setConnectionFactory(factory);
 
-        // Key uses String serializer
-        template.setKeySerializer(RedisSerializer.string());
-        template.setHashKeySerializer(RedisSerializer.string());
+		// Key uses String serializer
+		template.setKeySerializer(RedisSerializer.string());
+		template.setHashKeySerializer(RedisSerializer.string());
 
-        // Value uses modern Jackson2 serializer
-        template.setValueSerializer(RedisSerializer.json());
-        template.setHashValueSerializer(RedisSerializer.json());
+		// Value uses modern Jackson2 serializer
+		template.setValueSerializer(RedisSerializer.json());
+		template.setHashValueSerializer(RedisSerializer.json());
 
-        template.afterPropertiesSet();
-        return template;
-    }
+		template.afterPropertiesSet();
+		return template;
+	}
 
-    @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory factory) {
-        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofHours(1))
-                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.string()))
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.json()))
-                .disableCachingNullValues();
+	@Bean
+	public RedisCacheManager cacheManager(RedisConnectionFactory factory) {
+		RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofHours(1))
+				.serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.string()))
+				.serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.json()))
+				.disableCachingNullValues();
 
-        return RedisCacheManager.builder(factory)
-                .cacheDefaults(config)
-                .build();
-    }
+		return RedisCacheManager.builder(factory).cacheDefaults(config).build();
+	}
 }

@@ -21,33 +21,33 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserDetailsServiceImplTest {
 
-    @Mock
-    private UserRepository userRepository;
+	@Mock
+	private UserRepository userRepository;
 
-    @InjectMocks
-    private UserDetailsServiceImpl userDetailsService;
+	@InjectMocks
+	private UserDetailsServiceImpl userDetailsService;
 
-    @Test
-    void loadUserByUsername_Success() {
-        User user = new User();
-        user.setUsername("testadmin");
-        user.setPassword("encoded_password");
-        user.setStatus(UserStatus.ACTIVE);
-        
-        Role role = new Role();
-        role.setCode("ROLE_ADMIN");
-        user.setRoles(Set.of(role));
+	@Test
+	void loadUserByUsername_Success() {
+		User user = new User();
+		user.setUsername("testadmin");
+		user.setPassword("encoded_password");
+		user.setStatus(UserStatus.ACTIVE);
 
-        when(userRepository.findByUsernameOrEmail("testadmin", "testadmin")).thenReturn(Optional.of(user));
+		Role role = new Role();
+		role.setCode("ROLE_ADMIN");
+		user.setRoles(Set.of(role));
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername("testadmin");
+		when(userRepository.findByUsernameOrEmail("testadmin", "testadmin")).thenReturn(Optional.of(user));
 
-        assertNotNull(userDetails);
-        assertEquals("testadmin", userDetails.getUsername());
-        assertTrue(userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
-    }
+		UserDetails userDetails = userDetailsService.loadUserByUsername("testadmin");
 
-    @Test
+		assertNotNull(userDetails);
+		assertEquals("testadmin", userDetails.getUsername());
+		assertTrue(userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
+	}
+
+	@Test
     void loadUserByUsername_NotFound() {
         when(userRepository.findByUsernameOrEmail("unknown", "unknown")).thenReturn(Optional.empty());
 

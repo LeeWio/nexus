@@ -15,17 +15,17 @@ import space.nebula.nexus.service.ISeoService;
 @RequiredArgsConstructor
 public class PublicSeoController {
 
-    private final ISeoService seoService;
+	private final ISeoService seoService;
 
-    @Operation(summary = "Retrieve sitemap.xml", description = "Returns the hierarchical site structure in standard XML format for crawlers")
-    @GetMapping(value = "/sitemap.xml", produces = MediaType.APPLICATION_XML_VALUE)
-    public String retrieveSitemap() {
-        return seoService.generateSitemapXml();
-    }
+	@Operation(summary = "Retrieve sitemap.xml", description = "Returns the hierarchical site structure in standard XML format for crawlers")
+	@GetMapping(value = "/sitemap.xml", produces = MediaType.APPLICATION_XML_VALUE)
+	public String retrieveSitemap() {
+		return seoService.generateSitemapXml();
+	}
 
-    @Operation(summary = "Retrieve RSS 2.0 Feed", description = "Returns an XML feed of the most recent published posts for RSS readers")
-    @GetMapping(value = "/feed.xml", produces = MediaType.APPLICATION_XML_VALUE)
-    public String retrieveRssFeed() {
-        return seoService.generateRssFeedXml();
-    }
+	@Operation(summary = "Retrieve RSS 2.0 Feed", description = "Returns an XML feed of the most recent published posts for RSS readers")
+	@GetMapping(value = "/feed.xml", produces = MediaType.APPLICATION_XML_VALUE)
+	public String retrieveRssFeed() {
+		return seoService.generateRssFeedXml();
+	}
 }

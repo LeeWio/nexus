@@ -14,8 +14,8 @@ import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.service.IPostService;
 
 /**
- * Controller for public access to blog content.
- * Provides endpoints for browsing and reading published posts.
+ * Controller for public access to blog content. Provides endpoints for browsing
+ * and reading published posts.
  */
 @Tag(name = "Public Blog API", description = "Public endpoints for reading blog posts")
 @RestController
@@ -23,34 +23,28 @@ import space.nebula.nexus.service.IPostService;
 @RequiredArgsConstructor
 public class PublicBlogController {
 
-    private final IPostService postService;
+	private final IPostService postService;
 
-    @GetMapping("/posts")
-    @Operation(summary = "Search published posts", description = "Browse all published posts with filtering by category, tag, or keyword.")
-    public ApiResponse<PageResult<PostResponse>> searchPosts(
-            @Parameter(description = "Filter by category ID") 
-            @RequestParam(required = false) Long categoryId,
-            
-            @Parameter(description = "Filter by tag ID") 
-            @RequestParam(required = false) Long tagId,
-            
-            @Parameter(description = "Search in title and content") 
-            @RequestParam(required = false) String keyword,
-            
-            @Parameter(description = "Pagination and sorting parameters") 
-            @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
-        return postService.searchPublicPosts(categoryId, tagId, keyword, pageable);
-    }
+	@GetMapping("/posts")
+	@Operation(summary = "Search published posts", description = "Browse all published posts with filtering by category, tag, or keyword.")
+	public ApiResponse<PageResult<PostResponse>> searchPosts(
+			@Parameter(description = "Filter by category ID") @RequestParam(required = false) Long categoryId,
 
-    @GetMapping("/posts/{slug}")
-    @Operation(summary = "Retrieve post by slug", description = "Fetch the full content of a published post using its unique URL slug.")
-    @ApiResponses({
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Post found"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Post not found")
-    })
-    public ApiResponse<PostResponse> retrievePost(
-            @Parameter(description = "The unique URL slug of the post", example = "my-awesome-post") 
-            @PathVariable String slug) {
-        return postService.retrievePostBySlug(slug);
-    }
+			@Parameter(description = "Filter by tag ID") @RequestParam(required = false) Long tagId,
+
+			@Parameter(description = "Search in title and content") @RequestParam(required = false) String keyword,
+
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
+		return postService.searchPublicPosts(categoryId, tagId, keyword, pageable);
+	}
+
+	@GetMapping("/posts/{slug}")
+	@Operation(summary = "Retrieve post by slug", description = "Fetch the full content of a published post using its unique URL slug.")
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Post found"),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Post not found")})
+	public ApiResponse<PostResponse> retrievePost(
+			@Parameter(description = "The unique URL slug of the post", example = "my-awesome-post") @PathVariable String slug) {
+		return postService.retrievePostBySlug(slug);
+	}
 }

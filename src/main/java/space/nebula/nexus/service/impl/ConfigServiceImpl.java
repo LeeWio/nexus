@@ -25,81 +25,82 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ConfigServiceImpl implements IConfigService {
 
-    private final ConfigRepository configRepository;
-    private final ConfigMapper configMapper;
+	private final ConfigRepository configRepository;
+	private final ConfigMapper configMapper;
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<List<ConfigResponse>> getAllConfigs() {
-        return ApiResponse.success(configMapper.toResponseList(configRepository.findAll()));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<List<ConfigResponse>> getAllConfigs() {
+		return ApiResponse.success(configMapper.toResponseList(configRepository.findAll()));
+	}
 
-    @Override
-    @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.SYS_CONFIG, key = CacheConstants.PUBLIC_CONFIGS_KEY)
-    public ApiResponse<List<ConfigResponse>> getPublicConfigs() {
-        return ApiResponse.success(configMapper.toResponseList(configRepository.findByIsPublicTrue()));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.SYS_CONFIG, key = CacheConstants.PUBLIC_CONFIGS_KEY)
+	public ApiResponse<List<ConfigResponse>> getPublicConfigs() {
+		return ApiResponse.success(configMapper.toResponseList(configRepository.findByIsPublicTrue()));
+	}
 
-    @Override
-    @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.SYS_CONFIG, key = "#configKey")
-    public ApiResponse<ConfigResponse> getConfigByKey(String configKey) {
-        return configRepository.findByConfigKey(configKey)
-                .map(config -> ApiResponse.success(configMapper.toResponse(config)))
-                .orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Config not found with key: " + configKey));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.SYS_CONFIG, key = "#configKey")
+	public ApiResponse<ConfigResponse> getConfigByKey(String configKey) {
+		return configRepository.findByConfigKey(configKey)
+				.map(config -> ApiResponse.success(configMapper.toResponse(config))).orElseThrow(
+						() -> new BusinessException(BusinessCode.NOT_FOUND, "Config not found with key: " + configKey));
+	}
 
-    @Override
-    @Transactional
-    @CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
-    @LogOperation("Create Config")
-    public ApiResponse<ConfigResponse> createConfig(ConfigRequest request) {
-        if (configRepository.existsByConfigKey(request.configKey())) {
-            throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Config key already exists");
-        }
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
+	@LogOperation("Create Config")
+	public ApiResponse<ConfigResponse> createConfig(ConfigRequest request) {
+		if (configRepository.existsByConfigKey(request.configKey())) {
+			throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Config key already exists");
+		}
 
-        Config config = configMapper.toEntity(request);
-        configRepository.save(config);
-        log.info("System configuration created: {}", config.getConfigKey());
+		Config config = configMapper.toEntity(request);
+		configRepository.save(config);
+		log.info("System configuration created: {}", config.getConfigKey());
 
-        return ApiResponse.success("Config created successfully", configMapper.toResponse(config));
-    }
+		return ApiResponse.success("Config created successfully", configMapper.toResponse(config));
+	}
 
-    @Override
-    @Transactional
-    @CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
-    @LogOperation("Update Config")
-    public ApiResponse<ConfigResponse> updateConfig(Long id, ConfigRequest request) {
-        Config config = configRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Config not found"));
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
+	@LogOperation("Update Config")
+	public ApiResponse<ConfigResponse> updateConfig(Long id, ConfigRequest request) {
+		Config config = configRepository.findById(id)
+				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Config not found"));
 
-        if (!config.getConfigKey().equals(request.configKey()) && configRepository.existsByConfigKey(request.configKey())) {
-            throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Config key already exists");
-        }
+		if (!config.getConfigKey().equals(request.configKey())
+				&& configRepository.existsByConfigKey(request.configKey())) {
+			throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Config key already exists");
+		}
 
-        config.setConfigKey(request.configKey());
-        config.setConfigValue(request.configValue());
-        config.setConfigName(request.configName());
-        config.setDescription(request.description());
-        config.setIsPublic(request.isPublic());
+		config.setConfigKey(request.configKey());
+		config.setConfigValue(request.configValue());
+		config.setConfigName(request.configName());
+		config.setDescription(request.description());
+		config.setIsPublic(request.isPublic());
 
-        configRepository.save(config);
-        log.info("System configuration updated: {}", config.getConfigKey());
+		configRepository.save(config);
+		log.info("System configuration updated: {}", config.getConfigKey());
 
-        return ApiResponse.success("Config updated successfully", configMapper.toResponse(config));
-    }
+		return ApiResponse.success("Config updated successfully", configMapper.toResponse(config));
+	}
 
-    @Override
-    @Transactional
-    @CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
-    @LogOperation("Delete Config")
-    public ApiResponse<Void> deleteConfig(Long id) {
-        if (!configRepository.existsById(id)) {
-            throw new BusinessException(BusinessCode.NOT_FOUND, "Config not found");
-        }
-        configRepository.deleteById(id);
-        log.info("System configuration deleted with id: {}", id);
-        return ApiResponse.success("Config deleted successfully", null);
-    }
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
+	@LogOperation("Delete Config")
+	public ApiResponse<Void> deleteConfig(Long id) {
+		if (!configRepository.existsById(id)) {
+			throw new BusinessException(BusinessCode.NOT_FOUND, "Config not found");
+		}
+		configRepository.deleteById(id);
+		log.info("System configuration deleted with id: {}", id);
+		return ApiResponse.success("Config deleted successfully", null);
+	}
 }

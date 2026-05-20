@@ -15,26 +15,26 @@ import java.util.List;
 @Mapper(config = CentralMapperConfig.class)
 public interface RoleMapper {
 
-    RoleResponse toResponse(Role role);
+	RoleResponse toResponse(Role role);
 
-    List<RoleResponse> toResponseList(List<Role> roles);
+	List<RoleResponse> toResponseList(List<Role> roles);
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    @Mapping(target = "menus", ignore = true)
-    Role toEntity(RoleRequest request);
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	@Mapping(target = "menus", ignore = true)
+	Role toEntity(RoleRequest request);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    @Mapping(target = "menus", ignore = true)
-    void updateEntity(@MappingTarget Role role, RoleRequest request);
+	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "createdAt", ignore = true)
+	@Mapping(target = "createdBy", ignore = true)
+	@Mapping(target = "updatedAt", ignore = true)
+	@Mapping(target = "lastModifiedBy", ignore = true)
+	@Mapping(target = "isDeleted", ignore = true)
+	@Mapping(target = "menus", ignore = true)
+	void updateEntity(@MappingTarget Role role, RoleRequest request);
 }

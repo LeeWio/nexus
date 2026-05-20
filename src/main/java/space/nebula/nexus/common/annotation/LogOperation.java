@@ -11,18 +11,18 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface LogOperation {
-    /**
-     * Operation description (e.g., "Create Blog Post").
-     */
-    String value() default "";
+	/**
+	 * Operation description (e.g., "Create Blog Post").
+	 */
+	String value() default "";
 
-    /**
-     * Whether to log the method arguments.
-     */
-    boolean logArgs() default true;
+	/**
+	 * Whether to log the method arguments.
+	 */
+	boolean logArgs() default true;
 
-    /**
-     * Whether to log the method result.
-     */
-    boolean logResult() default false;
+	/**
+	 * Whether to log the method result.
+	 */
+	boolean logResult() default false;
 }

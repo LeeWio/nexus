@@ -24,71 +24,68 @@ import java.io.IOException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Resource
-    private JwtUtils jwtUtils;
-    
-    @Resource
-    @org.springframework.context.annotation.Lazy
-    private UserDetailsService userDetailsService;
-    
-    @Resource
-    private JwtProperties jwtProperties;
+	@Resource
+	private JwtUtils jwtUtils;
 
-    @Override
-    protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
+	@Resource
+	@org.springframework.context.annotation.Lazy
+	private UserDetailsService userDetailsService;
 
-        final String authHeader = request.getHeader(jwtProperties.getHeader());
-        final String jwt;
-        final String username;
+	@Resource
+	private JwtProperties jwtProperties;
 
-        // 1. Check if the Authorization header is present and correctly formatted
-        if (!StringUtils.hasText(authHeader) || !authHeader.startsWith(jwtProperties.getPrefix())) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+	@Override
+	protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+			@NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        try {
-            // 2. Extract the token
-            jwt = authHeader.substring(jwtProperties.getPrefix().length());
-            
-            // 3. Extract the username from the token
-            username = jwtUtils.extractUsername(jwt);
+		final String authHeader = request.getHeader(jwtProperties.getHeader());
+		final String jwt;
+		final String username;
 
-            // 4. If the username is valid and the user is not already authenticated in the SecurityContext
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // Load the user details from the database
-                UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+		// 1. Check if the Authorization header is present and correctly formatted
+		if (!StringUtils.hasText(authHeader) || !authHeader.startsWith(jwtProperties.getPrefix())) {
+			filterChain.doFilter(request, response);
+			return;
+		}
 
-                // 5. Validate the token
-                if (jwtUtils.isTokenValid(jwt, userDetails)) {
-                    // Create an Authentication token
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null, // We don't need credentials after successful authentication
-                            userDetails.getAuthorities()
-                    );
+		try {
+			// 2. Extract the token
+			jwt = authHeader.substring(jwtProperties.getPrefix().length());
 
-                    // Attach details of the HTTP request to the auth token (e.g., IP address, session ID)
-                    authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request)
-                    );
+			// 3. Extract the username from the token
+			username = jwtUtils.extractUsername(jwt);
 
-                    // 6. Update the SecurityContextHolder to signify the user is authenticated
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                    log.debug("Successfully authenticated user '{}' with JWT.", username);
-                }
-            }
-        } catch (Exception e) {
-            // Token parsing or validation failed. Log it, but let the filter chain continue.
-            // The SecurityFilterChain will eventually reject the request because SecurityContext is empty.
-            log.error("Cannot set user authentication: {}", e.getMessage());
-        }
+			// 4. If the username is valid and the user is not already authenticated in the
+			// SecurityContext
+			if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+				// Load the user details from the database
+				UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
 
-        // 7. Continue down the filter chain
-        filterChain.doFilter(request, response);
-    }
+				// 5. Validate the token
+				if (jwtUtils.isTokenValid(jwt, userDetails)) {
+					// Create an Authentication token
+					UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
+							null, // We don't need credentials after successful authentication
+							userDetails.getAuthorities());
+
+					// Attach details of the HTTP request to the auth token (e.g., IP address,
+					// session ID)
+					authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+					// 6. Update the SecurityContextHolder to signify the user is authenticated
+					SecurityContextHolder.getContext().setAuthentication(authToken);
+					log.debug("Successfully authenticated user '{}' with JWT.", username);
+				}
+			}
+		} catch (Exception e) {
+			// Token parsing or validation failed. Log it, but let the filter chain
+			// continue.
+			// The SecurityFilterChain will eventually reject the request because
+			// SecurityContext is empty.
+			log.error("Cannot set user authentication: {}", e.getMessage());
+		}
+
+		// 7. Continue down the filter chain
+		filterChain.doFilter(request, response);
+	}
 }

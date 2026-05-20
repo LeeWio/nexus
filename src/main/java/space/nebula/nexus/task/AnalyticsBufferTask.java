@@ -17,37 +17,38 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AnalyticsBufferTask {
 
-    private final RedisUtil redisUtil;
-    private final VisitLogRepository visitLogRepository;
+	private final RedisUtil redisUtil;
+	private final VisitLogRepository visitLogRepository;
 
-    private static final int BATCH_SIZE = 100;
+	private static final int BATCH_SIZE = 100;
 
-    /**
-     * Periodically flushes buffered analytics logs from Redis to MySQL.
-     * Runs every 5 minutes.
-     */
-    @Scheduled(fixedRate = 300000)
-    @Transactional
-    public void flushAnalyticsBuffer() {
-        log.info("Commencing batch persistence of buffered analytics logs...");
-        
-        Long bufferSize = redisUtil.listSize(CacheConstants.ANALYTICS_BUFFER_KEY);
-        if (bufferSize == null || bufferSize == 0) {
-            log.info("Analytics buffer is empty. Skipping flush.");
-            return;
-        }
+	/**
+	 * Periodically flushes buffered analytics logs from Redis to MySQL. Runs every
+	 * 5 minutes.
+	 */
+	@Scheduled(fixedRate = 300000)
+	@Transactional
+	public void flushAnalyticsBuffer() {
+		log.info("Commencing batch persistence of buffered analytics logs...");
 
-        // Pop in batches to reduce network roundtrips
-        List<VisitLog> logsToPersist = redisUtil.listPopLeft(CacheConstants.ANALYTICS_BUFFER_KEY, bufferSize, VisitLog.class);
+		Long bufferSize = redisUtil.listSize(CacheConstants.ANALYTICS_BUFFER_KEY);
+		if (bufferSize == null || bufferSize == 0) {
+			log.info("Analytics buffer is empty. Skipping flush.");
+			return;
+		}
 
-        if (!logsToPersist.isEmpty()) {
-            // Process in sub-batches if the total size is very large
-            int total = logsToPersist.size();
-            for (int i = 0; i < total; i += BATCH_SIZE) {
-                int end = Math.min(i + BATCH_SIZE, total);
-                visitLogRepository.saveAll(logsToPersist.subList(i, end));
-            }
-            log.info("Successfully persisted {} analytics logs to database.", total);
-        }
-    }
+		// Pop in batches to reduce network roundtrips
+		List<VisitLog> logsToPersist = redisUtil.listPopLeft(CacheConstants.ANALYTICS_BUFFER_KEY, bufferSize,
+				VisitLog.class);
+
+		if (!logsToPersist.isEmpty()) {
+			// Process in sub-batches if the total size is very large
+			int total = logsToPersist.size();
+			for (int i = 0; i < total; i += BATCH_SIZE) {
+				int end = Math.min(i + BATCH_SIZE, total);
+				visitLogRepository.saveAll(logsToPersist.subList(i, end));
+			}
+			log.info("Successfully persisted {} analytics logs to database.", total);
+		}
+	}
 }

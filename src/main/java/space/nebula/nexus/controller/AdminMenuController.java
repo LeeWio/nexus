@@ -15,8 +15,8 @@ import space.nebula.nexus.service.IMenuService;
 import java.util.List;
 
 /**
- * Controller for administrative system menu management.
- * Provides hierarchical access to navigation and permission structures.
+ * Controller for administrative system menu management. Provides hierarchical
+ * access to navigation and permission structures.
  */
 @Tag(name = "Admin Menu Management", description = "Endpoints for managing the system menu tree and permissions")
 @RestController
@@ -25,37 +25,36 @@ import java.util.List;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminMenuController {
 
-    private final IMenuService menuService;
+	private final IMenuService menuService;
 
-    @GetMapping("/tree")
-    @Operation(summary = "Retrieve complete menu hierarchy", description = "Fetch the entire system menu structure as a nested tree.")
-    public ApiResponse<List<MenuResponse>> retrieveMenuTree() {
-        return menuService.retrieveFullMenuTree();
-    }
+	@GetMapping("/tree")
+	@Operation(summary = "Retrieve complete menu hierarchy", description = "Fetch the entire system menu structure as a nested tree.")
+	public ApiResponse<List<MenuResponse>> retrieveMenuTree() {
+		return menuService.retrieveFullMenuTree();
+	}
 
-    @PostMapping
-    @Operation(summary = "Create menu item", description = "Add a new item to the system menu hierarchy.")
-    public ApiResponse<MenuResponse> createMenu(@Valid @RequestBody MenuRequest request) {
-        return menuService.createMenu(request);
-    }
+	@PostMapping
+	@Operation(summary = "Create menu item", description = "Add a new item to the system menu hierarchy.")
+	public ApiResponse<MenuResponse> createMenu(@Valid @RequestBody MenuRequest request) {
+		return menuService.createMenu(request);
+	}
 
-    @PutMapping("/{id}")
-    @Operation(summary = "Update menu item", description = "Modify an existing menu item's details, parent, or permissions.")
-    public ApiResponse<MenuResponse> updateMenu(
-            @Parameter(description = "Menu ID") @PathVariable Long id, 
-            @Valid @RequestBody MenuRequest request) {
-        return menuService.updateMenu(id, request);
-    }
+	@PutMapping("/{id}")
+	@Operation(summary = "Update menu item", description = "Modify an existing menu item's details, parent, or permissions.")
+	public ApiResponse<MenuResponse> updateMenu(@Parameter(description = "Menu ID") @PathVariable Long id,
+			@Valid @RequestBody MenuRequest request) {
+		return menuService.updateMenu(id, request);
+	}
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Delete menu item", description = "Permanently remove a menu item and its descendants.")
-    public ApiResponse<Void> deleteMenu(@Parameter(description = "Menu ID") @PathVariable Long id) {
-        return menuService.deleteMenu(id);
-    }
+	@DeleteMapping("/{id}")
+	@Operation(summary = "Delete menu item", description = "Permanently remove a menu item and its descendants.")
+	public ApiResponse<Void> deleteMenu(@Parameter(description = "Menu ID") @PathVariable Long id) {
+		return menuService.deleteMenu(id);
+	}
 
-    @GetMapping("/current")
-    @Operation(summary = "Retrieve current user menu", description = "Fetch the menu hierarchy filtered by the authenticated user's permissions.")
-    public ApiResponse<List<MenuResponse>> retrieveAuthenticatedUserMenus() {
-        return menuService.retrieveAuthenticatedUserMenuTree();
-    }
+	@GetMapping("/current")
+	@Operation(summary = "Retrieve current user menu", description = "Fetch the menu hierarchy filtered by the authenticated user's permissions.")
+	public ApiResponse<List<MenuResponse>> retrieveAuthenticatedUserMenus() {
+		return menuService.retrieveAuthenticatedUserMenuTree();
+	}
 }

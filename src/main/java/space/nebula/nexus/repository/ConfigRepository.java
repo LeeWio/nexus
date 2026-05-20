@@ -9,7 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface ConfigRepository extends JpaRepository<Config, Long> {
-    Optional<Config> findByConfigKey(String configKey);
-    List<Config> findByIsPublicTrue();
-    boolean existsByConfigKey(String configKey);
+	Optional<Config> findByConfigKey(String configKey);
+	List<Config> findByIsPublicTrue();
+	boolean existsByConfigKey(String configKey);
 }

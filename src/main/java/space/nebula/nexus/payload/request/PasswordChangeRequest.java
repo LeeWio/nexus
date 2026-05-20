@@ -7,13 +7,7 @@ import space.nebula.nexus.common.validator.annotation.Password;
 
 @Schema(description = "Request to change account password")
 public record PasswordChangeRequest(
-    @Schema(description = "Current account password", example = "OldPass123!")
-    @NotBlank(message = "Old password is required")
-    String oldPassword,
-    
-    @Schema(description = "New secure password", example = "NewSecurePass!2026")
-    @NotBlank(message = "New password is required")
-    @Size(min = 6, max = 32, message = "Password length must be between 6 and 32 characters")
-    @Password
-    String newPassword
-) {}
+		@Schema(description = "Current account password", example = "OldPass123!") @NotBlank(message = "Old password is required") String oldPassword,
+
+		@Schema(description = "New secure password", example = "NewSecurePass!2026") @NotBlank(message = "New password is required") @Size(min = 6, max = 32, message = "Password length must be between 6 and 32 characters") @Password String newPassword) {
+}

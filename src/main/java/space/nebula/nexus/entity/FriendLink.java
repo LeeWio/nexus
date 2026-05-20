@@ -2,7 +2,6 @@ package space.nebula.nexus.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -22,28 +21,28 @@ import space.nebula.nexus.enums.FriendLinkStatus;
 @SQLRestriction("is_deleted = false")
 public class FriendLink extends BaseEntity {
 
-    @Column(nullable = false, length = 100)
-    private String name;
+	@Column(nullable = false, length = 100)
+	private String name;
 
-    @Column(nullable = false, length = 255)
-    private String url;
+	@Column(nullable = false, length = 255)
+	private String url;
 
-    @Column(length = 255)
-    private String avatar;
+	@Column(length = 255)
+	private String avatar;
 
-    @Column(length = 500)
-    private String description;
+	@Column(length = 500)
+	private String description;
 
-    @Column(length = 100)
-    private String email;
+	@Column(length = 100)
+	private String email;
 
-    @Enumerated(jakarta.persistence.EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private FriendLinkStatus status = FriendLinkStatus.APPROVED;
+	@Enumerated(jakarta.persistence.EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private FriendLinkStatus status = FriendLinkStatus.APPROVED;
 
-    @Column(name = "sort_order")
-    private Integer sortOrder = 0;
+	@Column(name = "sort_order")
+	private Integer sortOrder = 0;
 
-    @Column(name = "is_published", nullable = false)
-    private Boolean isPublished = true;
+	@Column(name = "is_published", nullable = false)
+	private Boolean isPublished = true;
 }

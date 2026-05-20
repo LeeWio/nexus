@@ -8,14 +8,14 @@ import space.nebula.nexus.payload.response.PageResult;
 
 public interface IMomentService {
 
-    // Admin methods
-    ApiResponse<PageResult<MomentResponse>> getAdminMoments(Pageable pageable);
-    ApiResponse<MomentResponse> getMomentById(Long id);
-    ApiResponse<MomentResponse> createMoment(MomentRequest request);
-    ApiResponse<MomentResponse> updateMoment(Long id, MomentRequest request);
-    ApiResponse<Void> deleteMoment(Long id);
+	// Admin methods
+	ApiResponse<PageResult<MomentResponse>> getAdminMoments(Pageable pageable);
+	ApiResponse<MomentResponse> getMomentById(Long id);
+	ApiResponse<MomentResponse> createMoment(MomentRequest request);
+	ApiResponse<MomentResponse> updateMoment(Long id, MomentRequest request);
+	ApiResponse<Void> deleteMoment(Long id);
 
-    // Public methods
-    ApiResponse<PageResult<MomentResponse>> getPublicMoments(Pageable pageable);
-    ApiResponse<Void> likeMoment(Long id);
+	// Public methods
+	ApiResponse<PageResult<MomentResponse>> getPublicMoments(Pageable pageable);
+	ApiResponse<Void> likeMoment(Long id);
 }

@@ -9,10 +9,10 @@ import java.util.Optional;
 
 @Repository
 public interface PostSeriesRepository extends JpaRepository<PostSeries, Long> {
-    
-    Optional<PostSeries> findBySlug(String slug);
-    
-    List<PostSeries> findByIsPublishedTrueOrderByCreatedAtDesc();
-    
-    boolean existsBySlug(String slug);
+
+	Optional<PostSeries> findBySlug(String slug);
+
+	List<PostSeries> findByIsPublishedTrueOrderByCreatedAtDesc();
+
+	boolean existsBySlug(String slug);
 }

@@ -37,66 +37,67 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PostServiceImplTest {
 
-    @Mock
-    private PostRepository postRepository;
-    @Mock
-    private CategoryRepository categoryRepository;
-    @Mock
-    private TagRepository tagRepository;
-    @Mock
-    private UserRepository userRepository;
-    @Mock
-    private PostMapper postMapper;
-    @Mock
-    private RedisUtil redisUtil;
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
-    @Mock
-    private IInteractionService interactionService;
+	@Mock
+	private PostRepository postRepository;
+	@Mock
+	private CategoryRepository categoryRepository;
+	@Mock
+	private TagRepository tagRepository;
+	@Mock
+	private UserRepository userRepository;
+	@Mock
+	private PostMapper postMapper;
+	@Mock
+	private RedisUtil redisUtil;
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
+	@Mock
+	private IInteractionService interactionService;
 
-    @InjectMocks
-    private PostServiceImpl postService;
+	@InjectMocks
+	private PostServiceImpl postService;
 
-    @Test
-    @DisplayName("Should return paginated admin posts")
-    void searchPostsForAdmin_Success() {
-        // Arrange
-        Pageable pageable = Pageable.unpaged();
-        Post post = new Post();
-        Page<Post> page = new PageImpl<>(List.of(post));
-        when(postRepository.findAll(pageable)).thenReturn(page);
-        
-        PostResponse response = mock(PostResponse.class);
-        when(postMapper.toResponse(any())).thenReturn(response);
+	@Test
+	@DisplayName("Should return paginated admin posts")
+	void searchPostsForAdmin_Success() {
+		// Arrange
+		Pageable pageable = Pageable.unpaged();
+		Post post = new Post();
+		Page<Post> page = new PageImpl<>(List.of(post));
+		when(postRepository.findAll(pageable)).thenReturn(page);
 
-        // Act
-        ApiResponse<PageResult<PostResponse>> apiResponse = postService.searchPostsForAdmin(pageable);
+		PostResponse response = mock(PostResponse.class);
+		when(postMapper.toResponse(any())).thenReturn(response);
 
-        // Assert
-        assertEquals(200, apiResponse.code());
-        assertEquals(1, apiResponse.data().getList().size());
-        verify(postRepository).findAll(pageable);
-    }
+		// Act
+		ApiResponse<PageResult<PostResponse>> apiResponse = postService.searchPostsForAdmin(pageable);
 
-    @Test
-    @DisplayName("Should create a new post and publish event")
-    void createPost_Success() {
-        // Arrange
-        PostRequest request = new PostRequest("My Title", null, null, "Summary", "Content", PostStatus.PUBLISHED, false, null, null, null, null);
-        User author = new User();
-        author.setUsername("admin");
+		// Assert
+		assertEquals(200, apiResponse.code());
+		assertEquals(1, apiResponse.data().getList().size());
+		verify(postRepository).findAll(pageable);
+	}
 
-        try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
-            mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(author);
-            when(postRepository.findBySlug(anyString())).thenReturn(Optional.empty());
+	@Test
+	@DisplayName("Should create a new post and publish event")
+	void createPost_Success() {
+		// Arrange
+		PostRequest request = new PostRequest("My Title", null, null, "Summary", "Content", PostStatus.PUBLISHED, false,
+				null, null, null, null);
+		User author = new User();
+		author.setUsername("admin");
 
-            // Act
-            ApiResponse<PostResponse> response = postService.createPost(request);
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(author);
+			when(postRepository.findBySlug(anyString())).thenReturn(Optional.empty());
 
-            // Assert
-            assertEquals(200, response.code());
-            verify(postRepository).save(any(Post.class));
-            verify(eventPublisher).publishEvent(any());
-        }
-    }
+			// Act
+			ApiResponse<PostResponse> response = postService.createPost(request);
+
+			// Assert
+			assertEquals(200, response.code());
+			verify(postRepository).save(any(Post.class));
+			verify(eventPublisher).publishEvent(any());
+		}
+	}
 }

@@ -11,19 +11,9 @@ import space.nebula.nexus.common.validator.annotation.Password;
  */
 @Schema(description = "User registration request information")
 public record RegisterRequest(
-    @Schema(description = "Desired username", example = "john_doe", minLength = 3, maxLength = 20)
-    @NotBlank(message = "Username cannot be empty")
-    @Size(min = 3, max = 20)
-    String username,
+		@Schema(description = "Desired username", example = "john_doe", minLength = 3, maxLength = 20) @NotBlank(message = "Username cannot be empty") @Size(min = 3, max = 20) String username,
 
-    @Schema(description = "User email address", example = "john@example.com")
-    @NotBlank(message = "Email cannot be empty")
-    @Email(message = "Invalid email format")
-    @Size(max = 50)
-    String email,
+		@Schema(description = "User email address", example = "john@example.com") @NotBlank(message = "Email cannot be empty") @Email(message = "Invalid email format") @Size(max = 50) String email,
 
-    @Schema(description = "User password (must contain digit and special char)", example = "SecurePass123!")
-    @NotBlank(message = "Password cannot be empty")
-    @Password
-    String password
-) {}
+		@Schema(description = "User password (must contain digit and special char)", example = "SecurePass123!") @NotBlank(message = "Password cannot be empty") @Password String password) {
+}

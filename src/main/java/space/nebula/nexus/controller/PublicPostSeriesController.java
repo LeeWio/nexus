@@ -15,8 +15,8 @@ import space.nebula.nexus.service.IPostSeriesService;
 import java.util.List;
 
 /**
- * Controller for public access to blog series.
- * Provides endpoints for browsing post series and their ordered content.
+ * Controller for public access to blog series. Provides endpoints for browsing
+ * post series and their ordered content.
  */
 @Tag(name = "Public Post Series", description = "Public endpoints for exploring thematic blog series and columns")
 @RestController
@@ -24,19 +24,18 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PublicPostSeriesController {
 
-    private final IPostSeriesService seriesService;
+	private final IPostSeriesService seriesService;
 
-    @GetMapping
-    @Operation(summary = "Retrieve published series", description = "Fetch a list of all publicly available post series.")
-    public ApiResponse<List<SeriesResponse>> retrievePublicSeries() {
-        return seriesService.retrievePublicSeriesList();
-    }
+	@GetMapping
+	@Operation(summary = "Retrieve published series", description = "Fetch a list of all publicly available post series.")
+	public ApiResponse<List<SeriesResponse>> retrievePublicSeries() {
+		return seriesService.retrievePublicSeriesList();
+	}
 
-    @GetMapping("/{slug}")
-    @Operation(summary = "Retrieve series details", description = "Fetch complete details for a specific series, including its ordered list of posts.")
-    public ApiResponse<SeriesResponse> retrieveSeriesWithPosts(
-            @Parameter(description = "The unique URL slug of the series") 
-            @PathVariable String slug) {
-        return seriesService.retrieveSeriesWithPosts(slug);
-    }
+	@GetMapping("/{slug}")
+	@Operation(summary = "Retrieve series details", description = "Fetch complete details for a specific series, including its ordered list of posts.")
+	public ApiResponse<SeriesResponse> retrieveSeriesWithPosts(
+			@Parameter(description = "The unique URL slug of the series") @PathVariable String slug) {
+		return seriesService.retrieveSeriesWithPosts(slug);
+	}
 }

@@ -21,26 +21,26 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private final JwtUtils jwtUtils;
-    private final UserRepository userRepository;
+	private final JwtUtils jwtUtils;
+	private final UserRepository userRepository;
 
-    @Value("${app.oauth2.redirect-uri:http://localhost:3000/oauth2/redirect}")
-    private String redirectUri;
+	@Value("${app.oauth2.redirect-uri:http://localhost:3000/oauth2/redirect}")
+	private String redirectUri;
 
-    @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
-        DefaultOAuth2User oAuth2User = (DefaultOAuth2User) authentication.getPrincipal();
-        String githubId = String.valueOf(oAuth2User.getAttributes().get("id"));
-        
-        User user = userRepository.findByGithubId(githubId)
-                .orElseThrow(() -> new ServletException("User not found after OAuth login"));
+	@Override
+	public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+			Authentication authentication) throws IOException, ServletException {
+		DefaultOAuth2User oAuth2User = (DefaultOAuth2User) authentication.getPrincipal();
+		String githubId = String.valueOf(oAuth2User.getAttributes().get("id"));
 
-        String token = jwtUtils.generateAccessToken(new SecurityUser(user));
+		User user = userRepository.findByGithubId(githubId)
+				.orElseThrow(() -> new ServletException("User not found after OAuth login"));
 
-        String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
-                .queryParam("token", token)
-                .build().toUriString();
+		String token = jwtUtils.generateAccessToken(new SecurityUser(user));
 
-        getRedirectStrategy().sendRedirect(request, response, targetUrl);
-    }
+		String targetUrl = UriComponentsBuilder.fromUriString(redirectUri).queryParam("token", token).build()
+				.toUriString();
+
+		getRedirectStrategy().sendRedirect(request, response, targetUrl);
+	}
 }

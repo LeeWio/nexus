@@ -8,17 +8,17 @@ import java.util.List;
 
 public interface IPostSeriesService {
 
-    ApiResponse<List<SeriesResponse>> retrieveAllSeriesForAdmin();
+	ApiResponse<List<SeriesResponse>> retrieveAllSeriesForAdmin();
 
-    ApiResponse<SeriesResponse> retrieveSeriesById(Long id);
+	ApiResponse<SeriesResponse> retrieveSeriesById(Long id);
 
-    ApiResponse<SeriesResponse> createSeries(SeriesRequest request);
+	ApiResponse<SeriesResponse> createSeries(SeriesRequest request);
 
-    ApiResponse<SeriesResponse> updateSeries(Long id, SeriesRequest request);
+	ApiResponse<SeriesResponse> updateSeries(Long id, SeriesRequest request);
 
-    ApiResponse<Void> deleteSeries(Long id);
+	ApiResponse<Void> deleteSeries(Long id);
 
-    ApiResponse<List<SeriesResponse>> retrievePublicSeriesList();
+	ApiResponse<List<SeriesResponse>> retrievePublicSeriesList();
 
-    ApiResponse<SeriesResponse> retrieveSeriesWithPosts(String slug);
+	ApiResponse<SeriesResponse> retrieveSeriesWithPosts(String slug);
 }

@@ -12,28 +12,28 @@ import space.nebula.nexus.payload.response.AuthResponse;
  */
 public interface IAuthService {
 
-    /**
-     * Registers a new user account.
-     */
-    ApiResponse<Void> registerAccount(RegisterRequest request);
+	/**
+	 * Registers a new user account.
+	 */
+	ApiResponse<Void> registerAccount(RegisterRequest request);
 
-    /**
-     * Authenticates a user and returns security credentials.
-     */
-    ApiResponse<AuthResponse> authenticate(LoginRequest request);
+	/**
+	 * Authenticates a user and returns security credentials.
+	 */
+	ApiResponse<AuthResponse> authenticate(LoginRequest request);
 
-    /**
-     * Sends an OTP to the user's email for login.
-     */
-    ApiResponse<Void> sendOtp(String email);
+	/**
+	 * Sends an OTP to the user's email for login.
+	 */
+	ApiResponse<Void> sendOtp(String email);
 
-    /**
-     * Authenticates a user using an OTP.
-     */
-    ApiResponse<AuthResponse> loginWithOtp(OtpLoginRequest request);
+	/**
+	 * Authenticates a user using an OTP.
+	 */
+	ApiResponse<AuthResponse> loginWithOtp(OtpLoginRequest request);
 
-    /**
-     * Returns the currently authenticated user details.
-     */
-    ApiResponse<User> getAuthenticatedUser();
+	/**
+	 * Returns the currently authenticated user details.
+	 */
+	ApiResponse<User> getAuthenticatedUser();
 }

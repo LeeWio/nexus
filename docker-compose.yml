@@ -4,16 +4,19 @@ services:
     container_name: nexus-app
     ports:
       - "8080:8080"
+    env_file:
+      # Copy .env.example to .env and choose one SMTP mode only:
+      # 587 => MAIL_SSL=false, MAIL_STARTTLS=true
+      # 465 => MAIL_SSL=true, MAIL_STARTTLS=false
+      - .env
     environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - APP_SEARCH_TYPE=database
       - SPRING_DATASOURCE_URL=jdbc:mysql://nexus-db:3306/nexus_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=nexus_password
       - SPRING_DATA_REDIS_HOST=nexus-redis
       - ES_URIS=http://nexus-elasticsearch:9200
-      - MAIL_HOST=smtp.example.com
-      - MAIL_PORT=587
-      - MAIL_USERNAME=your-email@example.com
-      - MAIL_PASSWORD=your-password
       - MANAGEMENT_HEALTH_MAIL_ENABLED=false
     depends_on:
       nexus-db:

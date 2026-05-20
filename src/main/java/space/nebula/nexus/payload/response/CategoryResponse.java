@@ -11,21 +11,14 @@ import java.time.LocalDateTime;
  */
 @Builder
 @Schema(description = "Category details")
-public record CategoryResponse(
-    @Schema(description = "Category ID")
-    Long id,
-    
-    @Schema(description = "Category name")
-    String name,
-    
-    @Schema(description = "Category slug")
-    String slug,
-    
-    @Schema(description = "Category description")
-    String description,
-    
-    @Schema(description = "Creation time")
-    LocalDateTime createdAt
-) implements Serializable {
-    private static final long serialVersionUID = 1L;
+public record CategoryResponse(@Schema(description = "Category ID") Long id,
+
+		@Schema(description = "Category name") String name,
+
+		@Schema(description = "Category slug") String slug,
+
+		@Schema(description = "Category description") String description,
+
+		@Schema(description = "Creation time") LocalDateTime createdAt) implements Serializable {
+	private static final long serialVersionUID = 1L;
 }

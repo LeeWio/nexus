@@ -19,39 +19,42 @@ import org.hibernate.annotations.SQLRestriction;
 @SQLRestriction("is_deleted = false")
 public class Project extends BaseEntity {
 
-    @Column(nullable = false, length = 100)
-    private String name;
+	@Column(nullable = false, length = 100)
+	private String name;
 
-    @Column(length = 500)
-    private String description;
+	@Column(nullable = false, unique = true, length = 100)
+	private String slug;
 
-    @Column(name = "cover_image", length = 255)
-    private String coverImage;
+	@Column(length = 500)
+	private String description;
 
-    @Column(name = "github_url", length = 255)
-    private String githubUrl;
+	@Column(name = "cover_image", length = 255)
+	private String coverImage;
 
-    @Column(name = "preview_url", length = 255)
-    private String previewUrl;
+	@Column(name = "github_url", length = 255)
+	private String githubUrl;
 
-    @Column(name = "tech_stack", length = 255)
-    private String techStack;
+	@Column(name = "preview_url", length = 255)
+	private String previewUrl;
 
-    @Column(name = "stars_count")
-    private Integer starsCount = 0;
+	@Column(name = "tech_stack", length = 255)
+	private String techStack;
 
-    @Column(name = "forks_count")
-    private Integer forksCount = 0;
+	@Column(name = "stars_count")
+	private Integer starsCount = 0;
 
-    @Column(length = 50)
-    private String language;
+	@Column(name = "forks_count")
+	private Integer forksCount = 0;
 
-    @Column(name = "repo_name", length = 100)
-    private String repoName;
+	@Column(length = 50)
+	private String language;
 
-    @Column(name = "sort_order")
-    private Integer sortOrder = 0;
+	@Column(name = "repo_name", length = 100)
+	private String repoName;
 
-    @Column(name = "is_published", nullable = false)
-    private Boolean isPublished = false;
+	@Column(name = "sort_order")
+	private Integer sortOrder = 0;
+
+	@Column(name = "is_published", nullable = false)
+	private Boolean isPublished = false;
 }

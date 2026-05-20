@@ -23,26 +23,26 @@ import java.time.LocalDateTime;
 @EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity implements Serializable {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @CreatedBy
-    @Column(name = "created_by", updatable = false)
-    private String createdBy;
+	@CreatedBy
+	@Column(name = "created_by", updatable = false)
+	private String createdBy;
 
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+	@CreatedDate
+	@Column(name = "created_at", nullable = false, updatable = false)
+	private LocalDateTime createdAt;
 
-    @LastModifiedBy
-    @Column(name = "last_modified_by")
-    private String lastModifiedBy;
+	@LastModifiedBy
+	@Column(name = "last_modified_by")
+	private String lastModifiedBy;
 
-    @LastModifiedDate
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+	@LastModifiedDate
+	@Column(name = "updated_at")
+	private LocalDateTime updatedAt;
 
-    @Column(name = "is_deleted", nullable = false)
-    private Boolean isDeleted = false;
+	@Column(name = "is_deleted", nullable = false)
+	private Boolean isDeleted = false;
 }

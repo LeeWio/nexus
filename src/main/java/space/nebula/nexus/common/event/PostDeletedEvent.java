@@ -8,13 +8,13 @@ import org.springframework.context.ApplicationEvent;
  */
 @Getter
 public class PostDeletedEvent extends ApplicationEvent {
-    
-    private final Long postId;
-    private final String slug;
 
-    public PostDeletedEvent(Object source, Long postId, String slug) {
-        super(source);
-        this.postId = postId;
-        this.slug = slug;
-    }
+	private final Long postId;
+	private final String slug;
+
+	public PostDeletedEvent(Object source, Long postId, String slug) {
+		super(source);
+		this.postId = postId;
+		this.slug = slug;
+	}
 }

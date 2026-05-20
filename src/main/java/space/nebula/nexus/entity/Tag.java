@@ -18,9 +18,9 @@ import org.hibernate.annotations.SQLRestriction;
 @SQLRestriction("is_deleted = false")
 public class Tag extends BaseEntity {
 
-    @Column(nullable = false, unique = true, length = 50)
-    private String name;
+	@Column(nullable = false, unique = true, length = 50)
+	private String name;
 
-    @Column(nullable = false, unique = true, length = 50)
-    private String slug;
+	@Column(nullable = false, unique = true, length = 50)
+	private String slug;
 }

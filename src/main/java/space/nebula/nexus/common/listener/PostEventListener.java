@@ -13,47 +13,47 @@ import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostSearchService;
 
 /**
- * Listener for Post related events.
- * Decouples core business from side-effects like indexing and revisioning.
+ * Listener for Post related events. Decouples core business from side-effects
+ * like indexing and revisioning.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class PostEventListener {
 
-    private final IPostSearchService postSearchService;
-    private final IPostRevisionService postRevisionService;
+	private final IPostSearchService postSearchService;
+	private final IPostRevisionService postRevisionService;
 
-    /**
-     * Handle post created or updated. 
-     * Executed AFTER transaction commit to ensure data integrity.
-     */
-    @Async("asyncExecutor")
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onPostChanged(PostChangedEvent event) {
-        log.info("Processing PostChangedEvent for post: {}", event.getPost().getId());
-        
-        // 1. Sync to Search Engine - ONLY if published
-        if (event.getPost().getStatus() == PostStatus.PUBLISHED) {
-            postSearchService.indexPost(event.getPost());
-        } else {
-            // If post was published but moved back to draft/archived, remove from index
-            postSearchService.deletePostIndex(event.getPost().getId());
-        }
-        
-        // 2. Save Revision history - Always save for any status change
-        postRevisionService.saveRevision(event.getPost());
-    }
+	/**
+	 * Handle post created or updated. Executed AFTER transaction commit to ensure
+	 * data integrity.
+	 */
+	@Async("asyncExecutor")
+	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	public void onPostChanged(PostChangedEvent event) {
+		log.info("Processing PostChangedEvent for post: {}", event.getPost().getId());
 
-    /**
-     * Handle post deletion.
-     */
-    @Async("asyncExecutor")
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onPostDeleted(PostDeletedEvent event) {
-        log.info("Processing PostDeletedEvent for post: {}", event.getPostId());
-        
-        // Remove from Search Engine
-        postSearchService.deletePostIndex(event.getPostId());
-    }
+		// 1. Sync to Search Engine - ONLY if published
+		if (event.getPost().getStatus() == PostStatus.PUBLISHED) {
+			postSearchService.indexPost(event.getPost());
+		} else {
+			// If post was published but moved back to draft/archived, remove from index
+			postSearchService.deletePostIndex(event.getPost().getId());
+		}
+
+		// 2. Save Revision history - Always save for any status change
+		postRevisionService.saveRevision(event.getPost());
+	}
+
+	/**
+	 * Handle post deletion.
+	 */
+	@Async("asyncExecutor")
+	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	public void onPostDeleted(PostDeletedEvent event) {
+		log.info("Processing PostDeletedEvent for post: {}", event.getPostId());
+
+		// Remove from Search Engine
+		postSearchService.deletePostIndex(event.getPostId());
+	}
 }

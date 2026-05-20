@@ -14,11 +14,11 @@ import java.util.Optional;
 
 @Repository
 public interface FileRepository extends JpaRepository<FileMetadata, Long>, JpaSpecificationExecutor<FileMetadata> {
-    
-    @EntityGraph(attributePaths = {"uploader"})
-    Optional<FileMetadata> findByFileName(String fileName);
 
-    @Override
-    @EntityGraph(attributePaths = {"uploader"})
-    Page<FileMetadata> findAll(@Nullable Specification<FileMetadata> spec, Pageable pageable);
+	@EntityGraph(attributePaths = {"uploader"})
+	Optional<FileMetadata> findByFileName(String fileName);
+
+	@Override
+	@EntityGraph(attributePaths = {"uploader"})
+	Page<FileMetadata> findAll(@Nullable Specification<FileMetadata> spec, Pageable pageable);
 }

@@ -10,30 +10,25 @@ import java.util.Set;
  */
 @Builder
 @Schema(description = "User authentication result with access token")
-public record AuthResponse(
-    @Schema(description = "JWT Access Token")
-    String accessToken,
-    
-    @Schema(description = "Type of token", example = "Bearer")
-    String tokenType,
-    
-    @Schema(description = "Authenticated username", example = "admin")
-    String username,
+public record AuthResponse(@Schema(description = "JWT Access Token") String accessToken,
 
-    @Schema(description = "User's email address", example = "admin@example.com")
-    String email,
-    
-    @Schema(description = "Set of roles assigned to the user", example = "[\"ROLE_ADMIN\"]")
-    Set<String> roles
-) implements Serializable {
-    private static final long serialVersionUID = 1L;
+		@Schema(description = "Type of token", example = "Bearer") String tokenType,
 
-    /**
-     * Compact constructor to handle defaults.
-     */
-    public AuthResponse {
-        if (tokenType == null) {
-            tokenType = "Bearer";
-        }
-    }
+		@Schema(description = "Authenticated username", example = "admin") String username,
+
+		@Schema(description = "User's email address", example = "admin@example.com") String email,
+
+		@Schema(description = "Set of roles assigned to the user", example = "[\"ROLE_ADMIN\"]") Set<String> roles)
+		implements
+			Serializable {
+	private static final long serialVersionUID = 1L;
+
+	/**
+	 * Compact constructor to handle defaults.
+	 */
+	public AuthResponse {
+		if (tokenType == null) {
+			tokenType = "Bearer";
+		}
+	}
 }

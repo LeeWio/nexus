@@ -30,135 +30,134 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Professional implementation of File Management Service.
- * Enhanced with deep MIME detection, security validation, and automated image processing.
+ * Professional implementation of File Management Service. Enhanced with deep
+ * MIME detection, security validation, and automated image processing.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class FileServiceImpl implements IFileService {
 
-    private static final List<String> ALLOWED_MIME_TYPES = Arrays.asList(
-            "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf", "text/plain"
-    );
+	private static final List<String> ALLOWED_MIME_TYPES = Arrays.asList("image/jpeg", "image/png", "image/gif",
+			"image/webp", "application/pdf", "text/plain");
 
-    private final StorageProvider storageProvider;
-    private final FileRepository fileRepository;
-    private final UserRepository userRepository;
-    private final FileMapper fileMapper;
-    private final FileUtil fileUtil;
+	private final StorageProvider storageProvider;
+	private final FileRepository fileRepository;
+	private final UserRepository userRepository;
+	private final FileMapper fileMapper;
+	private final FileUtil fileUtil;
 
-    @Override
-    @Transactional
-    @LogOperation("Upload File")
-    public ApiResponse<FileResponse> uploadFile(MultipartFile file) {
-        if (file.isEmpty()) {
-            throw new BusinessException(BusinessCode.BAD_REQUEST, "Cannot process empty file payload");
-        }
+	@Override
+	@Transactional
+	@LogOperation("Upload File")
+	public ApiResponse<FileResponse> uploadFile(MultipartFile file) {
+		if (file.isEmpty()) {
+			throw new BusinessException(BusinessCode.BAD_REQUEST, "Cannot process empty file payload");
+		}
 
-        try {
-            var fileBytes = file.getBytes();
-            var originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-            var extension = extractFileExtension(originalFilename);
-            
-            // 1. Deep MIME detection for security
-            String detectedMimeType;
-            try (var bais = new ByteArrayInputStream(fileBytes)) {
-                detectedMimeType = fileUtil.detectMimeType(bais);
-            }
-            log.debug("Deep MIME verification: detected {} for file {}", detectedMimeType, originalFilename);
+		try {
+			var fileBytes = file.getBytes();
+			var originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+			var extension = extractFileExtension(originalFilename);
 
-            if (!ALLOWED_MIME_TYPES.contains(detectedMimeType)) {
-                log.warn("Security rejection: Unsupported MIME type {}", detectedMimeType);
-                throw new BusinessException(BusinessCode.BAD_REQUEST, "File content type not supported");
-            }
+			// 1. Deep MIME detection for security
+			String detectedMimeType;
+			try (var bais = new ByteArrayInputStream(fileBytes)) {
+				detectedMimeType = fileUtil.detectMimeType(bais);
+			}
+			log.debug("Deep MIME verification: detected {} for file {}", detectedMimeType, originalFilename);
 
-            var uniqueName = UUID.randomUUID().toString().replace("-", "") + extension;
+			if (!ALLOWED_MIME_TYPES.contains(detectedMimeType)) {
+				log.warn("Security rejection: Unsupported MIME type {}", detectedMimeType);
+				throw new BusinessException(BusinessCode.BAD_REQUEST, "File content type not supported");
+			}
 
-            // 2. Specialized Image Processing
-            String thumbnailUrl = null;
-            Integer width = null, height = null;
+			var uniqueName = UUID.randomUUID().toString().replace("-", "") + extension;
 
-            if (fileUtil.isImage(detectedMimeType)) {
-                var dimensions = fileUtil.getImageDimensions(fileBytes);
-                if (dimensions != null) {
-                    width = dimensions.width();
-                    height = dimensions.height();
-                }
+			// 2. Specialized Image Processing
+			String thumbnailUrl = null;
+			Integer width = null, height = null;
 
-                try {
-                    var thumbnailBytes = fileUtil.generateThumbnail(fileBytes, 200, 200);
-                    var thumbnailName = "thumb_" + uniqueName.substring(0, uniqueName.lastIndexOf('.')) + ".jpg";
-                    storageProvider.store(new ByteArrayInputStream(thumbnailBytes), thumbnailName);
-                    thumbnailUrl = storageProvider.getUrl(thumbnailName);
-                } catch (Exception e) {
-                    log.warn("Non-critical failure in thumbnail generation: {}", e.getMessage());
-                }
-            }
+			if (fileUtil.isImage(detectedMimeType)) {
+				var dimensions = fileUtil.getImageDimensions(fileBytes);
+				if (dimensions != null) {
+					width = dimensions.width();
+					height = dimensions.height();
+				}
 
-            // 3. Asset Persistence
-            storageProvider.store(new ByteArrayInputStream(fileBytes), uniqueName);
+				try {
+					var thumbnailBytes = fileUtil.generateThumbnail(fileBytes, 200, 200);
+					var thumbnailName = "thumb_" + uniqueName.substring(0, uniqueName.lastIndexOf('.')) + ".jpg";
+					storageProvider.store(new ByteArrayInputStream(thumbnailBytes), thumbnailName);
+					thumbnailUrl = storageProvider.getUrl(thumbnailName);
+				} catch (Exception e) {
+					log.warn("Non-critical failure in thumbnail generation: {}", e.getMessage());
+				}
+			}
 
-            User uploader = null;
-            try {
-                uploader = SecurityUtil.getCurrentUserOrThrow(userRepository);
-            } catch (Exception e) {
-                log.debug("File uploaded by anonymous/system process");
-            }
+			// 3. Asset Persistence
+			storageProvider.store(new ByteArrayInputStream(fileBytes), uniqueName);
 
-            var metadata = new FileMetadata();
-            metadata.setFileName(uniqueName);
-            metadata.setOriginalName(originalFilename);
-            metadata.setFileUrl(storageProvider.getUrl(uniqueName));
-            metadata.setFileSize((long) fileBytes.length);
-            metadata.setFileType(detectedMimeType);
-            metadata.setThumbnailUrl(thumbnailUrl);
-            metadata.setWidth(width);
-            metadata.setHeight(height);
-            metadata.setUploader(uploader);
-            
-            var savedFile = fileRepository.save(metadata);
-            log.info("File asset indexed successfully: {} (ID: {})", uniqueName, savedFile.getId());
+			User uploader = null;
+			try {
+				uploader = SecurityUtil.getCurrentUserOrThrow(userRepository);
+			} catch (Exception e) {
+				log.debug("File uploaded by anonymous/system process");
+			}
 
-            return ApiResponse.success("File uploaded successfully", fileMapper.toResponse(savedFile));
+			var metadata = new FileMetadata();
+			metadata.setFileName(uniqueName);
+			metadata.setOriginalName(originalFilename);
+			metadata.setFileUrl(storageProvider.getUrl(uniqueName));
+			metadata.setFileSize((long) fileBytes.length);
+			metadata.setFileType(detectedMimeType);
+			metadata.setThumbnailUrl(thumbnailUrl);
+			metadata.setWidth(width);
+			metadata.setHeight(height);
+			metadata.setUploader(uploader);
 
-        } catch (IOException e) {
-            log.error("Fatal I/O error during file processing: {}", file.getOriginalFilename(), e);
-            throw new BusinessException(BusinessCode.ERROR, "System failed to process the file");
-        }
-    }
+			var savedFile = fileRepository.save(metadata);
+			log.info("File asset indexed successfully: {} (ID: {})", uniqueName, savedFile.getId());
 
-    @Override
-    @Transactional
-    @LogOperation("Delete File")
-    public ApiResponse<Void> deleteFile(String fileName) {
-        var sanitizedName = StringUtils.cleanPath(fileName);
-        if (sanitizedName.contains("..")) {
-            throw new BusinessException(BusinessCode.BAD_REQUEST, "Security violation: Invalid path");
-        }
+			return ApiResponse.success("File uploaded successfully", fileMapper.toResponse(savedFile));
 
-        var metadata = fileRepository.findByFileName(sanitizedName)
-                .orElseThrow(() -> new ResourceNotFoundException("File", "name", sanitizedName));
+		} catch (IOException e) {
+			log.error("Fatal I/O error during file processing: {}", file.getOriginalFilename(), e);
+			throw new BusinessException(BusinessCode.ERROR, "System failed to process the file");
+		}
+	}
 
-        storageProvider.delete(sanitizedName);
+	@Override
+	@Transactional
+	@LogOperation("Delete File")
+	public ApiResponse<Void> deleteFile(String fileName) {
+		var sanitizedName = StringUtils.cleanPath(fileName);
+		if (sanitizedName.contains("..")) {
+			throw new BusinessException(BusinessCode.BAD_REQUEST, "Security violation: Invalid path");
+		}
 
-        if (metadata.getThumbnailUrl() != null) {
-            var thumbnailName = extractFileNameFromUrl(metadata.getThumbnailUrl());
-            storageProvider.delete(thumbnailName);
-        }
+		var metadata = fileRepository.findByFileName(sanitizedName)
+				.orElseThrow(() -> new ResourceNotFoundException("File", "name", sanitizedName));
 
-        fileRepository.delete(metadata);
-        log.info("File asset and related records purged for: {}", sanitizedName);
+		storageProvider.delete(sanitizedName);
 
-        return ApiResponse.success("File deleted successfully", null);
-    }
+		if (metadata.getThumbnailUrl() != null) {
+			var thumbnailName = extractFileNameFromUrl(metadata.getThumbnailUrl());
+			storageProvider.delete(thumbnailName);
+		}
 
-    private String extractFileExtension(String filename) {
-        int dotIndex = filename.lastIndexOf('.');
-        return (dotIndex > 0) ? filename.substring(dotIndex) : "";
-    }
+		fileRepository.delete(metadata);
+		log.info("File asset and related records purged for: {}", sanitizedName);
 
-    private String extractFileNameFromUrl(String url) {
-        return url.substring(url.lastIndexOf('/') + 1);
-    }
+		return ApiResponse.success("File deleted successfully", null);
+	}
+
+	private String extractFileExtension(String filename) {
+		int dotIndex = filename.lastIndexOf('.');
+		return (dotIndex > 0) ? filename.substring(dotIndex) : "";
+	}
+
+	private String extractFileNameFromUrl(String url) {
+		return url.substring(url.lastIndexOf('/') + 1);
+	}
 }

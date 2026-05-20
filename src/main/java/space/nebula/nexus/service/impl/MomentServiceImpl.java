@@ -26,80 +26,80 @@ import space.nebula.nexus.common.exception.ResourceNotFoundException;
 @RequiredArgsConstructor
 public class MomentServiceImpl implements IMomentService {
 
-    private final MomentRepository momentRepository;
-    private final MomentMapper momentMapper;
+	private final MomentRepository momentRepository;
+	private final MomentMapper momentMapper;
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<PageResult<MomentResponse>> getAdminMoments(Pageable pageable) {
-        Page<MomentResponse> page = momentRepository.findAll(pageable).map(momentMapper::toResponse);
-        return ApiResponse.success(PageResult.of(page));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<MomentResponse>> getAdminMoments(Pageable pageable) {
+		Page<MomentResponse> page = momentRepository.findAll(pageable).map(momentMapper::toResponse);
+		return ApiResponse.success(PageResult.of(page));
+	}
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<MomentResponse> getMomentById(Long id) {
-        Moment moment = findMomentOrThrow(id);
-        return ApiResponse.success(momentMapper.toResponse(moment));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<MomentResponse> getMomentById(Long id) {
+		Moment moment = findMomentOrThrow(id);
+		return ApiResponse.success(momentMapper.toResponse(moment));
+	}
 
-    @Override
-    @Transactional
-    @CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
-    @LogOperation("Create Moment")
-    public ApiResponse<MomentResponse> createMoment(MomentRequest request) {
-        Moment moment = momentMapper.toEntity(request);
-        momentRepository.save(moment);
-        log.info("Moment created");
-        return ApiResponse.success("Moment created successfully", momentMapper.toResponse(moment));
-    }
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
+	@LogOperation("Create Moment")
+	public ApiResponse<MomentResponse> createMoment(MomentRequest request) {
+		Moment moment = momentMapper.toEntity(request);
+		momentRepository.save(moment);
+		log.info("Moment created");
+		return ApiResponse.success("Moment created successfully", momentMapper.toResponse(moment));
+	}
 
-    @Override
-    @Transactional
-    @CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
-    @LogOperation("Update Moment")
-    public ApiResponse<MomentResponse> updateMoment(Long id, MomentRequest request) {
-        Moment moment = findMomentOrThrow(id);
-        momentMapper.updateEntity(moment, request);
-        momentRepository.save(moment);
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
+	@LogOperation("Update Moment")
+	public ApiResponse<MomentResponse> updateMoment(Long id, MomentRequest request) {
+		Moment moment = findMomentOrThrow(id);
+		momentMapper.updateEntity(moment, request);
+		momentRepository.save(moment);
 
-        log.info("Moment updated: {}", id);
-        return ApiResponse.success("Moment updated successfully", momentMapper.toResponse(moment));
-    }
+		log.info("Moment updated: {}", id);
+		return ApiResponse.success("Moment updated successfully", momentMapper.toResponse(moment));
+	}
 
-    @Override
-    @Transactional
-    @CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
-    @LogOperation("Delete Moment")
-    public ApiResponse<Void> deleteMoment(Long id) {
-        if (!momentRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Moment", "id", id);
-        }
-        momentRepository.deleteById(id);
-        log.info("Moment deleted: {}", id);
-        return ApiResponse.success("Moment deleted successfully", null);
-    }
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
+	@LogOperation("Delete Moment")
+	public ApiResponse<Void> deleteMoment(Long id) {
+		if (!momentRepository.existsById(id)) {
+			throw new ResourceNotFoundException("Moment", "id", id);
+		}
+		momentRepository.deleteById(id);
+		log.info("Moment deleted: {}", id);
+		return ApiResponse.success("Moment deleted successfully", null);
+	}
 
-    @Override
-    @Transactional(readOnly = true)
-    @Cacheable(value = CacheConstants.MOMENTS, key = "#pageable.pageNumber + '-' + #pageable.pageSize")
-    public ApiResponse<PageResult<MomentResponse>> getPublicMoments(Pageable pageable) {
-        Page<MomentResponse> page = momentRepository.findByIsPublishedTrueOrderByCreatedAtDesc(pageable).map(momentMapper::toResponse);
-        return ApiResponse.success(PageResult.of(page));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.MOMENTS, key = "#pageable.pageNumber + '-' + #pageable.pageSize")
+	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(Pageable pageable) {
+		Page<MomentResponse> page = momentRepository.findByIsPublishedTrueOrderByCreatedAtDesc(pageable)
+				.map(momentMapper::toResponse);
+		return ApiResponse.success(PageResult.of(page));
+	}
 
-    @Override
-    @Transactional
-    @CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
-    public ApiResponse<Void> likeMoment(Long id) {
-        Moment moment = findMomentOrThrow(id);
-        moment.setLikesCount(moment.getLikesCount() + 1);
-        momentRepository.save(moment);
-        return ApiResponse.success("Moment liked", null);
-    }
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
+	public ApiResponse<Void> likeMoment(Long id) {
+		Moment moment = findMomentOrThrow(id);
+		moment.setLikesCount(moment.getLikesCount() + 1);
+		momentRepository.save(moment);
+		return ApiResponse.success("Moment liked", null);
+	}
 
-    private Moment findMomentOrThrow(Long id) {
-        return momentRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Moment", "id", id));
-    }
+	private Moment findMomentOrThrow(Long id) {
+		return momentRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Moment", "id", id));
+	}
 }

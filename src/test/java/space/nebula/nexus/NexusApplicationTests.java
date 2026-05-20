@@ -9,8 +9,8 @@ import space.nebula.nexus.repository.search.PostSearchRepository;
 @org.springframework.test.context.ActiveProfiles("test")
 class NexusApplicationTests {
 
-    @MockitoBean
-    private PostSearchRepository postSearchRepository;
+	@MockitoBean
+	private PostSearchRepository postSearchRepository;
 
 	@Test
 	void contextLoads() {

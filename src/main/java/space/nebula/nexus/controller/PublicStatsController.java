@@ -16,11 +16,11 @@ import space.nebula.nexus.service.IDashboardService;
 @RequiredArgsConstructor
 public class PublicStatsController {
 
-    private final IDashboardService dashboardService;
+	private final IDashboardService dashboardService;
 
-    @Operation(summary = "Get site statistics", description = "Returns non-sensitive site metrics for the front-end dashboard")
-    @GetMapping
-    public ApiResponse<PublicStatsResponse> getPublicStatistics() {
-        return dashboardService.getPublicStatistics();
-    }
+	@Operation(summary = "Get site statistics", description = "Returns non-sensitive site metrics for the front-end dashboard")
+	@GetMapping
+	public ApiResponse<PublicStatsResponse> getPublicStatistics() {
+		return dashboardService.getPublicStatistics();
+	}
 }

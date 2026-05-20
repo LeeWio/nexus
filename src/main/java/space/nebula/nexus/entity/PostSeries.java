@@ -24,22 +24,22 @@ import java.util.List;
 @SQLRestriction("is_deleted = false")
 public class PostSeries extends BaseEntity {
 
-    @Column(nullable = false, length = 100)
-    private String name;
+	@Column(nullable = false, length = 100)
+	private String name;
 
-    @Column(nullable = false, unique = true, length = 100)
-    private String slug;
+	@Column(nullable = false, unique = true, length = 100)
+	private String slug;
 
-    @Column(length = 500)
-    private String description;
+	@Column(length = 500)
+	private String description;
 
-    @Column(name = "cover_image")
-    private String coverImage;
+	@Column(name = "cover_image")
+	private String coverImage;
 
-    @Column(name = "is_published", nullable = false)
-    private Boolean isPublished = true;
+	@Column(name = "is_published", nullable = false)
+	private Boolean isPublished = true;
 
-    @OneToMany(mappedBy = "series", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
-    @OrderBy("seriesOrder ASC, createdAt DESC")
-    private List<Post> posts = new ArrayList<>();
+	@OneToMany(mappedBy = "series", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+	@OrderBy("seriesOrder ASC, createdAt DESC")
+	private List<Post> posts = new ArrayList<>();
 }
