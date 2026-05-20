@@ -9,10 +9,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.payload.request.CommentRequest;
+import space.nebula.nexus.payload.request.GuestbookRequest;
 import space.nebula.nexus.payload.response.CommentResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.service.ICommentService;
@@ -40,9 +42,10 @@ public class PublicGuestbookController {
     }
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Post to guestbook", description = "Submit a new message to the global guestbook. Requires authentication.")
     @RateLimit(count = 3, time = 10, unit = TimeUnit.MINUTES, message = "Guestbook posting frequency too high. Please try again later.")
-    public ApiResponse<Void> publishComment(@Valid @RequestBody CommentRequest request, HttpServletRequest servletRequest) {
+    public ApiResponse<Void> publishComment(@Valid @RequestBody GuestbookRequest request, HttpServletRequest servletRequest) {
         // Ensure postId is null for guestbook entries
         CommentRequest guestbookRequest = new CommentRequest(request.content(), null, request.parentId());
         return commentService.publishComment(guestbookRequest, servletRequest);

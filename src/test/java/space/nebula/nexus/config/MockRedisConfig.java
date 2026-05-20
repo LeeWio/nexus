@@ -40,6 +40,7 @@ public class MockRedisConfig {
         org.springframework.data.redis.core.Cursor<byte[]> emptyCursor = Mockito.mock(org.springframework.data.redis.core.Cursor.class);
         Mockito.when(emptyCursor.hasNext()).thenReturn(false);
         Mockito.when(keyCommands.scan(Mockito.any())).thenReturn(emptyCursor);
+        Mockito.when(connection.scan(Mockito.any())).thenReturn(emptyCursor);
         Mockito.when(setCommands.sScan(Mockito.any(), Mockito.any())).thenReturn(emptyCursor);
         
         return factory;

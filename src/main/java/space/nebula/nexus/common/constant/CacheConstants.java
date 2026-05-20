@@ -30,7 +30,7 @@ public final class CacheConstants {
     // --- Key Patterns & Prefixes ---
     
     // Blog related
-    public static final String POST_LIST_KEY = "'list:' + #categoryId + ':' + #tagId + ':' + #keyword + ':' + #pageable.pageNumber + ':' + #pageable.pageSize";
+    public static final String POST_LIST_KEY = "'list:' + #categoryId + ':' + #tagId + ':' + #keyword + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort";
     public static final String POST_SLUG_KEY = "'slug:' + #slug";
     public static final String POST_SLUG_PREFIX = "nexus:post:slug:";
     public static final String POST_AUTOSAVE_PREFIX = "nexus:post:autosave:";

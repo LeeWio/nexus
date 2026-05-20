@@ -33,52 +33,67 @@ public class InteractionSyncTask {
     public void synchronizeSocialInteractions() {
         log.info("Starting social interaction synchronization (Likes/Favorites) from Redis to MySQL...");
         
-        // We scan for like keys specifically to identify active posts
-        ScanOptions interactionScanOptions = ScanOptions.scanOptions()
-                .match(CacheConstants.POST_LIKES_SET + "*")
-                .count(100)
-                .build();
+        java.util.Set<Long> activePostIds = new java.util.HashSet<>();
+
+        // Helper to scan a specific prefix and collect IDs
+        java.util.function.Consumer<String> scanPrefix = (prefix) -> {
+            ScanOptions options = ScanOptions.scanOptions()
+                    .match(prefix + "*")
+                    .count(100)
+                    .build();
+            try (Cursor<String> cursor = redisTemplate.scan(options)) {
+                while (cursor.hasNext()) {
+                    String key = cursor.next();
+                    try {
+                        Long activePostId = Long.valueOf(key.substring(prefix.length()));
+                        activePostIds.add(activePostId);
+                    } catch (Exception itemException) {
+                        log.error("Error extracting ID from key: {}", key, itemException);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Error scanning prefix: {}", prefix, e);
+            }
+        };
+
+        // Scan both likes and favorites sets
+        scanPrefix.accept(CacheConstants.POST_LIKES_SET);
+        scanPrefix.accept(CacheConstants.POST_FAVORITES_SET);
 
         int processedInteractionsCount = 0;
-        try (Cursor<String> interactionCursor = redisTemplate.scan(interactionScanOptions)) {
-            while (interactionCursor.hasNext()) {
-                String likeSetKey = interactionCursor.next();
-                try {
-                    // Extract ID from key: post:likes:set:{id}
-                    Long activePostId = Long.valueOf(likeSetKey.substring(CacheConstants.POST_LIKES_SET.length()));
-                    String favoriteSetKey = CacheConstants.POST_FAVORITES_SET + activePostId;
+        for (Long activePostId : activePostIds) {
+            try {
+                String likeSetKey = CacheConstants.POST_LIKES_SET + activePostId;
+                String favoriteSetKey = CacheConstants.POST_FAVORITES_SET + activePostId;
 
-                    // Get current sizes from Redis
-                    Long currentLikesCount = redisTemplate.opsForSet().size(likeSetKey);
-                    Long currentFavoritesCount = redisTemplate.opsForSet().size(favoriteSetKey);
+                // Get current sizes from Redis
+                Long currentLikesCount = redisTemplate.opsForSet().size(likeSetKey);
+                Long currentFavoritesCount = redisTemplate.opsForSet().size(favoriteSetKey);
 
-                    // Update DB if data found
-                    postRepository.findById(activePostId).ifPresent(postEntity -> {
-                        boolean hasStateChanged = false;
-                        
-                        if (currentLikesCount != null && !currentLikesCount.equals(postEntity.getLikesCount())) {
-                            postEntity.setLikesCount(currentLikesCount);
-                            hasStateChanged = true;
-                        }
-                        if (currentFavoritesCount != null && !currentFavoritesCount.equals(postEntity.getFavoritesCount())) {
-                            postEntity.setFavoritesCount(currentFavoritesCount);
-                            hasStateChanged = true;
-                        }
+                // Update DB if data found
+                postRepository.findById(activePostId).ifPresent(postEntity -> {
+                    boolean hasStateChanged = false;
+                    
+                    if (currentLikesCount != null && !currentLikesCount.equals(postEntity.getLikesCount())) {
+                        postEntity.setLikesCount(currentLikesCount);
+                        hasStateChanged = true;
+                    }
+                    if (currentFavoritesCount != null && !currentFavoritesCount.equals(postEntity.getFavoritesCount())) {
+                        postEntity.setFavoritesCount(currentFavoritesCount);
+                        hasStateChanged = true;
+                    }
 
-                        if (hasStateChanged) {
-                            postRepository.save(postEntity);
-                            log.debug("Synchronized interactions for Post ID: {}. Likes: {}, Favs: {}", 
-                                    activePostId, currentLikesCount, currentFavoritesCount);
-                        }
-                    });
-                    processedInteractionsCount++;
-                } catch (Exception itemException) {
-                    log.error("Error synchronizing interactions for key: {}", likeSetKey, itemException);
-                }
+                    if (hasStateChanged) {
+                        postRepository.save(postEntity);
+                        log.debug("Synchronized interactions for Post ID: {}. Likes: {}, Favs: {}", 
+                                activePostId, currentLikesCount, currentFavoritesCount);
+                    }
+                });
+                processedInteractionsCount++;
+            } catch (Exception itemException) {
+                log.error("Error synchronizing interactions for post: {}", activePostId, itemException);
             }
-            log.info("Finished social interaction synchronization. Processed {} active posts.", processedInteractionsCount);
-        } catch (Exception globalException) {
-            log.error("Critical failure during social interaction synchronization task", globalException);
         }
+        log.info("Finished social interaction synchronization. Processed {} active posts.", processedInteractionsCount);
     }
 }

@@ -166,7 +166,8 @@ public class PostServiceImpl implements IPostService {
                 searchCriteria.add(cb.equal(root.get("category").get("id"), categoryId));
             }
             if (tagId != null) {
-                searchCriteria.add(cb.isMember(tagId, root.get("tags")));
+                jakarta.persistence.criteria.Join<Object, Object> tagsJoin = root.join("tags");
+                searchCriteria.add(cb.equal(tagsJoin.get("id"), tagId));
             }
             if (keyword != null && !keyword.isBlank()) {
                 String keywordPattern = "%" + keyword.toLowerCase() + "%";
