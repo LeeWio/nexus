@@ -113,7 +113,7 @@ class AuthServiceImplTest {
 
         // Act & Assert
         BusinessException exception = assertThrows(BusinessException.class, () -> authService.authenticate(loginRequest));
-        assertEquals(401, exception.getCode());
+        assertEquals(40102, exception.getCode());
         verify(loginSecurityService).recordLoginFailure("testuser");
     }
 

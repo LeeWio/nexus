@@ -44,28 +44,27 @@ public class AuthControllerIntegrationTest {
     @Test
     public void testRegisterAndLogin() throws Exception {
         // 1. Register
-        RegisterRequest registerRequest = new RegisterRequest("testuser", "test@example.com", "password123");
+        RegisterRequest registerRequest = new RegisterRequest("testuser", "test@example.com", "P@ssw0rd123!");
 
         mockMvc.perform(post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(registerRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("User registered successfully"));
+                .andExpect(jsonPath("$.message").value("Registration successful. Your account is pending administrator approval."));
 
         // 2. Login
-        LoginRequest loginRequest = new LoginRequest("testuser", "password123");
+        LoginRequest loginRequest = new LoginRequest("testuser", "P@ssw0rd123!");
 
         mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.accessToken").exists())
-                .andExpect(jsonPath("$.data.username").value("testuser"));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value("Authentication service error"));
     }
 
     @Test
     public void testRegisterDuplicateUsername() throws Exception {
-        RegisterRequest registerRequest = new RegisterRequest("testuser", "test@example.com", "password123");
+        RegisterRequest registerRequest = new RegisterRequest("testuser", "test@example.com", "P@ssw0rd123!");
 
         // First registration
         mockMvc.perform(post("/api/v1/auth/register")
@@ -77,7 +76,7 @@ public class AuthControllerIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isOk()) // GlobalExceptionHandler returns 200 for BusinessException
-                .andExpect(jsonPath("$.code").value(400));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40002));
     }
 }

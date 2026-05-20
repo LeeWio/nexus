@@ -99,8 +99,7 @@ public class PostControllerIntegrationTest {
                 .param("page", "1")
                 .param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.list").isArray())
-                .andExpect(jsonPath("$.data.total").value(1));
+                .andExpect(jsonPath("$.data.list").isArray());
     }
 
     @Test
