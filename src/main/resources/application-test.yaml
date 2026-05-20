@@ -1,0 +1,59 @@
+spring:
+  mail:
+    host: localhost
+    port: 1025
+    username: test
+    password: testpassword
+
+  datasource:
+    url: jdbc:h2:mem:nexus_test_db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  flyway:
+    enabled: false # Disable flyway in tests to let hibernate create schema
+
+  security:
+    user:
+      name: admin
+      password: admin_password
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: test-client-id
+            client-secret: test-client-secret
+            scope:
+              - read:user
+              - user:email
+  
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""
+      database: 1
+      timeout: 5000ms
+
+  elasticsearch:
+    uris: http://localhost:9200
+    connection-timeout: 3s
+    socket-timeout: 10s
+
+app:
+  jwt:
+    secret: "4A614E645267556B58703273357638792F423F4528482B4D6251655468576D5A" # Test only
+  github:
+    token: "test-token"
+  search:
+    type: database # Use DB search instead of ES for tests

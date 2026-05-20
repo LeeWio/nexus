@@ -63,7 +63,7 @@ public class LogOperationAspect {
             throw e;
         } finally {
             try {
-                saveLog(username, logOperation, methodName, startTime, request, joinPoint.getArgs(), result, exception, status);
+                saveLog(username, logOperation, methodName, startTime, request, joinPoint, result, exception, status);
             } catch (Exception e) {
                 log.error("Failed to buffer operation log", e);
             }
@@ -73,7 +73,7 @@ public class LogOperationAspect {
     }
 
     private void saveLog(String username, LogOperation annotation, String methodName, long startTime, 
-                         HttpServletRequest request, Object[] args, Object result, Throwable exception, int status) {
+                         HttpServletRequest request, ProceedingJoinPoint joinPoint, Object result, Throwable exception, int status) {
         long duration = System.currentTimeMillis() - startTime;
         
         OperationLog opLog = new OperationLog();
@@ -91,8 +91,8 @@ public class LogOperationAspect {
             opLog.setUserAgent(request.getHeader("User-Agent"));
         }
 
-        if (annotation.logArgs() && args != null) {
-            opLog.setParameters(getSafeArgsJson(args));
+        if (annotation.logArgs() && joinPoint.getArgs() != null) {
+            opLog.setParameters(getSafeArgsJson((MethodSignature) joinPoint.getSignature(), joinPoint.getArgs()));
         }
         
         if (annotation.logResult() && result != null) {
@@ -108,10 +108,45 @@ public class LogOperationAspect {
         log.debug("Operation buffered: {} by {}", annotation.value(), username);
     }
 
-    private String getSafeArgsJson(Object[] args) {
+    private String getSafeArgsJson(MethodSignature signature, Object[] args) {
         try {
-            // Future: Implement parameter name matching for masking if needed
-            return JSONUtil.toJsonStr(args);
+            String[] parameterNames = signature.getParameterNames();
+            if (parameterNames == null || args == null) return "[]";
+
+            Map<String, Object> paramsMap = IntStream.range(0, parameterNames.length)
+                .boxed()
+                .collect(Collectors.toMap(
+                    i -> parameterNames[i],
+                    i -> {
+                        Object arg = args[i];
+                        if (arg == null) return "null";
+                        
+                        String name = parameterNames[i].toLowerCase();
+                        if (name.contains("password") || name.contains("secret") || name.contains("token")) {
+                            return "******";
+                        }
+                        
+                        // Mask if it's an object with sensitive fields (e.g. RegisterRequest, LoginRequest)
+                        if (arg instanceof space.nebula.nexus.payload.request.LoginRequest || 
+                            arg instanceof space.nebula.nexus.payload.request.RegisterRequest) {
+                            try {
+                                Map<String, Object> beanMap = cn.hutool.core.bean.BeanUtil.beanToMap(arg);
+                                beanMap.keySet().forEach(key -> {
+                                    String keyLower = key.toLowerCase();
+                                    if (keyLower.contains("password") || keyLower.contains("secret") || keyLower.contains("token")) {
+                                        beanMap.put(key, "******");
+                                    }
+                                });
+                                return beanMap;
+                            } catch (Exception ignored) {}
+                        }
+                        
+                        return arg;
+                    },
+                    (v1, v2) -> v1
+                ));
+
+            return JSONUtil.toJsonStr(paramsMap);
         } catch (Exception e) {
             return "[Serialization Failed]";
         }

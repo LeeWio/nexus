@@ -76,7 +76,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             user.setStatus(UserStatus.ACTIVE);
             
             // Assign default USER role
-            roleRepository.findByCode("user").ifPresent(role -> user.setRoles(Set.of(role)));
+            roleRepository.findByCode("ROLE_USER").ifPresent(role -> user.setRoles(Set.of(role)));
         }
         
         userRepository.save(user);

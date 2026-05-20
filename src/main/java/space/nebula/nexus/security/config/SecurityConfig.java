@@ -72,16 +72,17 @@ public class SecurityConfig {
 
                 // Configure URL access rules
                 .authorizeHttpRequests(authorize -> authorize
-                        // Permit all access to Auth APIs, Swagger UI, Monitoring, and Public Blog/Comments
+                        // Permit all access to Auth APIs, Swagger UI, and Public APIs
                         .requestMatchers(
                                 "/api/v1/auth/**",
                                 "/api/v1/public/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/management/**",
                                 "/login/oauth2/**"
                         ).permitAll()
+                        // Protect actuator management endpoints
+                        .requestMatchers("/management/**").hasRole("ADMIN")
                         // All other requests must be authenticated
                         .anyRequest().authenticated()
                 )

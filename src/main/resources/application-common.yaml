@@ -1,0 +1,116 @@
+server:
+  port: 8080
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  data:
+    elasticsearch:
+      repositories:
+        enabled: false
+    redis:
+      repositories:
+        enabled: false
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000ms
+      use-key-prefix: true
+      key-prefix: "nexus:cache:"
+      cache-null-values: false
+
+management:
+  endpoints:
+    web:
+      base-path: /management
+      exposure:
+        include: "health,info,metrics,prometheus,beans"
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+    instances:
+      githubService:
+        baseConfig: default
+      marketService:
+        baseConfig: default
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+    instances:
+      githubService:
+        baseConfig: default
+      marketService:
+        baseConfig: default
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId}] %logger{36} - %msg%n"
+  level:
+    space.nebula.nexus: INFO
+    org.hibernate.SQL: INFO
+
+app:
+  search:
+    type: ${SEARCH_TYPE:elasticsearch}
+  github:
+    username: ${GITHUB_USERNAME:LeeWio}
+  upload:
+    location: "uploads"
+    max-size: 10485760
+  jwt:
+    access-token-expiration: 7200000
+    refresh-token-expiration: 604800000
+    header: "Authorization"
+    prefix: "Bearer "
+  market:
+    urls:
+      hq: "http://hq.sinajs.cn/list="
+      kline-cn: "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=%s&scale=%s&ma=no&datalen=%d"
+      kline-us: "http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getMinK?symbol=%s&type=%s&___qn=3"
+      kline-us-daily: "http://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getDailyK?symbol=%s"
+    indices:
+      - name: "NASDAQ"
+        symbol: ".ixic"
+        hq-key: "gb_ixic"
+        type: "US"
+      - name: "S&P 500"
+        symbol: ".inx"
+        hq-key: "gb_inx"
+        type: "US"
+      - name: "SSE Composite"
+        symbol: "sh000001"
+        hq-key: "s_sh000001"
+        type: "CN"
+      - name: "SZSE Component"
+        symbol: "sz399001"
+        hq-key: "s_sz399001"
+        type: "CN"

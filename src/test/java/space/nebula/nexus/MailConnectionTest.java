@@ -5,7 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import space.nebula.nexus.utils.MailUtil;
 
-@SpringBootTest
+@SpringBootTest(classes = space.nebula.nexus.config.MockRedisConfig.class)
+@org.springframework.test.context.ActiveProfiles("test")
 public class MailConnectionTest {
 
     @Autowired

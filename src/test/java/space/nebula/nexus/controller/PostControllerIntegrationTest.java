@@ -28,7 +28,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(classes = space.nebula.nexus.config.MockRedisConfig.class)
+@org.springframework.test.context.ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Transactional
 public class PostControllerIntegrationTest {
