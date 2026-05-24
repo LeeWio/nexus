@@ -19,5 +19,8 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
 	long countUv(LocalDateTime start, LocalDateTime end);
 
 	@Query("SELECT v.requestUrl as url, COUNT(v) as count FROM VisitLog v WHERE v.visitTime >= :start GROUP BY v.requestUrl ORDER BY count DESC")
-	List<Map<String, Object>> findTopContent(LocalDateTime start);
+	List<Map<String, Object>> findTopContentRaw(LocalDateTime start);
+
+	@Query("SELECT DATE(v.visitTime) as visitDate, COUNT(v) as pv, COUNT(DISTINCT v.ipAddress) as uv FROM VisitLog v WHERE v.visitTime >= :start GROUP BY visitDate ORDER BY visitDate ASC")
+	List<Map<String, Object>> findDailyTrendRaw(LocalDateTime start);
 }
