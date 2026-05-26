@@ -24,38 +24,44 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/menus")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminMenuController {
+public class AdminMenuController
+{
 
 	private final IMenuService menuService;
 
 	@GetMapping("/tree")
 	@Operation(summary = "Retrieve complete menu hierarchy", description = "Fetch the entire system menu structure as a nested tree.")
-	public ApiResponse<List<Tree<Long>>> retrieveMenuTree() {
+	public ApiResponse<List<Tree<Long>>> retrieveMenuTree()
+	{
 		return menuService.retrieveFullMenuTree();
 	}
 
 	@PostMapping
 	@Operation(summary = "Create menu item", description = "Add a new item to the system menu hierarchy.")
-	public ApiResponse<MenuResponse> createMenu(@Valid @RequestBody MenuRequest request) {
+	public ApiResponse<MenuResponse> createMenu(@Valid @RequestBody MenuRequest request)
+	{
 		return menuService.createMenu(request);
 	}
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update menu item", description = "Modify an existing menu item's details, parent, or permissions.")
 	public ApiResponse<MenuResponse> updateMenu(@Parameter(description = "Menu ID") @PathVariable Long id,
-			@Valid @RequestBody MenuRequest request) {
+			@Valid @RequestBody MenuRequest request)
+	{
 		return menuService.updateMenu(id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete menu item", description = "Permanently remove a menu item and its descendants.")
-	public ApiResponse<Void> deleteMenu(@Parameter(description = "Menu ID") @PathVariable Long id) {
+	public ApiResponse<Void> deleteMenu(@Parameter(description = "Menu ID") @PathVariable Long id)
+	{
 		return menuService.deleteMenu(id);
 	}
 
 	@GetMapping("/current")
 	@Operation(summary = "Retrieve current user menu", description = "Fetch the menu hierarchy filtered by the authenticated user's permissions.")
-	public ApiResponse<List<Tree<Long>>> retrieveAuthenticatedUserMenus() {
+	public ApiResponse<List<Tree<Long>>> retrieveAuthenticatedUserMenus()
+	{
 		return menuService.retrieveAuthenticatedUserMenuTree();
 	}
 }

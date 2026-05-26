@@ -28,47 +28,59 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @ConditionalOnProperty(name = "app.search.type", havingValue = "elasticsearch", matchIfMissing = true)
-public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchService {
+public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchService
+{
 
 	private final PostSearchRepository postSearchRepository;
 
 	public ElasticsearchPostSearchServiceImpl(PostRepository postRepository, CategoryRepository categoryRepository,
 			TagRepository tagRepository, ProjectRepository projectRepository, MomentRepository momentRepository,
-			PostSearchRepository postSearchRepository) {
+			PostSearchRepository postSearchRepository)
+	{
 		super(postRepository, categoryRepository, tagRepository, projectRepository, momentRepository);
 		this.postSearchRepository = postSearchRepository;
 	}
 
 	@Async("asyncExecutor")
 	@Override
-	public void indexPost(Post post) {
-		if (post.getStatus() != PostStatus.PUBLISHED) {
+	public void indexPost(Post post)
+	{
+		if (post.getStatus() != PostStatus.PUBLISHED)
+		{
 			deletePostIndex(post.getId());
 			return;
 		}
-		try {
+		try
+		{
 			PostDocument document = mapToDocument(post);
 			postSearchRepository.save(document);
 			log.info("Successfully indexed post to Elasticsearch: {}", post.getId());
-		} catch (Exception e) {
+		}
+		catch (Exception e)
+		{
 			log.error("Failed to index post to Elasticsearch: {}", post.getId(), e);
 		}
 	}
 
 	@Async("asyncExecutor")
 	@Override
-	public void deletePostIndex(Long postId) {
-		try {
+	public void deletePostIndex(Long postId)
+	{
+		try
+		{
 			postSearchRepository.deleteById(postId.toString());
 			log.info("Successfully deleted post from Elasticsearch: {}", postId);
-		} catch (Exception e) {
+		}
+		catch (Exception e)
+		{
 			log.error("Failed to delete post from Elasticsearch: {}", postId, e);
 		}
 	}
 
 	@Async("asyncExecutor")
 	@Override
-	public void rebuildIndex() {
+	public void rebuildIndex()
+	{
 		log.info("Starting Elasticsearch index rebuild for posts...");
 		postSearchRepository.deleteAll();
 
@@ -77,34 +89,42 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 		long totalIndexed = 0;
 
 		org.springframework.data.domain.Page<Post> postPage;
-		do {
+		do
+		{
 			postPage = postRepository.findAll(org.springframework.data.domain.PageRequest.of(page, size));
 			List<PostDocument> documents = postPage.getContent().stream()
 					.filter(p -> p.getStatus() == PostStatus.PUBLISHED).map(this::mapToDocument).toList();
 
-			if (!documents.isEmpty()) {
+			if (!documents.isEmpty())
+			{
 				postSearchRepository.saveAll(documents);
 				totalIndexed += documents.size();
 			}
 			page++;
-		} while (postPage.hasNext());
+		}
+		while (postPage.hasNext());
 
 		log.info("Finished rebuilding Elasticsearch index. Total posts indexed: {}", totalIndexed);
 	}
 
 	@Override
-	public ApiResponse<PageResult<PostDocument>> searchPosts(String keyword, Pageable pageable) {
+	public ApiResponse<PageResult<PostDocument>> searchPosts(String keyword, Pageable pageable)
+	{
 		Page<PostDocument> page;
-		if (StrUtil.isBlank(keyword)) {
+		if (StrUtil.isBlank(keyword))
+		{
 			page = postSearchRepository.findAll(pageable);
-		} else {
+		}
+		else
+		{
 			page = postSearchRepository.findByTitleOrSummaryOrContent(keyword, keyword, keyword, pageable);
 		}
 		return ApiResponse.success(PageResult.of(page));
 	}
 
 	@Override
-	protected List<QuickSearchResponse.SearchResultItem> searchQuickPosts(String keyword) {
+	protected List<QuickSearchResponse.SearchResultItem> searchQuickPosts(String keyword)
+	{
 		var postPage = postSearchRepository.findByTitleOrSummaryOrContent(keyword, keyword, keyword,
 				org.springframework.data.domain.PageRequest.of(0, 5));
 		return postPage.getContent().stream()
@@ -113,7 +133,8 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 	}
 
 	@Override
-	protected void searchPostsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups) {
+	protected void searchPostsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups)
+	{
 		var postPage = postSearchRepository.findByTitleOrSummaryOrContent(keyword, keyword, keyword,
 				org.springframework.data.domain.PageRequest.of(0, 5));
 
@@ -124,7 +145,8 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 						.type("POST").build())
 				.collect(Collectors.toList());
 
-		if (!items.isEmpty()) {
+		if (!items.isEmpty())
+		{
 			groups.add(UnifiedSearchResponse.SearchGroup.builder().type("POST").label("Articles").priority(10)
 					.items(items).build());
 		}

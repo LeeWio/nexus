@@ -15,11 +15,13 @@ import java.io.IOException;
  * Security's default HTML page.
  */
 @Component
-public class CustomAccessDeniedHandler implements AccessDeniedHandler {
+public class CustomAccessDeniedHandler implements AccessDeniedHandler
+{
 
 	@Override
 	public void handle(HttpServletRequest request, HttpServletResponse response,
-			AccessDeniedException accessDeniedException) throws IOException, ServletException {
+			AccessDeniedException accessDeniedException) throws IOException, ServletException
+	{
 		response.setContentType("application/json;charset=UTF-8");
 		response.setStatus(HttpServletResponse.SC_FORBIDDEN);
 		// In a real project, you would map this to a common Result/Response class using

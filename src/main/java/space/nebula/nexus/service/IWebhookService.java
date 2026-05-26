@@ -6,7 +6,8 @@ import space.nebula.nexus.payload.response.WebhookResponse;
 
 import java.util.List;
 
-public interface IWebhookService {
+public interface IWebhookService
+{
 
 	ApiResponse<List<WebhookResponse>> retrieveAllWebhooks();
 

@@ -5,9 +5,6 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      # Copy .env.example to .env and choose one SMTP mode only:
-      # 587 => MAIL_SSL=false, MAIL_STARTTLS=true
-      # 465 => MAIL_SSL=true, MAIL_STARTTLS=false
       - .env
     environment:
       - SPRING_PROFILES_ACTIVE=dev
@@ -16,12 +13,15 @@ services:
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=nexus_password
       - SPRING_DATA_REDIS_HOST=nexus-redis
+      - RABBITMQ_HOST=nexus-rabbitmq
       - ES_URIS=http://nexus-elasticsearch:9200
       - MANAGEMENT_HEALTH_MAIL_ENABLED=false
     depends_on:
       nexus-db:
         condition: service_healthy
       nexus-redis:
+        condition: service_started
+      nexus-rabbitmq:
         condition: service_started
       nexus-elasticsearch:
         condition: service_healthy
@@ -60,38 +60,6 @@ services:
     networks:
       - nexus-network
     restart: always
-
-  nexus-elasticsearch:
-    image: elasticsearch:9.2.8
-    container_name: nexus-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - xpack.security.http.ssl.enabled=false
-      - xpack.security.enrollment.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-    volumes:
-      - nexus-es-data:/usr/share/elasticsearch/data
-    networks:
-      - nexus-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s >/dev/null"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
-    restart: always
-
-networks:
-  nexus-network:
-    driver: bridge
-
-volumes:
-  nexus-db-data:
-  nexus-redis-data:
-  nexus-es-data:
 
   nexus-rabbitmq:
     image: rabbitmq:3.13-management-alpine
@@ -133,3 +101,35 @@ volumes:
     networks:
       - nexus-network
     restart: always
+
+  nexus-elasticsearch:
+    image: elasticsearch:9.2.8
+    container_name: nexus-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - nexus-es-data:/usr/share/elasticsearch/data
+    networks:
+      - nexus-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: always
+
+networks:
+  nexus-network:
+    driver: bridge
+
+volumes:
+  nexus-db-data:
+  nexus-redis-data:
+  nexus-es-data:

@@ -25,21 +25,24 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class TagServiceImpl implements ITagService {
+public class TagServiceImpl implements ITagService
+{
 
 	private final TagRepository tagRepository;
 	private final TagMapper tagMapper;
 	private final RedisUtil redisUtil;
 
 	@Override
-	public ApiResponse<List<TagResponse>> getAllTags() {
+	public ApiResponse<List<TagResponse>> getAllTags()
+	{
 		return ApiResponse.success(tagMapper.toResponseList(tagRepository.findAll()));
 	}
 
 	@Override
 	@Transactional
 	@LogOperation("Create Tag")
-	public ApiResponse<TagResponse> createTag(TagRequest request) {
+	public ApiResponse<TagResponse> createTag(TagRequest request)
+	{
 		validateUniqueConstraints(null, request);
 
 		Tag tag = new Tag();
@@ -54,7 +57,8 @@ public class TagServiceImpl implements ITagService {
 	@Override
 	@Transactional
 	@LogOperation("Update Tag")
-	public ApiResponse<TagResponse> updateTag(Long id, TagRequest request) {
+	public ApiResponse<TagResponse> updateTag(Long id, TagRequest request)
+	{
 		Tag existingTag = tagRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Tag", "id", id));
 
 		validateUniqueConstraints(existingTag, request);
@@ -70,7 +74,8 @@ public class TagServiceImpl implements ITagService {
 	@Override
 	@Transactional
 	@LogOperation("Delete Tag")
-	public ApiResponse<Void> deleteTag(Long id) {
+	public ApiResponse<Void> deleteTag(Long id)
+	{
 		Assert.isTrue(tagRepository.existsById(id), () -> new ResourceNotFoundException("Tag", "id", id));
 		tagRepository.deleteById(id);
 		log.info("Tag deleted id: {}", id);
@@ -78,18 +83,26 @@ public class TagServiceImpl implements ITagService {
 		return ApiResponse.success("Tag deleted successfully", null);
 	}
 
-	private void validateUniqueConstraints(Tag existing, TagRequest request) {
-		if (StrUtil.isNotBlank(request.name()) && (existing == null || !StrUtil.equals(existing.getName(), request.name()))) {
+	private void validateUniqueConstraints(Tag existing, TagRequest request)
+	{
+		if (StrUtil.isNotBlank(request.name())
+				&& (existing == null || !StrUtil.equals(existing.getName(), request.name())))
+		{
 			Assert.isFalse(tagRepository.findByName(request.name()).isPresent(),
-					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag name already exists: " + request.name()));
+					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
+							"Tag name already exists: " + request.name()));
 		}
-		if (StrUtil.isNotBlank(request.slug()) && (existing == null || !StrUtil.equals(existing.getSlug(), request.slug()))) {
+		if (StrUtil.isNotBlank(request.slug())
+				&& (existing == null || !StrUtil.equals(existing.getSlug(), request.slug())))
+		{
 			Assert.isFalse(tagRepository.findBySlug(request.slug()).isPresent(),
-					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag slug already exists: " + request.slug()));
+					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
+							"Tag slug already exists: " + request.slug()));
 		}
 	}
 
-	private void clearSeoCache() {
+	private void clearSeoCache()
+	{
 		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
 	}
 }

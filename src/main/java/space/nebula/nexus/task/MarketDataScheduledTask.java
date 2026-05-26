@@ -16,7 +16,8 @@ import java.util.concurrent.TimeUnit;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class MarketDataScheduledTask {
+public class MarketDataScheduledTask
+{
 
 	private final IMarketDataService marketDataService;
 	private final RedisUtil redisUtil;
@@ -28,23 +29,30 @@ public class MarketDataScheduledTask {
 	 * users first load the dashboard.
 	 */
 	@Scheduled(cron = "0 * * * * *")
-	public void preWarmMarketData1D() {
-		if (!redisUtil.lock(LOCK_KEY_1D, "locked", 50, TimeUnit.SECONDS)) {
+	public void preWarmMarketData1D()
+	{
+		if (!redisUtil.lock(LOCK_KEY_1D, "locked", 50, TimeUnit.SECONDS))
+		{
 			return;
 		}
 
 		log.info("Starting scheduled pre-warming of 1D market data");
-		try {
-			if (marketDataService instanceof MarketDataServiceImpl impl) {
+		try
+		{
+			if (marketDataService instanceof MarketDataServiceImpl impl)
+			{
 				List<MarketIndexResponse> responses = impl.fetchIndicesFromApi(CacheConstants.MARKET_1D);
-				if (!responses.isEmpty()) {
+				if (!responses.isEmpty())
+				{
 					String cacheKey = CacheConstants.buildFullKey(CacheConstants.MARKET_INDICES,
 							CacheConstants.MARKET_1D);
 					redisUtil.set(cacheKey, responses, 1, TimeUnit.MINUTES);
 					log.info("Successfully pre-warmed 1D market data for {} indices", responses.size());
 				}
 			}
-		} catch (Exception e) {
+		}
+		catch (Exception e)
+		{
 			log.error("Failed to pre-warm 1D market data", e);
 		}
 	}

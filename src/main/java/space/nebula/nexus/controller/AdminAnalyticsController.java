@@ -16,13 +16,15 @@ import space.nebula.nexus.service.IAnalyticsService;
 @RequestMapping("/api/v1/admin/analytics")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-public class AdminAnalyticsController {
+public class AdminAnalyticsController
+{
 
 	private final IAnalyticsService analyticsService;
 
 	@Operation(summary = "Retrieve today's traffic overview")
 	@GetMapping("/overview")
-	public ApiResponse<AnalyticsOverviewResponse> retrieveOverview() {
+	public ApiResponse<AnalyticsOverviewResponse> retrieveOverview()
+	{
 		return analyticsService.retrieveOverviewStats();
 	}
 }

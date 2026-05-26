@@ -6,7 +6,8 @@ import space.nebula.nexus.payload.response.UserResponse;
 
 import java.util.List;
 
-public interface IAdminUserService {
+public interface IAdminUserService
+{
 
 	ApiResponse<List<UserResponse>> getAllUsers();
 
@@ -17,6 +18,8 @@ public interface IAdminUserService {
 	ApiResponse<Void> enableUser(Long id);
 
 	ApiResponse<Void> deleteUser(Long id);
+
+	ApiResponse<Void> auditUser(Long id, boolean approved);
 
 	ApiResponse<Void> assignRoles(Long userId, AssignRoleRequest request);
 }

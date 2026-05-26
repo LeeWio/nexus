@@ -1,5 +1,8 @@
 package space.nebula.nexus.common.validator;
 
+import cn.hutool.core.lang.Validator;
+import cn.hutool.core.util.ReUtil;
+import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import space.nebula.nexus.common.constant.BusinessCode;
@@ -17,15 +20,29 @@ public class UserValidator {
 
 	private final UserRepository userRepository;
 
+	// Regex for professional password: at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+	private static final String PASSWORD_PATTERN = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
+
 	/**
 	 * Validates if the registration request meets all business constraints.
-	 * 
-	 * @param request
-	 *            the registration details
-	 * @throws BusinessException
-	 *             if username or email is already in use
 	 */
 	public void validateRegistration(RegisterRequest request) {
+		// 1. Basic format checks using Hutool
+		if (StrUtil.isBlank(request.username()) || request.username().length() < 4) {
+			throw new BusinessException(BusinessCode.BAD_REQUEST, "Username must be at least 4 characters");
+		}
+
+		if (!Validator.isEmail(request.email())) {
+			throw new BusinessException(BusinessCode.BAD_REQUEST, "Invalid email format");
+		}
+
+		// 2. Password strength validation
+		if (!ReUtil.isMatch(PASSWORD_PATTERN, request.password())) {
+			throw new BusinessException(BusinessCode.BAD_REQUEST, 
+					"Password must be at least 8 characters long and include uppercase, lowercase, numbers, and special characters");
+		}
+
+		// 3. Uniqueness checks
 		if (userRepository.existsByUsername(request.username())) {
 			throw new BusinessException(BusinessCode.DUPLICATE_KEY,
 					"Username '" + request.username() + "' is already taken");

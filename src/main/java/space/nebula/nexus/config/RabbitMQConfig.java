@@ -3,6 +3,7 @@ package space.nebula.nexus.config;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
@@ -21,44 +22,68 @@ public class RabbitMQConfig
 	public static final String MAIL_ROUTING_KEY = "nexus.mail.routing.key";
 	public static final String MAIL_QUEUE = "nexus.mail.send.queue";
 
+	public static final String CACHE_BROADCAST_EXCHANGE = "nexus.cache.broadcast.exchange";
+
 	@Bean
-	public MessageConverter jsonMessageConverter()
+	MessageConverter jsonMessageConverter()
 	{
 		return new JacksonJsonMessageConverter();
 	}
 
 	@Bean
-	public DirectExchange canalExchange()
+	DirectExchange canalExchange()
 	{
 		return new DirectExchange(CANAL_EXCHANGE);
 	}
 
 	@Bean
-	public Queue canalQueue()
+	Queue canalQueue()
 	{
 		return new Queue(CANAL_QUEUE, true);
 	}
 
 	@Bean
-	public Binding canalBinding(Queue canalQueue, DirectExchange canalExchange)
+	Binding canalBinding(Queue canalQueue, DirectExchange canalExchange)
 	{
 		return BindingBuilder.bind(canalQueue).to(canalExchange).with(CANAL_ROUTING_KEY);
 	}
 
 	@Bean
-	public DirectExchange mailExchange()
+	FanoutExchange cacheBroadcastExchange()
+	{
+		return new FanoutExchange(CACHE_BROADCAST_EXCHANGE);
+	}
+
+	/**
+	 * Unique queue for each instance to receive cache invalidation broadcasts.
+	 * Using auto-delete so it cleans up when the instance goes down.
+	 */
+	@Bean
+	Queue l1CacheInvalidationQueue()
+	{
+		return new Queue("nexus.l1.invalidation." + cn.hutool.core.util.IdUtil.fastSimpleUUID(), false, false, true);
+	}
+
+	@Bean
+	Binding l1CacheBinding(Queue l1CacheInvalidationQueue, FanoutExchange cacheBroadcastExchange)
+	{
+		return BindingBuilder.bind(l1CacheInvalidationQueue).to(cacheBroadcastExchange);
+	}
+
+	@Bean
+	DirectExchange mailExchange()
 	{
 		return new DirectExchange(MAIL_EXCHANGE);
 	}
 
 	@Bean
-	public Queue mailQueue()
+	Queue mailQueue()
 	{
 		return new Queue(MAIL_QUEUE, true);
 	}
 
 	@Bean
-	public Binding mailBinding(Queue mailQueue, DirectExchange mailExchange)
+	Binding mailBinding(Queue mailQueue, DirectExchange mailExchange)
 	{
 		return BindingBuilder.bind(mailQueue).to(mailExchange).with(MAIL_ROUTING_KEY);
 	}

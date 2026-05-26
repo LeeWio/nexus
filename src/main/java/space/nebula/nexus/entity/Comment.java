@@ -8,7 +8,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,9 +16,6 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 import space.nebula.nexus.enums.CommentStatus;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Getter
 @Setter
 @Entity
@@ -27,7 +23,8 @@ import java.util.List;
 @Table(name = "blog_comment")
 @SQLDelete(sql = "UPDATE blog_comment SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class Comment extends BaseEntity {
+public class Comment extends BaseEntity
+{
 
 	@Lob
 	@Column(nullable = false, columnDefinition = "TEXT")

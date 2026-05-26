@@ -18,20 +18,23 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping("/api/v1/public/moments")
 @RequiredArgsConstructor
 @Tag(name = "Public Moments", description = "Public endpoints for viewing and interacting with microblogs")
-public class PublicMomentController {
+public class PublicMomentController
+{
 
 	private final IMomentService momentService;
 
 	@GetMapping
 	@Operation(summary = "Get published moments timeline")
-	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(@PageableDefault(size = 20) Pageable pageable) {
+	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(@PageableDefault(size = 20) Pageable pageable)
+	{
 		return momentService.getPublicMoments(pageable);
 	}
 
 	@PostMapping("/{id}/like")
 	@Operation(summary = "Like a moment (anonymous allowed with rate limit)")
 	@RateLimit(count = 5, time = 1, unit = TimeUnit.MINUTES, message = "Too many likes, please slow down")
-	public ApiResponse<Void> likeMoment(@PathVariable Long id) {
+	public ApiResponse<Void> likeMoment(@PathVariable Long id)
+	{
 		return momentService.likeMoment(id);
 	}
 }

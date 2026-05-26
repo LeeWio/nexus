@@ -7,11 +7,16 @@ import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.PostResponse;
 
-public interface IPostService {
+public interface IPostService
+{
 	ApiResponse<PageResult<PostResponse>> searchPostsForAdmin(Pageable pageable);
+
 	ApiResponse<PostResponse> retrievePostById(Long id);
+
 	ApiResponse<PostResponse> createPost(PostRequest request);
+
 	ApiResponse<PostResponse> updatePost(Long id, PostRequest request);
+
 	ApiResponse<Void> deletePost(Long id);
 
 	/**
@@ -27,6 +32,7 @@ public interface IPostService {
 	// Public methods
 	ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
 			Pageable pageable);
+
 	ApiResponse<PostResponse> retrievePostBySlug(String slug);
 
 	/**

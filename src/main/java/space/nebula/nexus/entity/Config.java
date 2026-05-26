@@ -11,7 +11,8 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "sys_config")
-public class Config extends BaseEntity {
+public class Config extends BaseEntity
+{
 
 	@Column(name = "config_key", nullable = false, unique = true, length = 100)
 	private String configKey;

@@ -18,13 +18,15 @@ import space.nebula.nexus.service.IPostSearchService;
 @RequestMapping("/api/v1/admin/search")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminSearchController {
+public class AdminSearchController
+{
 
 	private final IPostSearchService postSearchService;
 
 	@PostMapping("/rebuild")
 	@Operation(summary = "Rebuild search index", description = "Trigger a background task to clear and rebuild the entire search index from the database.")
-	public ApiResponse<Void> rebuildIndex() {
+	public ApiResponse<Void> rebuildIndex()
+	{
 		postSearchService.rebuildIndex();
 		return ApiResponse.success("Search index rebuild task started in the background", null);
 	}

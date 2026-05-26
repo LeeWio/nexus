@@ -30,7 +30,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class MenuServiceImpl implements IMenuService {
+public class MenuServiceImpl implements IMenuService
+{
 
 	private final MenuRepository menuRepository;
 	private final UserRepository userRepository;
@@ -38,7 +39,8 @@ public class MenuServiceImpl implements IMenuService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<Tree<Long>>> retrieveFullMenuTree() {
+	public ApiResponse<List<Tree<Long>>> retrieveFullMenuTree()
+	{
 		List<Menu> allMenus = menuRepository.findAllByOrderBySortOrderAsc();
 		return ApiResponse.success(buildHierarchy(menuMapper.toResponseList(allMenus)));
 	}
@@ -46,9 +48,11 @@ public class MenuServiceImpl implements IMenuService {
 	@Override
 	@Transactional
 	@LogOperation("Create Menu")
-	public ApiResponse<MenuResponse> createMenu(MenuRequest request) {
+	public ApiResponse<MenuResponse> createMenu(MenuRequest request)
+	{
 		Menu newMenu = menuMapper.toEntity(request);
-		if (newMenu.getParentId() == null) {
+		if (newMenu.getParentId() == null)
+		{
 			newMenu.setParentId(0L);
 		}
 		menuRepository.save(newMenu);
@@ -59,7 +63,8 @@ public class MenuServiceImpl implements IMenuService {
 	@Override
 	@Transactional
 	@LogOperation("Update Menu")
-	public ApiResponse<MenuResponse> updateMenu(Long id, MenuRequest request) {
+	public ApiResponse<MenuResponse> updateMenu(Long id, MenuRequest request)
+	{
 		Menu existingMenu = menuRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Menu", "id", id));
 
@@ -73,8 +78,10 @@ public class MenuServiceImpl implements IMenuService {
 	@Override
 	@Transactional
 	@LogOperation("Delete Menu")
-	public ApiResponse<Void> deleteMenu(Long id) {
-		if (!menuRepository.existsById(id)) {
+	public ApiResponse<Void> deleteMenu(Long id)
+	{
+		if (!menuRepository.existsById(id))
+		{
 			throw new ResourceNotFoundException("Menu", "id", id);
 		}
 		menuRepository.deleteById(id);
@@ -84,7 +91,8 @@ public class MenuServiceImpl implements IMenuService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<Tree<Long>>> retrieveAuthenticatedUserMenuTree() {
+	public ApiResponse<List<Tree<Long>>> retrieveAuthenticatedUserMenuTree()
+	{
 		String authenticatedUsername = SecurityContextHolder.getContext().getAuthentication().getName();
 		User currentUser = userRepository.findByUsername(authenticatedUsername)
 				.orElseThrow(() -> new BusinessException("Authenticated user not found"));
@@ -103,21 +111,24 @@ public class MenuServiceImpl implements IMenuService {
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.NAVIGATION, key = CacheConstants.PUBLIC_TREE_KEY)
-	public ApiResponse<List<Tree<Long>>> retrievePublicNavigationMenuTree() {
+	public ApiResponse<List<Tree<Long>>> retrievePublicNavigationMenuTree()
+	{
 		List<Menu> publicVisibleMenus = menuRepository.findByIsPublicTrueAndIsVisibleTrueOrderBySortOrderAsc();
 		List<MenuResponse> publicResponses = menuMapper.toResponseList(publicVisibleMenus);
 		return ApiResponse.success(buildHierarchy(publicResponses));
 	}
 
-	private List<Tree<Long>> buildHierarchy(List<MenuResponse> flatMenus) {
+	private List<Tree<Long>> buildHierarchy(List<MenuResponse> flatMenus)
+	{
 		TreeNodeConfig config = new TreeNodeConfig();
 		config.setIdKey("id");
 		config.setParentIdKey("parentId");
 		config.setWeightKey("sortOrder");
 		config.setNameKey("name");
 		config.setChildrenKey("children");
-		
-		return TreeUtil.build(flatMenus, 0L, config, (menuResponse, treeNode) -> {
+
+		return TreeUtil.build(flatMenus, 0L, config, (menuResponse, treeNode) ->
+		{
 			treeNode.setId(menuResponse.getId());
 			treeNode.setParentId(menuResponse.getParentId());
 			treeNode.setWeight(menuResponse.getSortOrder());

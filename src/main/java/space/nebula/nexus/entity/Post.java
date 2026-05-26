@@ -28,7 +28,8 @@ import java.util.Set;
 @Table(name = "blog_post")
 @SQLDelete(sql = "UPDATE blog_post SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class Post extends BaseEntity {
+public class Post extends BaseEntity
+{
 
 	@Column(nullable = false, length = 200)
 	private String title;

@@ -22,7 +22,8 @@ import java.time.temporal.ChronoUnit;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class DashboardServiceImpl implements IDashboardService {
+public class DashboardServiceImpl implements IDashboardService
+{
 
 	private final UserRepository userRepository;
 	private final PostRepository postRepository;
@@ -32,7 +33,8 @@ public class DashboardServiceImpl implements IDashboardService {
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.SITE_STATS, key = "'admin_dashboard'")
-	public ApiResponse<DashboardStatsResponse> getStatistics() {
+	public ApiResponse<DashboardStatsResponse> getStatistics()
+	{
 		long totalUsers = userRepository.count();
 		long totalPosts = postRepository.count();
 		long totalComments = commentRepository.count();
@@ -50,7 +52,8 @@ public class DashboardServiceImpl implements IDashboardService {
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.SITE_STATS, key = CacheConstants.PUBLIC_DASHBOARD_KEY)
-	public ApiResponse<PublicStatsResponse> getPublicStatistics() {
+	public ApiResponse<PublicStatsResponse> getPublicStatistics()
+	{
 		long totalPosts = postRepository.count();
 		long totalComments = commentRepository.countByStatus(CommentStatus.APPROVED);
 
@@ -65,12 +68,17 @@ public class DashboardServiceImpl implements IDashboardService {
 		return ApiResponse.success("Public statistics retrieved successfully", stats);
 	}
 
-	private long calculateRuntimeDays() {
-		return configRepository.findByConfigKey("site_launch_date").map(config -> {
-			try {
+	private long calculateRuntimeDays()
+	{
+		return configRepository.findByConfigKey("site_launch_date").map(config ->
+		{
+			try
+			{
 				LocalDate launchDate = LocalDate.parse(config.getConfigValue());
 				return ChronoUnit.DAYS.between(launchDate, LocalDate.now());
-			} catch (Exception e) {
+			}
+			catch (Exception e)
+			{
 				log.warn("Failed to parse site_launch_date: {}", config.getConfigValue());
 				return 0L;
 			}

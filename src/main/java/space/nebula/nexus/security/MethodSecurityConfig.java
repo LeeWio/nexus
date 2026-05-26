@@ -8,16 +8,19 @@ import org.springframework.security.access.expression.method.MethodSecurityExpre
 import lombok.RequiredArgsConstructor;
 
 /**
- * Configuration to register the custom PermissionEvaluator with Spring Security.
+ * Configuration to register the custom PermissionEvaluator with Spring
+ * Security.
  */
 @Configuration
 @RequiredArgsConstructor
-public class MethodSecurityConfig {
+public class MethodSecurityConfig
+{
 
 	private final NexusPermissionEvaluator permissionEvaluator;
 
 	@Bean
-	public MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+	MethodSecurityExpressionHandler methodSecurityExpressionHandler()
+	{
 		DefaultMethodSecurityExpressionHandler expressionHandler = new DefaultMethodSecurityExpressionHandler();
 		expressionHandler.setPermissionEvaluator(permissionEvaluator);
 		return expressionHandler;

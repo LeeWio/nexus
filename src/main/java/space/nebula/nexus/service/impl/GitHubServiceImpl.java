@@ -23,7 +23,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class GitHubServiceImpl implements IGitHubService {
+public class GitHubServiceImpl implements IGitHubService
+{
 
 	private final RestClient restClient;
 	private final RedisUtil redisUtil;
@@ -40,11 +41,14 @@ public class GitHubServiceImpl implements IGitHubService {
 	@Override
 	@CircuitBreaker(name = "githubService", fallbackMethod = "fallbackStats")
 	@Retry(name = "githubService")
-	public GitHubStatsResponse retrieveGlobalStats() {
-		return redisUtil.get(CacheConstants.GITHUB_STATS_CACHE_KEY, GitHubStatsResponse.class).orElseGet(() -> {
+	public GitHubStatsResponse retrieveGlobalStats()
+	{
+		return redisUtil.get(CacheConstants.GITHUB_STATS_CACHE_KEY, GitHubStatsResponse.class).orElseGet(() ->
+		{
 			log.info("GitHub global stats cache miss, fetching from API...");
 			GitHubStatsResponse stats = fetchGlobalStatsFromApi();
-			if (stats != null) {
+			if (stats != null)
+			{
 				redisUtil.set(CacheConstants.GITHUB_STATS_CACHE_KEY, stats, 6, TimeUnit.HOURS);
 			}
 			return stats;
@@ -54,16 +58,20 @@ public class GitHubServiceImpl implements IGitHubService {
 	@Override
 	@CircuitBreaker(name = "githubService", fallbackMethod = "fallbackMetrics")
 	@Retry(name = "githubService")
-	public Map<String, Object> retrieveRepoMetrics(String repoName) {
+	public Map<String, Object> retrieveRepoMetrics(String repoName)
+	{
 		Map<String, Object> body = restClient.get()
 				.uri(GITHUB_API_BASE + "/repos/{owner}/{repo}", githubUsername, repoName)
-				.accept(MediaType.parseMediaType("application/vnd.github.v3+json")).headers(headers -> {
-					if (githubToken != null && !githubToken.isBlank()) {
+				.accept(MediaType.parseMediaType("application/vnd.github.v3+json")).headers(headers ->
+				{
+					if (githubToken != null && !githubToken.isBlank())
+					{
 						headers.setBearerAuth(githubToken);
 					}
 				}).retrieve().body(Map.class);
 
-		if (body != null) {
+		if (body != null)
+		{
 			Map<String, Object> metrics = new HashMap<>();
 			metrics.put("stars", body.get("stargazers_count"));
 			metrics.put("forks", body.get("forks_count"));
@@ -74,17 +82,22 @@ public class GitHubServiceImpl implements IGitHubService {
 	}
 
 	@Override
-	public void synchronizeProjectMetrics() {
+	public void synchronizeProjectMetrics()
+	{
 		log.info("Starting synchronization of GitHub project metrics...");
 		List<Project> projects = projectRepository.findAll();
 		int updatedCount = 0;
 
-		for (Project project : projects) {
-			if (project.getGithubUrl() != null && !project.getGithubUrl().isBlank()) {
+		for (Project project : projects)
+		{
+			if (project.getGithubUrl() != null && !project.getGithubUrl().isBlank())
+			{
 				String repoName = extractRepoName(project.getGithubUrl());
-				if (repoName != null) {
+				if (repoName != null)
+				{
 					Map<String, Object> metrics = retrieveRepoMetrics(repoName);
-					if (metrics != null) {
+					if (metrics != null)
+					{
 						project.setStarsCount((Integer) metrics.get("stars"));
 						project.setForksCount((Integer) metrics.get("forks"));
 						project.setLanguage((String) metrics.get("language"));
@@ -101,15 +114,19 @@ public class GitHubServiceImpl implements IGitHubService {
 		redisUtil.delete(CacheConstants.GITHUB_STATS_CACHE_KEY);
 	}
 
-	private GitHubStatsResponse fetchGlobalStatsFromApi() {
+	private GitHubStatsResponse fetchGlobalStatsFromApi()
+	{
 		Map body = restClient.get().uri(GITHUB_API_BASE + "/users/{username}", githubUsername)
-				.accept(MediaType.parseMediaType("application/vnd.github.v3+json")).headers(headers -> {
-					if (githubToken != null && !githubToken.isBlank()) {
+				.accept(MediaType.parseMediaType("application/vnd.github.v3+json")).headers(headers ->
+				{
+					if (githubToken != null && !githubToken.isBlank())
+					{
 						headers.setBearerAuth(githubToken);
 					}
 				}).retrieve().body(Map.class);
 
-		if (body != null) {
+		if (body != null)
+		{
 			return GitHubStatsResponse.builder().followers((Integer) body.get("followers"))
 					.publicRepos((Integer) body.get("public_repos")).htmlUrl((String) body.get("html_url"))
 					.avatarUrl((String) body.get("avatar_url")).totalStars(0).build();
@@ -117,13 +134,15 @@ public class GitHubServiceImpl implements IGitHubService {
 		return null;
 	}
 
-	public GitHubStatsResponse fallbackStats(Exception e) {
+	public GitHubStatsResponse fallbackStats(Exception e)
+	{
 		log.error("GitHub stats fallback triggered due to: {}", e.getMessage());
 		return GitHubStatsResponse.builder().followers(0).publicRepos(0).totalStars(0)
 				.htmlUrl("https://github.com/" + githubUsername).build();
 	}
 
-	public Map<String, Object> fallbackMetrics(String repoName, Exception e) {
+	public Map<String, Object> fallbackMetrics(String repoName, Exception e)
+	{
 		log.error("GitHub metrics fallback triggered for {} due to: {}", repoName, e.getMessage());
 		Map<String, Object> fallback = new HashMap<>();
 		fallback.put("stars", 0);
@@ -132,13 +151,18 @@ public class GitHubServiceImpl implements IGitHubService {
 		return fallback;
 	}
 
-	private String extractRepoName(String githubUrl) {
-		try {
+	private String extractRepoName(String githubUrl)
+	{
+		try
+		{
 			String[] parts = githubUrl.split("/");
-			if (parts.length >= 5) {
+			if (parts.length >= 5)
+			{
 				return parts[parts.length - 1].replace(".git", "");
 			}
-		} catch (Exception e) {
+		}
+		catch (Exception e)
+		{
 			log.warn("Could not extract repo name from URL: {}", githubUrl);
 		}
 		return null;

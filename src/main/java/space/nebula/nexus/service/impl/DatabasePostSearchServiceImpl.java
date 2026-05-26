@@ -27,34 +27,42 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @ConditionalOnProperty(name = "app.search.type", havingValue = "database")
-public class DatabasePostSearchServiceImpl extends AbstractPostSearchService {
+public class DatabasePostSearchServiceImpl extends AbstractPostSearchService
+{
 
 	public DatabasePostSearchServiceImpl(PostRepository postRepository, CategoryRepository categoryRepository,
-			TagRepository tagRepository, ProjectRepository projectRepository, MomentRepository momentRepository) {
+			TagRepository tagRepository, ProjectRepository projectRepository, MomentRepository momentRepository)
+	{
 		super(postRepository, categoryRepository, tagRepository, projectRepository, momentRepository);
 	}
 
 	@Override
-	public void indexPost(Post post) {
+	public void indexPost(Post post)
+	{
 		log.debug("Database search mode enabled, skipping indexing for post: {}", post.getId());
 	}
 
 	@Override
-	public void deletePostIndex(Long postId) {
+	public void deletePostIndex(Long postId)
+	{
 		log.debug("Database search mode enabled, skipping index deletion for post: {}", postId);
 	}
 
 	@Override
-	public void rebuildIndex() {
+	public void rebuildIndex()
+	{
 		log.debug("Database search mode enabled, skipping index rebuild.");
 	}
 
 	@Override
-	public ApiResponse<PageResult<PostDocument>> searchPosts(String keyword, Pageable pageable) {
-		Specification<Post> spec = (root, query, cb) -> {
+	public ApiResponse<PageResult<PostDocument>> searchPosts(String keyword, Pageable pageable)
+	{
+		Specification<Post> spec = (root, query, cb) ->
+		{
 			Specification<Post> statusSpec = (r, q, c) -> c.equal(r.get("status"), PostStatus.PUBLISHED);
 
-			if (StrUtil.isBlank(keyword)) {
+			if (StrUtil.isBlank(keyword))
+			{
 				return statusSpec.toPredicate(root, query, cb);
 			}
 
@@ -72,7 +80,8 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService {
 	}
 
 	@Override
-	protected List<QuickSearchResponse.SearchResultItem> searchQuickPosts(String keyword) {
+	protected List<QuickSearchResponse.SearchResultItem> searchQuickPosts(String keyword)
+	{
 		return postRepository.findTop5ByTitleContainingIgnoreCaseAndStatus(keyword, PostStatus.PUBLISHED).stream()
 				.map(p -> new QuickSearchResponse.SearchResultItem(p.getId().toString(), p.getTitle(),
 						"/posts/" + p.getSlug()))
@@ -80,12 +89,13 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService {
 	}
 
 	@Override
-	protected void searchPostsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups) {
-		Specification<Post> postSpec = (root, query, cb) -> {
+	protected void searchPostsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups)
+	{
+		Specification<Post> postSpec = (root, query, cb) ->
+		{
 			String pattern = "%" + keyword.toLowerCase() + "%";
-			return cb.and(cb.equal(root.get("status"), PostStatus.PUBLISHED),
-					cb.or(cb.like(cb.lower(root.get("title")), pattern),
-							cb.like(cb.lower(root.get("summary")), pattern)));
+			return cb.and(cb.equal(root.get("status"), PostStatus.PUBLISHED), cb.or(
+					cb.like(cb.lower(root.get("title")), pattern), cb.like(cb.lower(root.get("summary")), pattern)));
 		};
 
 		List<UnifiedSearchResponse.SearchResultItem> items = postRepository
@@ -95,7 +105,8 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService {
 						.icon("book-text").iconColor("#3b82f6").type("POST").build())
 				.collect(Collectors.toList());
 
-		if (!items.isEmpty()) {
+		if (!items.isEmpty())
+		{
 			groups.add(UnifiedSearchResponse.SearchGroup.builder().type("POST").label("Articles").priority(10)
 					.items(items).build());
 		}

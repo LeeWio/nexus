@@ -24,26 +24,30 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CustomOAuth2UserService extends DefaultOAuth2UserService {
+public class CustomOAuth2UserService extends DefaultOAuth2UserService
+{
 
 	private final UserRepository userRepository;
 	private final RoleRepository roleRepository;
 
 	@Override
 	@Transactional
-	public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+	public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException
+	{
 		OAuth2User oauth2User = super.loadUser(userRequest);
 
 		String clientRegistrationId = userRequest.getClientRegistration().getRegistrationId();
 
-		if ("github".equals(clientRegistrationId)) {
+		if ("github".equals(clientRegistrationId))
+		{
 			return processGithubUser(oauth2User);
 		}
 
 		return oauth2User;
 	}
 
-	private OAuth2User processGithubUser(OAuth2User oauth2User) {
+	private OAuth2User processGithubUser(OAuth2User oauth2User)
+	{
 		Map<String, Object> attributes = oauth2User.getAttributes();
 		String githubId = String.valueOf(attributes.get("id"));
 		String username = (String) attributes.get("login");
@@ -54,13 +58,16 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
 		Optional<User> userOptional = userRepository.findByGithubId(githubId);
 		User user;
-		if (userOptional.isPresent()) {
+		if (userOptional.isPresent())
+		{
 			user = userOptional.get();
 			// Update existing user info from GitHub
 			user.setGithubUsername(username);
 			user.setAvatar(avatar);
 			user.setNickname(name != null ? name : username);
-		} else {
+		}
+		else
+		{
 			// Register new user via GitHub
 			user = new User();
 			user.setGithubId(githubId);

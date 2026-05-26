@@ -16,38 +16,49 @@ import java.nio.charset.StandardCharsets;
  */
 @Slf4j
 @Service
-public class SensitiveWordServiceImpl implements SensitiveWordService {
+public class SensitiveWordServiceImpl implements SensitiveWordService
+{
 
 	private final WordTree wordTree = new WordTree();
 
 	@PostConstruct
-	public void init() {
+	public void init()
+	{
 		log.info("Initializing sensitive word dictionary...");
-		try {
+		try
+		{
 			ClassPathResource resource = new ClassPathResource("dict/sensitive_words.txt");
-			if (resource.exists()) {
+			if (resource.exists())
+			{
 				try (BufferedReader reader = new BufferedReader(
-						new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
+						new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8)))
+				{
 					reader.lines().filter(line -> !line.isBlank()).forEach(wordTree::addWord);
 				}
 			}
 			log.info("Sensitive word dictionary initialized successfully.");
-		} catch (Exception e) {
+		}
+		catch (Exception e)
+		{
 			log.error("Failed to load sensitive words dictionary", e);
 		}
 	}
 
 	@Override
-	public boolean containsSensitiveWord(String text) {
-		if (text == null || text.isBlank()) {
+	public boolean containsSensitiveWord(String text)
+	{
+		if (text == null || text.isBlank())
+		{
 			return false;
 		}
 		return wordTree.isMatch(text);
 	}
 
 	@Override
-	public String filter(String text) {
-		if (text == null || text.isBlank()) {
+	public String filter(String text)
+	{
+		if (text == null || text.isBlank())
+		{
 			return text;
 		}
 		// Hutool's WordTree doesn't have a direct "replace" in older versions,

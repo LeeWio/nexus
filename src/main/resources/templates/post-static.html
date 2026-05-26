@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${post.title}">Post Title</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+        .metadata { color: #666; font-size: 0.9em; margin-bottom: 30px; }
+        .content { margin-top: 20px; }
+        img { max-width: 100%; height: auto; }
+    </style>
+</head>
+<body>
+    <h1 th:text="${post.title}">Post Title</h1>
+    <div class="metadata">
+        By <span th:text="${post.author.nickname}">Author</span> 
+        on <span th:text="${#temporals.format(post.publishedAt, 'yyyy-MM-dd')}">Date</span>
+    </div>
+    <div class="content" th:utext="${post.content}">
+        Post Content
+    </div>
+</body>
+</html>

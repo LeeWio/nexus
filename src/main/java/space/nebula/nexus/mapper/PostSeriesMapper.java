@@ -17,7 +17,8 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 import java.util.List;
 
 @Mapper(config = CentralMapperConfig.class)
-public abstract class PostSeriesMapper {
+public abstract class PostSeriesMapper
+{
 
 	@Autowired
 	@Lazy

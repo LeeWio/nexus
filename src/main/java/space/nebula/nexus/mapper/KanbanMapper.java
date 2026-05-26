@@ -14,8 +14,9 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 
 import java.util.List;
 
-@Mapper(config = CentralMapperConfig.class, uses = {TagMapper.class})
-public interface KanbanMapper {
+@Mapper(config = CentralMapperConfig.class, uses = { TagMapper.class })
+public interface KanbanMapper
+{
 
 	KanbanColumnResponse toResponse(KanbanColumn column);
 

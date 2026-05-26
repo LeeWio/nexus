@@ -23,7 +23,8 @@ import java.util.Optional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class SystemInitializer {
+public class SystemInitializer
+{
 
 	private final UserRepository userRepository;
 	private final RoleRepository roleRepository;
@@ -35,7 +36,8 @@ public class SystemInitializer {
 
 	@EventListener(ApplicationReadyEvent.class)
 	@Transactional
-	public void init() {
+	public void init()
+	{
 		log.info("Checking system initialization...");
 
 		// 1. Ensure ROLE_ADMIN and ROLE_USER exist
@@ -44,7 +46,8 @@ public class SystemInitializer {
 
 		// 2. Ensure default admin user exists
 		Optional<User> adminOpt = userRepository.findByUsername(ADMIN_USERNAME);
-		if (adminOpt.isEmpty()) {
+		if (adminOpt.isEmpty())
+		{
 			log.info("Initializing default administrator: {}", ADMIN_USERNAME);
 			User admin = new User();
 			admin.setUsername(ADMIN_USERNAME);
@@ -55,27 +58,34 @@ public class SystemInitializer {
 			admin.setRoles(new HashSet<>(Collections.singletonList(adminRole)));
 			userRepository.save(admin);
 			log.info("Default administrator initialized successfully.");
-		} else {
+		}
+		else
+		{
 			// Ensure the existing user has ADMIN role and ACTIVE status
 			User admin = adminOpt.get();
 			boolean updated = false;
-			if (admin.getStatus() != UserStatus.ACTIVE) {
+			if (admin.getStatus() != UserStatus.ACTIVE)
+			{
 				admin.setStatus(UserStatus.ACTIVE);
 				updated = true;
 			}
-			if (admin.getRoles().stream().noneMatch(r -> "ROLE_ADMIN".equals(r.getCode()))) {
+			if (admin.getRoles().stream().noneMatch(r -> "ROLE_ADMIN".equals(r.getCode())))
+			{
 				admin.getRoles().add(adminRole);
 				updated = true;
 			}
-			if (updated) {
+			if (updated)
+			{
 				userRepository.save(admin);
 				log.info("Existing user '{}' updated to active administrator.", ADMIN_USERNAME);
 			}
 		}
 	}
 
-	private Role ensureRole(String code, String name, String description) {
-		return roleRepository.findByCode(code).orElseGet(() -> {
+	private Role ensureRole(String code, String name, String description)
+	{
+		return roleRepository.findByCode(code).orElseGet(() ->
+		{
 			log.info("Initializing role: {}", code);
 			Role role = new Role();
 			role.setCode(code);

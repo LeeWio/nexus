@@ -5,7 +5,9 @@ import space.nebula.nexus.payload.response.MarketIndexResponse;
 
 import java.util.List;
 
-public interface IMarketDataService {
+public interface IMarketDataService
+{
 	ApiResponse<List<MarketIndexResponse>> getIndices(String period);
+
 	ApiResponse<MarketIndexResponse> getIndex(String symbol, String period);
 }

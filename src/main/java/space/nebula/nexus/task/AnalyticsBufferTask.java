@@ -15,7 +15,8 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AnalyticsBufferTask {
+public class AnalyticsBufferTask
+{
 
 	private final RedisUtil redisUtil;
 	private final VisitLogRepository visitLogRepository;
@@ -28,11 +29,13 @@ public class AnalyticsBufferTask {
 	 */
 	@Scheduled(fixedRate = 300000)
 	@Transactional
-	public void flushAnalyticsBuffer() {
+	public void flushAnalyticsBuffer()
+	{
 		log.info("Commencing batch persistence of buffered analytics logs...");
 
 		Long bufferSize = redisUtil.listSize(CacheConstants.ANALYTICS_BUFFER_KEY);
-		if (bufferSize == null || bufferSize == 0) {
+		if (bufferSize == null || bufferSize == 0)
+		{
 			log.info("Analytics buffer is empty. Skipping flush.");
 			return;
 		}
@@ -41,10 +44,12 @@ public class AnalyticsBufferTask {
 		List<VisitLog> logsToPersist = redisUtil.listPopLeft(CacheConstants.ANALYTICS_BUFFER_KEY, bufferSize,
 				VisitLog.class);
 
-		if (!logsToPersist.isEmpty()) {
+		if (!logsToPersist.isEmpty())
+		{
 			// Process in sub-batches if the total size is very large
 			int total = logsToPersist.size();
-			for (int i = 0; i < total; i += BATCH_SIZE) {
+			for (int i = 0; i < total; i += BATCH_SIZE)
+			{
 				int end = Math.min(i + BATCH_SIZE, total);
 				visitLogRepository.saveAll(logsToPersist.subList(i, end));
 			}

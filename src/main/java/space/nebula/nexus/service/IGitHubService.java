@@ -4,7 +4,8 @@ import space.nebula.nexus.payload.response.GitHubStatsResponse;
 
 import java.util.Map;
 
-public interface IGitHubService {
+public interface IGitHubService
+{
 
 	/**
 	 * Retrieves global stats for the configured GitHub user.
@@ -14,8 +15,7 @@ public interface IGitHubService {
 	/**
 	 * Retrieves metrics for a specific repository.
 	 * 
-	 * @param repoName
-	 *            repository name (e.g. "nexus")
+	 * @param repoName repository name (e.g. "nexus")
 	 */
 	Map<String, Object> retrieveRepoMetrics(String repoName);
 

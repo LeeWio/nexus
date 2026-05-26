@@ -24,39 +24,45 @@ import space.nebula.nexus.service.IProjectService;
 @RequestMapping("/api/v1/admin/projects")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminProjectController {
+public class AdminProjectController
+{
 
 	private final IProjectService projectService;
 
 	@GetMapping
 	@Operation(summary = "Get all projects", description = "Retrieve a paginated list of all projects for administrative management.")
 	public ApiResponse<PageResult<ProjectResponse>> getAllProjects(
-			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10) Pageable pageable) {
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10) Pageable pageable)
+	{
 		return projectService.getAdminProjects(pageable);
 	}
 
 	@GetMapping("/{id}")
 	@Operation(summary = "Get project by ID", description = "Fetch detailed information for a specific project.")
-	public ApiResponse<ProjectResponse> getProjectById(@Parameter(description = "Project ID") @PathVariable Long id) {
+	public ApiResponse<ProjectResponse> getProjectById(@Parameter(description = "Project ID") @PathVariable Long id)
+	{
 		return projectService.getProjectById(id);
 	}
 
 	@PostMapping
 	@Operation(summary = "Create project", description = "Add a new project to the portfolio.")
-	public ApiResponse<ProjectResponse> createProject(@Valid @RequestBody ProjectRequest request) {
+	public ApiResponse<ProjectResponse> createProject(@Valid @RequestBody ProjectRequest request)
+	{
 		return projectService.createProject(request);
 	}
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update project", description = "Modify an existing project's details, tech stack, or visibility.")
 	public ApiResponse<ProjectResponse> updateProject(@Parameter(description = "Project ID") @PathVariable Long id,
-			@Valid @RequestBody ProjectRequest request) {
+			@Valid @RequestBody ProjectRequest request)
+	{
 		return projectService.updateProject(id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete project", description = "Permanently remove a project from the portfolio.")
-	public ApiResponse<Void> deleteProject(@Parameter(description = "Project ID") @PathVariable Long id) {
+	public ApiResponse<Void> deleteProject(@Parameter(description = "Project ID") @PathVariable Long id)
+	{
 		return projectService.deleteProject(id);
 	}
 }

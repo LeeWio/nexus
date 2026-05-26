@@ -1,6 +1,7 @@
 package space.nebula.nexus.service;
 
-public interface ISeoService {
+public interface ISeoService
+{
 
 	/**
 	 * Generates a standard XML Sitemap for search engine crawlers. Includes posts,

@@ -24,7 +24,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class WebhookServiceImpl implements IWebhookService {
+public class WebhookServiceImpl implements IWebhookService
+{
 
 	private final WebhookRepository webhookRepository;
 	private final WebhookMapper webhookMapper;
@@ -32,9 +33,9 @@ public class WebhookServiceImpl implements IWebhookService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<WebhookResponse>> retrieveAllWebhooks() {
-		List<WebhookResponse> responses = webhookRepository.findAll().stream()
-				.map(webhookMapper::toResponse)
+	public ApiResponse<List<WebhookResponse>> retrieveAllWebhooks()
+	{
+		List<WebhookResponse> responses = webhookRepository.findAll().stream().map(webhookMapper::toResponse)
 				.collect(Collectors.toList());
 		return ApiResponse.success(responses);
 	}
@@ -42,7 +43,8 @@ public class WebhookServiceImpl implements IWebhookService {
 	@Override
 	@Transactional
 	@LogOperation("Create Webhook")
-	public ApiResponse<WebhookResponse> createWebhook(WebhookRequest request) {
+	public ApiResponse<WebhookResponse> createWebhook(WebhookRequest request)
+	{
 		Webhook webhook = webhookMapper.toEntity(request);
 		webhookRepository.save(webhook);
 		log.info("Created new webhook: {}", webhook.getName());
@@ -52,7 +54,8 @@ public class WebhookServiceImpl implements IWebhookService {
 	@Override
 	@Transactional
 	@LogOperation("Update Webhook")
-	public ApiResponse<WebhookResponse> updateWebhook(Long id, WebhookRequest request) {
+	public ApiResponse<WebhookResponse> updateWebhook(Long id, WebhookRequest request)
+	{
 		Webhook webhook = webhookRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Webhook", "id", id));
 		webhookMapper.updateEntity(webhook, request);
@@ -64,7 +67,8 @@ public class WebhookServiceImpl implements IWebhookService {
 	@Override
 	@Transactional
 	@LogOperation("Delete Webhook")
-	public ApiResponse<Void> deleteWebhook(Long id) {
+	public ApiResponse<Void> deleteWebhook(Long id)
+	{
 		Assert.isTrue(webhookRepository.existsById(id), () -> new ResourceNotFoundException("Webhook", "id", id));
 		webhookRepository.deleteById(id);
 		log.info("Deleted webhook ID: {}", id);
@@ -72,17 +76,16 @@ public class WebhookServiceImpl implements IWebhookService {
 	}
 
 	@Override
-	public ApiResponse<Void> triggerTestWebhook(Long id) {
+	public ApiResponse<Void> triggerTestWebhook(Long id)
+	{
 		Webhook webhook = webhookRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Webhook", "id", id));
-		
-		Dict payload = Dict.create()
-				.set("event", "ping")
-				.set("timestamp", System.currentTimeMillis())
-				.set("message", "Nexus Webhook Test Ping");
-		
+
+		Dict payload = Dict.create().set("event", "ping").set("timestamp", System.currentTimeMillis()).set("message",
+				"Nexus Webhook Test Ping");
+
 		webhookDispatcher.dispatchPayload(webhook, payload);
-		
+
 		return ApiResponse.success("Test webhook triggered", null);
 	}
 }

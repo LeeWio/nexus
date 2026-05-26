@@ -24,7 +24,8 @@ import java.util.Objects;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PostRevisionServiceImpl implements IPostRevisionService {
+public class PostRevisionServiceImpl implements IPostRevisionService
+{
 
 	private final PostRevisionRepository postRevisionRepository;
 	private final PostRevisionMapper postRevisionMapper;
@@ -34,7 +35,8 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 
 	@Override
 	@Transactional
-	public void saveRevision(Post post) {
+	public void saveRevision(Post post)
+	{
 		int nextVersion = postRevisionRepository.findMaxVersionByPostId(post.getId()).orElse(0) + 1;
 
 		PostRevision revision = new PostRevision();
@@ -51,8 +53,10 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<PostRevisionResponse>> getPostRevisions(Long postId) {
-		if (!postRepository.existsById(postId)) {
+	public ApiResponse<List<PostRevisionResponse>> getPostRevisions(Long postId)
+	{
+		if (!postRepository.existsById(postId))
+		{
 			throw new BusinessException(404, "Post not found");
 		}
 		List<PostRevision> revisions = postRevisionRepository.findByPostIdOrderByVersionNumberDesc(postId);
@@ -61,13 +65,15 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 
 	@Override
 	@Transactional
-	public ApiResponse<PostResponse> revertToRevision(Long postId, Long revisionId) {
+	public ApiResponse<PostResponse> revertToRevision(Long postId, Long revisionId)
+	{
 		Post post = postRepository.findById(postId).orElseThrow(() -> new BusinessException(404, "Post not found"));
 
 		PostRevision revision = postRevisionRepository.findById(revisionId)
 				.orElseThrow(() -> new BusinessException(404, "Revision not found"));
 
-		if (!revision.getPost().getId().equals(postId)) {
+		if (!revision.getPost().getId().equals(postId))
+		{
 			throw new BusinessException(400, "Revision does not belong to this post");
 		}
 
@@ -93,13 +99,15 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PostDiffResponse> compareRevisions(Long postId, Long baseRevisionId, Long targetRevisionId) {
+	public ApiResponse<PostDiffResponse> compareRevisions(Long postId, Long baseRevisionId, Long targetRevisionId)
+	{
 		PostRevision base = postRevisionRepository.findById(baseRevisionId)
 				.orElseThrow(() -> new BusinessException(404, "Base revision not found"));
 		PostRevision target = postRevisionRepository.findById(targetRevisionId)
 				.orElseThrow(() -> new BusinessException(404, "Target revision not found"));
 
-		if (!base.getPost().getId().equals(postId) || !target.getPost().getId().equals(postId)) {
+		if (!base.getPost().getId().equals(postId) || !target.getPost().getId().equals(postId))
+		{
 			throw new BusinessException(400, "Revisions do not belong to the specified post");
 		}
 

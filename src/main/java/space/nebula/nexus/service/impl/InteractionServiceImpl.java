@@ -17,14 +17,16 @@ import space.nebula.nexus.security.util.SecurityUtil;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class InteractionServiceImpl implements IInteractionService {
+public class InteractionServiceImpl implements IInteractionService
+{
 
 	private final RedisUtil redisUtil;
 	private final PostRepository postRepository;
 	private final UserRepository userRepository;
 
 	@Override
-	public ApiResponse<Void> likePost(Long postId) {
+	public ApiResponse<Void> likePost(Long postId)
+	{
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		validatePostExists(postId);
 		String key = CacheConstants.POST_LIKES_SET + postId;
@@ -33,7 +35,8 @@ public class InteractionServiceImpl implements IInteractionService {
 	}
 
 	@Override
-	public ApiResponse<Void> unlikePost(Long postId) {
+	public ApiResponse<Void> unlikePost(Long postId)
+	{
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		String key = CacheConstants.POST_LIKES_SET + postId;
 		redisUtil.setRemove(key, user.getId().toString());
@@ -41,7 +44,8 @@ public class InteractionServiceImpl implements IInteractionService {
 	}
 
 	@Override
-	public ApiResponse<Void> favoritePost(Long postId) {
+	public ApiResponse<Void> favoritePost(Long postId)
+	{
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		validatePostExists(postId);
 		String key = CacheConstants.POST_FAVORITES_SET + postId;
@@ -50,7 +54,8 @@ public class InteractionServiceImpl implements IInteractionService {
 	}
 
 	@Override
-	public ApiResponse<Void> unfavoritePost(Long postId) {
+	public ApiResponse<Void> unfavoritePost(Long postId)
+	{
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		String key = CacheConstants.POST_FAVORITES_SET + postId;
 		redisUtil.setRemove(key, user.getId().toString());
@@ -59,10 +64,13 @@ public class InteractionServiceImpl implements IInteractionService {
 
 	@Override
 	public void populateInteractionData(space.nebula.nexus.payload.response.PostResponse.PostResponseBuilder builder,
-			Long postId) {
+			Long postId)
+	{
 		String username = SecurityUtil.getCurrentUsername();
-		if (username != null) {
-			userRepository.findByUsername(username).ifPresent(user -> {
+		if (username != null)
+		{
+			userRepository.findByUsername(username).ifPresent(user ->
+			{
 				String likeKey = CacheConstants.POST_LIKES_SET + postId;
 				String favKey = CacheConstants.POST_FAVORITES_SET + postId;
 
@@ -72,14 +80,18 @@ public class InteractionServiceImpl implements IInteractionService {
 				builder.isLiked(isLiked != null ? isLiked : false);
 				builder.isFavorited(isFavorited != null ? isFavorited : false);
 			});
-		} else {
+		}
+		else
+		{
 			builder.isLiked(false);
 			builder.isFavorited(false);
 		}
 	}
 
-	private void validatePostExists(Long postId) {
-		if (!postRepository.existsById(postId)) {
+	private void validatePostExists(Long postId)
+	{
+		if (!postRepository.existsById(postId))
+		{
 			throw new ResourceNotFoundException("Post", "id", postId);
 		}
 	}

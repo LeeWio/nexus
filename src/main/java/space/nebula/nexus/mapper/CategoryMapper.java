@@ -13,7 +13,8 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 import java.util.List;
 
 @Mapper(config = CentralMapperConfig.class)
-public interface CategoryMapper {
+public interface CategoryMapper
+{
 
 	CategoryResponse toResponse(Category category);
 

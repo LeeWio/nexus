@@ -17,8 +17,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Mapper(config = CentralMapperConfig.class, uses = {RoleMapper.class})
-public interface UserMapper {
+@Mapper(config = CentralMapperConfig.class, uses = { RoleMapper.class })
+public interface UserMapper
+{
 
 	@Mapping(target = "roles", source = "roles", qualifiedByName = "mapRoleCodes")
 	UserResponse toResponse(User user);
@@ -45,14 +46,16 @@ public interface UserMapper {
 	void updateEntity(@MappingTarget User user, space.nebula.nexus.payload.request.UserProfileRequest request);
 
 	@Named("mapRoleCodes")
-	default Set<String> mapRoleCodes(Set<Role> roles) {
+	default Set<String> mapRoleCodes(Set<Role> roles)
+	{
 		if (roles == null)
 			return null;
 		return roles.stream().map(Role::getCode).collect(Collectors.toSet());
 	}
 
 	@Named("mapPermissions")
-	default Set<String> mapPermissions(Set<Role> roles) {
+	default Set<String> mapPermissions(Set<Role> roles)
+	{
 		if (roles == null)
 			return null;
 		return roles.stream().flatMap(role -> role.getMenus().stream()).map(Menu::getPermission)

@@ -13,7 +13,8 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 import java.util.List;
 
 @Mapper(config = CentralMapperConfig.class)
-public interface FriendLinkMapper {
+public interface FriendLinkMapper
+{
 
 	@Mapping(target = "id", ignore = true)
 	@Mapping(target = "createdAt", ignore = true)

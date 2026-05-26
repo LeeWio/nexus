@@ -19,7 +19,8 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
-public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
+public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler
+{
 
 	private final JwtUtils jwtUtils;
 	private final UserRepository userRepository;
@@ -29,7 +30,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
 	@Override
 	public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-			Authentication authentication) throws IOException, ServletException {
+			Authentication authentication) throws IOException, ServletException
+	{
 		DefaultOAuth2User oAuth2User = (DefaultOAuth2User) authentication.getPrincipal();
 		String githubId = String.valueOf(oAuth2User.getAttributes().get("id"));
 

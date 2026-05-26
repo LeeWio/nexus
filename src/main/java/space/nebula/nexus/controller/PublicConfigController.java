@@ -20,21 +20,25 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/public/configs")
 @RequiredArgsConstructor
-public class PublicConfigController {
+public class PublicConfigController
+{
 
 	private final IConfigService configService;
 
 	@Operation(summary = "Get Public Configs", description = "Retrieve all system configurations marked as public.")
 	@GetMapping
-	public ApiResponse<List<ConfigResponse>> getPublicConfigs() {
+	public ApiResponse<List<ConfigResponse>> getPublicConfigs()
+	{
 		return configService.getPublicConfigs();
 	}
 
 	@Operation(summary = "Get Public Config by Key", description = "Retrieve a specific public configuration by its unique key.")
 	@GetMapping("/{key}")
-	public ApiResponse<ConfigResponse> getConfigByKey(@PathVariable String key) {
+	public ApiResponse<ConfigResponse> getConfigByKey(@PathVariable String key)
+	{
 		ApiResponse<ConfigResponse> response = configService.getConfigByKey(key);
-		if (response.data() != null && Boolean.TRUE.equals(response.data().getIsPublic())) {
+		if (response.data() != null && Boolean.TRUE.equals(response.data().getIsPublic()))
+		{
 			return response;
 		}
 		return ApiResponse.error(404, "Configuration not found or not authorized for public access");

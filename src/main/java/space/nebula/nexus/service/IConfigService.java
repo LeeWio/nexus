@@ -6,11 +6,17 @@ import space.nebula.nexus.payload.response.ConfigResponse;
 
 import java.util.List;
 
-public interface IConfigService {
+public interface IConfigService
+{
 	ApiResponse<List<ConfigResponse>> getAllConfigs();
+
 	ApiResponse<List<ConfigResponse>> getPublicConfigs();
+
 	ApiResponse<ConfigResponse> getConfigByKey(String configKey);
+
 	ApiResponse<ConfigResponse> createConfig(ConfigRequest request);
+
 	ApiResponse<ConfigResponse> updateConfig(Long id, ConfigRequest request);
+
 	ApiResponse<Void> deleteConfig(Long id);
 }

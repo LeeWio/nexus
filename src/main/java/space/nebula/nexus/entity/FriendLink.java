@@ -19,7 +19,8 @@ import space.nebula.nexus.enums.FriendLinkStatus;
 @Table(name = "blog_friend_link")
 @SQLDelete(sql = "UPDATE blog_friend_link SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class FriendLink extends BaseEntity {
+public class FriendLink extends BaseEntity
+{
 
 	@Column(nullable = false, length = 100)
 	private String name;

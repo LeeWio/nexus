@@ -26,7 +26,8 @@ import space.nebula.nexus.service.IPostSearchService;
 @RestController
 @RequestMapping("/api/v1/public/search")
 @RequiredArgsConstructor
-public class PublicSearchController {
+public class PublicSearchController
+{
 
 	private final IPostSearchService postSearchService;
 
@@ -35,21 +36,24 @@ public class PublicSearchController {
 	public ApiResponse<PageResult<PostDocument>> searchPosts(
 			@Parameter(description = "Keywords to search for in title, summary, and content") @RequestParam(required = false) String keyword,
 
-			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable)
+	{
 		return postSearchService.searchPosts(keyword, pageable);
 	}
 
 	@GetMapping("/quick")
 	@Operation(summary = "Quick search (Command+K) - Legacy", description = "Lightweight unified search across posts, categories, and tags.")
 	public ApiResponse<QuickSearchResponse> quickSearch(
-			@Parameter(description = "Search keyword") @RequestParam String keyword) {
+			@Parameter(description = "Search keyword") @RequestParam String keyword)
+	{
 		return postSearchService.quickSearch(keyword);
 	}
 
 	@GetMapping("/unified")
 	@Operation(summary = "Unified search (Professional Cmd+K)", description = "Rich grouped search across all content with Next.js routing and metadata.")
 	public ApiResponse<UnifiedSearchResponse> unifiedSearch(
-			@Parameter(description = "Search keyword") @RequestParam(required = false) String keyword) {
+			@Parameter(description = "Search keyword") @RequestParam(required = false) String keyword)
+	{
 		return postSearchService.unifiedSearch(keyword);
 	}
 }

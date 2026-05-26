@@ -24,14 +24,16 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CategoryServiceImpl implements ICategoryService {
+public class CategoryServiceImpl implements ICategoryService
+{
 
 	private final CategoryRepository categoryRepository;
 	private final CategoryMapper categoryMapper;
 	private final RedisUtil redisUtil;
 
 	@Override
-	public ApiResponse<List<CategoryResponse>> retrieveAllCategories() {
+	public ApiResponse<List<CategoryResponse>> retrieveAllCategories()
+	{
 		List<Category> allCategories = categoryRepository.findAll();
 		return ApiResponse.success(categoryMapper.toResponseList(allCategories));
 	}
@@ -39,7 +41,8 @@ public class CategoryServiceImpl implements ICategoryService {
 	@Override
 	@Transactional
 	@LogOperation("Create Category")
-	public ApiResponse<CategoryResponse> createCategory(CategoryRequest request) {
+	public ApiResponse<CategoryResponse> createCategory(CategoryRequest request)
+	{
 		validateUniqueConstraints(null, request);
 
 		Category newCategory = new Category();
@@ -54,7 +57,8 @@ public class CategoryServiceImpl implements ICategoryService {
 	@Override
 	@Transactional
 	@LogOperation("Update Category")
-	public ApiResponse<CategoryResponse> updateCategory(Long id, CategoryRequest request) {
+	public ApiResponse<CategoryResponse> updateCategory(Long id, CategoryRequest request)
+	{
 		Category existingCategory = categoryRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Category", "id", id));
 
@@ -71,27 +75,34 @@ public class CategoryServiceImpl implements ICategoryService {
 	@Override
 	@Transactional
 	@LogOperation("Delete Category")
-	public ApiResponse<Void> deleteCategory(Long id) {
+	public ApiResponse<Void> deleteCategory(Long id)
+	{
 		Assert.isTrue(categoryRepository.existsById(id), () -> new ResourceNotFoundException("Category", "id", id));
-		
+
 		categoryRepository.deleteById(id);
 		log.info("Category deleted id: {}", id);
 		clearSeoCache();
 		return ApiResponse.success("Category deleted successfully", null);
 	}
 
-	private void validateUniqueConstraints(Category existing, CategoryRequest request) {
-		if (request.name() != null && (existing == null || !existing.getName().equals(request.name()))) {
+	private void validateUniqueConstraints(Category existing, CategoryRequest request)
+	{
+		if (request.name() != null && (existing == null || !existing.getName().equals(request.name())))
+		{
 			Assert.isFalse(categoryRepository.findByName(request.name()).isPresent(),
-					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Category name already exists: " + request.name()));
+					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
+							"Category name already exists: " + request.name()));
 		}
-		if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug()))) {
+		if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug())))
+		{
 			Assert.isFalse(categoryRepository.findBySlug(request.slug()).isPresent(),
-					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Category slug already exists: " + request.slug()));
+					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
+							"Category slug already exists: " + request.slug()));
 		}
 	}
 
-	private void clearSeoCache() {
+	private void clearSeoCache()
+	{
 		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
 	}
 }

@@ -37,7 +37,8 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class FriendLinkServiceImpl implements IFriendLinkService {
+public class FriendLinkServiceImpl implements IFriendLinkService
+{
 
 	private final FriendLinkRepository friendLinkRepository;
 	private final FriendLinkMapper friendLinkMapper;
@@ -45,14 +46,16 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<FriendLinkResponse>> retrieveAdminFriendLinks(Pageable pageable) {
+	public ApiResponse<PageResult<FriendLinkResponse>> retrieveAdminFriendLinks(Pageable pageable)
+	{
 		var friendLinkPage = friendLinkRepository.findAll(pageable).map(friendLinkMapper::toResponse);
 		return ApiResponse.success(PageResult.of(friendLinkPage));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<FriendLinkResponse> retrieveFriendLinkById(Long id) {
+	public ApiResponse<FriendLinkResponse> retrieveFriendLinkById(Long id)
+	{
 		var friendLink = findFriendLinkOrThrow(id);
 		return ApiResponse.success(friendLinkMapper.toResponse(friendLink));
 	}
@@ -61,11 +64,13 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 	@Transactional
 	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
 	@LogOperation("Create Friend Link")
-	public ApiResponse<FriendLinkResponse> createFriendLink(FriendLinkRequest request) {
+	public ApiResponse<FriendLinkResponse> createFriendLink(FriendLinkRequest request)
+	{
 		validateUrlUniqueness(request.url(), null);
 
 		var newLink = friendLinkMapper.toEntity(request);
-		if (newLink.getStatus() == null) {
+		if (newLink.getStatus() == null)
+		{
 			newLink.setStatus(FriendLinkStatus.APPROVED);
 		}
 
@@ -78,7 +83,8 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 	@Transactional
 	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
 	@LogOperation("Update Friend Link")
-	public ApiResponse<FriendLinkResponse> updateFriendLink(Long id, FriendLinkRequest request) {
+	public ApiResponse<FriendLinkResponse> updateFriendLink(Long id, FriendLinkRequest request)
+	{
 		var existingLink = findFriendLinkOrThrow(id);
 		validateUrlUniqueness(request.url(), id);
 
@@ -93,7 +99,8 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 	@Transactional
 	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
 	@LogOperation("Delete Friend Link")
-	public ApiResponse<Void> deleteFriendLink(Long id) {
+	public ApiResponse<Void> deleteFriendLink(Long id)
+	{
 		Assert.isTrue(friendLinkRepository.existsById(id), () -> new ResourceNotFoundException("FriendLink", "id", id));
 		friendLinkRepository.deleteById(id);
 		log.info("Friend link deleted ID: {}", id);
@@ -103,7 +110,8 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.FRIEND_LINKS, key = CacheConstants.PUBLIC_LIST_KEY)
-	public ApiResponse<List<FriendLinkResponse>> retrievePublicFriendLinks() {
+	public ApiResponse<List<FriendLinkResponse>> retrievePublicFriendLinks()
+	{
 		var activeLinks = friendLinkRepository
 				.findByStatusAndIsPublishedTrueOrderBySortOrderAscCreatedAtDesc(FriendLinkStatus.APPROVED);
 		return ApiResponse.success(friendLinkMapper.toResponseList(activeLinks));
@@ -112,7 +120,8 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 	@Override
 	@Transactional
 	@LogOperation("Apply for Friend Link")
-	public ApiResponse<Void> applyForFriendLink(FriendLinkRequest request) {
+	public ApiResponse<Void> applyForFriendLink(FriendLinkRequest request)
+	{
 		validateUrlUniqueness(request.url(), null);
 
 		var application = friendLinkMapper.toEntity(request);
@@ -133,10 +142,12 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 	@Transactional
 	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
 	@LogOperation("Moderate Friend Link")
-	public ApiResponse<Void> moderateFriendLink(Long id, FriendLinkStatus status) {
+	public ApiResponse<Void> moderateFriendLink(Long id, FriendLinkStatus status)
+	{
 		var link = findFriendLinkOrThrow(id);
 		link.setStatus(status);
-		if (status == FriendLinkStatus.APPROVED) {
+		if (status == FriendLinkStatus.APPROVED)
+		{
 			link.setIsPublished(true);
 		}
 		friendLinkRepository.save(link);
@@ -144,34 +155,35 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 		return ApiResponse.success("Friend link status updated to " + status, null);
 	}
 
-	private FriendLink findFriendLinkOrThrow(Long id) {
+	private FriendLink findFriendLinkOrThrow(Long id)
+	{
 		return friendLinkRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("FriendLink", "id", id));
 	}
 
-	private void validateUrlUniqueness(String url, Long excludeId) {
-		friendLinkRepository.findByUrl(url).ifPresent(link -> {
-			if (excludeId == null || !link.getId().equals(excludeId)) {
+	private void validateUrlUniqueness(String url, Long excludeId)
+	{
+		friendLinkRepository.findByUrl(url).ifPresent(link ->
+		{
+			if (excludeId == null || !link.getId().equals(excludeId))
+			{
 				throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Friend link with this URL already exists");
 			}
 		});
 	}
 
-	private void sendApplicationNotification(FriendLink link) {
+	private void sendApplicationNotification(FriendLink link)
+	{
 		String subject = "New Friend Link Application: " + link.getName();
 		String content = StrUtil.format(
 				"Hello Admin,\n\nA new friend link application has been submitted:\n\n"
 						+ "Site Name: {}\nSite URL: {}\nDescription: {}\nContact Email: {}\n\n"
 						+ "Please log in to moderate this application.",
 				link.getName(), link.getUrl(), link.getDescription(), link.getEmail());
-		
-		TemplateMailMessage message = TemplateMailMessage.builder()
-				.to("admin@nexus.com")
-				.subject(subject)
-				.content(content)
-				.type(TemplateMailMessage.MailType.SIMPLE)
-				.build();
-		
+
+		TemplateMailMessage message = TemplateMailMessage.builder().to("admin@nexus.com").subject(subject)
+				.content(content).type(TemplateMailMessage.MailType.SIMPLE).build();
+
 		rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
 	}
 }

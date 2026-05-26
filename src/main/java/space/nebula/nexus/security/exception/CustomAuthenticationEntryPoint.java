@@ -14,11 +14,13 @@ import java.io.IOException;
  * standardized JSON response instead of Spring Security's default HTML page.
  */
 @Component
-public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
+public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint
+{
 
 	@Override
 	public void commence(HttpServletRequest request, HttpServletResponse response,
-			AuthenticationException authException) throws IOException, ServletException {
+			AuthenticationException authException) throws IOException, ServletException
+	{
 		response.setContentType("application/json;charset=UTF-8");
 		response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 		// In a real project, you would map this to a common Result/Response class using

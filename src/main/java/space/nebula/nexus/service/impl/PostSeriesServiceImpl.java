@@ -23,7 +23,8 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PostSeriesServiceImpl implements IPostSeriesService {
+public class PostSeriesServiceImpl implements IPostSeriesService
+{
 
 	private final PostSeriesRepository seriesRepository;
 	private final PostSeriesMapper seriesMapper;
@@ -31,13 +32,15 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<SeriesResponse>> retrieveAllSeriesForAdmin() {
+	public ApiResponse<List<SeriesResponse>> retrieveAllSeriesForAdmin()
+	{
 		return ApiResponse.success(seriesMapper.toResponseList(seriesRepository.findAll()));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<SeriesResponse> retrieveSeriesById(Long id) {
+	public ApiResponse<SeriesResponse> retrieveSeriesById(Long id)
+	{
 		PostSeries series = findSeriesOrThrow(id);
 		return ApiResponse.success(seriesMapper.toResponse(series));
 	}
@@ -45,8 +48,10 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 	@Override
 	@Transactional
 	@LogOperation("Create Post Series")
-	public ApiResponse<SeriesResponse> createSeries(SeriesRequest request) {
-		if (seriesRepository.existsBySlug(request.slug())) {
+	public ApiResponse<SeriesResponse> createSeries(SeriesRequest request)
+	{
+		if (seriesRepository.existsBySlug(request.slug()))
+		{
 			throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Series slug already exists: " + request.slug());
 		}
 
@@ -62,11 +67,14 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 	@Override
 	@Transactional
 	@LogOperation("Update Post Series")
-	public ApiResponse<SeriesResponse> updateSeries(Long id, SeriesRequest request) {
+	public ApiResponse<SeriesResponse> updateSeries(Long id, SeriesRequest request)
+	{
 		PostSeries series = findSeriesOrThrow(id);
 
-		if (request.slug() != null && !request.slug().equals(series.getSlug())) {
-			if (seriesRepository.existsBySlug(request.slug())) {
+		if (request.slug() != null && !request.slug().equals(series.getSlug()))
+		{
+			if (seriesRepository.existsBySlug(request.slug()))
+			{
 				throw new BusinessException(BusinessCode.DUPLICATE_KEY,
 						"Series slug already exists: " + request.slug());
 			}
@@ -82,11 +90,13 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 	@Override
 	@Transactional
 	@LogOperation("Delete Post Series")
-	public ApiResponse<Void> deleteSeries(Long id) {
+	public ApiResponse<Void> deleteSeries(Long id)
+	{
 		PostSeries series = findSeriesOrThrow(id);
 
 		// Unlink posts from this series
-		series.getPosts().forEach(post -> {
+		series.getPosts().forEach(post ->
+		{
 			post.setSeries(null);
 			post.setSeriesOrder(0);
 		});
@@ -99,29 +109,34 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<SeriesResponse>> retrievePublicSeriesList() {
+	public ApiResponse<List<SeriesResponse>> retrievePublicSeriesList()
+	{
 		List<PostSeries> publicSeries = seriesRepository.findByIsPublishedTrueOrderByCreatedAtDesc();
 		return ApiResponse.success(seriesMapper.toResponseList(publicSeries));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<SeriesResponse> retrieveSeriesWithPosts(String slug) {
+	public ApiResponse<SeriesResponse> retrieveSeriesWithPosts(String slug)
+	{
 		PostSeries series = seriesRepository.findBySlug(slug)
 				.orElseThrow(() -> new ResourceNotFoundException("Series", "slug", slug));
 
-		if (!series.getIsPublished()) {
+		if (!series.getIsPublished())
+		{
 			throw new BusinessException(BusinessCode.FORBIDDEN, "This series is not publicly available");
 		}
 
 		return ApiResponse.success(seriesMapper.toResponseWithPosts(series));
 	}
 
-	private PostSeries findSeriesOrThrow(Long id) {
+	private PostSeries findSeriesOrThrow(Long id)
+	{
 		return seriesRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Series", "id", id));
 	}
 
-	private void clearSeoCache() {
+	private void clearSeoCache()
+	{
 		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
 	}
 }

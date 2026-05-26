@@ -19,7 +19,8 @@ import org.hibernate.annotations.SQLRestriction;
 @Table(name = "sys_operation_log")
 @SQLDelete(sql = "UPDATE sys_operation_log SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class OperationLog extends BaseEntity {
+public class OperationLog extends BaseEntity
+{
 
 	@Column(name = "username")
 	private String username;

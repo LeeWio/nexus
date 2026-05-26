@@ -21,7 +21,8 @@ import java.time.LocalDateTime;
 @Setter
 @Entity
 @Table(name = "blog_post_revision")
-public class PostRevision implements Serializable {
+public class PostRevision implements Serializable
+{
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

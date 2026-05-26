@@ -7,7 +7,8 @@ import space.nebula.nexus.payload.response.RoleResponse;
 
 import java.util.List;
 
-public interface IAdminRoleService {
+public interface IAdminRoleService
+{
 
 	ApiResponse<List<RoleResponse>> getAllRoles();
 

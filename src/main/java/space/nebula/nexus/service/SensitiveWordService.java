@@ -3,7 +3,8 @@ package space.nebula.nexus.service;
 /**
  * Service for filtering sensitive words in user-generated content.
  */
-public interface SensitiveWordService {
+public interface SensitiveWordService
+{
 
 	/**
 	 * Checks if the text contains sensitive words.

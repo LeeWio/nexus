@@ -22,7 +22,8 @@ import java.util.List;
 @Table(name = "blog_series")
 @SQLDelete(sql = "UPDATE blog_series SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class PostSeries extends BaseEntity {
+public class PostSeries extends BaseEntity
+{
 
 	@Column(nullable = false, length = 100)
 	private String name;
@@ -39,7 +40,7 @@ public class PostSeries extends BaseEntity {
 	@Column(name = "is_published", nullable = false)
 	private Boolean isPublished = true;
 
-	@OneToMany(mappedBy = "series", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+	@OneToMany(mappedBy = "series", cascade = { CascadeType.PERSIST, CascadeType.MERGE })
 	@OrderBy("seriesOrder ASC, createdAt DESC")
 	private List<Post> posts = new ArrayList<>();
 }

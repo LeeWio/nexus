@@ -20,21 +20,24 @@ import space.nebula.nexus.service.IFileService;
 @RequestMapping("/api/v1/admin/files")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminFileController {
+public class AdminFileController
+{
 
 	private final IFileService fileService;
 
 	@PostMapping("/upload")
 	@Operation(summary = "Upload a file", description = "Securely uploads a file and returns its metadata including URLs.")
 	public ApiResponse<FileResponse> uploadFile(
-			@Parameter(description = "The file payload to upload") @RequestParam("file") MultipartFile file) {
+			@Parameter(description = "The file payload to upload") @RequestParam("file") MultipartFile file)
+	{
 		return fileService.uploadFile(file);
 	}
 
 	@DeleteMapping("/{fileName}")
 	@Operation(summary = "Delete a file", description = "Permanently removes a file and its associated metadata from storage.")
 	public ApiResponse<Void> deleteFile(
-			@Parameter(description = "The unique stored name of the file") @PathVariable String fileName) {
+			@Parameter(description = "The unique stored name of the file") @PathVariable String fileName)
+	{
 		return fileService.deleteFile(fileName);
 	}
 }

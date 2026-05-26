@@ -22,7 +22,8 @@ import space.nebula.nexus.service.IOperationLogService;
 @RequestMapping("/api/v1/admin/logs")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminLogController {
+public class AdminLogController
+{
 
 	private final IOperationLogService operationLogService;
 
@@ -32,13 +33,15 @@ public class AdminLogController {
 			@Parameter(description = "Filter by username") @RequestParam(required = false) String username,
 			@Parameter(description = "Filter by operation name") @RequestParam(required = false) String operation,
 			@Parameter(description = "Filter by status (0: Success, 1: Failure)") @RequestParam(required = false) Integer status,
-			@Parameter(description = "Pagination and sorting") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+			@Parameter(description = "Pagination and sorting") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable)
+	{
 		return operationLogService.getOperationLogs(username, operation, status, pageable);
 	}
 
 	@DeleteMapping("/clear")
 	@Operation(summary = "Clear all logs", description = "Permanently remove all historical operation logs from the database.")
-	public ApiResponse<Void> clearLogs() {
+	public ApiResponse<Void> clearLogs()
+	{
 		return operationLogService.clearLogs();
 	}
 }

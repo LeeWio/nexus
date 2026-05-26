@@ -19,14 +19,16 @@ import space.nebula.nexus.service.IDashboardService;
 @RestController
 @RequestMapping("/api/v1/admin/dashboard")
 @RequiredArgsConstructor
-public class AdminDashboardController {
+public class AdminDashboardController
+{
 
 	private final IDashboardService dashboardService;
 
 	@GetMapping("/stats")
 	@Operation(summary = "Get Dashboard Statistics", description = "Retrieve overall statistics including post counts, user activity, and system status.")
 	@PreAuthorize("hasRole('ADMIN')")
-	public ApiResponse<DashboardStatsResponse> getStatistics() {
+	public ApiResponse<DashboardStatsResponse> getStatistics()
+	{
 		return dashboardService.getStatistics();
 	}
 }

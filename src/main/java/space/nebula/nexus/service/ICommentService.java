@@ -11,7 +11,8 @@ import space.nebula.nexus.payload.response.PageResult;
 
 import java.util.List;
 
-public interface ICommentService {
+public interface ICommentService
+{
 
 	/**
 	 * Publishes a new comment. Performs auto-moderation.

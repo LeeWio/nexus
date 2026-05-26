@@ -17,7 +17,8 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class PostViewCountSyncTask {
+public class PostViewCountSyncTask
+{
 
 	private final RedisUtil redisUtil;
 	private final PostRepository postRepository;
@@ -29,8 +30,10 @@ public class PostViewCountSyncTask {
 	 */
 	@Scheduled(fixedRate = 600000)
 	@Transactional
-	public void syncViewCounts() {
-		if (!redisUtil.lock(LOCK_KEY, "locked", 590, java.util.concurrent.TimeUnit.SECONDS)) {
+	public void syncViewCounts()
+	{
+		if (!redisUtil.lock(LOCK_KEY, "locked", 590, java.util.concurrent.TimeUnit.SECONDS))
+		{
 			return;
 		}
 
@@ -40,15 +43,20 @@ public class PostViewCountSyncTask {
 
 		log.info("Syncing view counts for {} posts from Redis to MySQL...", viewCounts.size());
 
-		viewCounts.forEach((postIdObj, countObj) -> {
-			try {
+		viewCounts.forEach((postIdObj, countObj) ->
+		{
+			try
+			{
 				Long postId = Long.valueOf(postIdObj.toString());
 				Long count = Long.valueOf(countObj.toString());
 
-				if (count > 0) {
+				if (count > 0)
+				{
 					postRepository.incrementViews(postId, count);
 				}
-			} catch (Exception e) {
+			}
+			catch (Exception e)
+			{
 				log.error("Failed to sync view count for post id: {}", postIdObj, e);
 			}
 		});

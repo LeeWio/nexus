@@ -24,39 +24,45 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/roles")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminRoleController {
+public class AdminRoleController
+{
 
 	private final IAdminRoleService adminRoleService;
 
 	@GetMapping
 	@Operation(summary = "Get all roles", description = "Retrieve a list of all security roles defined in the system.")
-	public ApiResponse<List<RoleResponse>> getAllRoles() {
+	public ApiResponse<List<RoleResponse>> getAllRoles()
+	{
 		return adminRoleService.getAllRoles();
 	}
 
 	@PostMapping
 	@Operation(summary = "Create role", description = "Define a new security role with a unique code and description.")
-	public ApiResponse<RoleResponse> createRole(@Valid @RequestBody RoleRequest request) {
+	public ApiResponse<RoleResponse> createRole(@Valid @RequestBody RoleRequest request)
+	{
 		return adminRoleService.createRole(request);
 	}
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update role", description = "Modify an existing role's name, code, or description.")
 	public ApiResponse<RoleResponse> updateRole(@Parameter(description = "Role ID") @PathVariable Long id,
-			@Valid @RequestBody RoleRequest request) {
+			@Valid @RequestBody RoleRequest request)
+	{
 		return adminRoleService.updateRole(id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete role", description = "Permanently remove a security role from the system.")
-	public ApiResponse<Void> deleteRole(@Parameter(description = "Role ID") @PathVariable Long id) {
+	public ApiResponse<Void> deleteRole(@Parameter(description = "Role ID") @PathVariable Long id)
+	{
 		return adminRoleService.deleteRole(id);
 	}
 
 	@PostMapping("/{id}/menus")
 	@Operation(summary = "Assign menus to role", description = "Link a set of menus or navigation items to a specific role.")
 	public ApiResponse<Void> assignMenus(@Parameter(description = "Role ID") @PathVariable Long id,
-			@Valid @RequestBody AssignMenuRequest request) {
+			@Valid @RequestBody AssignMenuRequest request)
+	{
 		return adminRoleService.assignMenus(id, request);
 	}
 }

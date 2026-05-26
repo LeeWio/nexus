@@ -12,7 +12,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class GitHubSyncTask {
+public class GitHubSyncTask
+{
 
 	private final IGitHubService githubService;
 	private final RedisUtil redisUtil;
@@ -23,16 +24,21 @@ public class GitHubSyncTask {
 	 * Periodically sync project metrics from GitHub. Runs every 12 hours.
 	 */
 	@Scheduled(cron = "0 0 0/12 * * ?")
-	public void syncGitHubMetrics() {
-		if (!redisUtil.lock(LOCK_KEY, "locked", 11, TimeUnit.HOURS)) {
+	public void syncGitHubMetrics()
+	{
+		if (!redisUtil.lock(LOCK_KEY, "locked", 11, TimeUnit.HOURS))
+		{
 			log.debug("GitHub metrics sync task already running on another instance.");
 			return;
 		}
 
 		log.info("Commencing scheduled GitHub metrics synchronization...");
-		try {
+		try
+		{
 			githubService.synchronizeProjectMetrics();
-		} catch (Exception e) {
+		}
+		catch (Exception e)
+		{
 			log.error("Scheduled GitHub synchronization failed", e);
 			// If it fails, we might want to release the lock early,
 			// but for a task that runs every 12h, leaving it locked for 11h is safer

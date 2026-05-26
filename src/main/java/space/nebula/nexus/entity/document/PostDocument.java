@@ -17,7 +17,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(indexName = "blog_post")
-public class PostDocument {
+public class PostDocument
+{
 
 	@Id
 	private String id; // Post ID as string

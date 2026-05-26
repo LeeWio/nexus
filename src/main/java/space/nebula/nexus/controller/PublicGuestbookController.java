@@ -26,13 +26,15 @@ import java.util.concurrent.TimeUnit;
 @RestController
 @RequestMapping("/api/v1/public/guestbook")
 @RequiredArgsConstructor
-public class PublicGuestbookController {
+public class PublicGuestbookController
+{
 
 	private final ICommentService commentService;
 
 	@GetMapping
 	@Operation(summary = "Retrieve guestbook entries", description = "Fetch a complete tree of approved guestbook messages.")
-	public ApiResponse<List<Tree<Long>>> retrieveComments() {
+	public ApiResponse<List<Tree<Long>>> retrieveComments()
+	{
 		return commentService.retrieveGuestbookComments();
 	}
 
@@ -41,7 +43,8 @@ public class PublicGuestbookController {
 	@Operation(summary = "Post to guestbook", description = "Submit a new message to the global guestbook. Requires authentication.")
 	@RateLimit(count = 3, time = 10, unit = TimeUnit.MINUTES, message = "Guestbook posting frequency too high. Please try again later.")
 	public ApiResponse<Void> publishComment(@Valid @RequestBody GuestbookRequest request,
-			HttpServletRequest servletRequest) {
+			HttpServletRequest servletRequest)
+	{
 		// Ensure postId is null for guestbook entries
 		CommentRequest guestbookRequest = new CommentRequest(request.content(), null, request.parentId());
 		return commentService.publishComment(guestbookRequest, servletRequest);

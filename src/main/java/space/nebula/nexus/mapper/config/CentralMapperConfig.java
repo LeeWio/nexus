@@ -19,7 +19,8 @@ import org.mapstruct.ReportingPolicy;
 																														// for
 																														// strictness
 		nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE, collectionMappingStrategy = CollectionMappingStrategy.ADDER_PREFERRED)
-public interface CentralMapperConfig {
+public interface CentralMapperConfig
+{
 
 	// This interface serves as a template. Specific ignores are applied in
 	// individual mappers

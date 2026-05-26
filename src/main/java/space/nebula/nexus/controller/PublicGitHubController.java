@@ -14,13 +14,15 @@ import space.nebula.nexus.service.IGitHubService;
 @RestController
 @RequestMapping("/api/v1/public/github")
 @RequiredArgsConstructor
-public class PublicGitHubController {
+public class PublicGitHubController
+{
 
 	private final IGitHubService githubService;
 
 	@Operation(summary = "Retrieve global GitHub statistics for the profile")
 	@GetMapping("/stats")
-	public ApiResponse<GitHubStatsResponse> retrieveStats() {
+	public ApiResponse<GitHubStatsResponse> retrieveStats()
+	{
 		return ApiResponse.success(githubService.retrieveGlobalStats());
 	}
 }

@@ -10,7 +10,8 @@ import space.nebula.nexus.payload.response.AuthResponse;
 /**
  * Authentication Service Interface.
  */
-public interface IAuthService {
+public interface IAuthService
+{
 
 	/**
 	 * Registers a new user account.
@@ -36,4 +37,9 @@ public interface IAuthService {
 	 * Returns the currently authenticated user details.
 	 */
 	ApiResponse<User> getAuthenticatedUser();
+
+	/**
+	 * Logs out the current user, invalidating the session/token.
+	 */
+	ApiResponse<Void> logout();
 }

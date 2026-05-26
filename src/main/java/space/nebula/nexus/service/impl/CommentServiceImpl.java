@@ -37,13 +37,15 @@ import space.nebula.nexus.utils.IpUtil;
 import java.util.List;
 
 /**
- * Professional implementation of ICommentService with Path Enumeration for deep hierarchical support,
- * moderation, sensitive word filtering, and asynchronous event notification.
+ * Professional implementation of ICommentService with Path Enumeration for deep
+ * hierarchical support, moderation, sensitive word filtering, and asynchronous
+ * event notification.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CommentServiceImpl implements ICommentService {
+public class CommentServiceImpl implements ICommentService
+{
 
 	private final CommentRepository commentRepository;
 	private final PostRepository postRepository;
@@ -55,14 +57,16 @@ public class CommentServiceImpl implements ICommentService {
 	@Override
 	@Transactional
 	@LogOperation("Publish Comment")
-	public ApiResponse<Void> publishComment(CommentRequest request, HttpServletRequest servletRequest) {
+	public ApiResponse<Void> publishComment(CommentRequest request, HttpServletRequest servletRequest)
+	{
 		// 1. Validate Target Post context
 		Post targetPost = null;
-		if (request.postId() != null) {
+		if (request.postId() != null)
+		{
 			targetPost = postRepository.findById(request.postId())
 					.orElseThrow(() -> new ResourceNotFoundException("Post", "id", request.postId()));
 
-			Assert.isTrue(targetPost.getStatus() == PostStatus.PUBLISHED, 
+			Assert.isTrue(targetPost.getStatus() == PostStatus.PUBLISHED,
 					() -> new BusinessException(BusinessCode.FORBIDDEN, "Cannot comment on unpublished posts"));
 		}
 
@@ -72,15 +76,18 @@ public class CommentServiceImpl implements ICommentService {
 
 		// 3. Hierarchy Validation
 		Comment parentComment = null;
-		if (request.parentId() != null) {
+		if (request.parentId() != null)
+		{
 			parentComment = commentRepository.findById(request.parentId())
 					.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", request.parentId()));
 
 			final Post finalTargetPost = targetPost;
-			boolean contextMatch = (targetPost == null && parentComment.getPost() == null) || (targetPost != null
-					&& parentComment.getPost() != null && parentComment.getPost().getId().equals(finalTargetPost.getId()));
+			boolean contextMatch = (targetPost == null && parentComment.getPost() == null)
+					|| (targetPost != null && parentComment.getPost() != null
+							&& parentComment.getPost().getId().equals(finalTargetPost.getId()));
 
-			Assert.isTrue(contextMatch, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Comment context mismatch with parent"));
+			Assert.isTrue(contextMatch,
+					() -> new BusinessException(BusinessCode.BAD_REQUEST, "Comment context mismatch with parent"));
 		}
 
 		User author = SecurityUtil.getCurrentUserOrThrow(userRepository);
@@ -94,26 +101,31 @@ public class CommentServiceImpl implements ICommentService {
 		comment.setIpAddress(IpUtil.getIpAddress(servletRequest));
 		comment.setUserAgent(servletRequest.getHeader("User-Agent"));
 
-		if (hasViolation) {
+		if (hasViolation)
+		{
 			comment.setStatus(CommentStatus.REJECTED);
 			log.warn("Comment by {} automatically rejected due to policy violation", author.getUsername());
-		} else {
+		}
+		else
+		{
 			comment.setStatus(CommentStatus.PENDING);
 		}
 
 		// First save to generate ID
 		commentRepository.save(comment);
-		
+
 		// Generate and set Path Enumeration for fast tree queries
-		String path = (parentComment == null) ? "/" + comment.getId() + "/" : parentComment.getPath() + comment.getId() + "/";
+		String path = (parentComment == null) ? "/" + comment.getId() + "/"
+				: parentComment.getPath() + comment.getId() + "/";
 		comment.setPath(path);
-		
+
 		// Update with path
 		commentRepository.save(comment);
 
 		eventPublisher.publishEvent(new CommentSubmittedEvent(this, comment));
 
-		if (hasViolation) {
+		if (hasViolation)
+		{
 			return ApiResponse.error(BusinessCode.BAD_REQUEST, "Content policy violation detected. Comment rejected.");
 		}
 
@@ -122,28 +134,32 @@ public class CommentServiceImpl implements ICommentService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<Tree<Long>>> retrieveCommentsByPost(Long postId) {
+	public ApiResponse<List<Tree<Long>>> retrieveCommentsByPost(Long postId)
+	{
 		var comments = commentRepository.findAllByPostIdAndStatusOrderByPathAsc(postId, CommentStatus.APPROVED);
 		return ApiResponse.success(buildCommentTree(commentMapper.toResponseList(comments)));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<Tree<Long>>> retrieveGuestbookComments() {
+	public ApiResponse<List<Tree<Long>>> retrieveGuestbookComments()
+	{
 		var comments = commentRepository.findAllByPostIsNullAndStatusOrderByPathAsc(CommentStatus.APPROVED);
 		return ApiResponse.success(buildCommentTree(commentMapper.toResponseList(comments)));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<CommentResponse>> searchCommentsForManagement(Pageable pageable) {
+	public ApiResponse<PageResult<CommentResponse>> searchCommentsForManagement(Pageable pageable)
+	{
 		var comments = commentRepository.findAll(pageable);
 		return ApiResponse.success(PageResult.of(comments.map(commentMapper::toResponse)));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<CommentResponse>> retrievePendingComments(Pageable pageable) {
+	public ApiResponse<PageResult<CommentResponse>> retrievePendingComments(Pageable pageable)
+	{
 		var comments = commentRepository.findAllByStatus(CommentStatus.PENDING, pageable);
 		return ApiResponse.success(PageResult.of(comments.map(commentMapper::toResponse)));
 	}
@@ -151,7 +167,8 @@ public class CommentServiceImpl implements ICommentService {
 	@Override
 	@Transactional
 	@LogOperation("Moderate Comment")
-	public ApiResponse<Void> moderateComment(Long id, CommentStatus status) {
+	public ApiResponse<Void> moderateComment(Long id, CommentStatus status)
+	{
 		var comment = commentRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
 
@@ -164,21 +181,24 @@ public class CommentServiceImpl implements ICommentService {
 	@Override
 	@Transactional
 	@LogOperation("Delete Comment")
-	public ApiResponse<Void> deleteComment(Long id) {
+	public ApiResponse<Void> deleteComment(Long id)
+	{
 		Assert.isTrue(commentRepository.existsById(id), () -> new ResourceNotFoundException("Comment", "id", id));
-		
+
 		commentRepository.deleteById(id);
 		log.info("Comment {} permanently deleted", id);
 		return ApiResponse.success("Comment deleted", null);
 	}
 
-	private List<Tree<Long>> buildCommentTree(List<CommentResponse> flatComments) {
+	private List<Tree<Long>> buildCommentTree(List<CommentResponse> flatComments)
+	{
 		TreeNodeConfig config = new TreeNodeConfig();
 		config.setIdKey("id");
 		config.setParentIdKey("parentId");
 		config.setWeightKey("id"); // Sort naturally by ID
-		
-		return TreeUtil.build(flatComments, null, config, (commentResponse, treeNode) -> {
+
+		return TreeUtil.build(flatComments, null, config, (commentResponse, treeNode) ->
+		{
 			treeNode.setId(commentResponse.id());
 			treeNode.setParentId(commentResponse.parentId());
 			treeNode.putExtra("content", commentResponse.content());

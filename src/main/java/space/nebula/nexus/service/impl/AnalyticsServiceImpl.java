@@ -15,19 +15,20 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AnalyticsServiceImpl implements IAnalyticsService {
+public class AnalyticsServiceImpl implements IAnalyticsService
+{
 
 	private final VisitLogRepository visitLogRepository;
 
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.ANALYTICS, key = CacheConstants.OVERVIEW_KEY)
-	public ApiResponse<AnalyticsOverviewResponse> retrieveOverviewStats() {
+	public ApiResponse<AnalyticsOverviewResponse> retrieveOverviewStats()
+	{
 		LocalDate today = LocalDate.now();
 		LocalDate yesterday = today.minusDays(1);
 		LocalDate weekAgo = today.minusDays(7);
@@ -45,14 +46,16 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 		long yesterdayUv = visitLogRepository.countUv(yesterdayStart, yesterdayEnd);
 
 		double growthRate = 0.0;
-		if (yesterdayPv > 0) {
+		if (yesterdayPv > 0)
+		{
 			growthRate = ((double) (todayPv - yesterdayPv) / yesterdayPv) * 100;
 		}
 
 		// 1. Map Top Content
 		List<AnalyticsOverviewResponse.TopContentItem> topContent = visitLogRepository.findTopContentRaw(todayStart)
-				.stream().map(m -> AnalyticsOverviewResponse.TopContentItem.builder()
-						.url(String.valueOf(m.get("url"))).title(String.valueOf(m.get("url"))) // Fallback title to URL
+				.stream()
+				.map(m -> AnalyticsOverviewResponse.TopContentItem.builder().url(String.valueOf(m.get("url")))
+						.title(String.valueOf(m.get("url"))) // Fallback title to URL
 						.count(((Number) m.get("count")).longValue()).build())
 				.limit(10).toList();
 

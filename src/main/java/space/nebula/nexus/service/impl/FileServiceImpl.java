@@ -35,13 +35,14 @@ import java.util.Objects;
 
 /**
  * Professional implementation of File Management Service. Enhanced with deep
- * MIME detection, security validation, automated image processing, and 
+ * MIME detection, security validation, automated image processing, and
  * content-based deduplication using SHA-256.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class FileServiceImpl implements IFileService {
+public class FileServiceImpl implements IFileService
+{
 
 	private static final List<String> ALLOWED_MIME_TYPES = Arrays.asList("image/jpeg", "image/png", "image/gif",
 			"image/webp", "application/pdf", "text/plain");
@@ -55,18 +56,22 @@ public class FileServiceImpl implements IFileService {
 	@Override
 	@Transactional
 	@LogOperation("Upload File")
-	public ApiResponse<FileResponse> uploadFile(MultipartFile file) {
-		if (file.isEmpty()) {
+	public ApiResponse<FileResponse> uploadFile(MultipartFile file)
+	{
+		if (file.isEmpty())
+		{
 			throw new BusinessException(BusinessCode.BAD_REQUEST, "Cannot process empty file payload");
 		}
 
-		try {
+		try
+		{
 			var fileBytes = file.getBytes();
-			
+
 			// 1. Content-based Deduplication (SHA-256)
 			String fileHash = SecureUtil.sha256(new ByteArrayInputStream(fileBytes));
 			var existingFile = fileRepository.findByFileHash(fileHash);
-			if (existingFile.isPresent()) {
+			if (existingFile.isPresent())
+			{
 				FileMetadata metadata = existingFile.get();
 				metadata.setReferenceCount(metadata.getReferenceCount() + 1);
 				fileRepository.save(metadata);
@@ -79,12 +84,14 @@ public class FileServiceImpl implements IFileService {
 
 			// 2. Deep MIME detection for security
 			String detectedMimeType;
-			try (var bais = new ByteArrayInputStream(fileBytes)) {
+			try (var bais = new ByteArrayInputStream(fileBytes))
+			{
 				detectedMimeType = fileUtil.detectMimeType(bais);
 			}
 			log.debug("Deep MIME verification: detected {} for file {}", detectedMimeType, originalFilename);
 
-			if (!ALLOWED_MIME_TYPES.contains(detectedMimeType)) {
+			if (!ALLOWED_MIME_TYPES.contains(detectedMimeType))
+			{
 				log.warn("Security rejection: Unsupported MIME type {}", detectedMimeType);
 				throw new BusinessException(BusinessCode.BAD_REQUEST, "File content type not supported");
 			}
@@ -95,19 +102,24 @@ public class FileServiceImpl implements IFileService {
 			String thumbnailUrl = null;
 			Integer width = null, height = null;
 
-			if (fileUtil.isImage(detectedMimeType)) {
+			if (fileUtil.isImage(detectedMimeType))
+			{
 				var dimensions = fileUtil.getImageDimensions(fileBytes);
-				if (ObjectUtil.isNotNull(dimensions)) {
+				if (ObjectUtil.isNotNull(dimensions))
+				{
 					width = dimensions.width();
 					height = dimensions.height();
 				}
 
-				try {
+				try
+				{
 					var thumbnailBytes = fileUtil.generateThumbnail(fileBytes, 200, 200);
 					var thumbnailName = "thumb_" + uniqueName.substring(0, uniqueName.lastIndexOf('.')) + ".jpg";
 					storageProvider.store(new ByteArrayInputStream(thumbnailBytes), thumbnailName);
 					thumbnailUrl = storageProvider.getUrl(thumbnailName);
-				} catch (Exception e) {
+				}
+				catch (Exception e)
+				{
 					log.warn("Non-critical failure in thumbnail generation: {}", e.getMessage());
 				}
 			}
@@ -116,9 +128,12 @@ public class FileServiceImpl implements IFileService {
 			storageProvider.store(new ByteArrayInputStream(fileBytes), uniqueName);
 
 			User uploader = null;
-			try {
+			try
+			{
 				uploader = SecurityUtil.getCurrentUserOrThrow(userRepository);
-			} catch (Exception e) {
+			}
+			catch (Exception e)
+			{
 				log.debug("File uploaded by anonymous/system process");
 			}
 
@@ -140,7 +155,9 @@ public class FileServiceImpl implements IFileService {
 
 			return ApiResponse.success("File uploaded successfully", fileMapper.toResponse(savedFile));
 
-		} catch (IOException e) {
+		}
+		catch (IOException e)
+		{
 			log.error("Fatal I/O error during file processing: {}", file.getOriginalFilename(), e);
 			throw new BusinessException(BusinessCode.ERROR, "System failed to process the file");
 		}
@@ -149,26 +166,31 @@ public class FileServiceImpl implements IFileService {
 	@Override
 	@Transactional
 	@LogOperation("Delete File")
-	public ApiResponse<Void> deleteFile(String fileName) {
+	public ApiResponse<Void> deleteFile(String fileName)
+	{
 		var sanitizedName = StringUtils.cleanPath(fileName);
-		Assert.isFalse(sanitizedName.contains(".."), () -> new BusinessException(BusinessCode.BAD_REQUEST, "Security violation: Invalid path"));
+		Assert.isFalse(sanitizedName.contains(".."),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Security violation: Invalid path"));
 
 		var metadata = fileRepository.findByFileName(sanitizedName)
 				.orElseThrow(() -> new ResourceNotFoundException("File", "name", sanitizedName));
 
 		// 1. Decrement reference count
 		metadata.setReferenceCount(metadata.getReferenceCount() - 1);
-		
-		if (metadata.getReferenceCount() > 0) {
+
+		if (metadata.getReferenceCount() > 0)
+		{
 			fileRepository.save(metadata);
-			log.info("File reference decremented for: {}. Current count: {}", sanitizedName, metadata.getReferenceCount());
+			log.info("File reference decremented for: {}. Current count: {}", sanitizedName,
+					metadata.getReferenceCount());
 			return ApiResponse.success("File reference removed", null);
 		}
 
 		// 2. If count reaches zero, purge physical files and DB record
 		storageProvider.delete(sanitizedName);
 
-		if (StrUtil.isNotBlank(metadata.getThumbnailUrl())) {
+		if (StrUtil.isNotBlank(metadata.getThumbnailUrl()))
+		{
 			var thumbnailName = extractFileNameFromUrl(metadata.getThumbnailUrl());
 			storageProvider.delete(thumbnailName);
 		}
@@ -179,12 +201,14 @@ public class FileServiceImpl implements IFileService {
 		return ApiResponse.success("File permanently deleted", null);
 	}
 
-	private String extractFileExtension(String filename) {
+	private String extractFileExtension(String filename)
+	{
 		int dotIndex = filename.lastIndexOf('.');
 		return (dotIndex > 0) ? filename.substring(dotIndex) : "";
 	}
 
-	private String extractFileNameFromUrl(String url) {
+	private String extractFileNameFromUrl(String url)
+	{
 		return url.substring(url.lastIndexOf('/') + 1);
 	}
 }

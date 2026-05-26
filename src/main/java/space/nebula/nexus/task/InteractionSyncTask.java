@@ -18,7 +18,8 @@ import org.springframework.data.redis.core.ScanOptions;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class InteractionSyncTask {
+public class InteractionSyncTask
+{
 
 	private final RedisTemplate<String, Object> redisTemplate;
 	private final PostRepository postRepository;
@@ -33,8 +34,10 @@ public class InteractionSyncTask {
 	 */
 	@Scheduled(fixedRate = 120000) // Runs every 2 minutes
 	@Transactional
-	public void synchronizeSocialInteractions() {
-		if (!redisUtil.lock(LOCK_KEY, "locked", 110, TimeUnit.SECONDS)) {
+	public void synchronizeSocialInteractions()
+	{
+		if (!redisUtil.lock(LOCK_KEY, "locked", 110, TimeUnit.SECONDS))
+		{
 			return;
 		}
 
@@ -43,19 +46,27 @@ public class InteractionSyncTask {
 		java.util.Set<Long> activePostIds = new java.util.HashSet<>();
 
 		// Helper to scan a specific prefix and collect IDs
-		java.util.function.Consumer<String> scanPrefix = (prefix) -> {
+		java.util.function.Consumer<String> scanPrefix = (prefix) ->
+		{
 			ScanOptions options = ScanOptions.scanOptions().match(prefix + "*").count(100).build();
-			try (Cursor<String> cursor = redisTemplate.scan(options)) {
-				while (cursor.hasNext()) {
+			try (Cursor<String> cursor = redisTemplate.scan(options))
+			{
+				while (cursor.hasNext())
+				{
 					String key = cursor.next();
-					try {
+					try
+					{
 						Long activePostId = Long.valueOf(key.substring(prefix.length()));
 						activePostIds.add(activePostId);
-					} catch (Exception itemException) {
+					}
+					catch (Exception itemException)
+					{
 						log.error("Error extracting ID from key: {}", key, itemException);
 					}
 				}
-			} catch (Exception e) {
+			}
+			catch (Exception e)
+			{
 				log.error("Error scanning prefix: {}", prefix, e);
 			}
 		};
@@ -65,8 +76,10 @@ public class InteractionSyncTask {
 		scanPrefix.accept(CacheConstants.POST_FAVORITES_SET);
 
 		int processedInteractionsCount = 0;
-		for (Long activePostId : activePostIds) {
-			try {
+		for (Long activePostId : activePostIds)
+		{
+			try
+			{
 				String likeSetKey = CacheConstants.POST_LIKES_SET + activePostId;
 				String favoriteSetKey = CacheConstants.POST_FAVORITES_SET + activePostId;
 
@@ -75,27 +88,32 @@ public class InteractionSyncTask {
 				Long currentFavoritesCount = redisTemplate.opsForSet().size(favoriteSetKey);
 
 				// Update DB if data found
-				postRepository.findById(activePostId).ifPresent(postEntity -> {
+				postRepository.findById(activePostId).ifPresent(postEntity ->
+				{
 					boolean hasStateChanged = false;
 
-					if (currentLikesCount != null && !currentLikesCount.equals(postEntity.getLikesCount())) {
+					if (currentLikesCount != null && !currentLikesCount.equals(postEntity.getLikesCount()))
+					{
 						postEntity.setLikesCount(currentLikesCount);
 						hasStateChanged = true;
 					}
-					if (currentFavoritesCount != null
-							&& !currentFavoritesCount.equals(postEntity.getFavoritesCount())) {
+					if (currentFavoritesCount != null && !currentFavoritesCount.equals(postEntity.getFavoritesCount()))
+					{
 						postEntity.setFavoritesCount(currentFavoritesCount);
 						hasStateChanged = true;
 					}
 
-					if (hasStateChanged) {
+					if (hasStateChanged)
+					{
 						postRepository.save(postEntity);
 						log.debug("Synchronized interactions for Post ID: {}. Likes: {}, Favs: {}", activePostId,
 								currentLikesCount, currentFavoritesCount);
 					}
 				});
 				processedInteractionsCount++;
-			} catch (Exception itemException) {
+			}
+			catch (Exception itemException)
+			{
 				log.error("Error synchronizing interactions for post: {}", activePostId, itemException);
 			}
 		}

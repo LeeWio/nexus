@@ -1,5 +1,7 @@
 package space.nebula.nexus.service.impl;
 
+import cn.hutool.core.lang.Assert;
+import cn.hutool.core.util.ObjectUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,7 +28,8 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AdminRoleServiceImpl implements IAdminRoleService {
+public class AdminRoleServiceImpl implements IAdminRoleService
+{
 
 	private final RoleRepository roleRepository;
 	private final MenuRepository menuRepository;
@@ -34,18 +37,18 @@ public class AdminRoleServiceImpl implements IAdminRoleService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<RoleResponse>> getAllRoles() {
-		var roles = roleRepository.findAll();
-		return ApiResponse.success(roleMapper.toResponseList(roles));
+	public ApiResponse<List<RoleResponse>> getAllRoles()
+	{
+		return ApiResponse.success(roleMapper.toResponseList(roleRepository.findAll()));
 	}
 
 	@Override
 	@Transactional
 	@LogOperation("Create Role")
-	public ApiResponse<RoleResponse> createRole(RoleRequest request) {
-		if (roleRepository.findByCode(request.code()).isPresent()) {
-			throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Role code already exists");
-		}
+	public ApiResponse<RoleResponse> createRole(RoleRequest request)
+	{
+		Assert.isFalse(roleRepository.findByCode(request.code()).isPresent(),
+				() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Role code already exists: " + request.code()));
 
 		var role = new Role();
 		role.setName(request.name());
@@ -60,30 +63,35 @@ public class AdminRoleServiceImpl implements IAdminRoleService {
 	@Override
 	@Transactional
 	@LogOperation("Update Role")
-	public ApiResponse<RoleResponse> updateRole(Long id, RoleRequest request) {
+	public ApiResponse<RoleResponse> updateRole(Long id, RoleRequest request)
+	{
 		var role = roleRepository.findById(id)
 				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
 
-		if (!role.getCode().equals(request.code()) && roleRepository.findByCode(request.code()).isPresent()) {
-			throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Role code already exists");
+		if (ObjectUtil.notEqual(role.getCode(), request.code()))
+		{
+			Assert.isFalse(roleRepository.findByCode(request.code()).isPresent(),
+					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
+							"Role code already exists: " + request.code()));
 		}
 
 		role.setName(request.name());
 		role.setCode(request.code());
 		role.setDescription(request.description());
 
-		var updatedRole = roleRepository.save(role);
+		roleRepository.save(role);
 		log.info("Admin updated role id: {}", id);
-		return ApiResponse.success("Role updated successfully", roleMapper.toResponse(updatedRole));
+		return ApiResponse.success("Role updated successfully", roleMapper.toResponse(role));
 	}
 
 	@Override
 	@Transactional
 	@LogOperation("Delete Role")
-	public ApiResponse<Void> deleteRole(Long id) {
-		if (!roleRepository.existsById(id)) {
-			throw new BusinessException(BusinessCode.NOT_FOUND, "Role not found");
-		}
+	public ApiResponse<Void> deleteRole(Long id)
+	{
+		Assert.isTrue(roleRepository.existsById(id),
+				() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
+
 		roleRepository.deleteById(id);
 		log.info("Admin deleted role id: {}", id);
 		return ApiResponse.success("Role deleted successfully", null);
@@ -92,14 +100,14 @@ public class AdminRoleServiceImpl implements IAdminRoleService {
 	@Override
 	@Transactional
 	@LogOperation("Assign Menus to Role")
-	public ApiResponse<Void> assignMenus(Long roleId, AssignMenuRequest request) {
+	public ApiResponse<Void> assignMenus(Long roleId, AssignMenuRequest request)
+	{
 		var role = roleRepository.findById(roleId)
 				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
 
 		var menus = menuRepository.findAllById(request.menuIds());
-		if (menus.size() != request.menuIds().size()) {
-			throw new BusinessException(BusinessCode.BAD_REQUEST, "One or more menu IDs are invalid");
-		}
+		Assert.isTrue(menus.size() == request.menuIds().size(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "One or more menu IDs are invalid"));
 
 		role.setMenus(new HashSet<>(menus));
 		roleRepository.save(role);

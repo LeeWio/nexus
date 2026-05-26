@@ -28,7 +28,8 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SeoServiceImpl implements ISeoService {
+public class SeoServiceImpl implements ISeoService
+{
 
 	private final PostRepository postRepository;
 	private final CategoryRepository categoryRepository;
@@ -41,7 +42,8 @@ public class SeoServiceImpl implements ISeoService {
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.SEO, key = CacheConstants.SITEMAP_KEY)
-	public String generateSitemapXml() {
+	public String generateSitemapXml()
+	{
 		log.info("Generating professional XML Sitemap...");
 		String siteBaseUrl = getSiteBaseUrl();
 		StringBuilder sitemapBuilder = new StringBuilder();
@@ -54,25 +56,29 @@ public class SeoServiceImpl implements ISeoService {
 		// 2. Published Posts - Fetch up to 1000 posts for the sitemap
 		List<Post> publishedPosts = postRepository.findAllByStatus(PostStatus.PUBLISHED,
 				PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent();
-		for (Post post : publishedPosts) {
+		for (Post post : publishedPosts)
+		{
 			appendSitemapEntry(sitemapBuilder, siteBaseUrl + "/posts/" + post.getSlug(), "0.8", "weekly");
 		}
 
 		// 3. Content Categories
 		List<Category> allCategories = categoryRepository.findAll();
-		for (Category category : allCategories) {
+		for (Category category : allCategories)
+		{
 			appendSitemapEntry(sitemapBuilder, siteBaseUrl + "/categories/" + category.getSlug(), "0.6", "monthly");
 		}
 
 		// 4. Post Series / Columns
 		List<PostSeries> activeSeries = seriesRepository.findByIsPublishedTrueOrderByCreatedAtDesc();
-		for (PostSeries series : activeSeries) {
+		for (PostSeries series : activeSeries)
+		{
 			appendSitemapEntry(sitemapBuilder, siteBaseUrl + "/series/" + series.getSlug(), "0.7", "weekly");
 		}
 
 		// 5. Common Tags
 		List<Tag> allTags = tagRepository.findAll();
-		for (Tag tag : allTags) {
+		for (Tag tag : allTags)
+		{
 			appendSitemapEntry(sitemapBuilder, siteBaseUrl + "/tags/" + tag.getSlug(), "0.4", "monthly");
 		}
 
@@ -83,7 +89,8 @@ public class SeoServiceImpl implements ISeoService {
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.SEO, key = CacheConstants.RSS_FEED_SPEL)
-	public String generateRssFeedXml() {
+	public String generateRssFeedXml()
+	{
 		log.info("Generating standard RSS 2.0 Feed...");
 		String websiteName = getSiteConfiguration("site_name", "Nexus Professional Blog");
 		String websiteDescription = getSiteConfiguration("site_description",
@@ -102,7 +109,8 @@ public class SeoServiceImpl implements ISeoService {
 				.getContent();
 
 		List<SyndEntry> feedEntries = new ArrayList<>();
-		for (Post post : recentPosts) {
+		for (Post post : recentPosts)
+		{
 			SyndEntry feedEntry = new SyndEntryImpl();
 			feedEntry.setTitle(post.getTitle());
 			feedEntry.setLink(siteBaseUrl + "/posts/" + post.getSlug());
@@ -118,18 +126,22 @@ public class SeoServiceImpl implements ISeoService {
 
 		syndFeed.setEntries(feedEntries);
 
-		try {
+		try
+		{
 			StringWriter xmlWriter = new StringWriter();
 			SyndFeedOutput feedOutput = new SyndFeedOutput();
 			feedOutput.output(syndFeed, xmlWriter);
 			return xmlWriter.toString();
-		} catch (Exception feedProcessingException) {
+		}
+		catch (Exception feedProcessingException)
+		{
 			log.error("Critical failure during RSS feed XML generation", feedProcessingException);
 			return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><error>Internal generation failure</error>";
 		}
 	}
 
-	private void appendSitemapEntry(StringBuilder builder, String location, String priority, String frequency) {
+	private void appendSitemapEntry(StringBuilder builder, String location, String priority, String frequency)
+	{
 		builder.append("  <url>\n");
 		builder.append("    <loc>").append(location).append("</loc>\n");
 		builder.append("    <changefreq>").append(frequency).append("</changefreq>\n");
@@ -137,11 +149,13 @@ public class SeoServiceImpl implements ISeoService {
 		builder.append("  </url>\n");
 	}
 
-	private String getSiteBaseUrl() {
+	private String getSiteBaseUrl()
+	{
 		return getSiteConfiguration("site_url", "http://localhost:3000");
 	}
 
-	private String getSiteConfiguration(String configKey, String fallbackValue) {
+	private String getSiteConfiguration(String configKey, String fallbackValue)
+	{
 		return configRepository.findByConfigKey(configKey).map(space.nebula.nexus.entity.Config::getConfigValue)
 				.orElse(fallbackValue);
 	}

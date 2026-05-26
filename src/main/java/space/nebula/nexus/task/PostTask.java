@@ -15,7 +15,8 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Component
-public class PostTask {
+public class PostTask
+{
 
 	@Resource
 	private PostRepository postRepository;
@@ -31,14 +32,17 @@ public class PostTask {
 	 */
 	@Scheduled(cron = "0 * * * * ?")
 	@Transactional
-	public void publishScheduledPosts() {
-		if (!redisUtil.lock(LOCK_KEY, "locked", 50, TimeUnit.SECONDS)) {
+	public void publishScheduledPosts()
+	{
+		if (!redisUtil.lock(LOCK_KEY, "locked", 50, TimeUnit.SECONDS))
+		{
 			return;
 		}
 
 		java.time.LocalDateTime now = java.time.LocalDateTime.now();
 		int updated = postRepository.updateScheduledPosts(now);
-		if (updated > 0) {
+		if (updated > 0)
+		{
 			log.info("Published {} scheduled posts at {}", updated, now);
 		}
 	}

@@ -16,13 +16,15 @@ import java.util.List;
 @RequestMapping("/api/v1/public/menus")
 @RequiredArgsConstructor
 @Tag(name = "Public Navigation", description = "Public endpoints for dynamic website navigation")
-public class PublicMenuController {
+public class PublicMenuController
+{
 
 	private final IMenuService menuService;
 
 	@GetMapping("/navigation")
 	@Operation(summary = "Retrieve the public navigation menu tree")
-	public ApiResponse<List<Tree<Long>>> retrieveNavigation() {
+	public ApiResponse<List<Tree<Long>>> retrieveNavigation()
+	{
 		return menuService.retrievePublicNavigationMenuTree();
 	}
 }

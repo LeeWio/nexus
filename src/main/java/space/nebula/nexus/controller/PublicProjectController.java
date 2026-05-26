@@ -16,13 +16,15 @@ import java.util.List;
 @RequestMapping("/api/v1/public/projects")
 @RequiredArgsConstructor
 @Tag(name = "Public Projects", description = "Public endpoints for portfolio projects")
-public class PublicProjectController {
+public class PublicProjectController
+{
 
 	private final IProjectService projectService;
 
 	@GetMapping
 	@Operation(summary = "Get published projects", description = "Returns all published projects sorted by priority and date")
-	public ApiResponse<List<ProjectResponse>> getPublicProjects() {
+	public ApiResponse<List<ProjectResponse>> getPublicProjects()
+	{
 		return projectService.getPublicProjects();
 	}
 }

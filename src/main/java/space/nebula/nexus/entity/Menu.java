@@ -17,7 +17,8 @@ import org.hibernate.annotations.SQLRestriction;
 @Table(name = "sys_menu")
 @SQLDelete(sql = "UPDATE sys_menu SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class Menu extends BaseEntity {
+public class Menu extends BaseEntity
+{
 
 	@Column(name = "parent_id", nullable = false)
 	private Long parentId = 0L;

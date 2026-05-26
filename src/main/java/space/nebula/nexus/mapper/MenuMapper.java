@@ -13,7 +13,8 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 import java.util.List;
 
 @Mapper(config = CentralMapperConfig.class)
-public interface MenuMapper {
+public interface MenuMapper
+{
 
 	@Mapping(target = "children", ignore = true)
 	MenuResponse toResponse(Menu menu);

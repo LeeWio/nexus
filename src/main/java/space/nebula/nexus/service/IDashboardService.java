@@ -4,7 +4,8 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.DashboardStatsResponse;
 import space.nebula.nexus.payload.response.PublicStatsResponse;
 
-public interface IDashboardService {
+public interface IDashboardService
+{
 	/**
 	 * Get overall dashboard statistics for admins.
 	 */

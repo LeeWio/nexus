@@ -23,32 +23,37 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/categories")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class CategoryController {
+public class CategoryController
+{
 
 	private final ICategoryService categoryService;
 
 	@GetMapping
 	@Operation(summary = "Retrieve all categories", description = "Fetch a complete list of all blog categories.")
-	public ApiResponse<List<CategoryResponse>> retrieveCategories() {
+	public ApiResponse<List<CategoryResponse>> retrieveCategories()
+	{
 		return categoryService.retrieveAllCategories();
 	}
 
 	@PostMapping
 	@Operation(summary = "Create category", description = "Add a new category with a unique name and slug.")
-	public ApiResponse<CategoryResponse> createCategory(@Valid @RequestBody CategoryRequest request) {
+	public ApiResponse<CategoryResponse> createCategory(@Valid @RequestBody CategoryRequest request)
+	{
 		return categoryService.createCategory(request);
 	}
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update category", description = "Modify an existing category's metadata, name, or slug.")
 	public ApiResponse<CategoryResponse> updateCategory(@Parameter(description = "Category ID") @PathVariable Long id,
-			@Valid @RequestBody CategoryRequest request) {
+			@Valid @RequestBody CategoryRequest request)
+	{
 		return categoryService.updateCategory(id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete category", description = "Permanently remove a category from the system.")
-	public ApiResponse<Void> deleteCategory(@Parameter(description = "Category ID") @PathVariable Long id) {
+	public ApiResponse<Void> deleteCategory(@Parameter(description = "Category ID") @PathVariable Long id)
+	{
 		return categoryService.deleteCategory(id);
 	}
 }

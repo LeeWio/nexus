@@ -26,7 +26,8 @@ import space.nebula.nexus.security.service.CustomOAuth2UserService;
 @EnableWebSecurity
 @EnableMethodSecurity // Enables @PreAuthorize, @Secured, etc.
 @RequiredArgsConstructor
-public class SecurityConfig {
+public class SecurityConfig
+{
 
 	private final CustomAuthenticationEntryPoint authenticationEntryPoint;
 	private final CustomAccessDeniedHandler accessDeniedHandler;
@@ -38,7 +39,8 @@ public class SecurityConfig {
 	 * Configure BCrypt as our password encoder.
 	 */
 	@Bean
-	public PasswordEncoder passwordEncoder() {
+	public PasswordEncoder passwordEncoder()
+	{
 		return new BCryptPasswordEncoder();
 	}
 
@@ -48,7 +50,8 @@ public class SecurityConfig {
 	 */
 	@Bean
 	public AuthenticationManager authenticationManager(UserDetailsService userDetailsService,
-			PasswordEncoder passwordEncoder) {
+			PasswordEncoder passwordEncoder)
+	{
 		DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider(userDetailsService);
 		authenticationProvider.setPasswordEncoder(passwordEncoder);
 		return new ProviderManager(authenticationProvider);
@@ -58,7 +61,8 @@ public class SecurityConfig {
 	 * The core SecurityFilterChain that handles HTTP security rules.
 	 */
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception
+	{
 		http
 				// Disable CSRF since we are using stateless JWT authentication
 				.csrf(AbstractHttpConfigurer::disable)

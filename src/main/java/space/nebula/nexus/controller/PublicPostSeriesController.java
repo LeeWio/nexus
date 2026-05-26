@@ -22,20 +22,23 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/public/series")
 @RequiredArgsConstructor
-public class PublicPostSeriesController {
+public class PublicPostSeriesController
+{
 
 	private final IPostSeriesService seriesService;
 
 	@GetMapping
 	@Operation(summary = "Retrieve published series", description = "Fetch a list of all publicly available post series.")
-	public ApiResponse<List<SeriesResponse>> retrievePublicSeries() {
+	public ApiResponse<List<SeriesResponse>> retrievePublicSeries()
+	{
 		return seriesService.retrievePublicSeriesList();
 	}
 
 	@GetMapping("/{slug}")
 	@Operation(summary = "Retrieve series details", description = "Fetch complete details for a specific series, including its ordered list of posts.")
 	public ApiResponse<SeriesResponse> retrieveSeriesWithPosts(
-			@Parameter(description = "The unique URL slug of the series") @PathVariable String slug) {
+			@Parameter(description = "The unique URL slug of the series") @PathVariable String slug)
+	{
 		return seriesService.retrieveSeriesWithPosts(slug);
 	}
 }

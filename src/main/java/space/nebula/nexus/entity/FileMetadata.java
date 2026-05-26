@@ -13,7 +13,8 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "sys_file")
-public class FileMetadata extends BaseEntity {
+public class FileMetadata extends BaseEntity
+{
 
 	@Column(name = "file_name", nullable = false, length = 100)
 	private String fileName;

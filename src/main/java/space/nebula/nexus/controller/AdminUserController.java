@@ -23,44 +23,59 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/users")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminUserController {
+public class AdminUserController
+{
 
 	private final IAdminUserService adminUserService;
 
 	@GetMapping
 	@Operation(summary = "Get all users", description = "Retrieve a comprehensive list of all registered users.")
-	public ApiResponse<List<UserResponse>> getAllUsers() {
+	public ApiResponse<List<UserResponse>> getAllUsers()
+	{
 		return adminUserService.getAllUsers();
 	}
 
 	@GetMapping("/{id}")
 	@Operation(summary = "Get user by ID", description = "Fetch detailed profile and status for a specific user.")
-	public ApiResponse<UserResponse> getUserById(@Parameter(description = "User ID") @PathVariable Long id) {
+	public ApiResponse<UserResponse> getUserById(@Parameter(description = "User ID") @PathVariable Long id)
+	{
 		return adminUserService.getUserById(id);
 	}
 
 	@PutMapping("/{id}/disable")
 	@Operation(summary = "Disable user", description = "Suspend a user account to prevent login and access.")
-	public ApiResponse<Void> disableUser(@Parameter(description = "User ID") @PathVariable Long id) {
+	public ApiResponse<Void> disableUser(@Parameter(description = "User ID") @PathVariable Long id)
+	{
 		return adminUserService.disableUser(id);
 	}
 
 	@PutMapping("/{id}/enable")
 	@Operation(summary = "Enable user", description = "Restore access for a previously disabled user account.")
-	public ApiResponse<Void> enableUser(@Parameter(description = "User ID") @PathVariable Long id) {
+	public ApiResponse<Void> enableUser(@Parameter(description = "User ID") @PathVariable Long id)
+	{
 		return adminUserService.enableUser(id);
 	}
 
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete user", description = "Permanently remove a user account from the system.")
-	public ApiResponse<Void> deleteUser(@Parameter(description = "User ID") @PathVariable Long id) {
+	public ApiResponse<Void> deleteUser(@Parameter(description = "User ID") @PathVariable Long id)
+	{
 		return adminUserService.deleteUser(id);
+	}
+
+	@PostMapping("/{id}/audit")
+	@Operation(summary = "Audit user registration", description = "Approve or reject a pending user registration request.")
+	public ApiResponse<Void> auditUser(@Parameter(description = "User ID") @PathVariable Long id,
+			@Parameter(description = "Approval status") @RequestParam boolean approved)
+	{
+		return adminUserService.auditUser(id, approved);
 	}
 
 	@PostMapping("/{id}/roles")
 	@Operation(summary = "Assign roles to user", description = "Associate a set of security roles with a specific user.")
 	public ApiResponse<Void> assignRoles(@Parameter(description = "User ID") @PathVariable Long id,
-			@Valid @RequestBody AssignRoleRequest request) {
+			@Valid @RequestBody AssignRoleRequest request)
+	{
 		return adminUserService.assignRoles(id, request);
 	}
 }

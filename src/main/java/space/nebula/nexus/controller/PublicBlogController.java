@@ -21,7 +21,8 @@ import space.nebula.nexus.service.IPostService;
 @RestController
 @RequestMapping("/api/v1/public/blog")
 @RequiredArgsConstructor
-public class PublicBlogController {
+public class PublicBlogController
+{
 
 	private final IPostService postService;
 
@@ -34,7 +35,8 @@ public class PublicBlogController {
 
 			@Parameter(description = "Search in title and content") @RequestParam(required = false) String keyword,
 
-			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10, sort = "createdAt") Pageable pageable)
+	{
 		return postService.searchPublicPosts(categoryId, tagId, keyword, pageable);
 	}
 
@@ -42,9 +44,10 @@ public class PublicBlogController {
 	@Operation(summary = "Retrieve post by slug", description = "Fetch the full content of a published post using its unique URL slug.")
 	@ApiResponses({
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Post found"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Post not found")})
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Post not found") })
 	public ApiResponse<PostResponse> retrievePost(
-			@Parameter(description = "The unique URL slug of the post", example = "my-awesome-post") @PathVariable String slug) {
+			@Parameter(description = "The unique URL slug of the post", example = "my-awesome-post") @PathVariable String slug)
+	{
 		return postService.retrievePostBySlug(slug);
 	}
 }

@@ -27,7 +27,8 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AdminUserServiceImpl implements IAdminUserService {
+public class AdminUserServiceImpl implements IAdminUserService
+{
 
 	private final UserRepository userRepository;
 	private final RoleRepository roleRepository;
@@ -35,14 +36,16 @@ public class AdminUserServiceImpl implements IAdminUserService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<UserResponse>> getAllUsers() {
+	public ApiResponse<List<UserResponse>> getAllUsers()
+	{
 		var users = userRepository.findAll();
 		return ApiResponse.success(userMapper.toResponseList(users));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<UserResponse> getUserById(Long id) {
+	public ApiResponse<UserResponse> getUserById(Long id)
+	{
 		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 		return ApiResponse.success(userMapper.toResponse(user));
 	}
@@ -50,10 +53,12 @@ public class AdminUserServiceImpl implements IAdminUserService {
 	@Override
 	@Transactional
 	@LogOperation("Disable User")
-	public ApiResponse<Void> disableUser(Long id) {
+	public ApiResponse<Void> disableUser(Long id)
+	{
 		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
-		Assert.isFalse(user.getStatus() == UserStatus.INACTIVE, () -> new BusinessException(BusinessCode.BAD_REQUEST, "User is already inactive"));
+		Assert.isFalse(user.getStatus() == UserStatus.INACTIVE,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "User is already inactive"));
 
 		user.setStatus(UserStatus.INACTIVE);
 		userRepository.save(user);
@@ -64,10 +69,12 @@ public class AdminUserServiceImpl implements IAdminUserService {
 	@Override
 	@Transactional
 	@LogOperation("Enable User")
-	public ApiResponse<Void> enableUser(Long id) {
+	public ApiResponse<Void> enableUser(Long id)
+	{
 		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
-		Assert.isFalse(user.getStatus() == UserStatus.ACTIVE, () -> new BusinessException(BusinessCode.BAD_REQUEST, "User is already active"));
+		Assert.isFalse(user.getStatus() == UserStatus.ACTIVE,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "User is already active"));
 
 		user.setStatus(UserStatus.ACTIVE);
 		userRepository.save(user);
@@ -78,7 +85,8 @@ public class AdminUserServiceImpl implements IAdminUserService {
 	@Override
 	@Transactional
 	@LogOperation("Delete User")
-	public ApiResponse<Void> deleteUser(Long id) {
+	public ApiResponse<Void> deleteUser(Long id)
+	{
 		Assert.isTrue(userRepository.existsById(id), () -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 		userRepository.deleteById(id);
 		log.info("Admin deleted user id: {}", id);
@@ -87,13 +95,41 @@ public class AdminUserServiceImpl implements IAdminUserService {
 
 	@Override
 	@Transactional
+	@LogOperation("Audit User Registration")
+	public ApiResponse<Void> auditUser(Long id, boolean approved)
+	{
+		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
+
+		Assert.isTrue(user.getStatus() == UserStatus.PENDING,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "User is not in PENDING status"));
+
+		if (approved)
+		{
+			user.setStatus(UserStatus.ACTIVE);
+			log.info("Admin approved registration for user: {}", user.getUsername());
+		}
+		else
+		{
+			// Or we could move them to REJECTED if you had that enum, but INACTIVE works
+			user.setStatus(UserStatus.INACTIVE);
+			log.info("Admin rejected registration for user: {}", user.getUsername());
+		}
+
+		userRepository.save(user);
+		return ApiResponse.success(approved ? "User approved" : "User rejected", null);
+	}
+
+	@Override
+	@Transactional
 	@LogOperation("Assign Roles to User")
-	public ApiResponse<Void> assignRoles(Long userId, AssignRoleRequest request) {
+	public ApiResponse<Void> assignRoles(Long userId, AssignRoleRequest request)
+	{
 		var user = userRepository.findById(userId)
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
 		var roles = roleRepository.findAllById(request.roleIds());
-		Assert.isTrue(roles.size() == request.roleIds().size(), () -> new BusinessException(BusinessCode.BAD_REQUEST, "One or more role IDs are invalid"));
+		Assert.isTrue(roles.size() == request.roleIds().size(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "One or more role IDs are invalid"));
 
 		user.setRoles(new HashSet<>(roles));
 		userRepository.save(user);

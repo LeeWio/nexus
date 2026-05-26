@@ -3,6 +3,7 @@ package space.nebula.nexus.config;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -18,16 +19,14 @@ public class RedisConfig
 {
 
 	@Bean
-	public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory)
+	RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory)
 	{
 		RedisTemplate<String, Object> template = new RedisTemplate<>();
 		template.setConnectionFactory(factory);
 
-		// Key uses String serializer
 		template.setKeySerializer(RedisSerializer.string());
 		template.setHashKeySerializer(RedisSerializer.string());
 
-		// Value uses modern Jackson2 serializer
 		template.setValueSerializer(RedisSerializer.json());
 		template.setHashValueSerializer(RedisSerializer.json());
 
@@ -36,7 +35,8 @@ public class RedisConfig
 	}
 
 	@Bean
-	public RedisCacheManager cacheManager(RedisConnectionFactory factory)
+	@Primary
+	RedisCacheManager cacheManager(RedisConnectionFactory factory)
 	{
 		RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofHours(1))
 				.serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.string()))
