@@ -3,7 +3,8 @@ package space.nebula.nexus.enums;
 /**
  * Enumeration of user account statuses.
  */
-public enum UserStatus {
+public enum UserStatus
+{
 	/** The user account is active and can be used normally. */
 	ACTIVE,
 

@@ -1,5 +1,6 @@
 package space.nebula.nexus.config;
 
+import cn.hutool.core.util.ObjectUtil;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,8 +15,8 @@ public class AuditorAwareImpl implements AuditorAware<String> {
 	public Optional<String> getCurrentAuditor() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-		if (authentication == null || !authentication.isAuthenticated()
-				|| "anonymousUser".equals(authentication.getPrincipal())) {
+		if (ObjectUtil.isNull(authentication) || !authentication.isAuthenticated()
+				|| ObjectUtil.equal("anonymousUser", authentication.getPrincipal())) {
 			return Optional.of("SYSTEM");
 		}
 

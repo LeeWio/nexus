@@ -14,6 +14,16 @@ public interface IPostService {
 	ApiResponse<PostResponse> updatePost(Long id, PostRequest request);
 	ApiResponse<Void> deletePost(Long id);
 
+	/**
+	 * Submits a draft post for review.
+	 */
+	ApiResponse<Void> submitForReview(Long id);
+
+	/**
+	 * Approves or rejects a pending post.
+	 */
+	ApiResponse<Void> reviewPost(Long id, boolean approved, String reviewComment);
+
 	// Public methods
 	ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
 			Pageable pageable);

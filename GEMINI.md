@@ -64,3 +64,25 @@ Or set the environment variable `SEARCH_TYPE=database`.
   ```bash
   ./test-api.sh
   ```
+
+## Coding Conventions
+### Hutool Utility Library
+This project strongly encourages the use of **Hutool** to maintain clean, readable, and less error-prone code. When writing or refactoring code, always prefer Hutool utilities over native Java boilerplate. Please adhere to the following rules:
+
+1. **Exception and State Assertion (`Assert`):**
+   - Replace traditional `if (condition) { throw new Exception(...) }` blocks with `cn.hutool.core.lang.Assert`.
+   - Use lambda expressions for exception messages to ensure lazy evaluation (e.g., `Assert.isTrue(condition, () -> new BusinessException(...))`).
+2. **String Manipulation and Checks (`StrUtil`):**
+   - Use `StrUtil.isBlank()`, `StrUtil.isNotBlank()`, `StrUtil.isEmpty()`, etc., instead of manual `null` and `""` checks.
+   - Use `StrUtil.equals(str1, str2)` for null-safe string comparisons.
+   - Use `StrUtil.format()` instead of string concatenation (`+`) or `String.format()`.
+3. **Collection Checks (`CollUtil`):**
+   - Use `CollUtil.isNotEmpty(collection)` or `CollUtil.isEmpty(collection)` instead of checking for `null` and `size() == 0`.
+4. **ID and Random Number Generation (`IdUtil`, `RandomUtil`):**
+   - Use `IdUtil.fastSimpleUUID()` or `IdUtil.fastUUID()` instead of `UUID.randomUUID().toString().replace("-", "")`.
+   - Use `IdUtil.getSnowflakeNextId()` for distributed sequences.
+   - Use `RandomUtil.randomNumbers()` instead of `new java.util.Random()`.
+5. **Tree Structures (`TreeUtil`):**
+   - When building hierarchical trees (e.g., menus), use `cn.hutool.core.lang.tree.TreeUtil` along with `TreeNodeConfig` instead of manual recursive loops and grouping maps.
+6. **Map and Dictionary Creation (`Dict`):**
+   - For simple inline maps (like parameters for templates or JSON responses), use `cn.hutool.core.lang.Dict.create().set("key", value)` instead of instantiating and manually populating a `java.util.HashMap`.

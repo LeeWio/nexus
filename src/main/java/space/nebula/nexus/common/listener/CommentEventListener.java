@@ -1,27 +1,30 @@
 package space.nebula.nexus.common.listener;
 
-import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import space.nebula.nexus.common.event.CommentSubmittedEvent;
+import space.nebula.nexus.config.RabbitMQConfig;
 import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.enums.CommentStatus;
-import space.nebula.nexus.utils.MailUtil;
+import space.nebula.nexus.payload.request.TemplateMailMessage;
 
-import java.util.HashMap;
+import cn.hutool.core.lang.Dict;
+
 import java.util.Map;
 
 /**
- * Listener for comment-related events.
+ * Listener for comment-related events. Dispatches email notifications via RabbitMQ.
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class CommentEventListener {
 
-	@Resource
-	private MailUtil mailUtil;
+	private final RabbitTemplate rabbitTemplate;
 
 	/**
 	 * Handle comment submission. Dispatched asynchronously via 'asyncExecutor'.
@@ -56,32 +59,48 @@ public class CommentEventListener {
 	}
 
 	private void sendNewCommentNotification(Comment comment, String email, String authorName, String postTitle) {
-		log.info("Sending HTML comment notification email to: {}", email);
 		String subject = "New Comment on: " + postTitle;
 
-		Map<String, Object> variables = new HashMap<>();
-		variables.put("authorName", authorName);
-		variables.put("commenterName",
-				comment.getUser().getNickname() != null
-						? comment.getUser().getNickname()
-						: comment.getUser().getUsername());
-		variables.put("postTitle", postTitle);
-		variables.put("commentContent", comment.getContent());
+		Map<String, Object> variables = Dict.create()
+				.set("authorName", authorName)
+				.set("commenterName",
+						comment.getUser().getNickname() != null
+								? comment.getUser().getNickname()
+								: comment.getUser().getUsername())
+				.set("postTitle", postTitle)
+				.set("commentContent", comment.getContent());
 
-		mailUtil.sendTemplateMail(email, subject, "new-comment", variables);
+		TemplateMailMessage message = TemplateMailMessage.builder()
+				.to(email)
+				.subject(subject)
+				.templateName("new-comment")
+				.variables(variables)
+				.type(TemplateMailMessage.MailType.TEMPLATE)
+				.build();
+
+		rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
+		log.info("Dispatched async comment notification task for: {}", email);
 	}
 
 	private void sendViolationAlert(Comment comment, String email, String postTitle) {
-		log.info("Sending HTML violation alert email to admin: {}", email);
 		String subject = "[ALERT] Content Violation Blocked on: " + postTitle;
 
-		Map<String, Object> variables = new HashMap<>();
-		variables.put("commenterName", comment.getUser().getUsername());
-		variables.put("postTitle", postTitle);
-		variables.put("commentContent", comment.getContent());
-		variables.put("ipAddress", comment.getIpAddress());
-		variables.put("userAgent", comment.getUserAgent());
+		Map<String, Object> variables = Dict.create()
+				.set("commenterName", comment.getUser().getUsername())
+				.set("postTitle", postTitle)
+				.set("commentContent", comment.getContent())
+				.set("ipAddress", comment.getIpAddress())
+				.set("userAgent", comment.getUserAgent());
 
-		mailUtil.sendTemplateMail(email, subject, "violation-alert", variables);
+		TemplateMailMessage message = TemplateMailMessage.builder()
+				.to(email)
+				.subject(subject)
+				.templateName("violation-alert")
+				.variables(variables)
+				.type(TemplateMailMessage.MailType.TEMPLATE)
+				.build();
+
+		rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
+		log.info("Dispatched async violation alert task for: {}", email);
 	}
 }

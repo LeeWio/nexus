@@ -1,5 +1,6 @@
 package space.nebula.nexus.security.util;
 
+import cn.hutool.core.util.ObjectUtil;
 import lombok.experimental.UtilityClass;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,8 +19,8 @@ public class SecurityUtil {
 	 */
 	public String getCurrentUsername() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		if (authentication == null || !authentication.isAuthenticated()
-				|| "anonymousUser".equals(authentication.getPrincipal())) {
+		if (ObjectUtil.isNull(authentication) || !authentication.isAuthenticated()
+				|| ObjectUtil.equal("anonymousUser", authentication.getPrincipal())) {
 			return null;
 		}
 		return authentication.getName();
@@ -33,7 +34,7 @@ public class SecurityUtil {
 	 */
 	public User getCurrentUserOrThrow(UserRepository userRepository) {
 		String username = getCurrentUsername();
-		if (username == null) {
+		if (ObjectUtil.isNull(username)) {
 			throw new BusinessException(401, "User not authenticated");
 		}
 		return userRepository.findByUsername(username)
@@ -45,7 +46,7 @@ public class SecurityUtil {
 	 */
 	public boolean hasRole(String role) {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		if (authentication == null)
+		if (ObjectUtil.isNull(authentication))
 			return false;
 		return authentication.getAuthorities().stream()
 				.anyMatch(a -> a.getAuthority().equals(role) || a.getAuthority().equals("ROLE_" + role));

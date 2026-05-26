@@ -7,7 +7,8 @@ import java.util.regex.Pattern;
 /**
  * Utility for generating SEO-friendly slugs.
  */
-public class SlugUtil {
+public class SlugUtil
+{
 
 	private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
 	private static final Pattern WHITESPACE = Pattern.compile("[\\s]+");
@@ -15,8 +16,10 @@ public class SlugUtil {
 	/**
 	 * Generates a slug from a string.
 	 */
-	public static String toSlug(String input) {
-		if (input == null || input.isBlank()) {
+	public static String toSlug(String input)
+	{
+		if (input == null || input.isBlank())
+		{
 			return "";
 		}
 		String nowhitespace = WHITESPACE.matcher(input).replaceAll("-");

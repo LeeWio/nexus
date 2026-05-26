@@ -34,7 +34,7 @@ public class PostViewCountSyncTask {
 			return;
 		}
 
-		Map<Object, Object> viewCounts = redisUtil.hashGetAll(CacheConstants.POST_VIEW_EXTRA_HASH);
+		Map<Object, Object> viewCounts = redisUtil.hashGetAllAndDelete(CacheConstants.POST_VIEW_EXTRA_HASH);
 		if (viewCounts == null || viewCounts.isEmpty())
 			return;
 
@@ -47,9 +47,6 @@ public class PostViewCountSyncTask {
 
 				if (count > 0) {
 					postRepository.incrementViews(postId, count);
-					// Subtract the synced count from Redis.
-					// This handles new views that might have arrived during the sync process.
-					redisUtil.hashIncrement(CacheConstants.POST_VIEW_EXTRA_HASH, postId.toString(), -count);
 				}
 			} catch (Exception e) {
 				log.error("Failed to sync view count for post id: {}", postIdObj, e);

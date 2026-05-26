@@ -35,6 +35,8 @@ services:
     environment:
       - MYSQL_DATABASE=nexus_db
       - MYSQL_ROOT_PASSWORD=nexus_password
+      - MYSQL_USER=canal
+      - MYSQL_PASSWORD=canal_password
     ports:
       - "3307:3306"
     volumes:
@@ -90,3 +92,44 @@ volumes:
   nexus-db-data:
   nexus-redis-data:
   nexus-es-data:
+
+  nexus-rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: nexus-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=nexus
+      - RABBITMQ_DEFAULT_PASS=nexus_password
+    networks:
+      - nexus-network
+    restart: always
+
+  nexus-canal-server:
+    image: canal/canal-server:v1.1.7
+    container_name: nexus-canal-server
+    ports:
+      - "11111:11111"
+    environment:
+      - canal.auto.scan=false
+      - canal.destinations=test
+      - canal.instance.master.address=nexus-db:3306
+      - canal.instance.dbUsername=canal
+      - canal.instance.dbPassword=canal_password
+      - canal.instance.filter.regex=nexus_db\\..*
+      - canal.serverMode=rabbitmq
+      - rabbitmq.host=nexus-rabbitmq
+      - rabbitmq.port=5672
+      - rabbitmq.username=nexus
+      - rabbitmq.password=nexus_password
+      - rabbitmq.exchange=canal.exchange
+      - canal.mq.topic=canal.routing.key
+    depends_on:
+      nexus-db:
+        condition: service_healthy
+      nexus-rabbitmq:
+        condition: service_started
+    networks:
+      - nexus-network
+    restart: always

@@ -16,6 +16,7 @@ public class StorageProperties {
 
 	private LocalConfig local = new LocalConfig();
 	private AliyunConfig aliyun = new AliyunConfig();
+	private S3Config s3 = new S3Config();
 
 	@Data
 	public static class LocalConfig {
@@ -29,6 +30,16 @@ public class StorageProperties {
 		private String accessKeyId;
 		private String accessKeySecret;
 		private String bucketName;
+		private String domain;
+	}
+
+	@Data
+	public static class S3Config {
+		private String endpoint;
+		private String accessKeyId;
+		private String accessKeySecret;
+		private String bucketName;
+		private String region;
 		private String domain;
 	}
 }

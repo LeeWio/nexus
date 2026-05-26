@@ -21,6 +21,8 @@ import space.nebula.nexus.service.IMomentService;
 
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 
+import cn.hutool.core.lang.Assert;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -72,9 +74,7 @@ public class MomentServiceImpl implements IMomentService {
 	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
 	@LogOperation("Delete Moment")
 	public ApiResponse<Void> deleteMoment(Long id) {
-		if (!momentRepository.existsById(id)) {
-			throw new ResourceNotFoundException("Moment", "id", id);
-		}
+		Assert.isTrue(momentRepository.existsById(id), () -> new ResourceNotFoundException("Moment", "id", id));
 		momentRepository.deleteById(id);
 		log.info("Moment deleted: {}", id);
 		return ApiResponse.success("Moment deleted successfully", null);

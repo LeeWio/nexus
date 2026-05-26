@@ -17,5 +17,6 @@ import org.springframework.context.annotation.Configuration;
 		+ "- **Automated Image Processing** (Thumbnails, WebP) \n"
 		+ "- **Multi-Driver Storage** (Local, Aliyun OSS, S3)", contact = @Contact(name = "Nebula Space Team", url = "https://nebula.space"), license = @License(name = "MIT License", url = "https://opensource.org/licenses/MIT")), security = @SecurityRequirement(name = "bearerAuth"))
 @SecurityScheme(name = "bearerAuth", description = "Enter JWT Bearer token obtained from `/api/v1/auth/login`", scheme = "bearer", type = SecuritySchemeType.HTTP, bearerFormat = "JWT", in = SecuritySchemeIn.HEADER)
-public class OpenApiConfig {
+public class OpenApiConfig
+{
 }

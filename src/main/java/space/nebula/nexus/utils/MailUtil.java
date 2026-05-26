@@ -20,7 +20,8 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-public class MailUtil {
+public class MailUtil
+{
 
 	@Resource
 	private JavaMailSender mailSender;
@@ -34,16 +35,13 @@ public class MailUtil {
 	/**
 	 * Sends an email using a Thymeleaf template.
 	 *
-	 * @param to
-	 *            recipient email
-	 * @param subject
-	 *            email subject
-	 * @param templateName
-	 *            name of the template file (without .html)
-	 * @param variables
-	 *            variables to be used in the template
+	 * @param to           recipient email
+	 * @param subject      email subject
+	 * @param templateName name of the template file (without .html)
+	 * @param variables    variables to be used in the template
 	 */
-	public void sendTemplateMail(String to, String subject, String templateName, Map<String, Object> variables) {
+	public void sendTemplateMail(String to, String subject, String templateName, Map<String, Object> variables)
+	{
 		Context context = new Context();
 		context.setVariables(variables);
 		String htmlContent = templateEngine.process("email/" + templateName, context);
@@ -53,24 +51,25 @@ public class MailUtil {
 	/**
 	 * Sends a simple text email.
 	 *
-	 * @param to
-	 *            recipient email
-	 * @param subject
-	 *            email subject
-	 * @param content
-	 *            email content
+	 * @param to      recipient email
+	 * @param subject email subject
+	 * @param content email content
 	 */
-	public void sendSimpleMail(String to, String subject, String content) {
+	public void sendSimpleMail(String to, String subject, String content)
+	{
 		SimpleMailMessage message = new SimpleMailMessage();
 		message.setFrom(from);
 		message.setTo(to);
 		message.setSubject(subject);
 		message.setText(content);
 
-		try {
+		try
+		{
 			mailSender.send(message);
 			log.info("Simple email sent to {}", to);
-		} catch (Exception e) {
+		}
+		catch (Exception e)
+		{
 			log.error("Failed to send simple email to {}", to, e);
 			throw new BusinessException(BusinessCode.MAIL_SEND_FAILED,
 					"Email delivery failed. Please verify the mail server configuration.");
@@ -80,16 +79,15 @@ public class MailUtil {
 	/**
 	 * Sends an HTML email.
 	 *
-	 * @param to
-	 *            recipient email
-	 * @param subject
-	 *            email subject
-	 * @param htmlContent
-	 *            HTML email content
+	 * @param to          recipient email
+	 * @param subject     email subject
+	 * @param htmlContent HTML email content
 	 */
-	public void sendHtmlMail(String to, String subject, String htmlContent) {
+	public void sendHtmlMail(String to, String subject, String htmlContent)
+	{
 		MimeMessage message = mailSender.createMimeMessage();
-		try {
+		try
+		{
 			MimeMessageHelper helper = new MimeMessageHelper(message, true);
 			helper.setFrom(from);
 			helper.setTo(to);
@@ -98,7 +96,9 @@ public class MailUtil {
 
 			mailSender.send(message);
 			log.info("HTML email sent to {}", to);
-		} catch (Exception e) {
+		}
+		catch (Exception e)
+		{
 			log.error("Failed to send HTML email to {}", to, e);
 			throw new BusinessException(BusinessCode.MAIL_SEND_FAILED,
 					"Email delivery failed. Please verify the mail server configuration.");

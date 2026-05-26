@@ -1,5 +1,7 @@
 package space.nebula.nexus.common.aspect;
 
+import cn.hutool.core.util.ArrayUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +40,7 @@ public class ApiLogAspect {
 		long startTime = System.currentTimeMillis();
 
 		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-		if (attributes == null) {
+		if (ObjectUtil.isNull(attributes)) {
 			return joinPoint.proceed();
 		}
 
@@ -54,7 +56,7 @@ public class ApiLogAspect {
 
 		// Log parameters (excluding potentially sensitive ones)
 		String params = getSafeParamsJson(joinPoint);
-		if (!params.equals("{}")) {
+		if (ObjectUtil.notEqual("{}", params)) {
 			log.debug(">>> API Parameters: {}", params);
 		}
 
@@ -81,13 +83,13 @@ public class ApiLogAspect {
 			String[] parameterNames = ((MethodSignature) joinPoint.getSignature()).getParameterNames();
 			Object[] args = joinPoint.getArgs();
 
-			if (parameterNames == null || args == null)
+			if (ArrayUtil.isEmpty(parameterNames) || ArrayUtil.isEmpty(args))
 				return "{}";
 
 			Map<String, Object> paramsMap = IntStream.range(0, parameterNames.length).boxed()
 					.collect(Collectors.toMap(i -> parameterNames[i], i -> {
 						Object arg = args[i];
-						if (arg == null)
+						if (ObjectUtil.isNull(arg))
 							return "null";
 
 						String name = parameterNames[i].toLowerCase();

@@ -35,6 +35,10 @@ import space.nebula.nexus.service.IPostService;
 import space.nebula.nexus.utils.RedisUtil;
 import space.nebula.nexus.utils.SlugUtil;
 
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.lang.Assert;
+import cn.hutool.core.util.StrUtil;
+
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
@@ -90,6 +94,10 @@ public class PostServiceImpl implements IPostService {
 		postMapper.updateEntity(newPost, request);
 		newPost.setSlug(uniqueSlug);
 		newPost.setAuthor(currentAuthor);
+		
+		if (newPost.getStatus() == null) {
+			newPost.setStatus(PostStatus.DRAFT);
+		}
 
 		syncCategoryAndTags(newPost, request);
 
@@ -102,8 +110,6 @@ public class PostServiceImpl implements IPostService {
 		// Publish event for async side-effects (Search indexing, Revisions)
 		eventPublisher.publishEvent(new PostChangedEvent(this, newPost, true));
 
-		clearPostListCache();
-
 		return ApiResponse.success("Post created successfully", postMapper.toResponse(newPost));
 	}
 
@@ -114,7 +120,7 @@ public class PostServiceImpl implements IPostService {
 		Post existingPost = findPostOrThrow(id);
 
 		String newSlug = existingPost.getSlug();
-		if (request.slug() != null && !request.slug().equals(existingPost.getSlug())) {
+		if (StrUtil.isNotBlank(request.slug()) && !StrUtil.equals(request.slug(), existingPost.getSlug())) {
 			newSlug = validateAndGenerateSlug(request.slug(), request.title());
 		}
 
@@ -133,8 +139,6 @@ public class PostServiceImpl implements IPostService {
 		// Publish event
 		eventPublisher.publishEvent(new PostChangedEvent(this, existingPost, false));
 
-		clearPostCache(existingPost.getSlug(), newSlug);
-
 		return ApiResponse.success("Post updated successfully", postMapper.toResponse(existingPost));
 	}
 
@@ -151,9 +155,46 @@ public class PostServiceImpl implements IPostService {
 		// Publish deletion event
 		eventPublisher.publishEvent(new PostDeletedEvent(this, id, currentSlug));
 
-		clearPostCache(currentSlug, null);
-
 		return ApiResponse.success("Post deleted successfully", null);
+	}
+
+	@Override
+	@Transactional
+	@LogOperation("Submit Post For Review")
+	public ApiResponse<Void> submitForReview(Long id) {
+		Post post = findPostOrThrow(id);
+		Assert.isTrue(post.getStatus() == PostStatus.DRAFT || post.getStatus() == PostStatus.REJECTED, 
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only Draft or Rejected posts can be submitted for review"));
+		
+		post.setStatus(PostStatus.PENDING_REVIEW);
+		postRepository.save(post);
+		log.info("Post '{}' submitted for review by {}", post.getTitle(), SecurityUtil.getCurrentUserOrThrow(userRepository).getUsername());
+		return ApiResponse.success("Post submitted for review successfully", null);
+	}
+
+	@Override
+	@Transactional
+	@LogOperation("Review Post")
+	public ApiResponse<Void> reviewPost(Long id, boolean approved, String reviewComment) {
+		Post post = findPostOrThrow(id);
+		Assert.isTrue(post.getStatus() == PostStatus.PENDING_REVIEW, 
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post is not pending review"));
+
+		if (approved) {
+			post.setStatus(PostStatus.PUBLISHED);
+			if (post.getPublishedAt() == null) {
+				post.setPublishedAt(java.time.LocalDateTime.now());
+			}
+			log.info("Post '{}' approved and published", post.getTitle());
+			eventPublisher.publishEvent(new PostChangedEvent(this, post, true));
+		} else {
+			post.setStatus(PostStatus.REJECTED);
+			// Normally, store the reviewComment in a post_audit or comment field
+			log.info("Post '{}' rejected. Reason: {}", post.getTitle(), reviewComment);
+		}
+		
+		postRepository.save(post);
+		return ApiResponse.success(approved ? "Post approved and published" : "Post rejected", null);
 	}
 
 	@Override
@@ -171,7 +212,7 @@ public class PostServiceImpl implements IPostService {
 				jakarta.persistence.criteria.Join<Object, Object> tagsJoin = root.join("tags");
 				searchCriteria.add(cb.equal(tagsJoin.get("id"), tagId));
 			}
-			if (keyword != null && !keyword.isBlank()) {
+			if (StrUtil.isNotBlank(keyword)) {
 				String keywordPattern = "%" + keyword.toLowerCase() + "%";
 				searchCriteria.add(cb.or(cb.like(root.get("title"), keywordPattern),
 						cb.like(root.get("summary"), keywordPattern),
@@ -190,9 +231,7 @@ public class PostServiceImpl implements IPostService {
 			Post post = postRepository.findBySlug(slug)
 					.orElseThrow(() -> new ResourceNotFoundException("Post", "slug", slug));
 
-			if (post.getStatus() != PostStatus.PUBLISHED) {
-				throw new BusinessException(BusinessCode.FORBIDDEN, "Post is not published");
-			}
+			Assert.isTrue(post.getStatus() == PostStatus.PUBLISHED, () -> new BusinessException(BusinessCode.FORBIDDEN, "Post is not published"));
 			PostResponse mappedResponse = postMapper.toResponse(post);
 			redisUtil.set(cacheKey, mappedResponse, 1, java.util.concurrent.TimeUnit.HOURS);
 			return mappedResponse;
@@ -245,13 +284,8 @@ public class PostServiceImpl implements IPostService {
 	}
 
 	private String validateAndGenerateSlug(String requestedSlug, String title) {
-		String slug = (requestedSlug == null || requestedSlug.isBlank())
-				? SlugUtil.toSlug(title)
-				: SlugUtil.toSlug(requestedSlug);
-
-		if (postRepository.findBySlug(slug).isPresent()) {
-			throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Post slug already exists: " + slug);
-		}
+		String slug = StrUtil.isBlank(requestedSlug) ? SlugUtil.toSlug(title) : SlugUtil.toSlug(requestedSlug);
+		Assert.isFalse(postRepository.findBySlug(slug).isPresent(), () -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Post slug already exists: " + slug));
 		return slug;
 	}
 
@@ -273,23 +307,8 @@ public class PostServiceImpl implements IPostService {
 			post.setSeriesOrder(0);
 		}
 
-		if (request.tagIds() != null) {
+		if (CollUtil.isNotEmpty(request.tagIds())) {
 			post.setTags(new HashSet<>(tagRepository.findAllById(request.tagIds())));
-		}
-	}
-
-	private void clearPostListCache() {
-		// Clear all paginated lists using pattern
-		redisUtil.deleteByPattern(CacheConstants.buildFullKey(CacheConstants.BLOG_POSTS, "list:*"));
-		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
-		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.RSS_FEED_KEY));
-	}
-
-	private void clearPostCache(String oldSlug, String newSlug) {
-		clearPostListCache();
-		redisUtil.delete(CacheConstants.POST_SLUG_PREFIX + oldSlug);
-		if (newSlug != null && !newSlug.equals(oldSlug)) {
-			redisUtil.delete(CacheConstants.POST_SLUG_PREFIX + newSlug);
 		}
 	}
 }

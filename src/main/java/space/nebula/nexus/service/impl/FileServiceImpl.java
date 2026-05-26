@@ -1,5 +1,10 @@
 package space.nebula.nexus.service.impl;
 
+import cn.hutool.core.lang.Assert;
+import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.SecureUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,11 +32,11 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Professional implementation of File Management Service. Enhanced with deep
- * MIME detection, security validation, and automated image processing.
+ * MIME detection, security validation, automated image processing, and 
+ * content-based deduplication using SHA-256.
  */
 @Slf4j
 @Service
@@ -57,10 +62,22 @@ public class FileServiceImpl implements IFileService {
 
 		try {
 			var fileBytes = file.getBytes();
+			
+			// 1. Content-based Deduplication (SHA-256)
+			String fileHash = SecureUtil.sha256(new ByteArrayInputStream(fileBytes));
+			var existingFile = fileRepository.findByFileHash(fileHash);
+			if (existingFile.isPresent()) {
+				FileMetadata metadata = existingFile.get();
+				metadata.setReferenceCount(metadata.getReferenceCount() + 1);
+				fileRepository.save(metadata);
+				log.info("File deduplicated: existing asset reused (ID: {})", metadata.getId());
+				return ApiResponse.success("File reused via deduplication", fileMapper.toResponse(metadata));
+			}
+
 			var originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
 			var extension = extractFileExtension(originalFilename);
 
-			// 1. Deep MIME detection for security
+			// 2. Deep MIME detection for security
 			String detectedMimeType;
 			try (var bais = new ByteArrayInputStream(fileBytes)) {
 				detectedMimeType = fileUtil.detectMimeType(bais);
@@ -72,15 +89,15 @@ public class FileServiceImpl implements IFileService {
 				throw new BusinessException(BusinessCode.BAD_REQUEST, "File content type not supported");
 			}
 
-			var uniqueName = UUID.randomUUID().toString().replace("-", "") + extension;
+			var uniqueName = IdUtil.fastSimpleUUID() + extension;
 
-			// 2. Specialized Image Processing
+			// 3. Specialized Image Processing
 			String thumbnailUrl = null;
 			Integer width = null, height = null;
 
 			if (fileUtil.isImage(detectedMimeType)) {
 				var dimensions = fileUtil.getImageDimensions(fileBytes);
-				if (dimensions != null) {
+				if (ObjectUtil.isNotNull(dimensions)) {
 					width = dimensions.width();
 					height = dimensions.height();
 				}
@@ -95,7 +112,7 @@ public class FileServiceImpl implements IFileService {
 				}
 			}
 
-			// 3. Asset Persistence
+			// 4. Asset Persistence
 			storageProvider.store(new ByteArrayInputStream(fileBytes), uniqueName);
 
 			User uploader = null;
@@ -115,6 +132,8 @@ public class FileServiceImpl implements IFileService {
 			metadata.setWidth(width);
 			metadata.setHeight(height);
 			metadata.setUploader(uploader);
+			metadata.setFileHash(fileHash);
+			metadata.setReferenceCount(1);
 
 			var savedFile = fileRepository.save(metadata);
 			log.info("File asset indexed successfully: {} (ID: {})", uniqueName, savedFile.getId());
@@ -132,16 +151,24 @@ public class FileServiceImpl implements IFileService {
 	@LogOperation("Delete File")
 	public ApiResponse<Void> deleteFile(String fileName) {
 		var sanitizedName = StringUtils.cleanPath(fileName);
-		if (sanitizedName.contains("..")) {
-			throw new BusinessException(BusinessCode.BAD_REQUEST, "Security violation: Invalid path");
-		}
+		Assert.isFalse(sanitizedName.contains(".."), () -> new BusinessException(BusinessCode.BAD_REQUEST, "Security violation: Invalid path"));
 
 		var metadata = fileRepository.findByFileName(sanitizedName)
 				.orElseThrow(() -> new ResourceNotFoundException("File", "name", sanitizedName));
 
+		// 1. Decrement reference count
+		metadata.setReferenceCount(metadata.getReferenceCount() - 1);
+		
+		if (metadata.getReferenceCount() > 0) {
+			fileRepository.save(metadata);
+			log.info("File reference decremented for: {}. Current count: {}", sanitizedName, metadata.getReferenceCount());
+			return ApiResponse.success("File reference removed", null);
+		}
+
+		// 2. If count reaches zero, purge physical files and DB record
 		storageProvider.delete(sanitizedName);
 
-		if (metadata.getThumbnailUrl() != null) {
+		if (StrUtil.isNotBlank(metadata.getThumbnailUrl())) {
 			var thumbnailName = extractFileNameFromUrl(metadata.getThumbnailUrl());
 			storageProvider.delete(thumbnailName);
 		}
@@ -149,7 +176,7 @@ public class FileServiceImpl implements IFileService {
 		fileRepository.delete(metadata);
 		log.info("File asset and related records purged for: {}", sanitizedName);
 
-		return ApiResponse.success("File deleted successfully", null);
+		return ApiResponse.success("File permanently deleted", null);
 	}
 
 	private String extractFileExtension(String filename) {

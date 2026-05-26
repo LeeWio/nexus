@@ -23,6 +23,8 @@ import java.util.List;
 
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 
+import cn.hutool.core.lang.Assert;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -80,9 +82,7 @@ public class ProjectServiceImpl implements IProjectService {
 	@CacheEvict(value = CacheConstants.PROJECTS, allEntries = true)
 	@LogOperation("Delete Project")
 	public ApiResponse<Void> deleteProject(Long id) {
-		if (!projectRepository.existsById(id)) {
-			throw new ResourceNotFoundException("Project", "id", id);
-		}
+		Assert.isTrue(projectRepository.existsById(id), () -> new ResourceNotFoundException("Project", "id", id));
 		projectRepository.deleteById(id);
 		log.info("Project deleted id: {}", id);
 		return ApiResponse.success("Project deleted successfully", null);

@@ -18,6 +18,8 @@ public interface FileRepository extends JpaRepository<FileMetadata, Long>, JpaSp
 	@EntityGraph(attributePaths = {"uploader"})
 	Optional<FileMetadata> findByFileName(String fileName);
 
+	Optional<FileMetadata> findByFileHash(String fileHash);
+
 	@Override
 	@EntityGraph(attributePaths = {"uploader"})
 	Page<FileMetadata> findAll(@Nullable Specification<FileMetadata> spec, Pageable pageable);

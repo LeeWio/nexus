@@ -2,6 +2,7 @@ package space.nebula.nexus.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,12 +16,14 @@ import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.validator.UserValidator;
+import space.nebula.nexus.config.RabbitMQConfig;
 import space.nebula.nexus.entity.Role;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.payload.request.LoginRequest;
 import space.nebula.nexus.payload.request.OtpLoginRequest;
 import space.nebula.nexus.payload.request.RegisterRequest;
+import space.nebula.nexus.payload.request.TemplateMailMessage;
 import space.nebula.nexus.payload.response.AuthResponse;
 import space.nebula.nexus.repository.RoleRepository;
 import space.nebula.nexus.repository.UserRepository;
@@ -28,20 +31,22 @@ import space.nebula.nexus.security.model.SecurityUser;
 import space.nebula.nexus.security.service.LoginSecurityService;
 import space.nebula.nexus.security.util.JwtUtils;
 import space.nebula.nexus.service.IAuthService;
-import space.nebula.nexus.utils.MailUtil;
 import space.nebula.nexus.utils.RedisUtil;
 
+import cn.hutool.core.lang.Assert;
+import cn.hutool.core.lang.Dict;
+import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
+
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
  * Professional implementation of user authentication and account management.
  * Handles secure registration, multi-factor authentication (OTP), and JWT
- * session management.
+ * session management. Uses RabbitMQ for asynchronous email delivery.
  */
 @Slf4j
 @Service
@@ -56,7 +61,7 @@ public class AuthServiceImpl implements IAuthService {
 	private final UserValidator userValidator;
 	private final LoginSecurityService loginSecurityService;
 	private final RedisUtil redisUtil;
-	private final MailUtil mailUtil;
+	private final RabbitTemplate rabbitTemplate;
 
 	@Override
 	@Transactional
@@ -114,23 +119,31 @@ public class AuthServiceImpl implements IAuthService {
 		userRepository.findByEmail(email).orElseThrow(
 				() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "No account linked to this email"));
 
-		var otp = String.format("%06d", new Random().nextInt(1000000));
+		var otp = RandomUtil.randomNumbers(6);
 		var otpKey = CacheConstants.OTP_CODE + email;
 		if (!redisUtil.set(otpKey, otp, 5, TimeUnit.MINUTES)) {
 			throw new BusinessException(BusinessCode.ERROR, "Failed to store OTP code");
 		}
 
-		Map<String, Object> variables = new HashMap<>();
-		variables.put("otp", otp);
-		variables.put("expireMin", 5);
+		Map<String, Object> variables = Dict.create().set("otp", otp).set("expireMin", 5);
+		
+		TemplateMailMessage mailMessage = TemplateMailMessage.builder()
+				.to(email)
+				.subject("Nexus Login OTP")
+				.templateName("otp-login")
+				.variables(variables)
+				.type(TemplateMailMessage.MailType.TEMPLATE)
+				.build();
+
 		try {
-			mailUtil.sendTemplateMail(email, "Nexus Login OTP", "otp-login", variables);
-		} catch (RuntimeException e) {
+			rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mailMessage);
+			log.info("OTP task dispatched to MQ for {}: {}", email, otp);
+		} catch (Exception e) {
 			redisUtil.delete(otpKey);
-			throw e;
+			log.error("Failed to dispatch OTP email task to MQ for: {}", email, e);
+			throw new BusinessException(BusinessCode.ERROR, "Failed to dispatch email task");
 		}
 
-		log.info("OTP code generated for {}: {}", email, otp);
 		return ApiResponse.success("OTP code sent successfully. Please check your inbox.", null);
 	}
 
@@ -143,16 +156,12 @@ public class AuthServiceImpl implements IAuthService {
 		var otpKey = CacheConstants.OTP_CODE + email;
 
 		var storedOtp = redisUtil.get(otpKey, String.class).orElse(null);
-		if (storedOtp == null || !storedOtp.equals(code)) {
-			throw new BusinessException(BusinessCode.INVALID_TOKEN, "Invalid or expired verification code");
-		}
+		Assert.isTrue(StrUtil.equals(storedOtp, code), () -> new BusinessException(BusinessCode.INVALID_TOKEN, "Invalid or expired verification code"));
 
 		var user = userRepository.findByEmail(email)
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
-		if (user.getStatus() != UserStatus.ACTIVE) {
-			throw new BusinessException(BusinessCode.ACCOUNT_DISABLED, "Account status: " + user.getStatus());
-		}
+		Assert.isTrue(user.getStatus() == UserStatus.ACTIVE, () -> new BusinessException(BusinessCode.ACCOUNT_DISABLED, "Account status: " + user.getStatus()));
 
 		var securityUser = new SecurityUser(user);
 		var authentication = new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());

@@ -2,6 +2,7 @@ package space.nebula.nexus.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
@@ -13,15 +14,19 @@ import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
+import space.nebula.nexus.config.RabbitMQConfig;
 import space.nebula.nexus.entity.FriendLink;
 import space.nebula.nexus.enums.FriendLinkStatus;
 import space.nebula.nexus.mapper.FriendLinkMapper;
 import space.nebula.nexus.payload.request.FriendLinkRequest;
+import space.nebula.nexus.payload.request.TemplateMailMessage;
 import space.nebula.nexus.payload.response.FriendLinkResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.FriendLinkRepository;
 import space.nebula.nexus.service.IFriendLinkService;
-import space.nebula.nexus.utils.MailUtil;
+
+import cn.hutool.core.lang.Assert;
+import cn.hutool.core.util.StrUtil;
 
 import java.util.List;
 
@@ -36,7 +41,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 
 	private final FriendLinkRepository friendLinkRepository;
 	private final FriendLinkMapper friendLinkMapper;
-	private final MailUtil mailUtil;
+	private final RabbitTemplate rabbitTemplate;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -89,9 +94,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
 	@LogOperation("Delete Friend Link")
 	public ApiResponse<Void> deleteFriendLink(Long id) {
-		if (!friendLinkRepository.existsById(id)) {
-			throw new ResourceNotFoundException("FriendLink", "id", id);
-		}
+		Assert.isTrue(friendLinkRepository.existsById(id), () -> new ResourceNotFoundException("FriendLink", "id", id));
 		friendLinkRepository.deleteById(id);
 		log.info("Friend link deleted ID: {}", id);
 		return ApiResponse.success("Friend link deleted", null);
@@ -156,11 +159,19 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 
 	private void sendApplicationNotification(FriendLink link) {
 		String subject = "New Friend Link Application: " + link.getName();
-		String content = String.format(
+		String content = StrUtil.format(
 				"Hello Admin,\n\nA new friend link application has been submitted:\n\n"
-						+ "Site Name: %s\nSite URL: %s\nDescription: %s\nContact Email: %s\n\n"
+						+ "Site Name: {}\nSite URL: {}\nDescription: {}\nContact Email: {}\n\n"
 						+ "Please log in to moderate this application.",
 				link.getName(), link.getUrl(), link.getDescription(), link.getEmail());
-		mailUtil.sendSimpleMail("admin@nexus.com", subject, content);
+		
+		TemplateMailMessage message = TemplateMailMessage.builder()
+				.to("admin@nexus.com")
+				.subject(subject)
+				.content(content)
+				.type(TemplateMailMessage.MailType.SIMPLE)
+				.build();
+		
+		rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
 	}
 }

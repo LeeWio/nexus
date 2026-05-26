@@ -9,13 +9,15 @@ import java.util.List;
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "app.market")
-public class MarketProperties {
+public class MarketProperties
+{
 
 	private List<IndexConfig> indices;
 	private ApiUrls urls;
 
 	@Data
-	public static class IndexConfig {
+	public static class IndexConfig
+	{
 		private String name;
 		private String symbol;
 		private String hqKey;
@@ -23,14 +25,16 @@ public class MarketProperties {
 	}
 
 	@Data
-	public static class ApiUrls {
+	public static class ApiUrls
+	{
 		private String hq;
 		private String klineCn;
 		private String klineUs;
 		private String klineUsDaily;
 	}
 
-	public enum MarketType {
+	public enum MarketType
+	{
 		US, CN
 	}
 }

@@ -1,5 +1,7 @@
 package space.nebula.nexus.service.impl;
 
+import cn.hutool.core.lang.Assert;
+import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -69,9 +71,7 @@ public class TagServiceImpl implements ITagService {
 	@Transactional
 	@LogOperation("Delete Tag")
 	public ApiResponse<Void> deleteTag(Long id) {
-		if (!tagRepository.existsById(id)) {
-			throw new ResourceNotFoundException("Tag", "id", id);
-		}
+		Assert.isTrue(tagRepository.existsById(id), () -> new ResourceNotFoundException("Tag", "id", id));
 		tagRepository.deleteById(id);
 		log.info("Tag deleted id: {}", id);
 		clearSeoCache();
@@ -79,15 +79,13 @@ public class TagServiceImpl implements ITagService {
 	}
 
 	private void validateUniqueConstraints(Tag existing, TagRequest request) {
-		if (request.name() != null && (existing == null || !existing.getName().equals(request.name()))) {
-			if (tagRepository.findByName(request.name()).isPresent()) {
-				throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag name already exists: " + request.name());
-			}
+		if (StrUtil.isNotBlank(request.name()) && (existing == null || !StrUtil.equals(existing.getName(), request.name()))) {
+			Assert.isFalse(tagRepository.findByName(request.name()).isPresent(),
+					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag name already exists: " + request.name()));
 		}
-		if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug()))) {
-			if (tagRepository.findBySlug(request.slug()).isPresent()) {
-				throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag slug already exists: " + request.slug());
-			}
+		if (StrUtil.isNotBlank(request.slug()) && (existing == null || !StrUtil.equals(existing.getSlug(), request.slug()))) {
+			Assert.isFalse(tagRepository.findBySlug(request.slug()).isPresent(),
+					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag slug already exists: " + request.slug()));
 		}
 	}
 

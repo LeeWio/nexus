@@ -1,5 +1,6 @@
 package space.nebula.nexus.controller;
 
+import cn.hutool.core.lang.tree.Tree;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,7 +30,7 @@ public class AdminMenuController {
 
 	@GetMapping("/tree")
 	@Operation(summary = "Retrieve complete menu hierarchy", description = "Fetch the entire system menu structure as a nested tree.")
-	public ApiResponse<List<MenuResponse>> retrieveMenuTree() {
+	public ApiResponse<List<Tree<Long>>> retrieveMenuTree() {
 		return menuService.retrieveFullMenuTree();
 	}
 
@@ -54,7 +55,7 @@ public class AdminMenuController {
 
 	@GetMapping("/current")
 	@Operation(summary = "Retrieve current user menu", description = "Fetch the menu hierarchy filtered by the authenticated user's permissions.")
-	public ApiResponse<List<MenuResponse>> retrieveAuthenticatedUserMenus() {
+	public ApiResponse<List<Tree<Long>>> retrieveAuthenticatedUserMenus() {
 		return menuService.retrieveAuthenticatedUserMenuTree();
 	}
 }

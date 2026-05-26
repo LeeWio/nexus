@@ -1,5 +1,6 @@
 package space.nebula.nexus.service;
 
+import cn.hutool.core.lang.tree.Tree;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Pageable;
 import space.nebula.nexus.common.ApiResponse;
@@ -7,6 +8,8 @@ import space.nebula.nexus.enums.CommentStatus;
 import space.nebula.nexus.payload.request.CommentRequest;
 import space.nebula.nexus.payload.response.CommentResponse;
 import space.nebula.nexus.payload.response.PageResult;
+
+import java.util.List;
 
 public interface ICommentService {
 
@@ -16,14 +19,14 @@ public interface ICommentService {
 	ApiResponse<Void> publishComment(CommentRequest request, HttpServletRequest servletRequest);
 
 	/**
-	 * Retrieves approved comments for a specific post.
+	 * Retrieves approved comments for a specific post as a tree.
 	 */
-	ApiResponse<PageResult<CommentResponse>> retrieveCommentsByPost(Long postId, Pageable pageable);
+	ApiResponse<List<Tree<Long>>> retrieveCommentsByPost(Long postId);
 
 	/**
-	 * Retrieves approved comments for the guestbook.
+	 * Retrieves approved comments for the guestbook as a tree.
 	 */
-	ApiResponse<PageResult<CommentResponse>> retrieveGuestbookComments(Pageable pageable);
+	ApiResponse<List<Tree<Long>>> retrieveGuestbookComments();
 
 	/**
 	 * Searches all comments for administrative management.

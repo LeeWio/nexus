@@ -17,13 +17,15 @@ import java.util.concurrent.ThreadPoolExecutor;
 @Configuration
 @EnableAsync
 @EnableScheduling
-public class ThreadPoolConfig {
+public class ThreadPoolConfig
+{
 
 	/**
 	 * Custom executor for general asynchronous tasks.
 	 */
 	@Bean(name = "asyncExecutor")
-	public Executor asyncExecutor() {
+	public Executor asyncExecutor()
+	{
 		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 		// Core pool size: threads to keep alive
 		executor.setCorePoolSize(5);
@@ -50,7 +52,8 @@ public class ThreadPoolConfig {
 	 * Custom scheduler for background scheduled tasks.
 	 */
 	@Bean(name = "taskScheduler")
-	public ThreadPoolTaskScheduler taskScheduler() {
+	public ThreadPoolTaskScheduler taskScheduler()
+	{
 		ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
 		// Pool size for scheduled tasks
 		scheduler.setPoolSize(5);

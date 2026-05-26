@@ -1,5 +1,7 @@
 package space.nebula.nexus.common.aspect;
 
+import cn.hutool.core.util.ArrayUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONUtil;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,10 +44,10 @@ public class LogOperationAspect {
 		long startTime = System.currentTimeMillis();
 
 		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-		HttpServletRequest request = attributes != null ? attributes.getRequest() : null;
+		HttpServletRequest request = ObjectUtil.isNotNull(attributes) ? attributes.getRequest() : null;
 
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		String username = (authentication != null) ? authentication.getName() : "Anonymous";
+		String username = ObjectUtil.isNotNull(authentication) ? authentication.getName() : "Anonymous";
 
 		MethodSignature signature = (MethodSignature) joinPoint.getSignature();
 		Method method = signature.getMethod();
@@ -84,22 +86,22 @@ public class LogOperationAspect {
 		opLog.setStatus(status);
 		opLog.setTraceId(MDC.get("traceId"));
 
-		if (request != null) {
+		if (ObjectUtil.isNotNull(request)) {
 			opLog.setRequestMethod(request.getMethod());
 			opLog.setRequestUrl(request.getRequestURI());
 			opLog.setIpAddress(IpUtil.getIpAddress(request));
 			opLog.setUserAgent(request.getHeader("User-Agent"));
 		}
 
-		if (annotation.logArgs() && joinPoint.getArgs() != null) {
+		if (annotation.logArgs() && ArrayUtil.isNotEmpty(joinPoint.getArgs())) {
 			opLog.setParameters(getSafeArgsJson((MethodSignature) joinPoint.getSignature(), joinPoint.getArgs()));
 		}
 
-		if (annotation.logResult() && result != null) {
+		if (annotation.logResult() && ObjectUtil.isNotNull(result)) {
 			opLog.setResult(JSONUtil.toJsonStr(result));
 		}
 
-		if (exception != null) {
+		if (ObjectUtil.isNotNull(exception)) {
 			opLog.setErrorMessage(exception.getMessage());
 		}
 
@@ -111,13 +113,13 @@ public class LogOperationAspect {
 	private String getSafeArgsJson(MethodSignature signature, Object[] args) {
 		try {
 			String[] parameterNames = signature.getParameterNames();
-			if (parameterNames == null || args == null)
+			if (ArrayUtil.isEmpty(parameterNames) || ArrayUtil.isEmpty(args))
 				return "[]";
 
 			Map<String, Object> paramsMap = IntStream.range(0, parameterNames.length).boxed()
 					.collect(Collectors.toMap(i -> parameterNames[i], i -> {
 						Object arg = args[i];
-						if (arg == null)
+						if (ObjectUtil.isNull(arg))
 							return "null";
 
 						String name = parameterNames[i].toLowerCase();

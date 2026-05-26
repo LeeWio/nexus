@@ -16,6 +16,8 @@ import space.nebula.nexus.repository.RoleRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.IAdminUserService;
 
+import cn.hutool.core.lang.Assert;
+
 import java.util.HashSet;
 import java.util.List;
 
@@ -51,9 +53,7 @@ public class AdminUserServiceImpl implements IAdminUserService {
 	public ApiResponse<Void> disableUser(Long id) {
 		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
-		if (user.getStatus() == UserStatus.INACTIVE) {
-			throw new BusinessException(BusinessCode.BAD_REQUEST, "User is already inactive");
-		}
+		Assert.isFalse(user.getStatus() == UserStatus.INACTIVE, () -> new BusinessException(BusinessCode.BAD_REQUEST, "User is already inactive"));
 
 		user.setStatus(UserStatus.INACTIVE);
 		userRepository.save(user);
@@ -67,9 +67,7 @@ public class AdminUserServiceImpl implements IAdminUserService {
 	public ApiResponse<Void> enableUser(Long id) {
 		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
-		if (user.getStatus() == UserStatus.ACTIVE) {
-			throw new BusinessException(BusinessCode.BAD_REQUEST, "User is already active");
-		}
+		Assert.isFalse(user.getStatus() == UserStatus.ACTIVE, () -> new BusinessException(BusinessCode.BAD_REQUEST, "User is already active"));
 
 		user.setStatus(UserStatus.ACTIVE);
 		userRepository.save(user);
@@ -81,9 +79,7 @@ public class AdminUserServiceImpl implements IAdminUserService {
 	@Transactional
 	@LogOperation("Delete User")
 	public ApiResponse<Void> deleteUser(Long id) {
-		if (!userRepository.existsById(id)) {
-			throw new BusinessException(BusinessCode.USER_NOT_FOUND);
-		}
+		Assert.isTrue(userRepository.existsById(id), () -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 		userRepository.deleteById(id);
 		log.info("Admin deleted user id: {}", id);
 		return ApiResponse.success("User deleted successfully", null);
@@ -97,9 +93,7 @@ public class AdminUserServiceImpl implements IAdminUserService {
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
 		var roles = roleRepository.findAllById(request.roleIds());
-		if (roles.size() != request.roleIds().size()) {
-			throw new BusinessException(BusinessCode.BAD_REQUEST, "One or more role IDs are invalid");
-		}
+		Assert.isTrue(roles.size() == request.roleIds().size(), () -> new BusinessException(BusinessCode.BAD_REQUEST, "One or more role IDs are invalid"));
 
 		user.setRoles(new HashSet<>(roles));
 		userRepository.save(user);

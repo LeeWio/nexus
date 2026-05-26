@@ -14,10 +14,12 @@ import java.time.Duration;
 
 @Configuration
 @EnableCaching
-public class RedisConfig {
+public class RedisConfig
+{
 
 	@Bean
-	public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
+	public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory)
+	{
 		RedisTemplate<String, Object> template = new RedisTemplate<>();
 		template.setConnectionFactory(factory);
 
@@ -34,7 +36,8 @@ public class RedisConfig {
 	}
 
 	@Bean
-	public RedisCacheManager cacheManager(RedisConnectionFactory factory) {
+	public RedisCacheManager cacheManager(RedisConnectionFactory factory)
+	{
 		RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofHours(1))
 				.serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.string()))
 				.serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.json()))

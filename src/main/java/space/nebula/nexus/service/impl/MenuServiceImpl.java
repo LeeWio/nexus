@@ -1,8 +1,10 @@
 package space.nebula.nexus.service.impl;
 
+import cn.hutool.core.lang.tree.Tree;
+import cn.hutool.core.lang.tree.TreeNodeConfig;
+import cn.hutool.core.lang.tree.TreeUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -21,9 +23,7 @@ import space.nebula.nexus.repository.MenuRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.IMenuService;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -38,14 +38,13 @@ public class MenuServiceImpl implements IMenuService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<MenuResponse>> retrieveFullMenuTree() {
+	public ApiResponse<List<Tree<Long>>> retrieveFullMenuTree() {
 		List<Menu> allMenus = menuRepository.findAllByOrderBySortOrderAsc();
-		return ApiResponse.success(buildHierarchy(menuMapper.toResponseList(allMenus), 0L));
+		return ApiResponse.success(buildHierarchy(menuMapper.toResponseList(allMenus)));
 	}
 
 	@Override
 	@Transactional
-	@CacheEvict(value = CacheConstants.NAVIGATION, allEntries = true)
 	@LogOperation("Create Menu")
 	public ApiResponse<MenuResponse> createMenu(MenuRequest request) {
 		Menu newMenu = menuMapper.toEntity(request);
@@ -59,7 +58,6 @@ public class MenuServiceImpl implements IMenuService {
 
 	@Override
 	@Transactional
-	@CacheEvict(value = CacheConstants.NAVIGATION, allEntries = true)
 	@LogOperation("Update Menu")
 	public ApiResponse<MenuResponse> updateMenu(Long id, MenuRequest request) {
 		Menu existingMenu = menuRepository.findById(id)
@@ -74,7 +72,6 @@ public class MenuServiceImpl implements IMenuService {
 
 	@Override
 	@Transactional
-	@CacheEvict(value = CacheConstants.NAVIGATION, allEntries = true)
 	@LogOperation("Delete Menu")
 	public ApiResponse<Void> deleteMenu(Long id) {
 		if (!menuRepository.existsById(id)) {
@@ -87,7 +84,7 @@ public class MenuServiceImpl implements IMenuService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<MenuResponse>> retrieveAuthenticatedUserMenuTree() {
+	public ApiResponse<List<Tree<Long>>> retrieveAuthenticatedUserMenuTree() {
 		String authenticatedUsername = SecurityContextHolder.getContext().getAuthentication().getName();
 		User currentUser = userRepository.findByUsername(authenticatedUsername)
 				.orElseThrow(() -> new BusinessException("Authenticated user not found"));
@@ -100,24 +97,38 @@ public class MenuServiceImpl implements IMenuService {
 				.filter(menu -> menu.getType() < 2).sorted((m1, m2) -> m1.getSortOrder().compareTo(m2.getSortOrder()))
 				.collect(Collectors.toList()));
 
-		return ApiResponse.success(buildHierarchy(localizedMenuResponses, 0L));
+		return ApiResponse.success(buildHierarchy(localizedMenuResponses));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.NAVIGATION, key = CacheConstants.PUBLIC_TREE_KEY)
-	public ApiResponse<List<MenuResponse>> retrievePublicNavigationMenuTree() {
+	public ApiResponse<List<Tree<Long>>> retrievePublicNavigationMenuTree() {
 		List<Menu> publicVisibleMenus = menuRepository.findByIsPublicTrueAndIsVisibleTrueOrderBySortOrderAsc();
 		List<MenuResponse> publicResponses = menuMapper.toResponseList(publicVisibleMenus);
-		return ApiResponse.success(buildHierarchy(publicResponses, 0L));
+		return ApiResponse.success(buildHierarchy(publicResponses));
 	}
 
-	private List<MenuResponse> buildHierarchy(List<MenuResponse> flatMenus, Long rootParentId) {
-		Map<Long, List<MenuResponse>> childrenByParentMap = flatMenus.stream()
-				.collect(Collectors.groupingBy(MenuResponse::getParentId));
-
-		flatMenus.forEach(menu -> menu.setChildren(childrenByParentMap.getOrDefault(menu.getId(), new ArrayList<>())));
-
-		return childrenByParentMap.getOrDefault(rootParentId, new ArrayList<>());
+	private List<Tree<Long>> buildHierarchy(List<MenuResponse> flatMenus) {
+		TreeNodeConfig config = new TreeNodeConfig();
+		config.setIdKey("id");
+		config.setParentIdKey("parentId");
+		config.setWeightKey("sortOrder");
+		config.setNameKey("name");
+		config.setChildrenKey("children");
+		
+		return TreeUtil.build(flatMenus, 0L, config, (menuResponse, treeNode) -> {
+			treeNode.setId(menuResponse.getId());
+			treeNode.setParentId(menuResponse.getParentId());
+			treeNode.setWeight(menuResponse.getSortOrder());
+			treeNode.setName(menuResponse.getName());
+			treeNode.putExtra("path", menuResponse.getPath());
+			treeNode.putExtra("icon", menuResponse.getIcon());
+			treeNode.putExtra("type", menuResponse.getType());
+			treeNode.putExtra("isVisible", menuResponse.getIsVisible());
+			treeNode.putExtra("isPublic", menuResponse.getIsPublic());
+			treeNode.putExtra("permission", menuResponse.getPermission());
+			treeNode.putExtra("createdAt", menuResponse.getCreatedAt());
+		});
 	}
 }

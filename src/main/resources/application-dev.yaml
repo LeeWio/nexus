@@ -60,6 +60,12 @@ spring:
           max-idle: 8
           min-idle: 0
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:nexus}
+    password: ${RABBITMQ_PASSWORD:nexus_password}
+
   elasticsearch:
     uris: ${ES_URIS:http://localhost:9200}
     connection-timeout: 3s

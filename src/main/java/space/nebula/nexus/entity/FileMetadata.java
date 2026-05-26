@@ -39,6 +39,12 @@ public class FileMetadata extends BaseEntity {
 	@Column(name = "height")
 	private Integer height;
 
+	@Column(name = "file_hash", length = 64)
+	private String fileHash;
+
+	@Column(name = "reference_count", nullable = false)
+	private Integer referenceCount = 1;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "uploader_id")
 	private User uploader;

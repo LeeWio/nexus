@@ -8,18 +8,20 @@ import org.springframework.stereotype.Repository;
 import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.enums.CommentStatus;
 
+import java.util.List;
+
 @Repository
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
 	/**
-	 * Find top-level comments (parent is null) for a specific post with specific
-	 * status. Uses EntityGraph to fetch user and children to avoid N+1.
+	 * Find all comments for a specific post with specific status ordered by path.
+	 * Uses EntityGraph to fetch user to avoid N+1.
 	 */
-	@EntityGraph(attributePaths = {"user", "children", "children.user"})
-	Page<Comment> findAllByPostIdAndParentIsNullAndStatus(Long postId, CommentStatus status, Pageable pageable);
+	@EntityGraph(attributePaths = {"user"})
+	List<Comment> findAllByPostIdAndStatusOrderByPathAsc(Long postId, CommentStatus status);
 
-	@EntityGraph(attributePaths = {"user", "children", "children.user"})
-	Page<Comment> findAllByPostIsNullAndParentIsNullAndStatus(CommentStatus status, Pageable pageable);
+	@EntityGraph(attributePaths = {"user"})
+	List<Comment> findAllByPostIsNullAndStatusOrderByPathAsc(CommentStatus status);
 
 	/**
 	 * Admin view: find all comments with pagination.

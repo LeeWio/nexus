@@ -1,5 +1,6 @@
 package space.nebula.nexus.service.impl;
 
+import cn.hutool.core.lang.Assert;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -71,9 +72,8 @@ public class CategoryServiceImpl implements ICategoryService {
 	@Transactional
 	@LogOperation("Delete Category")
 	public ApiResponse<Void> deleteCategory(Long id) {
-		if (!categoryRepository.existsById(id)) {
-			throw new ResourceNotFoundException("Category", "id", id);
-		}
+		Assert.isTrue(categoryRepository.existsById(id), () -> new ResourceNotFoundException("Category", "id", id));
+		
 		categoryRepository.deleteById(id);
 		log.info("Category deleted id: {}", id);
 		clearSeoCache();
@@ -82,16 +82,12 @@ public class CategoryServiceImpl implements ICategoryService {
 
 	private void validateUniqueConstraints(Category existing, CategoryRequest request) {
 		if (request.name() != null && (existing == null || !existing.getName().equals(request.name()))) {
-			if (categoryRepository.findByName(request.name()).isPresent()) {
-				throw new BusinessException(BusinessCode.DUPLICATE_KEY,
-						"Category name already exists: " + request.name());
-			}
+			Assert.isFalse(categoryRepository.findByName(request.name()).isPresent(),
+					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Category name already exists: " + request.name()));
 		}
 		if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug()))) {
-			if (categoryRepository.findBySlug(request.slug()).isPresent()) {
-				throw new BusinessException(BusinessCode.DUPLICATE_KEY,
-						"Category slug already exists: " + request.slug());
-			}
+			Assert.isFalse(categoryRepository.findBySlug(request.slug()).isPresent(),
+					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Category slug already exists: " + request.slug()));
 		}
 	}
 

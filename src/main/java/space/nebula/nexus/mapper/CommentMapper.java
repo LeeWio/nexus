@@ -12,6 +12,7 @@ public interface CommentMapper {
 
 	@Mapping(target = "username", source = "user.username")
 	@Mapping(target = "avatar", source = "user.avatar")
+	@Mapping(target = "parentId", source = "parent.id")
 	CommentResponse toResponse(Comment comment);
 
 	List<CommentResponse> toResponseList(List<Comment> comments);
