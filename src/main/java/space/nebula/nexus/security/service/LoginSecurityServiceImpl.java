@@ -1,5 +1,6 @@
 package space.nebula.nexus.security.service;
 
+import cn.hutool.core.util.StrUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,8 +36,8 @@ public class LoginSecurityServiceImpl implements LoginSecurityService
 			long minutesLeft = (expire != null && expire > 0) ? (expire / 60 + 1) : LOCK_DURATION_MINUTES;
 
 			log.warn("Login attempt blocked for locked user: {}", username);
-			throw new BusinessException(403, String.format(
-					"Account is locked due to too many failed attempts. Please try again in %d minutes.", minutesLeft));
+			throw new BusinessException(403, StrUtil.format(
+					"Account is locked due to too many failed attempts. Please try again in {} minutes.", minutesLeft));
 		}
 	}
 

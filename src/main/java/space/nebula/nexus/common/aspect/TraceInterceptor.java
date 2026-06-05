@@ -1,12 +1,11 @@
 package space.nebula.nexus.common.aspect;
 
+import cn.hutool.core.util.IdUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
-
-import java.util.UUID;
 
 /**
  * Interceptor to inject a unique Trace ID into MDC for log correlation.
@@ -20,7 +19,7 @@ public class TraceInterceptor implements HandlerInterceptor {
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
 		String traceId = request.getHeader("X-Trace-Id");
 		if (traceId == null || traceId.isBlank()) {
-			traceId = UUID.randomUUID().toString().replace("-", "");
+			traceId = IdUtil.fastSimpleUUID();
 		}
 		MDC.put(TRACE_ID_KEY, traceId);
 		return true;

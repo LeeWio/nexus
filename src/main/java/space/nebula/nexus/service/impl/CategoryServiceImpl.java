@@ -3,6 +3,8 @@ package space.nebula.nexus.service.impl;
 import cn.hutool.core.lang.Assert;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
@@ -32,6 +34,7 @@ public class CategoryServiceImpl implements ICategoryService
 	private final RedisUtil redisUtil;
 
 	@Override
+	@Cacheable(value = CacheConstants.CATEGORIES, key = "'all'")
 	public ApiResponse<List<CategoryResponse>> retrieveAllCategories()
 	{
 		List<Category> allCategories = categoryRepository.findAll();
@@ -41,6 +44,7 @@ public class CategoryServiceImpl implements ICategoryService
 	@Override
 	@Transactional
 	@LogOperation("Create Category")
+	@CacheEvict(value = CacheConstants.CATEGORIES, allEntries = true)
 	public ApiResponse<CategoryResponse> createCategory(CategoryRequest request)
 	{
 		validateUniqueConstraints(null, request);
@@ -57,6 +61,7 @@ public class CategoryServiceImpl implements ICategoryService
 	@Override
 	@Transactional
 	@LogOperation("Update Category")
+	@CacheEvict(value = CacheConstants.CATEGORIES, allEntries = true)
 	public ApiResponse<CategoryResponse> updateCategory(Long id, CategoryRequest request)
 	{
 		Category existingCategory = categoryRepository.findById(id)
@@ -75,6 +80,7 @@ public class CategoryServiceImpl implements ICategoryService
 	@Override
 	@Transactional
 	@LogOperation("Delete Category")
+	@CacheEvict(value = CacheConstants.CATEGORIES, allEntries = true)
 	public ApiResponse<Void> deleteCategory(Long id)
 	{
 		Assert.isTrue(categoryRepository.existsById(id), () -> new ResourceNotFoundException("Category", "id", id));

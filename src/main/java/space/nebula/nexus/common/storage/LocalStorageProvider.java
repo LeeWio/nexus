@@ -1,5 +1,6 @@
 package space.nebula.nexus.common.storage;
 
+import cn.hutool.core.lang.Assert;
 import lombok.extern.slf4j.Slf4j;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.config.StorageProperties;
@@ -33,16 +34,14 @@ public class LocalStorageProvider implements StorageProvider {
 	@Override
 	public String store(InputStream inputStream, String filename) {
 		try {
-			if (filename.contains("..")) {
-				throw new BusinessException(
-						"Cannot store file with relative path outside current directory " + filename);
-			}
+			Assert.isFalse(filename.contains(".."),
+					() -> new BusinessException("Cannot store file with relative path outside current directory " + filename));
+
 			Path destinationFile = this.rootLocation.resolve(Paths.get(filename)).normalize().toAbsolutePath();
 
 			// Security check
-			if (!destinationFile.getParent().equals(this.rootLocation.toAbsolutePath())) {
-				throw new BusinessException("Cannot store file outside specified directory");
-			}
+			Assert.isTrue(destinationFile.getParent().equals(this.rootLocation.toAbsolutePath()),
+					() -> new BusinessException("Cannot store file outside specified directory"));
 
 			Files.copy(inputStream, destinationFile, StandardCopyOption.REPLACE_EXISTING);
 			return filename;

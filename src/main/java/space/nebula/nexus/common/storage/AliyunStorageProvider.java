@@ -4,12 +4,12 @@ import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PutObjectRequest;
+import cn.hutool.core.util.IdUtil;
 import lombok.extern.slf4j.Slf4j;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.config.StorageProperties;
 
 import java.io.InputStream;
-import java.util.UUID;
 
 /**
  * Implementation of StorageProvider using Aliyun OSS.
@@ -28,7 +28,7 @@ public class AliyunStorageProvider implements StorageProvider {
 		String extension = originalFilename != null && originalFilename.contains(".")
 				? originalFilename.substring(originalFilename.lastIndexOf("."))
 				: "";
-		String fileName = UUID.randomUUID().toString().replace("-", "") + extension;
+		String fileName = IdUtil.fastSimpleUUID() + extension;
 
 		OSS ossClient = new OSSClientBuilder().build(config.getEndpoint(), config.getAccessKeyId(),
 				config.getAccessKeySecret());

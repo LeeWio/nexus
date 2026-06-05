@@ -1,5 +1,6 @@
 package space.nebula.nexus.security.util;
 
+import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.ObjectUtil;
 import lombok.experimental.UtilityClass;
 import org.springframework.security.core.Authentication;
@@ -38,10 +39,7 @@ public class SecurityUtil
 	public User getCurrentUserOrThrow(UserRepository userRepository)
 	{
 		String username = getCurrentUsername();
-		if (ObjectUtil.isNull(username))
-		{
-			throw new BusinessException(401, "User not authenticated");
-		}
+		Assert.notNull(username, () -> new BusinessException(401, "User not authenticated"));
 		return userRepository.findByUsername(username)
 				.orElseThrow(() -> new BusinessException(404, "Current user not found"));
 	}

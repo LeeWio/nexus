@@ -1,5 +1,6 @@
 package space.nebula.nexus.service.impl;
 
+import cn.hutool.core.lang.Dict;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,6 @@ import space.nebula.nexus.repository.ProjectRepository;
 import space.nebula.nexus.service.IGitHubService;
 import space.nebula.nexus.utils.RedisUtil;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -72,11 +72,10 @@ public class GitHubServiceImpl implements IGitHubService
 
 		if (body != null)
 		{
-			Map<String, Object> metrics = new HashMap<>();
-			metrics.put("stars", body.get("stargazers_count"));
-			metrics.put("forks", body.get("forks_count"));
-			metrics.put("language", body.get("language"));
-			return metrics;
+			return Dict.create()
+					.set("stars", body.get("stargazers_count"))
+					.set("forks", body.get("forks_count"))
+					.set("language", body.get("language"));
 		}
 		return null;
 	}
@@ -144,11 +143,10 @@ public class GitHubServiceImpl implements IGitHubService
 	public Map<String, Object> fallbackMetrics(String repoName, Exception e)
 	{
 		log.error("GitHub metrics fallback triggered for {} due to: {}", repoName, e.getMessage());
-		Map<String, Object> fallback = new HashMap<>();
-		fallback.put("stars", 0);
-		fallback.put("forks", 0);
-		fallback.put("language", "Unknown");
-		return fallback;
+		return Dict.create()
+				.set("stars", 0)
+				.set("forks", 0)
+				.set("language", "Unknown");
 	}
 
 	private String extractRepoName(String githubUrl)

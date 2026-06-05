@@ -1,5 +1,6 @@
 package space.nebula.nexus.security.service;
 
+import cn.hutool.core.util.IdUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -18,7 +19,6 @@ import space.nebula.nexus.repository.UserRepository;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -73,7 +73,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService
 			user.setGithubId(githubId);
 			user.setGithubUsername(username);
 			user.setUsername("gh_" + username); // Avoid collisions
-			user.setPassword(UUID.randomUUID().toString()); // OAuth users don't use local password
+			user.setPassword(IdUtil.fastUUID()); // OAuth users don't use local password
 			user.setEmail(email);
 			user.setNickname(name != null ? name : username);
 			user.setAvatar(avatar);

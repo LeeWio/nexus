@@ -1,5 +1,8 @@
 package space.nebula.nexus.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.lang.Assert;
+import cn.hutool.core.util.IdUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,7 +28,6 @@ import space.nebula.nexus.utils.RedisLockUtil;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
@@ -98,10 +100,8 @@ public class KanbanServiceImpl implements IKanbanService
 	@Transactional
 	public ApiResponse<Void> deleteColumn(Long id)
 	{
-		if (!columnRepository.existsById(id))
-		{
-			throw new ResourceNotFoundException("KanbanColumn", "id", id);
-		}
+		Assert.isTrue(columnRepository.existsById(id),
+				() -> new ResourceNotFoundException("KanbanColumn", "id", id));
 		columnRepository.deleteById(id);
 		log.info("Kanban column deleted: {}", id);
 		return ApiResponse.success("Column deleted", null);
@@ -130,7 +130,7 @@ public class KanbanServiceImpl implements IKanbanService
 			newTask.setOrderIndex(maxSequence != null ? maxSequence + 1 : 0);
 		}
 
-		if (request.getTagIds() != null && !request.getTagIds().isEmpty())
+		if (CollUtil.isNotEmpty(request.getTagIds()))
 		{
 			var tags = tagRepository.findAllById(request.getTagIds());
 			newTask.setTags(new HashSet<>(tags));
@@ -170,10 +170,8 @@ public class KanbanServiceImpl implements IKanbanService
 	@Transactional
 	public ApiResponse<Void> deleteTask(Long id)
 	{
-		if (!taskRepository.existsById(id))
-		{
-			throw new ResourceNotFoundException("KanbanItem", "id", id);
-		}
+		Assert.isTrue(taskRepository.existsById(id),
+				() -> new ResourceNotFoundException("KanbanItem", "id", id));
 		taskRepository.deleteById(id);
 		log.info("Kanban task deleted: {}", id);
 		return ApiResponse.success("Task deleted", null);
@@ -184,12 +182,10 @@ public class KanbanServiceImpl implements IKanbanService
 	public ApiResponse<Void> relocateTask(KanbanItemMoveRequest request)
 	{
 		String lockKey = CacheConstants.LOCK_KANBAN_COLUMN_PREFIX + request.getTargetColumnId();
-		String lockToken = UUID.randomUUID().toString();
+		String lockToken = IdUtil.fastUUID();
 
-		if (!redisLockUtil.tryLock(lockKey, lockToken, 5, TimeUnit.SECONDS))
-		{
-			throw new BusinessException(BusinessCode.ERROR, "Board is busy, please try again");
-		}
+		Assert.isTrue(redisLockUtil.tryLock(lockKey, lockToken, 5, TimeUnit.SECONDS),
+				() -> new BusinessException(BusinessCode.ERROR, "Board is busy, please try again"));
 
 		try
 		{

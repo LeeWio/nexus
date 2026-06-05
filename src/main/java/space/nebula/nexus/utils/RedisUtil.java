@@ -1,5 +1,6 @@
 package space.nebula.nexus.utils;
 
+import cn.hutool.core.collection.CollUtil;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -275,7 +276,7 @@ public class RedisUtil
 		try
 		{
 			Set<String> keys = redisTemplate.keys(pattern);
-			if (keys != null && !keys.isEmpty())
+			if (CollUtil.isNotEmpty(keys))
 			{
 				redisTemplate.delete(keys);
 				log.debug("Deleted {} keys matching pattern: {}", keys.size(), pattern);

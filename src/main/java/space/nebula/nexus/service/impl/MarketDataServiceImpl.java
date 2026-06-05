@@ -1,5 +1,6 @@
 package space.nebula.nexus.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -168,7 +169,7 @@ public class MarketDataServiceImpl implements IMarketDataService
 					{
 						changePct = new BigDecimal(parts[2]);
 					}
-					else if (sparkline != null && !sparkline.isEmpty())
+					else if (CollUtil.isNotEmpty(sparkline))
 					{
 						BigDecimal startPrice = sparkline.get(0);
 						if (startPrice.compareTo(BigDecimal.ZERO) != 0)
@@ -219,7 +220,7 @@ public class MarketDataServiceImpl implements IMarketDataService
 					{
 						changePct = new BigDecimal(parts[3]);
 					}
-					else if (sparkline != null && !sparkline.isEmpty())
+					else if (CollUtil.isNotEmpty(sparkline))
 					{
 						BigDecimal startPrice = sparkline.get(0);
 						if (startPrice.compareTo(BigDecimal.ZERO) != 0)
