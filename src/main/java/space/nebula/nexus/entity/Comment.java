@@ -54,4 +54,42 @@ public class Comment extends BaseEntity
 
 	@Column(name = "user_agent")
 	private String userAgent;
+
+	// --- Domain Logic ---
+
+	/**
+	 * Approves the comment for public visibility.
+	 */
+	public void approve()
+	{
+		this.status = CommentStatus.APPROVED;
+	}
+
+	/**
+	 * Rejects the comment.
+	 */
+	public void reject()
+	{
+		this.status = CommentStatus.REJECTED;
+	}
+
+	/**
+	 * Sets the hierarchical path based on the parent comment.
+	 */
+	public void updatePath(Comment parent)
+	{
+		if (this.getId() == null)
+		{
+			throw new IllegalStateException("ID must be set before path generation");
+		}
+		this.path = (parent == null) ? "/" + this.getId() + "/" : parent.getPath() + this.getId() + "/";
+	}
+
+	/**
+	 * Checks if the comment is for a specific post.
+	 */
+	public boolean belongsToPost(Long postId)
+	{
+		return this.post != null && this.post.getId().equals(postId);
+	}
 }

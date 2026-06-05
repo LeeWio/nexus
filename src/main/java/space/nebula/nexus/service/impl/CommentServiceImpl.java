@@ -114,9 +114,7 @@ public class CommentServiceImpl implements ICommentService
 		}
 
 		// Generate and set Path Enumeration for fast tree queries
-		String path = (parentComment == null) ? "/" + comment.getId() + "/"
-				: parentComment.getPath() + comment.getId() + "/";
-		comment.setPath(path);
+		comment.updatePath(parentComment);
 
 		commentRepository.save(comment);
 
@@ -170,7 +168,19 @@ public class CommentServiceImpl implements ICommentService
 		var comment = commentRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
 
-		comment.setStatus(status);
+		if (status == CommentStatus.APPROVED)
+		{
+			comment.approve();
+		}
+		else if (status == CommentStatus.REJECTED)
+		{
+			comment.reject();
+		}
+		else
+		{
+			comment.setStatus(status);
+		}
+
 		commentRepository.save(comment);
 		log.info("Comment {} moderation status updated to {}", id, status);
 		return ApiResponse.success("Moderation successful", null);

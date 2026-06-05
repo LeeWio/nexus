@@ -32,6 +32,8 @@ import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IInteractionService;
 import space.nebula.nexus.service.IPostService;
+import space.nebula.nexus.service.ISlugService;
+import space.nebula.nexus.common.validator.PostValidator;
 import space.nebula.nexus.utils.RedisUtil;
 import space.nebula.nexus.utils.SlugUtil;
 
@@ -61,6 +63,8 @@ public class PostServiceImpl implements IPostService
 	private final RedisUtil redisUtil;
 	private final ApplicationEventPublisher eventPublisher;
 	private final IInteractionService interactionService;
+	private final ISlugService slugService;
+	private final space.nebula.nexus.common.validator.PostValidator postValidator;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -91,7 +95,9 @@ public class PostServiceImpl implements IPostService
 	@LogOperation("Create Blog Post")
 	public ApiResponse<PostResponse> createPost(PostRequest request)
 	{
-		String uniqueSlug = validateAndGenerateSlug(request.slug(), request.title());
+		postValidator.validatePostRequest(request);
+		String uniqueSlug = slugService.generateUniqueSlug(request.slug(), request.title(),
+				s -> postRepository.findBySlug(s).isPresent());
 		User currentAuthor = SecurityUtil.getCurrentUserOrThrow(userRepository);
 
 		Post newPost = new Post();
@@ -101,7 +107,7 @@ public class PostServiceImpl implements IPostService
 
 		if (newPost.getStatus() == null)
 		{
-			newPost.setStatus(PostStatus.DRAFT);
+			newPost.moveToDraft();
 		}
 
 		syncCategoryAndTags(newPost, request);
@@ -112,7 +118,7 @@ public class PostServiceImpl implements IPostService
 		// Cleanup potential autosave data
 		clearAutosaveData(request.slug());
 
-		// Publish event for async side-effects (Search indexing, Revisions)
+		// Publish event
 		eventPublisher.publishEvent(new PostChangedEvent(this, newPost, true));
 
 		return ApiResponse.success("Post created successfully", postMapper.toResponse(newPost));
@@ -123,16 +129,17 @@ public class PostServiceImpl implements IPostService
 	@LogOperation("Update Blog Post")
 	public ApiResponse<PostResponse> updatePost(Long id, PostRequest request)
 	{
+		postValidator.validatePostRequest(request);
 		Post existingPost = findPostOrThrow(id);
 
-		String newSlug = existingPost.getSlug();
 		if (StrUtil.isNotBlank(request.slug()) && !StrUtil.equals(request.slug(), existingPost.getSlug()))
 		{
-			newSlug = validateAndGenerateSlug(request.slug(), request.title());
+			String newSlug = slugService.generateUniqueSlug(request.slug(), request.title(),
+					s -> postRepository.findBySlug(s).isPresent());
+			existingPost.setSlug(newSlug);
 		}
 
 		postMapper.updateEntity(existingPost, request);
-		existingPost.setSlug(newSlug);
 
 		syncCategoryAndTags(existingPost, request);
 
@@ -194,17 +201,13 @@ public class PostServiceImpl implements IPostService
 
 		if (approved)
 		{
-			post.setStatus(PostStatus.PUBLISHED);
-			if (post.getPublishedAt() == null)
-			{
-				post.setPublishedAt(java.time.LocalDateTime.now());
-			}
+			post.publish();
 			log.info("Post '{}' approved and published", post.getTitle());
 			eventPublisher.publishEvent(new PostChangedEvent(this, post, true));
 		}
 		else
 		{
-			post.setStatus(PostStatus.REJECTED);
+			post.reject();
 			// Normally, store the reviewComment in a post_audit or comment field
 			log.info("Post '{}' rejected. Reason: {}", post.getTitle(), reviewComment);
 		}
@@ -253,7 +256,7 @@ public class PostServiceImpl implements IPostService
 			Post post = postRepository.findBySlug(slug)
 					.orElseThrow(() -> new ResourceNotFoundException("Post", "slug", slug));
 
-			Assert.isTrue(post.getStatus() == PostStatus.PUBLISHED,
+			Assert.isTrue(post.isPublished(),
 					() -> new BusinessException(BusinessCode.FORBIDDEN, "Post is not published"));
 			PostResponse mappedResponse = postMapper.toResponse(post);
 			redisUtil.set(cacheKey, mappedResponse, 1, java.util.concurrent.TimeUnit.HOURS);

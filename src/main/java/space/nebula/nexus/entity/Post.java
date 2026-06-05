@@ -84,4 +84,50 @@ public class Post extends BaseEntity
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "blog_post_tag", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
 	private Set<Tag> tags = new HashSet<>();
+
+	// --- Domain Logic ---
+
+	/**
+	 * Publishes the post, setting status and publication date.
+	 */
+	public void publish()
+	{
+		this.status = PostStatus.PUBLISHED;
+		if (this.publishedAt == null)
+		{
+			this.publishedAt = java.time.LocalDateTime.now();
+		}
+	}
+
+	/**
+	 * Moves the post back to draft status.
+	 */
+	public void moveToDraft()
+	{
+		this.status = PostStatus.DRAFT;
+	}
+
+	/**
+	 * Marks the post as rejected during review.
+	 */
+	public void reject()
+	{
+		this.status = PostStatus.REJECTED;
+	}
+
+	/**
+	 * Checks if the given user is the author of this post.
+	 */
+	public boolean isAuthor(User user)
+	{
+		return user != null && this.author != null && user.getId().equals(this.author.getId());
+	}
+
+	/**
+	 * Checks if the post is currently published.
+	 */
+	public boolean isPublished()
+	{
+		return PostStatus.PUBLISHED.equals(this.status);
+	}
 }
