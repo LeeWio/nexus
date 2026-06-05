@@ -4,6 +4,7 @@ import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class ConfigServiceImpl implements IConfigService
 
 	@Override
 	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.SYS_CONFIG, key = "'all'")
 	public ApiResponse<List<ConfigResponse>> getAllConfigs()
 	{
 		return ApiResponse.success(configMapper.toResponseList(configRepository.findAll()));
@@ -61,6 +63,7 @@ public class ConfigServiceImpl implements IConfigService
 	@Override
 	@Transactional
 	@LogOperation("Create Config")
+	@CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
 	public ApiResponse<ConfigResponse> createConfig(ConfigRequest request)
 	{
 		Assert.isFalse(configRepository.existsByConfigKey(request.configKey()),
@@ -78,6 +81,7 @@ public class ConfigServiceImpl implements IConfigService
 	@Override
 	@Transactional
 	@LogOperation("Update Config")
+	@CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
 	public ApiResponse<ConfigResponse> updateConfig(Long id, ConfigRequest request)
 	{
 		Config config = configRepository.findById(id)
@@ -112,6 +116,7 @@ public class ConfigServiceImpl implements IConfigService
 	@Override
 	@Transactional
 	@LogOperation("Delete Config")
+	@CacheEvict(value = CacheConstants.SYS_CONFIG, allEntries = true)
 	public ApiResponse<Void> deleteConfig(Long id)
 	{
 		Config config = configRepository.findById(id)

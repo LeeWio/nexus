@@ -18,6 +18,8 @@ import space.nebula.nexus.utils.RedisUtil;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -29,6 +31,7 @@ public class GitHubServiceImpl implements IGitHubService
 	private final RestClient restClient;
 	private final RedisUtil redisUtil;
 	private final ProjectRepository projectRepository;
+	private final Executor asyncExecutor;
 
 	@Value("${app.github.username}")
 	private String githubUsername;
@@ -83,11 +86,10 @@ public class GitHubServiceImpl implements IGitHubService
 	@Override
 	public void synchronizeProjectMetrics()
 	{
-		log.info("Starting synchronization of GitHub project metrics...");
+		log.info("Starting parallel synchronization of GitHub project metrics...");
 		List<Project> projects = projectRepository.findAll();
-		int updatedCount = 0;
 
-		for (Project project : projects)
+		List<CompletableFuture<Project>> futures = projects.stream().map(project -> CompletableFuture.supplyAsync(() ->
 		{
 			if (project.getGithubUrl() != null && !project.getGithubUrl().isBlank())
 			{
@@ -101,13 +103,22 @@ public class GitHubServiceImpl implements IGitHubService
 						project.setForksCount((Integer) metrics.get("forks"));
 						project.setLanguage((String) metrics.get("language"));
 						project.setRepoName(repoName);
-						projectRepository.save(project);
-						updatedCount++;
+						return project;
 					}
 				}
 			}
+			return null;
+		}, asyncExecutor)).toList();
+
+		List<Project> updatedProjects = futures.stream().map(CompletableFuture::join).filter(java.util.Objects::nonNull)
+				.toList();
+
+		if (!updatedProjects.isEmpty())
+		{
+			projectRepository.saveAll(updatedProjects);
 		}
-		log.info("GitHub project metrics synchronization complete. Total updated: {}", updatedCount);
+
+		log.info("GitHub project metrics synchronization complete. Total updated: {}", updatedProjects.size());
 
 		// Also refresh global stats
 		redisUtil.delete(CacheConstants.GITHUB_STATS_CACHE_KEY);

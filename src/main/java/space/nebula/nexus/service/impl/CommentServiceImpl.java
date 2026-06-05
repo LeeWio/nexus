@@ -4,6 +4,7 @@ import cn.hutool.core.lang.Assert;
 import cn.hutool.core.lang.tree.Tree;
 import cn.hutool.core.lang.tree.TreeNodeConfig;
 import cn.hutool.core.lang.tree.TreeUtil;
+import cn.hutool.core.util.IdUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -94,6 +95,7 @@ public class CommentServiceImpl implements ICommentService
 
 		// 4. Persistence
 		var comment = new Comment();
+		comment.setId(IdUtil.getSnowflakeNextId()); // Use Snowflake to avoid double-save for path generation
 		comment.setContent(filteredContent);
 		comment.setPost(targetPost);
 		comment.setUser(author);
@@ -111,15 +113,11 @@ public class CommentServiceImpl implements ICommentService
 			comment.setStatus(CommentStatus.PENDING);
 		}
 
-		// First save to generate ID
-		commentRepository.save(comment);
-
 		// Generate and set Path Enumeration for fast tree queries
 		String path = (parentComment == null) ? "/" + comment.getId() + "/"
 				: parentComment.getPath() + comment.getId() + "/";
 		comment.setPath(path);
 
-		// Update with path
 		commentRepository.save(comment);
 
 		eventPublisher.publishEvent(new CommentSubmittedEvent(this, comment));

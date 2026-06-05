@@ -87,29 +87,10 @@ public class InteractionSyncTask
 				Long currentLikesCount = redisTemplate.opsForSet().size(likeSetKey);
 				Long currentFavoritesCount = redisTemplate.opsForSet().size(favoriteSetKey);
 
-				// Update DB if data found
-				postRepository.findById(activePostId).ifPresent(postEntity ->
-				{
-					boolean hasStateChanged = false;
-
-					if (currentLikesCount != null && !currentLikesCount.equals(postEntity.getLikesCount()))
-					{
-						postEntity.setLikesCount(currentLikesCount);
-						hasStateChanged = true;
-					}
-					if (currentFavoritesCount != null && !currentFavoritesCount.equals(postEntity.getFavoritesCount()))
-					{
-						postEntity.setFavoritesCount(currentFavoritesCount);
-						hasStateChanged = true;
-					}
-
-					if (hasStateChanged)
-					{
-						postRepository.save(postEntity);
-						log.debug("Synchronized interactions for Post ID: {}. Likes: {}, Favs: {}", activePostId,
-								currentLikesCount, currentFavoritesCount);
-					}
-				});
+				// Update DB using optimized query
+				postRepository.updateSocialMetrics(activePostId, 
+						currentLikesCount != null ? currentLikesCount : 0L, 
+						currentFavoritesCount != null ? currentFavoritesCount : 0L);
 				processedInteractionsCount++;
 			}
 			catch (Exception itemException)

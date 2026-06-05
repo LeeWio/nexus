@@ -43,6 +43,10 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	@Query("update Post p set p.status = 'PUBLISHED' where p.status = 'SCHEDULED' and p.publishedAt <= :now")
 	int updateScheduledPosts(java.time.LocalDateTime now);
 
+	@Modifying
+	@Query("update Post p set p.likesCount = :likesCount, p.favoritesCount = :favoritesCount where p.id = :id")
+	void updateSocialMetrics(Long id, Long likesCount, Long favoritesCount);
+
 	@Query("SELECT SUM(p.views) FROM Post p")
 	Long sumTotalViews();
 

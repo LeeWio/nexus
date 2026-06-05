@@ -4,6 +4,8 @@ import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
@@ -33,6 +35,7 @@ public class TagServiceImpl implements ITagService
 	private final RedisUtil redisUtil;
 
 	@Override
+	@Cacheable(value = CacheConstants.TAGS, key = "'all'")
 	public ApiResponse<List<TagResponse>> getAllTags()
 	{
 		return ApiResponse.success(tagMapper.toResponseList(tagRepository.findAll()));
@@ -41,6 +44,7 @@ public class TagServiceImpl implements ITagService
 	@Override
 	@Transactional
 	@LogOperation("Create Tag")
+	@CacheEvict(value = CacheConstants.TAGS, allEntries = true)
 	public ApiResponse<TagResponse> createTag(TagRequest request)
 	{
 		validateUniqueConstraints(null, request);
@@ -57,6 +61,7 @@ public class TagServiceImpl implements ITagService
 	@Override
 	@Transactional
 	@LogOperation("Update Tag")
+	@CacheEvict(value = CacheConstants.TAGS, allEntries = true)
 	public ApiResponse<TagResponse> updateTag(Long id, TagRequest request)
 	{
 		Tag existingTag = tagRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Tag", "id", id));
@@ -74,6 +79,7 @@ public class TagServiceImpl implements ITagService
 	@Override
 	@Transactional
 	@LogOperation("Delete Tag")
+	@CacheEvict(value = CacheConstants.TAGS, allEntries = true)
 	public ApiResponse<Void> deleteTag(Long id)
 	{
 		Assert.isTrue(tagRepository.existsById(id), () -> new ResourceNotFoundException("Tag", "id", id));
