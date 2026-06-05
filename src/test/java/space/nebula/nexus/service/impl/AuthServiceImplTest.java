@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,6 +18,7 @@ import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.validator.UserValidator;
+import space.nebula.nexus.config.RabbitMQConfig;
 import space.nebula.nexus.entity.Role;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.payload.request.LoginRequest;
@@ -27,7 +29,6 @@ import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.model.SecurityUser;
 import space.nebula.nexus.security.service.LoginSecurityService;
 import space.nebula.nexus.security.util.JwtUtils;
-import space.nebula.nexus.utils.MailUtil;
 import space.nebula.nexus.utils.RedisUtil;
 
 import java.util.Optional;
@@ -58,7 +59,7 @@ class AuthServiceImplTest {
 	@Mock
 	private RedisUtil redisUtil;
 	@Mock
-	private MailUtil mailUtil;
+	private RabbitTemplate rabbitTemplate;
 
 	@InjectMocks
 	private AuthServiceImpl authService;
@@ -150,7 +151,7 @@ class AuthServiceImplTest {
 		ApiResponse<Void> response = authService.sendOtp("test@example.com");
 
 		assertEquals(200, response.code());
-		verify(mailUtil).sendTemplateMail(eq("test@example.com"), eq("Nexus Login OTP"), eq("otp-login"), anyMap());
+		verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.MAIL_EXCHANGE), eq(RabbitMQConfig.MAIL_ROUTING_KEY), any(Object.class));
 		verify(redisUtil, never()).delete(anyString());
 	}
 
@@ -162,12 +163,12 @@ class AuthServiceImplTest {
 		String otpKey = CacheConstants.OTP_CODE + "test@example.com";
 		when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
 		when(redisUtil.set(eq(otpKey), any(String.class), eq(5L), eq(TimeUnit.MINUTES))).thenReturn(true);
-		doThrow(new BusinessException(BusinessCode.MAIL_SEND_FAILED, "Email delivery failed"))
-				.when(mailUtil).sendTemplateMail(eq("test@example.com"), eq("Nexus Login OTP"), eq("otp-login"), anyMap());
+		doThrow(new RuntimeException("RabbitMQ connection failed"))
+				.when(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.MAIL_EXCHANGE), eq(RabbitMQConfig.MAIL_ROUTING_KEY), any(Object.class));
 
 		BusinessException exception = assertThrows(BusinessException.class, () -> authService.sendOtp("test@example.com"));
 
-		assertEquals(BusinessCode.MAIL_SEND_FAILED.getCode(), exception.getCode());
+		assertEquals(BusinessCode.ERROR.getCode(), exception.getCode());
 		verify(redisUtil).delete(otpKey);
 	}
 }

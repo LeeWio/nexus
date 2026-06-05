@@ -1,5 +1,6 @@
 package space.nebula.nexus.service.impl;
 
+import cn.hutool.core.lang.Assert;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -55,10 +56,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 	@Transactional(readOnly = true)
 	public ApiResponse<List<PostRevisionResponse>> getPostRevisions(Long postId)
 	{
-		if (!postRepository.existsById(postId))
-		{
-			throw new BusinessException(404, "Post not found");
-		}
+		Assert.isTrue(postRepository.existsById(postId), () -> new BusinessException(404, "Post not found"));
 		List<PostRevision> revisions = postRevisionRepository.findByPostIdOrderByVersionNumberDesc(postId);
 		return ApiResponse.success(postRevisionMapper.toResponseList(revisions));
 	}
@@ -72,10 +70,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 		PostRevision revision = postRevisionRepository.findById(revisionId)
 				.orElseThrow(() -> new BusinessException(404, "Revision not found"));
 
-		if (!revision.getPost().getId().equals(postId))
-		{
-			throw new BusinessException(400, "Revision does not belong to this post");
-		}
+		Assert.isTrue(revision.getPost().getId().equals(postId), () -> new BusinessException(400, "Revision does not belong to this post"));
 
 		// Revert fields
 		post.setTitle(revision.getTitle());
@@ -106,10 +101,8 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 		PostRevision target = postRevisionRepository.findById(targetRevisionId)
 				.orElseThrow(() -> new BusinessException(404, "Target revision not found"));
 
-		if (!base.getPost().getId().equals(postId) || !target.getPost().getId().equals(postId))
-		{
-			throw new BusinessException(400, "Revisions do not belong to the specified post");
-		}
+		Assert.isTrue(base.getPost().getId().equals(postId) && target.getPost().getId().equals(postId),
+				() -> new BusinessException(400, "Revisions do not belong to the specified post"));
 
 		PostDiffResponse.FieldDiff titleDiff = new PostDiffResponse.FieldDiff(base.getTitle(), target.getTitle(),
 				!Objects.equals(base.getTitle(), target.getTitle()));

@@ -151,10 +151,8 @@ public class AuthServiceImpl implements IAuthService
 
 		var otp = RandomUtil.randomNumbers(6);
 		var otpKey = CacheConstants.OTP_CODE + email;
-		if (!redisUtil.set(otpKey, otp, 5, TimeUnit.MINUTES))
-		{
-			throw new BusinessException(BusinessCode.ERROR, "Failed to store OTP code");
-		}
+		Assert.isTrue(redisUtil.set(otpKey, otp, 5, TimeUnit.MINUTES),
+				() -> new BusinessException(BusinessCode.ERROR, "Failed to store OTP code"));
 
 		Map<String, Object> variables = Dict.create().set("otp", otp).set("expireMin", 5);
 

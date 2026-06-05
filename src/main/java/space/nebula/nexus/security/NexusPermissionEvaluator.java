@@ -70,18 +70,18 @@ public class NexusPermissionEvaluator implements PermissionEvaluator
 
 	private boolean hasPrivilegeForPost(Authentication authentication, Post post, String permission)
 	{
-		if (!(authentication.getPrincipal() instanceof SecurityUser securityUser))
-		{
-			return false;
-		}
-
-		Set<String> roles = securityUser.getAuthorities().stream().map(GrantedAuthority::getAuthority)
+		Set<String> roles = authentication.getAuthorities().stream().map(GrantedAuthority::getAuthority)
 				.collect(Collectors.toSet());
 
 		// ADMIN always has full access
 		if (roles.contains("ROLE_ADMIN"))
 		{
 			return true;
+		}
+
+		if (!(authentication.getPrincipal() instanceof SecurityUser securityUser))
+		{
+			return false;
 		}
 
 		Long currentUserId = securityUser.getUser().getId();

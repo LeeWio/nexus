@@ -13,6 +13,7 @@ import space.nebula.nexus.utils.RedisUtil;
 
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.security.util.SecurityUtil;
+import cn.hutool.core.lang.Assert;
 
 @Slf4j
 @Service
@@ -90,9 +91,7 @@ public class InteractionServiceImpl implements IInteractionService
 
 	private void validatePostExists(Long postId)
 	{
-		if (!postRepository.existsById(postId))
-		{
-			throw new ResourceNotFoundException("Post", "id", postId);
-		}
+		Assert.isTrue(postRepository.existsById(postId),
+				() -> new ResourceNotFoundException("Post", "id", postId));
 	}
 }

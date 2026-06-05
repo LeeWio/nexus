@@ -1,5 +1,6 @@
 package space.nebula.nexus.service.impl;
 
+import cn.hutool.core.lang.Assert;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,10 +51,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 	@LogOperation("Create Post Series")
 	public ApiResponse<SeriesResponse> createSeries(SeriesRequest request)
 	{
-		if (seriesRepository.existsBySlug(request.slug()))
-		{
-			throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Series slug already exists: " + request.slug());
-		}
+		Assert.isFalse(seriesRepository.existsBySlug(request.slug()), () -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Series slug already exists: " + request.slug()));
 
 		PostSeries series = new PostSeries();
 		seriesMapper.updateEntity(series, request);
@@ -73,11 +71,8 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 
 		if (request.slug() != null && !request.slug().equals(series.getSlug()))
 		{
-			if (seriesRepository.existsBySlug(request.slug()))
-			{
-				throw new BusinessException(BusinessCode.DUPLICATE_KEY,
-						"Series slug already exists: " + request.slug());
-			}
+			Assert.isFalse(seriesRepository.existsBySlug(request.slug()), () -> new BusinessException(BusinessCode.DUPLICATE_KEY,
+					"Series slug already exists: " + request.slug()));
 		}
 
 		seriesMapper.updateEntity(series, request);
@@ -122,10 +117,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 		PostSeries series = seriesRepository.findBySlug(slug)
 				.orElseThrow(() -> new ResourceNotFoundException("Series", "slug", slug));
 
-		if (!series.getIsPublished())
-		{
-			throw new BusinessException(BusinessCode.FORBIDDEN, "This series is not publicly available");
-		}
+		Assert.isTrue(series.getIsPublished(), () -> new BusinessException(BusinessCode.FORBIDDEN, "This series is not publicly available"));
 
 		return ApiResponse.success(seriesMapper.toResponseWithPosts(series));
 	}

@@ -1,35 +1,34 @@
-# Nexus Architectural Review & Roadmap
+# Nexus Architecture & Roadmap
 
-This document outlines the architectural optimizations and future development roadmap for the Nexus CMS project.
+This document outlines the architectural patterns implemented in the Nexus CMS project, as well as the future development roadmap.
 
-## 1. Core Architecture Optimizations (Performance & Clean Code)
+## 1. Implemented Architectural Optimizations (Performance & Clean Code)
 
-### 1.1 Un-intrusive Cache Consistency (Target: High)
-*   **Current State:** Manual, imperative cache eviction using `redisUtil.delete()` and `deleteByPattern()` (which blocks Redis).
-*   **Optimization Plan:** Implement a non-intrusive cache consistency architecture. Use **Canal** (or Debezium) to listen to MySQL Binlog changes. Send invalidation events via a Message Queue (MQ) to asynchronously clear Redis caches, decoupling business logic from cache management.
+### 1.1 Un-intrusive Cache Consistency (Completed)
+*   **Architecture:** Implemented a non-intrusive cache consistency architecture. Canal is used to listen to MySQL Binlog changes. Invalidation events are handled via `CanalCacheInvalidationListener` to asynchronously clear Redis caches, completely decoupling business logic from cache management.
 
-### 1.2 High-Concurrency View Sync (Target: High)
-*   **Current State:** `PostViewCountSyncTask` syncs Redis views to DB using a non-atomic read-update-clear cycle.
-*   **Optimization Plan:** Utilize **Redis Lua Scripts** to atomically read and reset the view increments, eliminating data loss/duplication risks during the sync window.
+### 1.2 High-Concurrency View Sync (Completed)
+*   **Architecture:** `PostViewCountSyncTask` syncs Redis views to DB securely. It utilizes **Redis Lua Scripts** (`RedisUtil.hashGetAllAndDelete`) to atomically read and reset the view increments, eliminating data loss or duplication risks during the sync window.
 
-### 1.3 Search Strategy Decoupling (Target: Medium)
-*   **Current State:** Dual maintenance of JPA Criteria and Elasticsearch models.
-*   **Optimization Plan:** Introduce a `SearchProvider` interface (Strategy Pattern). Deprecate complex JPA searches in favor of MySQL Full-Text Search for lightweight deployments, or exclusively use ES for enterprise deployments.
+### 1.3 Search Strategy Decoupling (Completed)
+*   **Architecture:** Introduced a `SearchProvider` interface strategy. The system supports switching between lightweight MySQL-backed search and Elasticsearch via the `--app.search.type` configuration, decoupling the application from hard dependencies on ES for simpler deployments.
 
-### 1.4 Deep Tree Queries (Comment System) (Target: Medium)
-*   **Current State:** Potential N+1 query issues for deep hierarchical comments despite EntityGraph usage.
-*   **Optimization Plan:** Migrate the comment hierarchy storage to a **Closure Table** or **Path Enumeration** model to enable single-query retrieval of entire comment trees, leveraging Hutool's `TreeUtil` for in-memory assembly.
+### 1.4 Deep Tree Queries (Comment System) (Completed)
+*   **Architecture:** Migrated the comment hierarchy storage to a **Path Enumeration** model. This avoids N+1 query issues and enables single-query retrieval of entire comment trees. Hutool's `TreeUtil` is leveraged for efficient in-memory tree assembly.
 
-## 2. Commercial Feature Roadmap (Next Logical Steps)
+## 2. Implemented Commercial Features
 
-### 2.1 Block-based Editor (Gutenberg/Notion style)
-*   Transition from storing raw HTML to Block-based JSON. Enhances multi-platform rendering (Web, App, Mini-Program) and granular content indexing.
+### 2.1 Webhook & Event Hook Ecosystem (Completed)
+*   **Feature:** Built a comprehensive Webhook ecosystem. Internal `ApplicationEventPublisher` events are exposed to external systems via `WebhookDispatcher`. Administrators can register endpoints triggered upon post publication, comment creation, etc., enabling seamless CI/CD or Chatbot integrations.
 
-### 2.2 Webhook & Event Hook Ecosystem
-*   Expose internal `ApplicationEventPublisher` events to external systems. Allow administrators to register URLs that are triggered upon post publication, comment creation, etc., enabling CI/CD triggers or Chatbot integrations.
+### 2.2 Global Media Library Management (Completed)
+*   **Feature:** Centralized media library powered by `FileMetadata`. It includes reference counting (`referenceCount`) and content-based deduplication using SHA-256 hashes (`fileHash`), avoiding redundant storage of duplicate uploads.
 
-### 2.3 Global Media Library Management
-*   Extend `FileServiceImpl` to support a centralized media library. Include reference counting, content-based deduplication (SHA-256 hash), and abstraction for S3-compatible cloud storage.
+### 2.3 Fine-grained RBAC & Workflows (Completed)
+*   **Feature:** Enhanced security model with dynamic `Role` management and content approval workflows. `PostStatus` includes comprehensive lifecycle states (`DRAFT`, `PENDING_REVIEW`, `PUBLISHED`, `REJECTED`, `ARCHIVED`) with corresponding `@PreAuthorize` method-level security checks.
 
-### 2.4 Fine-grained RBAC & Workflows
-*   Enhance the security model beyond `ADMIN` and `USER`. Implement approval workflows (Draft -> Review -> Published) with method-level `@PreAuthorize` security checks.
+## 3. Future Roadmap
+
+### 3.1 Block-based Editor (Gutenberg/Notion style)
+*   **Target:** High
+*   **Plan:** Transition from storing raw Markdown to Block-based JSON. This will significantly enhance multi-platform rendering (Web, App, Mini-Program) and enable more granular content indexing and modular layout designs.

@@ -58,10 +58,8 @@ public class FileServiceImpl implements IFileService
 	@LogOperation("Upload File")
 	public ApiResponse<FileResponse> uploadFile(MultipartFile file)
 	{
-		if (file.isEmpty())
-		{
-			throw new BusinessException(BusinessCode.BAD_REQUEST, "Cannot process empty file payload");
-		}
+		Assert.isFalse(file.isEmpty(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Cannot process empty file payload"));
 
 		try
 		{

@@ -165,10 +165,8 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	{
 		friendLinkRepository.findByUrl(url).ifPresent(link ->
 		{
-			if (excludeId == null || !link.getId().equals(excludeId))
-			{
-				throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Friend link with this URL already exists");
-			}
+			Assert.isFalse(excludeId == null || !link.getId().equals(excludeId),
+					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Friend link with this URL already exists"));
 		});
 	}
 
