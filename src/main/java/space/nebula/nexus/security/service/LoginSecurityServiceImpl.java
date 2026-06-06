@@ -1,7 +1,7 @@
 package space.nebula.nexus.security.service;
 
 import cn.hutool.core.util.StrUtil;
-import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import space.nebula.nexus.common.constant.CacheConstants;
@@ -15,14 +15,14 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class LoginSecurityServiceImpl implements LoginSecurityService
 {
 
 	private static final int MAX_LOGIN_FAILURES = 5;
 	private static final long LOCK_DURATION_MINUTES = 15;
 
-	@Resource
-	private RedisUtil redisUtil;
+	private final RedisUtil redisUtil;
 
 	@Override
 	public void validateLoginLock(String username)

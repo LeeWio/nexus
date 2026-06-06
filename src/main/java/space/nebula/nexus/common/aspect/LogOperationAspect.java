@@ -5,6 +5,7 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.json.JSONUtil;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -34,10 +35,10 @@ import java.util.stream.IntStream;
 @Aspect
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class LogOperationAspect {
 
-	@Resource
-	private RedisUtil redisUtil;
+	private final RedisUtil redisUtil;
 
 	@Around("@annotation(logOperation)")
 	public Object around(ProceedingJoinPoint joinPoint, LogOperation logOperation) throws Throwable {

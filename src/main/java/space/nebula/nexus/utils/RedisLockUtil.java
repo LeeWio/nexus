@@ -1,6 +1,6 @@
 package space.nebula.nexus.utils;
 
-import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -14,11 +14,11 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class RedisLockUtil
 {
 
-	@Resource
-	private StringRedisTemplate stringRedisTemplate;
+	private final StringRedisTemplate stringRedisTemplate;
 
 	private static final String RELEASE_LOCK_LUA_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then "
 			+ "return redis.call('del', KEYS[1]) " + "else return 0 end";

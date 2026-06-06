@@ -63,10 +63,13 @@ public class FileServiceImpl implements IFileService
 
 		try
 		{
-			var fileBytes = file.getBytes();
+			// 1. Content-based Deduplication (SHA-256) - Streaming approach
+			String fileHash;
+			try (var is = file.getInputStream())
+			{
+				fileHash = SecureUtil.sha256(is);
+			}
 
-			// 1. Content-based Deduplication (SHA-256)
-			String fileHash = SecureUtil.sha256(new ByteArrayInputStream(fileBytes));
 			var existingFile = fileRepository.findByFileHash(fileHash);
 			if (existingFile.isPresent())
 			{
@@ -80,11 +83,11 @@ public class FileServiceImpl implements IFileService
 			var originalFilename = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
 			var extension = extractFileExtension(originalFilename);
 
-			// 2. Deep MIME detection for security
+			// 2. Deep MIME detection for security - Streaming approach
 			String detectedMimeType;
-			try (var bais = new ByteArrayInputStream(fileBytes))
+			try (var is = file.getInputStream())
 			{
-				detectedMimeType = fileUtil.detectMimeType(bais);
+				detectedMimeType = fileUtil.detectMimeType(is);
 			}
 			log.debug("Deep MIME verification: detected {} for file {}", detectedMimeType, originalFilename);
 
@@ -95,13 +98,13 @@ public class FileServiceImpl implements IFileService
 			}
 
 			var uniqueName = IdUtil.fastSimpleUUID() + extension;
-
-			// 3. Specialized Image Processing
 			String thumbnailUrl = null;
 			Integer width = null, height = null;
 
+			// 3. specialized processing for images
 			if (fileUtil.isImage(detectedMimeType))
 			{
+				var fileBytes = file.getBytes(); // Only read into memory for images
 				var dimensions = fileUtil.getImageDimensions(fileBytes);
 				if (ObjectUtil.isNotNull(dimensions))
 				{
@@ -123,7 +126,10 @@ public class FileServiceImpl implements IFileService
 			}
 
 			// 4. Asset Persistence
-			storageProvider.store(new ByteArrayInputStream(fileBytes), uniqueName);
+			try (var is = file.getInputStream())
+			{
+				storageProvider.store(is, uniqueName);
+			}
 
 			User uploader = null;
 			try
@@ -139,7 +145,7 @@ public class FileServiceImpl implements IFileService
 			metadata.setFileName(uniqueName);
 			metadata.setOriginalName(originalFilename);
 			metadata.setFileUrl(storageProvider.getUrl(uniqueName));
-			metadata.setFileSize((long) fileBytes.length);
+			metadata.setFileSize(file.getSize());
 			metadata.setFileType(detectedMimeType);
 			metadata.setThumbnailUrl(thumbnailUrl);
 			metadata.setWidth(width);

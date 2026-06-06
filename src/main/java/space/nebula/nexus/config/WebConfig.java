@@ -1,6 +1,6 @@
 package space.nebula.nexus.config;
 
-import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -11,17 +11,15 @@ import space.nebula.nexus.common.aspect.TraceInterceptor;
 import java.nio.file.Paths;
 
 @Configuration
+@RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer
 {
 
-	@Resource
-	private StorageProperties storageProperties;
+	private final StorageProperties storageProperties;
 
-	@Resource
-	private AnalyticsInterceptor analyticsInterceptor;
+	private final AnalyticsInterceptor analyticsInterceptor;
 
-	@Resource
-	private TraceInterceptor traceInterceptor;
+	private final TraceInterceptor traceInterceptor;
 
 	@Override
 	public void addInterceptors(InterceptorRegistry registry)

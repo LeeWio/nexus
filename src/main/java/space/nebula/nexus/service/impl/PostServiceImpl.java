@@ -31,6 +31,7 @@ import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.PostSeriesRepository;
 import space.nebula.nexus.repository.TagRepository;
 import space.nebula.nexus.repository.UserRepository;
+import space.nebula.nexus.repository.specification.PostSpecification;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IInteractionService;
 import space.nebula.nexus.service.IPostService;
@@ -228,28 +229,8 @@ public class PostServiceImpl implements IPostService
 	public ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
 			Pageable pageable)
 	{
-		Page<Post> publishedPosts = postRepository.findAll((root, query, cb) ->
-		{
-			var searchCriteria = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
-			searchCriteria.add(cb.equal(root.get("status"), PostStatus.PUBLISHED));
-
-			if (categoryId != null)
-			{
-				searchCriteria.add(cb.equal(root.get("category").get("id"), categoryId));
-			}
-			if (tagId != null)
-			{
-				jakarta.persistence.criteria.Join<Object, Object> tagsJoin = root.join("tags");
-				searchCriteria.add(cb.equal(tagsJoin.get("id"), tagId));
-			}
-			if (StrUtil.isNotBlank(keyword))
-			{
-				String keywordPattern = "%" + keyword.toLowerCase() + "%";
-				searchCriteria.add(cb.or(cb.like(root.get("title"), keywordPattern),
-						cb.like(root.get("summary"), keywordPattern), cb.like(root.get("content"), keywordPattern)));
-			}
-			return cb.and(searchCriteria.toArray(new jakarta.persistence.criteria.Predicate[0]));
-		}, pageable);
+		var spec = PostSpecification.filterPublicPosts(categoryId, tagId, keyword);
+		Page<Post> publishedPosts = postRepository.findAll(spec, pageable);
 
 		return ApiResponse.success(PageResult.of(publishedPosts.map(postMapper::toResponse)));
 	}

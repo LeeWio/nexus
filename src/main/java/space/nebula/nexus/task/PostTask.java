@@ -1,6 +1,6 @@
 package space.nebula.nexus.task;
 
-import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -15,14 +15,13 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class PostTask
 {
 
-	@Resource
-	private PostRepository postRepository;
+	private final PostRepository postRepository;
 
-	@Resource
-	private RedisUtil redisUtil;
+	private final RedisUtil redisUtil;
 
 	private static final String LOCK_KEY = "nexus:lock:publish-posts";
 

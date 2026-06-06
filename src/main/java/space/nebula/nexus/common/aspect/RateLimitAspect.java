@@ -30,11 +30,14 @@ import java.util.Objects;
 @Component
 public class RateLimitAspect {
 
-	@Resource
-	private StringRedisTemplate stringRedisTemplate;
+	private final StringRedisTemplate stringRedisTemplate;
+	private final boolean enabled;
 
-	@org.springframework.beans.factory.annotation.Value("${app.security.rate-limit.enabled:true}")
-	private boolean enabled;
+	public RateLimitAspect(StringRedisTemplate stringRedisTemplate,
+			@org.springframework.beans.factory.annotation.Value("${app.security.rate-limit.enabled:true}") boolean enabled) {
+		this.stringRedisTemplate = stringRedisTemplate;
+		this.enabled = enabled;
+	}
 
 	// Lua script for Sliding Window Rate Limiting
 	// ARGV[1]: window size in milliseconds

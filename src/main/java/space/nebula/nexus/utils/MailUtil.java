@@ -23,14 +23,17 @@ import java.util.Map;
 public class MailUtil
 {
 
-	@Resource
-	private JavaMailSender mailSender;
+	private final JavaMailSender mailSender;
+	private final TemplateEngine templateEngine;
+	private final String from;
 
-	@Resource
-	private TemplateEngine templateEngine;
-
-	@Value("${spring.mail.username}")
-	private String from;
+	public MailUtil(JavaMailSender mailSender, TemplateEngine templateEngine,
+			@Value("${spring.mail.username}") String from)
+	{
+		this.mailSender = mailSender;
+		this.templateEngine = templateEngine;
+		this.from = from;
+	}
 
 	/**
 	 * Sends an email using a Thymeleaf template.

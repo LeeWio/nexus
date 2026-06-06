@@ -24,14 +24,12 @@ import java.util.function.Function;
 public class JwtUtils
 {
 
-	@Resource
-	private JwtProperties jwtProperties;
-	private SecretKey key;
+	private final JwtProperties jwtProperties;
+	private final SecretKey key;
 
-	@PostConstruct
-	public void init()
+	public JwtUtils(JwtProperties jwtProperties)
 	{
-		// Initialize the secret key from the configuration property
+		this.jwtProperties = jwtProperties;
 		byte[] keyBytes = jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8);
 		this.key = Keys.hmacShaKeyFor(keyBytes);
 	}

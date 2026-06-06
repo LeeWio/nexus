@@ -4,12 +4,12 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
-import jakarta.annotation.Resource;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,18 +33,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter
 
 	public static final String SECURITY_ERROR_CODE = "NEXUS_SECURITY_ERROR_CODE";
 
-	@Resource
-	private JwtUtils jwtUtils;
+	private final JwtUtils jwtUtils;
+	private final UserDetailsService userDetailsService;
+	private final JwtProperties jwtProperties;
+	private final RedisUtil redisUtil;
 
-	@Resource
-	@org.springframework.context.annotation.Lazy
-	private UserDetailsService userDetailsService;
-
-	@Resource
-	private JwtProperties jwtProperties;
-
-	@Resource
-	private RedisUtil redisUtil;
+	public JwtAuthenticationFilter(JwtUtils jwtUtils, @Lazy UserDetailsService userDetailsService,
+			JwtProperties jwtProperties, RedisUtil redisUtil) {
+		this.jwtUtils = jwtUtils;
+		this.userDetailsService = userDetailsService;
+		this.jwtProperties = jwtProperties;
+		this.redisUtil = redisUtil;
+	}
 
 	@Override
 	protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,

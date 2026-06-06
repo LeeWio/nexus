@@ -2,7 +2,7 @@ package space.nebula.nexus.common.aspect;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import jakarta.annotation.Resource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -15,10 +15,10 @@ import org.springframework.stereotype.Component;
 @Aspect
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class ScheduledTaskMetricsAspect {
 
-	@Resource
-	private MeterRegistry meterRegistry;
+	private final MeterRegistry meterRegistry;
 
 	/**
 	 * Measure the execution time of methods annotated with @Scheduled.

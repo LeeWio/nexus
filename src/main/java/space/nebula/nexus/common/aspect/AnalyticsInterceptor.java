@@ -1,8 +1,8 @@
 package space.nebula.nexus.common.aspect;
 
-import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
@@ -19,10 +19,10 @@ import java.time.LocalDateTime;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class AnalyticsInterceptor implements HandlerInterceptor {
 
-	@Resource
-	private RedisTemplate<String, Object> redisTemplate;
+	private final RedisTemplate<String, Object> redisTemplate;
 
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
