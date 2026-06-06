@@ -16,11 +16,16 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import space.nebula.nexus.security.exception.CustomAccessDeniedHandler;
 import space.nebula.nexus.security.exception.CustomAuthenticationEntryPoint;
 import space.nebula.nexus.security.filter.JwtAuthenticationFilter;
 import space.nebula.nexus.security.handler.OAuth2AuthenticationSuccessHandler;
 import space.nebula.nexus.security.service.CustomOAuth2UserService;
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -64,17 +69,30 @@ public class SecurityConfig
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception
 	{
 		http
-				// Disable CSRF since we are using stateless JWT authentication
+				// 1. Explicit CORS configuration
+				.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+				// 2. Disable CSRF since we are using stateless JWT authentication
 				.csrf(AbstractHttpConfigurer::disable)
 
-				// Set session management to stateless
+				// 3. Enhance Security Headers
+				.headers(headers -> headers
+						// Prevent clickjacking
+						.frameOptions(frame -> frame.deny())
+						// Enable HSTS (Strict-Transport-Security)
+						.httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
+						// Content-Security-Policy (CSP) - Basic hardening
+						.contentSecurityPolicy(csp -> csp.policyDirectives(
+								"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none';")))
+
+				// 4. Set session management to stateless
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-				// Handle authorization exceptions (401 and 403)
+				// 5. Handle authorization exceptions (401 and 403)
 				.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint)
 						.accessDeniedHandler(accessDeniedHandler))
 
-				// Configure URL access rules
+				// 6. Configure URL access rules
 				.authorizeHttpRequests(authorize -> authorize
 						// Permit all access to Auth APIs, Swagger UI, and Public APIs
 						.requestMatchers("/api/v1/auth/**", "/api/v1/public/**", "/v3/api-docs/**", "/swagger-ui/**",
@@ -85,15 +103,35 @@ public class SecurityConfig
 						// All other requests must be authenticated
 						.anyRequest().authenticated())
 
-				// Configure OAuth2 Login
+				// 7. Configure OAuth2 Login
 				.oauth2Login(
 						oauth2 -> oauth2.userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
 								.successHandler(oauth2AuthenticationSuccessHandler))
 
-				// Add our custom JWT filter before the standard
+				// 8. Add our custom JWT filter before the standard
 				// UsernamePasswordAuthenticationFilter
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
+	}
+
+	/**
+	 * Standardized CORS configuration for a secure production environment.
+	 */
+	@Bean
+	public CorsConfigurationSource corsConfigurationSource()
+	{
+		CorsConfiguration configuration = new CorsConfiguration();
+		// In production, these should be loaded from application properties
+		configuration.setAllowedOrigins(List.of("http://localhost:3000", "https://yourblog.com"));
+		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Trace-Id", "X-Requested-With"));
+		configuration.setExposedHeaders(List.of("Authorization"));
+		configuration.setAllowCredentials(true);
+		configuration.setMaxAge(3600L); // Cache preflight for 1 hour
+
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/**", configuration);
+		return source;
 	}
 }

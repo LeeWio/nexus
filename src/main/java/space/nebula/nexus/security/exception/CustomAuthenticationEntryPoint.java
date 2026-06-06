@@ -7,6 +7,9 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
+import space.nebula.nexus.common.constant.BusinessCode;
+import space.nebula.nexus.security.filter.JwtAuthenticationFilter;
+
 import java.io.IOException;
 
 /**
@@ -23,9 +26,16 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint
 	{
 		response.setContentType("application/json;charset=UTF-8");
 		response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-		// In a real project, you would map this to a common Result/Response class using
-		// Jackson (ObjectMapper).
-		response.getWriter().write(String.format("{\"code\": 401, \"message\": \"Unauthorized: %s\", \"data\": null}",
-				authException.getMessage()));
+
+		// 1. Check if a descriptive error code was set by JwtAuthenticationFilter
+		Object securityCodeObj = request.getAttribute(JwtAuthenticationFilter.SECURITY_ERROR_CODE);
+		BusinessCode businessCode = (securityCodeObj instanceof BusinessCode bc) ? bc : BusinessCode.UNAUTHORIZED;
+
+		// 2. Use the descriptive message if available, otherwise fallback to the
+		// generic one
+		String message = (securityCodeObj != null) ? businessCode.getMessage() : authException.getMessage();
+
+		response.getWriter().write(String.format("{\"code\": %d, \"message\": \"%s\", \"data\": null}",
+				businessCode.getCode(), message));
 	}
 }

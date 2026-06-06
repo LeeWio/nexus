@@ -1,5 +1,9 @@
 package space.nebula.nexus.security.filter;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.annotation.Resource;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -15,6 +19,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.security.config.JwtProperties;
 import space.nebula.nexus.security.util.JwtUtils;
 import space.nebula.nexus.utils.RedisUtil;
@@ -25,6 +30,8 @@ import java.io.IOException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter
 {
+
+	public static final String SECURITY_ERROR_CODE = "NEXUS_SECURITY_ERROR_CODE";
 
 	@Resource
 	private JwtUtils jwtUtils;
@@ -65,6 +72,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter
 			if (redisUtil.hasKey(blacklistKey))
 			{
 				log.warn("Rejected blacklisted JWT token");
+				request.setAttribute(SECURITY_ERROR_CODE, BusinessCode.INVALID_TOKEN);
 				filterChain.doFilter(request, response);
 				return;
 			}
@@ -97,13 +105,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter
 				}
 			}
 		}
+		catch (ExpiredJwtException e)
+		{
+			log.warn("JWT token is expired: {}", e.getMessage());
+			request.setAttribute(SECURITY_ERROR_CODE, BusinessCode.INVALID_TOKEN);
+		}
+		catch (SignatureException | MalformedJwtException | UnsupportedJwtException e)
+		{
+			log.warn("JWT token is invalid: {}", e.getMessage());
+			request.setAttribute(SECURITY_ERROR_CODE, BusinessCode.INVALID_TOKEN);
+		}
 		catch (Exception e)
 		{
-			// Token parsing or validation failed. Log it, but let the filter chain
-			// continue.
-			// The SecurityFilterChain will eventually reject the request because
-			// SecurityContext is empty.
-			log.error("Cannot set user authentication: {}", e.getMessage());
+			log.error("Authentication internal error: {}", e.getMessage());
+			request.setAttribute(SECURITY_ERROR_CODE, BusinessCode.UNAUTHORIZED);
 		}
 
 		// 7. Continue down the filter chain
