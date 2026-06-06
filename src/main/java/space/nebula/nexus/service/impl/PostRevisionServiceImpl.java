@@ -45,6 +45,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 		revision.setTitle(post.getTitle());
 		revision.setSummary(post.getSummary());
 		revision.setContent(post.getContent());
+		revision.setContentType(post.getContentType());
 		revision.setVersionNumber(nextVersion);
 		revision.setCreatedBy(post.getAuthor()); // In a real scenario, use currently logged in user
 

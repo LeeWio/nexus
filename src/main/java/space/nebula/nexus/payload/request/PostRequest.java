@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import space.nebula.nexus.common.validator.annotation.Slug;
+import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 
 import java.util.Set;
@@ -22,7 +23,9 @@ public record PostRequest(
 
 		@Schema(description = "Short summary/excerpt of the post", example = "A comprehensive guide to the latest Spring Boot version.") @Size(max = 500) String summary,
 
-		@Schema(description = "Main content in Markdown or HTML") @NotBlank(message = "Content cannot be empty") String content,
+		@Schema(description = "Main content in JSON or MDX") @NotBlank(message = "Content cannot be empty") String content,
+
+		@Schema(description = "Format of the content (JSON, MDX)") PostContentType contentType,
 
 		@Schema(description = "Publishing status", example = "PUBLISHED") @NotNull(message = "Status is required") PostStatus status,
 

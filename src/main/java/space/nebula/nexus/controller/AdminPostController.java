@@ -14,6 +14,7 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.request.PostAutosaveRequest;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostDiffResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.payload.response.PostRevisionResponse;
@@ -116,7 +117,7 @@ public class AdminPostController
 	@GetMapping("/autosave/{identifier}")
 	@PreAuthorize("isAuthenticated()")
 	@Operation(summary = "Retrieve autosaved content", description = "Get the last autosaved version using the identifier (ID or UUID).")
-	public ApiResponse<String> retrieveAutosave(
+	public ApiResponse<PostAutosaveResponse> retrieveAutosave(
 			@Parameter(description = "Identifier for the autosave session") @PathVariable String identifier)
 	{
 		return postService.retrieveAutosavedContent(identifier);

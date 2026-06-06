@@ -5,6 +5,7 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.request.PostAutosaveRequest;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 
 public interface IPostService
@@ -43,5 +44,5 @@ public interface IPostService
 	/**
 	 * Retrieves temporarily saved content from Redis.
 	 */
-	ApiResponse<String> retrieveAutosavedContent(String identifier);
+	ApiResponse<PostAutosaveResponse> retrieveAutosavedContent(String identifier);
 }

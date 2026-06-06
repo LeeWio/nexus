@@ -2,6 +2,7 @@ package space.nebula.nexus.payload.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
+import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 
 import java.io.Serializable;
@@ -24,6 +25,8 @@ public record PostResponse(@Schema(description = "Post ID") Long id,
 		@Schema(description = "Post summary") String summary,
 
 		@Schema(description = "Post full content") String content,
+
+		@Schema(description = "Format of the content (JSON, MDX)") PostContentType contentType,
 
 		@Schema(description = "Current status") PostStatus status,
 

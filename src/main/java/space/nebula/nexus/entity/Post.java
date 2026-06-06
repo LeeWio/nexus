@@ -16,6 +16,7 @@ import lombok.Setter;
 import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 
 import java.util.HashSet;
@@ -46,6 +47,10 @@ public class Post extends BaseEntity
 	@Lob
 	@Column(nullable = false, columnDefinition = "LONGTEXT")
 	private String content;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "content_type", nullable = false, length = 20)
+	private PostContentType contentType = PostContentType.JSON;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)

@@ -18,11 +18,13 @@ import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.mapper.PostMapper;
 import space.nebula.nexus.payload.request.PostAutosaveRequest;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.repository.CategoryRepository;
 import space.nebula.nexus.repository.PostRepository;
@@ -108,6 +110,11 @@ public class PostServiceImpl implements IPostService
 		if (newPost.getStatus() == null)
 		{
 			newPost.moveToDraft();
+		}
+
+		if (request.contentType() != null)
+		{
+			newPost.setContentType(request.contentType());
 		}
 
 		syncCategoryAndTags(newPost, request);
@@ -277,16 +284,17 @@ public class PostServiceImpl implements IPostService
 	public ApiResponse<Void> autosavePostContent(PostAutosaveRequest request)
 	{
 		String autosaveKey = CacheConstants.POST_AUTOSAVE_PREFIX + request.identifier();
-		redisUtil.set(autosaveKey, request.content(), 24, TimeUnit.HOURS);
+		PostAutosaveResponse autosaveData = new PostAutosaveResponse(request.content(), request.contentType());
+		redisUtil.set(autosaveKey, autosaveData, 24, TimeUnit.HOURS);
 		log.debug("Autosaved content for identifier: {}", request.identifier());
 		return ApiResponse.success("Content autosaved", null);
 	}
 
 	@Override
-	public ApiResponse<String> retrieveAutosavedContent(String identifier)
+	public ApiResponse<PostAutosaveResponse> retrieveAutosavedContent(String identifier)
 	{
 		String autosaveKey = CacheConstants.POST_AUTOSAVE_PREFIX + identifier;
-		return redisUtil.get(autosaveKey, String.class).map(ApiResponse::success).orElse(
+		return redisUtil.get(autosaveKey, PostAutosaveResponse.class).map(ApiResponse::success).orElse(
 				ApiResponse.error(BusinessCode.NOT_FOUND.getCode(), "No autosaved content found for this identifier"));
 	}
 
