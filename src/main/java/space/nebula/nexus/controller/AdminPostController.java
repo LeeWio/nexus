@@ -11,6 +11,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.payload.request.PostAutosaveRequest;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.response.PageResult;
@@ -36,14 +37,18 @@ public class AdminPostController
 
 	private final IPostService postService;
 	private final IPostRevisionService postRevisionService;
+	private final space.nebula.nexus.service.IStaticGenerationService staticGenerationService;
 
 	@GetMapping
 	@PreAuthorize("hasAnyRole('ADMIN', 'EDITOR')")
 	@Operation(summary = "Search all posts (Management)", description = "Returns a paginated list of all posts, including drafts and scheduled.")
 	public ApiResponse<PageResult<PostResponse>> searchPosts(
+			@Parameter(description = "Filter by post status") @RequestParam(required = false) PostStatus status,
+			@Parameter(description = "Filter by category ID") @RequestParam(required = false) Long categoryId,
+			@Parameter(description = "Filter by keyword") @RequestParam(required = false) String keyword,
 			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10) Pageable pageable)
 	{
-		return postService.searchPostsForAdmin(pageable);
+		return postService.searchPostsForAdmin(status, categoryId, keyword, pageable);
 	}
 
 	@GetMapping("/{id}")
@@ -152,5 +157,14 @@ public class AdminPostController
 			@Parameter(description = "Target revision ID") @RequestParam Long targetId)
 	{
 		return postRevisionService.compareRevisions(id, baseId, targetId);
+	}
+
+	@PostMapping("/regenerate-static")
+	@PreAuthorize("hasRole('ADMIN')")
+	@Operation(summary = "Regenerate all static HTML", description = "Trigger a background task to rebuild static HTML files for all published posts.")
+	public ApiResponse<Void> regenerateStaticHtml()
+	{
+		staticGenerationService.regenerateAllPosts();
+		return ApiResponse.success("Static HTML regeneration task initiated", null);
 	}
 }

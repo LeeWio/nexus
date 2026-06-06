@@ -30,9 +30,10 @@ public interface ICommentService
 	ApiResponse<List<Tree<Long>>> retrieveGuestbookComments();
 
 	/**
-	 * Searches all comments for administrative management.
+	 * Searches all comments for administrative management with filters.
 	 */
-	ApiResponse<PageResult<CommentResponse>> searchCommentsForManagement(Pageable pageable);
+	ApiResponse<PageResult<CommentResponse>> searchCommentsForManagement(CommentStatus status, Long postId,
+			String username, String keyword, Pageable pageable);
 
 	/**
 	 * Retrieves comments that are pending moderation.

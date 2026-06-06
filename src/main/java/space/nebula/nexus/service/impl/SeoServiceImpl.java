@@ -140,6 +140,20 @@ public class SeoServiceImpl implements ISeoService
 		}
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.SEO, key = "'robots_txt'")
+	public String generateRobotsTxt()
+	{
+		log.info("Generating dynamic robots.txt...");
+		String siteBaseUrl = getSiteBaseUrl();
+		return "User-agent: *\n" +
+				"Allow: /\n" +
+				"Disallow: /api/v1/admin/\n" +
+				"Disallow: /api/v1/auth/\n" +
+				"Sitemap: " + siteBaseUrl + "/api/v1/public/seo/sitemap.xml\n";
+	}
+
 	private void appendSitemapEntry(StringBuilder builder, String location, String priority, String frequency)
 	{
 		builder.append("  <url>\n");

@@ -41,4 +41,9 @@ public interface IPostSearchService
 	 * Next.js routing.
 	 */
 	ApiResponse<UnifiedSearchResponse> unifiedSearch(String keyword);
+
+	/**
+	 * Provides search suggestions/completions as the user types.
+	 */
+	ApiResponse<java.util.List<String>> getSearchSuggestions(String keyword);
 }

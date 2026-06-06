@@ -3,6 +3,7 @@ package space.nebula.nexus.service.impl;
 import cn.hutool.core.lang.Assert;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
@@ -11,9 +12,11 @@ import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
+import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.PostSeries;
 import space.nebula.nexus.mapper.PostSeriesMapper;
 import space.nebula.nexus.payload.request.SeriesRequest;
+import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.payload.response.SeriesResponse;
 import space.nebula.nexus.repository.PostSeriesRepository;
 import space.nebula.nexus.service.IPostSeriesService;
@@ -29,6 +32,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 
 	private final PostSeriesRepository seriesRepository;
 	private final PostSeriesMapper seriesMapper;
+	private final space.nebula.nexus.mapper.PostMapper postMapper;
 	private final RedisUtil redisUtil;
 
 	@Override
@@ -49,6 +53,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 	@Override
 	@Transactional
 	@LogOperation("Create Post Series")
+	@CacheEvict(value = { CacheConstants.PROJECTS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<SeriesResponse> createSeries(SeriesRequest request)
 	{
 		Assert.isFalse(seriesRepository.existsBySlug(request.slug()), () -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Series slug already exists: " + request.slug()));
@@ -58,13 +63,13 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 
 		PostSeries savedSeries = seriesRepository.save(series);
 		log.info("Created new post series: {}", savedSeries.getName());
-		clearSeoCache();
 		return ApiResponse.success("Series created successfully", seriesMapper.toResponse(savedSeries));
 	}
 
 	@Override
 	@Transactional
 	@LogOperation("Update Post Series")
+	@CacheEvict(value = { CacheConstants.PROJECTS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<SeriesResponse> updateSeries(Long id, SeriesRequest request)
 	{
 		PostSeries series = findSeriesOrThrow(id);
@@ -78,13 +83,13 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 		seriesMapper.updateEntity(series, request);
 		PostSeries updatedSeries = seriesRepository.save(series);
 		log.info("Updated post series: {}", updatedSeries.getName());
-		clearSeoCache();
 		return ApiResponse.success("Series updated successfully", seriesMapper.toResponse(updatedSeries));
 	}
 
 	@Override
 	@Transactional
 	@LogOperation("Delete Post Series")
+	@CacheEvict(value = { CacheConstants.PROJECTS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<Void> deleteSeries(Long id)
 	{
 		PostSeries series = findSeriesOrThrow(id);
@@ -98,7 +103,6 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 
 		seriesRepository.delete(series);
 		log.info("Deleted post series ID: {}", id);
-		clearSeoCache();
 		return ApiResponse.success("Series deleted successfully", null);
 	}
 
@@ -122,13 +126,37 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 		return ApiResponse.success(seriesMapper.toResponseWithPosts(series));
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<List<cn.hutool.core.lang.tree.Tree<Long>>> retrieveSeriesTree(String slug)
+	{
+		PostSeries series = seriesRepository.findBySlug(slug)
+				.orElseThrow(() -> new ResourceNotFoundException("Series", "slug", slug));
+
+		List<Post> posts = series.getPosts();
+		List<PostResponse> postResponses = postMapper.toResponseList(posts);
+
+		cn.hutool.core.lang.tree.TreeNodeConfig config = new cn.hutool.core.lang.tree.TreeNodeConfig();
+		config.setIdKey("id");
+		config.setParentIdKey("parentId");
+		config.setWeightKey("seriesOrder");
+
+		List<cn.hutool.core.lang.tree.Tree<Long>> tree = cn.hutool.core.lang.tree.TreeUtil.build(postResponses, null,
+				config, (postResponse, treeNode) ->
+				{
+					treeNode.setId(postResponse.id());
+					treeNode.setParentId(postResponse.parentId());
+					treeNode.setWeight(postResponse.seriesOrder());
+					treeNode.putExtra("title", postResponse.title());
+					treeNode.putExtra("slug", postResponse.slug());
+					treeNode.putExtra("path", postResponse.path());
+				});
+
+		return ApiResponse.success(tree);
+	}
+
 	private PostSeries findSeriesOrThrow(Long id)
 	{
 		return seriesRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Series", "id", id));
-	}
-
-	private void clearSeoCache()
-	{
-		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
 	}
 }

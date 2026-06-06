@@ -18,4 +18,6 @@ public interface IWebhookService
 	ApiResponse<Void> deleteWebhook(Long id);
 
 	ApiResponse<Void> triggerTestWebhook(Long id);
+
+	ApiResponse<space.nebula.nexus.payload.response.PageResult<space.nebula.nexus.entity.WebhookLog>> retrieveWebhookLogs(Long id, org.springframework.data.domain.Pageable pageable);
 }

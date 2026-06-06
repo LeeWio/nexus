@@ -60,6 +60,10 @@ class AuthServiceImplTest {
 	private RedisUtil redisUtil;
 	@Mock
 	private RabbitTemplate rabbitTemplate;
+	@Mock
+	private space.nebula.nexus.config.AuthProperties authProperties;
+	@Mock
+	private space.nebula.nexus.security.config.JwtProperties jwtProperties;
 
 	@InjectMocks
 	private AuthServiceImpl authService;
@@ -69,6 +73,10 @@ class AuthServiceImplTest {
 
 	@BeforeEach
 	void setUp() {
+		lenient().when(authProperties.getDefaultRoleCode()).thenReturn("ROLE_USER");
+		lenient().when(jwtProperties.getHeader()).thenReturn("Authorization");
+		lenient().when(jwtProperties.getPrefix()).thenReturn("Bearer ");
+
 		registerRequest = new RegisterRequest("testuser", "test@example.com", "Password123!");
 		loginRequest = new LoginRequest("testuser", "Password123!");
 	}

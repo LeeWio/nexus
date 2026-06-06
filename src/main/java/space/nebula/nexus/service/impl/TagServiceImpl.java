@@ -44,7 +44,7 @@ public class TagServiceImpl implements ITagService
 	@Override
 	@Transactional
 	@LogOperation("Create Tag")
-	@CacheEvict(value = CacheConstants.TAGS, allEntries = true)
+	@CacheEvict(value = { CacheConstants.TAGS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<TagResponse> createTag(TagRequest request)
 	{
 		validateUniqueConstraints(null, request);
@@ -54,14 +54,13 @@ public class TagServiceImpl implements ITagService
 
 		tagRepository.save(tag);
 		log.info("Tag created: {}", tag.getName());
-		clearSeoCache();
 		return ApiResponse.success("Tag created successfully", tagMapper.toResponse(tag));
 	}
 
 	@Override
 	@Transactional
 	@LogOperation("Update Tag")
-	@CacheEvict(value = CacheConstants.TAGS, allEntries = true)
+	@CacheEvict(value = { CacheConstants.TAGS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<TagResponse> updateTag(Long id, TagRequest request)
 	{
 		Tag existingTag = tagRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Tag", "id", id));
@@ -72,20 +71,18 @@ public class TagServiceImpl implements ITagService
 		tagRepository.save(existingTag);
 
 		log.info("Tag updated: {}", existingTag.getName());
-		clearSeoCache();
 		return ApiResponse.success("Tag updated successfully", tagMapper.toResponse(existingTag));
 	}
 
 	@Override
 	@Transactional
 	@LogOperation("Delete Tag")
-	@CacheEvict(value = CacheConstants.TAGS, allEntries = true)
+	@CacheEvict(value = { CacheConstants.TAGS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<Void> deleteTag(Long id)
 	{
 		Assert.isTrue(tagRepository.existsById(id), () -> new ResourceNotFoundException("Tag", "id", id));
 		tagRepository.deleteById(id);
 		log.info("Tag deleted id: {}", id);
-		clearSeoCache();
 		return ApiResponse.success("Tag deleted successfully", null);
 	}
 
@@ -105,10 +102,5 @@ public class TagServiceImpl implements ITagService
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 							"Tag slug already exists: " + request.slug()));
 		}
-	}
-
-	private void clearSeoCache()
-	{
-		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
 	}
 }

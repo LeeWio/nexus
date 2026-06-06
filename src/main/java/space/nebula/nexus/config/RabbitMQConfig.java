@@ -22,6 +22,10 @@ public class RabbitMQConfig
 	public static final String MAIL_ROUTING_KEY = "nexus.mail.routing.key";
 	public static final String MAIL_QUEUE = "nexus.mail.send.queue";
 
+	public static final String WEBHOOK_EXCHANGE = "nexus.webhook.exchange";
+	public static final String WEBHOOK_ROUTING_KEY = "nexus.webhook.routing.key";
+	public static final String WEBHOOK_QUEUE = "nexus.webhook.dispatch.queue";
+
 	public static final String CACHE_BROADCAST_EXCHANGE = "nexus.cache.broadcast.exchange";
 
 	@Bean
@@ -86,5 +90,23 @@ public class RabbitMQConfig
 	Binding mailBinding(Queue mailQueue, DirectExchange mailExchange)
 	{
 		return BindingBuilder.bind(mailQueue).to(mailExchange).with(MAIL_ROUTING_KEY);
+	}
+
+	@Bean
+	DirectExchange webhookExchange()
+	{
+		return new DirectExchange(WEBHOOK_EXCHANGE);
+	}
+
+	@Bean
+	Queue webhookQueue()
+	{
+		return new Queue(WEBHOOK_QUEUE, true);
+	}
+
+	@Bean
+	Binding webhookBinding(Queue webhookQueue, DirectExchange webhookExchange)
+	{
+		return BindingBuilder.bind(webhookQueue).to(webhookExchange).with(WEBHOOK_ROUTING_KEY);
 	}
 }

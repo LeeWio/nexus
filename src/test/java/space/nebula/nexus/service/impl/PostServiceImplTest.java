@@ -54,6 +54,13 @@ class PostServiceImplTest {
 	@Mock
 	private IInteractionService interactionService;
 
+	@Mock
+	private space.nebula.nexus.repository.PostSeriesRepository seriesRepository;
+	@Mock
+	private space.nebula.nexus.service.ISlugService slugService;
+	@Mock
+	private space.nebula.nexus.common.validator.PostValidator postValidator;
+
 	@InjectMocks
 	private PostServiceImpl postService;
 
@@ -64,32 +71,31 @@ class PostServiceImplTest {
 		Pageable pageable = Pageable.unpaged();
 		Post post = new Post();
 		Page<Post> page = new PageImpl<>(List.of(post));
-		when(postRepository.findAll(pageable)).thenReturn(page);
+		when(postRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable))).thenReturn(page);
 
 		PostResponse response = mock(PostResponse.class);
 		when(postMapper.toResponse(any())).thenReturn(response);
 
 		// Act
-		ApiResponse<PageResult<PostResponse>> apiResponse = postService.searchPostsForAdmin(pageable);
+		ApiResponse<PageResult<PostResponse>> apiResponse = postService.searchPostsForAdmin(null, null, null, pageable);
 
 		// Assert
 		assertEquals(200, apiResponse.code());
 		assertEquals(1, apiResponse.data().getList().size());
-		verify(postRepository).findAll(pageable);
 	}
 
 	@Test
 	@DisplayName("Should create a new post and publish event")
 	void createPost_Success() {
 		// Arrange
-		PostRequest request = new PostRequest("My Title", null, null, "Summary", "Content", PostStatus.PUBLISHED, false,
-				null, null, null, null);
+		PostRequest request = new PostRequest("My Title", null, null, "Summary", "Content", null, PostStatus.PUBLISHED, false,
+				null, null, null, null, null);
 		User author = new User();
 		author.setUsername("admin");
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(author);
-			when(postRepository.findBySlug(anyString())).thenReturn(Optional.empty());
+			when(slugService.generateUniqueSlug(any(), any(), any())).thenReturn("my-title");
 
 			// Act
 			ApiResponse<PostResponse> response = postService.createPost(request);

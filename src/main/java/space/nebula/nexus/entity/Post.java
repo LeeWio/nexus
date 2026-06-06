@@ -86,6 +86,13 @@ public class Post extends BaseEntity
 	@Column(name = "series_order")
 	private Integer seriesOrder = 0;
 
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "parent_id")
+	private Post parent;
+
+	@Column(name = "path", length = 1000)
+	private String path;
+
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "blog_post_tag", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
 	private Set<Tag> tags = new HashSet<>();
@@ -134,5 +141,18 @@ public class Post extends BaseEntity
 	public boolean isPublished()
 	{
 		return PostStatus.PUBLISHED.equals(this.status);
+	}
+
+	/**
+	 * Sets the hierarchical path based on the parent post.
+	 */
+	public void updatePath(Post parent)
+	{
+		if (this.getId() == null)
+		{
+			this.path = null;
+			return;
+		}
+		this.path = (parent == null) ? "/" + this.getId() + "/" : parent.getPath() + this.getId() + "/";
 	}
 }

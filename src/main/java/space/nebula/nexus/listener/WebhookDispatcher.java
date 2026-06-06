@@ -32,6 +32,8 @@ public class WebhookDispatcher
 
 	private final WebhookRepository webhookRepository;
 	private final WebhookMapper webhookMapper;
+	private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
+	private final space.nebula.nexus.config.RabbitMQConfig rabbitMQConfig;
 
 	@Async("asyncExecutor")
 	@EventListener
@@ -64,7 +66,7 @@ public class WebhookDispatcher
 
 	private void dispatchToSubscribers(WebhookEvent eventType, Dict payload)
 	{
-		List<Webhook> activeWebhooks = webhookRepository.findAllByIsActiveTrue();
+		List<Webhook> activeWebhooks = getActiveWebhooks();
 
 		for (Webhook webhook : activeWebhooks)
 		{
@@ -73,39 +75,37 @@ public class WebhookDispatcher
 			{
 				payload.set("event", eventType.name());
 				payload.set("timestamp", System.currentTimeMillis());
-				dispatchPayload(webhook, payload);
+				
+				var message = space.nebula.nexus.payload.request.WebhookMessage.builder()
+						.webhookId(webhook.getId())
+						.event(eventType.name())
+						.payload(payload)
+						.build();
+				
+				rabbitTemplate.convertAndSend(space.nebula.nexus.config.RabbitMQConfig.WEBHOOK_EXCHANGE, 
+						space.nebula.nexus.config.RabbitMQConfig.WEBHOOK_ROUTING_KEY, message);
 			}
 		}
 	}
 
-	@Async("asyncExecutor")
+	@org.springframework.cache.annotation.Cacheable(value = space.nebula.nexus.common.constant.CacheConstants.SYS_CONFIG, key = "'active_webhooks'")
+	public List<Webhook> getActiveWebhooks()
+	{
+		return webhookRepository.findAllByIsActiveTrue();
+	}
+
+	/**
+	 * Triggered manually for testing.
+	 */
 	public void dispatchPayload(Webhook webhook, Dict payload)
 	{
-		String jsonPayload = JSONUtil.toJsonStr(payload);
-
-		// Sign the payload using HMAC-SHA256
-		HMac mac = SecureUtil.hmac(HmacAlgorithm.HmacSHA256, webhook.getSecret().getBytes());
-		String signature = mac.digestHex(jsonPayload);
-
-		try (HttpResponse response = HttpRequest.post(webhook.getUrl()).header("Content-Type", "application/json")
-				.header("X-Nexus-Signature", signature).header("X-Nexus-Event", payload.getStr("event"))
-				.body(jsonPayload).timeout(5000).execute())
-		{
-
-			if (response.isOk())
-			{
-				log.debug("Successfully dispatched webhook {} to URL: {}", payload.getStr("event"), webhook.getUrl());
-			}
-			else
-			{
-				log.warn("Webhook dispatch failed for {} to URL: {}. HTTP Status: {}", payload.getStr("event"),
-						webhook.getUrl(), response.getStatus());
-			}
-		}
-		catch (Exception e)
-		{
-			log.error("Exception occurred while dispatching webhook {} to URL: {}", payload.getStr("event"),
-					webhook.getUrl(), e);
-		}
+		var message = space.nebula.nexus.payload.request.WebhookMessage.builder()
+				.webhookId(webhook.getId())
+				.event(payload.getStr("event"))
+				.payload(payload)
+				.build();
+		
+		rabbitTemplate.convertAndSend(space.nebula.nexus.config.RabbitMQConfig.WEBHOOK_EXCHANGE, 
+				space.nebula.nexus.config.RabbitMQConfig.WEBHOOK_ROUTING_KEY, message);
 	}
 }

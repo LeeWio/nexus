@@ -1,6 +1,8 @@
 package space.nebula.nexus.service.impl;
 
 import cn.hutool.core.lang.Assert;
+import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ public class WebhookServiceImpl implements IWebhookService
 {
 
 	private final WebhookRepository webhookRepository;
+	private final space.nebula.nexus.repository.WebhookLogRepository webhookLogRepository;
 	private final WebhookMapper webhookMapper;
 	private final WebhookDispatcher webhookDispatcher;
 
@@ -43,9 +46,14 @@ public class WebhookServiceImpl implements IWebhookService
 	@Override
 	@Transactional
 	@LogOperation("Create Webhook")
+	@org.springframework.cache.annotation.CacheEvict(value = space.nebula.nexus.common.constant.CacheConstants.SYS_CONFIG, key = "'active_webhooks'")
 	public ApiResponse<WebhookResponse> createWebhook(WebhookRequest request)
 	{
 		Webhook webhook = webhookMapper.toEntity(request);
+		if (StrUtil.isBlank(webhook.getSecret()))
+		{
+			webhook.setSecret(IdUtil.fastSimpleUUID());
+		}
 		webhookRepository.save(webhook);
 		log.info("Created new webhook: {}", webhook.getName());
 		return ApiResponse.success("Webhook created successfully", webhookMapper.toResponse(webhook));
@@ -54,6 +62,7 @@ public class WebhookServiceImpl implements IWebhookService
 	@Override
 	@Transactional
 	@LogOperation("Update Webhook")
+	@org.springframework.cache.annotation.CacheEvict(value = space.nebula.nexus.common.constant.CacheConstants.SYS_CONFIG, key = "'active_webhooks'")
 	public ApiResponse<WebhookResponse> updateWebhook(Long id, WebhookRequest request)
 	{
 		Webhook webhook = webhookRepository.findById(id)
@@ -67,6 +76,7 @@ public class WebhookServiceImpl implements IWebhookService
 	@Override
 	@Transactional
 	@LogOperation("Delete Webhook")
+	@org.springframework.cache.annotation.CacheEvict(value = space.nebula.nexus.common.constant.CacheConstants.SYS_CONFIG, key = "'active_webhooks'")
 	public ApiResponse<Void> deleteWebhook(Long id)
 	{
 		Assert.isTrue(webhookRepository.existsById(id), () -> new ResourceNotFoundException("Webhook", "id", id));
@@ -86,6 +96,15 @@ public class WebhookServiceImpl implements IWebhookService
 
 		webhookDispatcher.dispatchPayload(webhook, payload);
 
-		return ApiResponse.success("Test webhook triggered", null);
+		return ApiResponse.success("Test webhook task dispatched", null);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<space.nebula.nexus.payload.response.PageResult<space.nebula.nexus.entity.WebhookLog>> retrieveWebhookLogs(
+			Long id, org.springframework.data.domain.Pageable pageable)
+	{
+		var logs = webhookLogRepository.findByWebhookId(id, pageable);
+		return ApiResponse.success(space.nebula.nexus.payload.response.PageResult.of(logs));
 	}
 }

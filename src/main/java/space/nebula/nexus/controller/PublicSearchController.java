@@ -56,4 +56,12 @@ public class PublicSearchController
 	{
 		return postSearchService.unifiedSearch(keyword);
 	}
+
+	@GetMapping("/suggestions")
+	@Operation(summary = "Get search suggestions", description = "Provides autocomplete suggestions as the user types.")
+	public ApiResponse<java.util.List<String>> getSuggestions(
+			@Parameter(description = "Search prefix") @RequestParam String keyword)
+	{
+		return postSearchService.getSearchSuggestions(keyword);
+	}
 }

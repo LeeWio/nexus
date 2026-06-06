@@ -13,6 +13,7 @@ import space.nebula.nexus.security.config.JwtProperties;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -21,20 +22,19 @@ class JwtUtilsTest {
 	@Mock
 	private JwtProperties jwtProperties;
 
-	@InjectMocks
 	private JwtUtils jwtUtils;
 
 	private UserDetails userDetails;
 
 	@BeforeEach
-    void setUp() {
-        when(jwtProperties.getSecret()).thenReturn("4A614E645267556B58703273357638792F423F4528482B4D6251655468576D5A");
-        when(jwtProperties.getAccessTokenExpiration()).thenReturn(7200000L);
-        
-        jwtUtils.init();
-        
-        userDetails = new User("testuser", "password", Collections.emptyList());
-    }
+	void setUp() {
+	    lenient().when(jwtProperties.getSecret()).thenReturn("4A614E645267556B58703273357638792F423F4528482B4D6251655468576D5A");
+	    lenient().when(jwtProperties.getAccessTokenExpiration()).thenReturn(7200000L);
+	    lenient().when(jwtProperties.getRefreshTokenExpiration()).thenReturn(604800000L);
+
+	    jwtUtils = new JwtUtils(jwtProperties);
+	    userDetails = new User("testuser", "password", Collections.emptyList());
+	}
 
 	@Test
 	void generateAndValidateToken() {

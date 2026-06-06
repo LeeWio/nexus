@@ -41,4 +41,12 @@ public class PublicPostSeriesController
 	{
 		return seriesService.retrieveSeriesWithPosts(slug);
 	}
+
+	@GetMapping("/{slug}/tree")
+	@Operation(summary = "Retrieve series hierarchical tree", description = "Fetch a tree structure of all posts within this series, ordered by weight.")
+	public ApiResponse<List<cn.hutool.core.lang.tree.Tree<Long>>> retrieveSeriesTree(
+			@Parameter(description = "The unique URL slug of the series") @PathVariable String slug)
+	{
+		return seriesService.retrieveSeriesTree(slug);
+	}
 }

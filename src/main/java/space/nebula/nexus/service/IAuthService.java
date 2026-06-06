@@ -6,6 +6,7 @@ import space.nebula.nexus.payload.request.LoginRequest;
 import space.nebula.nexus.payload.request.OtpLoginRequest;
 import space.nebula.nexus.payload.request.RegisterRequest;
 import space.nebula.nexus.payload.response.AuthResponse;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Authentication Service Interface.
@@ -41,5 +42,10 @@ public interface IAuthService
 	/**
 	 * Logs out the current user, invalidating the session/token.
 	 */
-	ApiResponse<Void> logout();
+	ApiResponse<Void> logout(HttpServletRequest request);
+
+	/**
+	 * Refreshes an access token using a refresh token.
+	 */
+	ApiResponse<AuthResponse> refreshToken(String refreshToken);
 }

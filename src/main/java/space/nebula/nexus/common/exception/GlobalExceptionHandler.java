@@ -21,6 +21,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.constant.BusinessCode;
+import space.nebula.nexus.utils.MessageUtil;
+import lombok.RequiredArgsConstructor;
+import cn.hutool.core.util.StrUtil;
 
 import java.util.stream.Collectors;
 
@@ -31,7 +34,10 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+	private final MessageUtil messageUtil;
 
 	/**
 	 * Globally trim all strings in request parameters and body to prevent
@@ -53,13 +59,24 @@ public class GlobalExceptionHandler {
 		if (status == null)
 			status = HttpStatus.BAD_REQUEST;
 
+		String message = e.getMessage();
+		try {
+			// Try to get localized message based on code
+			String localizedMessage = messageUtil.get(code);
+			if (StrUtil.isNotBlank(localizedMessage)) {
+				message = localizedMessage;
+			}
+		} catch (Exception ex) {
+			// Fallback to original message
+		}
+
 		var traceId = org.slf4j.MDC.get("traceId");
 		if (code >= 500) {
-			log.error("[TraceId: {}] Business error [{}]: {}", traceId, code, e.getMessage());
+			log.error("[TraceId: {}] Business error [{}]: {}", traceId, code, message);
 		} else {
-			log.warn("[TraceId: {}] Business warning [{}]: {}", traceId, code, e.getMessage());
+			log.warn("[TraceId: {}] Business warning [{}]: {}", traceId, code, message);
 		}
-		return ResponseEntity.status(status).body(ApiResponse.error(code, e.getMessage()));
+		return ResponseEntity.status(status).body(ApiResponse.error(code, message));
 	}
 
 	/**

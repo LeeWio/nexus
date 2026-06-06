@@ -14,4 +14,9 @@ public interface ISeoService
 	 * published posts.
 	 */
 	String generateRssFeedXml();
+
+	/**
+	 * Generates a standard robots.txt file for search engine crawlers.
+	 */
+	String generateRobotsTxt();
 }

@@ -12,6 +12,8 @@ public record PostDiffResponse(@Schema(description = "Comparison for the title f
 
 			@Schema(description = "Value in the new/revised version") String revised,
 
-			@Schema(description = "Whether the field has changed") boolean changed) {
+			@Schema(description = "Whether the field has changed") boolean changed,
+
+			@Schema(description = "HTML formatted diff") String diffHtml) {
 	}
 }

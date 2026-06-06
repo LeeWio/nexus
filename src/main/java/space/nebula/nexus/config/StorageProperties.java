@@ -15,6 +15,17 @@ public class StorageProperties
 	 */
 	private String type = "local";
 
+	/**
+	 * List of allowed MIME types for upload.
+	 */
+	private java.util.List<String> allowedMimeTypes = java.util.Arrays.asList("image/jpeg", "image/png", "image/gif",
+			"image/webp", "application/pdf", "text/plain");
+
+	/**
+	 * Maximum allowed file size in bytes. Default 10MB.
+	 */
+	private long maxFileSize = 10485760;
+
 	private LocalConfig local = new LocalConfig();
 	private AliyunConfig aliyun = new AliyunConfig();
 	private S3Config s3 = new S3Config();

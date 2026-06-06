@@ -93,6 +93,10 @@ app:
   upload:
     location: "uploads"
     max-size: 10485760
+  auth:
+    max-login-failures: 5
+    lock-duration-minutes: 15
+    default-role-code: "ROLE_USER"
   jwt:
     access-token-expiration: 7200000
     refresh-token-expiration: 604800000

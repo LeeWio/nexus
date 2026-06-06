@@ -146,9 +146,12 @@ public class CommentServiceImpl implements ICommentService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<CommentResponse>> searchCommentsForManagement(Pageable pageable)
+	public ApiResponse<PageResult<CommentResponse>> searchCommentsForManagement(CommentStatus status, Long postId,
+			String username, String keyword, Pageable pageable)
 	{
-		var comments = commentRepository.findAll(pageable);
+		var spec = space.nebula.nexus.repository.specification.CommentSpecification.filterComments(status, postId,
+				username, keyword);
+		var comments = commentRepository.findAll(spec, pageable);
 		return ApiResponse.success(PageResult.of(comments.map(commentMapper::toResponse)));
 	}
 

@@ -12,6 +12,8 @@ import java.util.Set;
 @Schema(description = "User authentication result with access token")
 public record AuthResponse(@Schema(description = "JWT Access Token") String accessToken,
 
+		@Schema(description = "JWT Refresh Token") String refreshToken,
+
 		@Schema(description = "Type of token", example = "Bearer") String tokenType,
 
 		@Schema(description = "Authenticated username", example = "admin") String username,

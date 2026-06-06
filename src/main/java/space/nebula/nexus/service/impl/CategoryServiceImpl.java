@@ -44,7 +44,7 @@ public class CategoryServiceImpl implements ICategoryService
 	@Override
 	@Transactional
 	@LogOperation("Create Category")
-	@CacheEvict(value = CacheConstants.CATEGORIES, allEntries = true)
+	@CacheEvict(value = { CacheConstants.CATEGORIES, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<CategoryResponse> createCategory(CategoryRequest request)
 	{
 		validateUniqueConstraints(null, request);
@@ -54,14 +54,13 @@ public class CategoryServiceImpl implements ICategoryService
 
 		categoryRepository.save(newCategory);
 		log.info("New category created: {}", newCategory.getName());
-		clearSeoCache();
 		return ApiResponse.success("Category created successfully", categoryMapper.toResponse(newCategory));
 	}
 
 	@Override
 	@Transactional
 	@LogOperation("Update Category")
-	@CacheEvict(value = CacheConstants.CATEGORIES, allEntries = true)
+	@CacheEvict(value = { CacheConstants.CATEGORIES, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<CategoryResponse> updateCategory(Long id, CategoryRequest request)
 	{
 		Category existingCategory = categoryRepository.findById(id)
@@ -73,21 +72,19 @@ public class CategoryServiceImpl implements ICategoryService
 		categoryRepository.save(existingCategory);
 
 		log.info("Category updated: {}", existingCategory.getName());
-		clearSeoCache();
 		return ApiResponse.success("Category updated successfully", categoryMapper.toResponse(existingCategory));
 	}
 
 	@Override
 	@Transactional
 	@LogOperation("Delete Category")
-	@CacheEvict(value = CacheConstants.CATEGORIES, allEntries = true)
+	@CacheEvict(value = { CacheConstants.CATEGORIES, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<Void> deleteCategory(Long id)
 	{
 		Assert.isTrue(categoryRepository.existsById(id), () -> new ResourceNotFoundException("Category", "id", id));
 
 		categoryRepository.deleteById(id);
 		log.info("Category deleted id: {}", id);
-		clearSeoCache();
 		return ApiResponse.success("Category deleted successfully", null);
 	}
 
@@ -105,10 +102,5 @@ public class CategoryServiceImpl implements ICategoryService
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 							"Category slug already exists: " + request.slug()));
 		}
-	}
-
-	private void clearSeoCache()
-	{
-		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
 	}
 }

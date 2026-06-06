@@ -19,6 +19,14 @@ import space.nebula.nexus.repository.ProjectRepository;
 import space.nebula.nexus.repository.TagRepository;
 import space.nebula.nexus.repository.search.PostSearchRepository;
 import space.nebula.nexus.enums.PostStatus;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
+import org.springframework.data.elasticsearch.core.query.HighlightQuery;
+import org.springframework.data.elasticsearch.core.query.highlight.Highlight;
+import org.springframework.data.elasticsearch.core.query.highlight.HighlightField;
+import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
+import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 
 import cn.hutool.core.util.StrUtil;
 
@@ -32,13 +40,15 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 {
 
 	private final PostSearchRepository postSearchRepository;
+	private final ElasticsearchOperations elasticsearchOperations;
 
 	public ElasticsearchPostSearchServiceImpl(PostRepository postRepository, CategoryRepository categoryRepository,
 			TagRepository tagRepository, ProjectRepository projectRepository, MomentRepository momentRepository,
-			PostSearchRepository postSearchRepository)
+			PostSearchRepository postSearchRepository, ElasticsearchOperations elasticsearchOperations)
 	{
 		super(postRepository, categoryRepository, tagRepository, projectRepository, momentRepository);
 		this.postSearchRepository = postSearchRepository;
+		this.elasticsearchOperations = elasticsearchOperations;
 	}
 
 	@Async("asyncExecutor")
@@ -110,40 +120,114 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 	@Override
 	public ApiResponse<PageResult<PostDocument>> searchPosts(String keyword, Pageable pageable)
 	{
-		Page<PostDocument> page;
 		if (StrUtil.isBlank(keyword))
 		{
-			page = postSearchRepository.findAll(pageable);
+			return ApiResponse.success(PageResult.of(postSearchRepository.findAll(pageable)));
 		}
-		else
-		{
-			page = postSearchRepository.findByTitleOrSummaryOrContent(keyword, keyword, keyword, pageable);
+
+		var query = NativeQuery.builder()
+				.withQuery(q -> q.multiMatch(m -> m.fields("title^5", "summary^2", "content")
+						.query(keyword)
+						.fuzziness("AUTO")
+						.type(TextQueryType.BestFields)))
+				.withHighlightQuery(new HighlightQuery(new Highlight(List.of(
+						new HighlightField("title"),
+						new HighlightField("summary")
+				)), PostDocument.class))
+				.withPageable(pageable)
+				.build();
+
+		SearchHits<PostDocument> searchHits = elasticsearchOperations.search(query, PostDocument.class);
+		
+		List<PostDocument> documents = searchHits.getSearchHits().stream()
+				.map(hit -> {
+					PostDocument doc = hit.getContent();
+					var highlights = hit.getHighlightFields();
+					if (highlights.containsKey("title")) {
+						doc.setTitle(String.join("", highlights.get("title")));
+					}
+					if (highlights.containsKey("summary")) {
+						doc.setSummary(String.join(" ... ", highlights.get("summary")));
+					}
+					return doc;
+				})
+				.collect(Collectors.toList());
+
+		return ApiResponse.success(PageResult.of(new org.springframework.data.domain.PageImpl<>(
+				documents, pageable, searchHits.getTotalHits())));
+	}
+
+	@Override
+	public ApiResponse<List<String>> getSearchSuggestions(String keyword) {
+		if (StrUtil.isBlank(keyword) || keyword.length() < 2) {
+			return ApiResponse.success(List.of());
 		}
-		return ApiResponse.success(PageResult.of(page));
+
+		var query = NativeQuery.builder()
+				.withQuery(q -> q.matchPhrasePrefix(m -> m.field("title").query(keyword)))
+				.withPageable(org.springframework.data.domain.PageRequest.of(0, 10))
+				.build();
+
+		SearchHits<PostDocument> hits = elasticsearchOperations.search(query, PostDocument.class);
+		List<String> suggestions = hits.getSearchHits().stream()
+				.map(hit -> hit.getContent().getTitle())
+				.distinct()
+				.toList();
+
+		return ApiResponse.success(suggestions);
 	}
 
 	@Override
 	protected List<QuickSearchResponse.SearchResultItem> searchQuickPosts(String keyword)
 	{
-		var postPage = postSearchRepository.findByTitleOrSummaryOrContent(keyword, keyword, keyword,
-				org.springframework.data.domain.PageRequest.of(0, 5));
-		return postPage.getContent().stream()
-				.map(p -> new QuickSearchResponse.SearchResultItem(p.getId(), p.getTitle(), "/posts/" + p.getSlug()))
+		var query = NativeQuery.builder()
+				.withQuery(q -> q.multiMatch(m -> m.fields("title^3", "summary").query(keyword)))
+				.withPageable(org.springframework.data.domain.PageRequest.of(0, 5))
+				.build();
+
+		SearchHits<PostDocument> hits = elasticsearchOperations.search(query, PostDocument.class);
+		return hits.getSearchHits().stream()
+				.map(hit -> new QuickSearchResponse.SearchResultItem(hit.getContent().getId(), hit.getContent().getTitle(), "/posts/" + hit.getContent().getSlug()))
 				.toList();
 	}
 
 	@Override
 	protected void searchPostsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups)
 	{
-		var postPage = postSearchRepository.findByTitleOrSummaryOrContent(keyword, keyword, keyword,
-				org.springframework.data.domain.PageRequest.of(0, 5));
+		var query = NativeQuery.builder()
+				.withQuery(q -> q.multiMatch(m -> m.fields("title^5", "summary^2", "content").query(keyword).fuzziness("AUTO")))
+				.withHighlightQuery(new HighlightQuery(new Highlight(List.of(
+						new HighlightField("title"),
+						new HighlightField("summary")
+				)), PostDocument.class))
+				.withPageable(org.springframework.data.domain.PageRequest.of(0, 5))
+				.build();
 
-		List<UnifiedSearchResponse.SearchResultItem> items = postPage.getContent().stream()
-				.map(p -> UnifiedSearchResponse.SearchResultItem.builder().id("post:" + p.getId()).title(p.getTitle())
-						.subtitle(p.getPublishedAt() != null ? p.getPublishedAt().toLocalDate().toString() : "")
-						.description(p.getSummary()).url("/post/" + p.getSlug()).icon("book-text").iconColor("#3b82f6")
-						.type("POST").build())
-				.collect(Collectors.toList());
+		SearchHits<PostDocument> searchHits = elasticsearchOperations.search(query, PostDocument.class);
+
+		List<UnifiedSearchResponse.SearchResultItem> items = searchHits.getSearchHits().stream()
+				.map(hit -> {
+					PostDocument p = hit.getContent();
+					String displayTitle = p.getTitle();
+					String displayDesc = p.getSummary();
+					
+					var highlights = hit.getHighlightFields();
+					if (highlights.containsKey("title")) displayTitle = String.join("", highlights.get("title"));
+					if (highlights.containsKey("summary")) displayDesc = String.join(" ... ", highlights.get("summary"));
+
+					return UnifiedSearchResponse.SearchResultItem.builder()
+							.id("post:" + p.getId())
+							.title(displayTitle)
+							.subtitle(p.getPublishedAt() != null ? p.getPublishedAt().toLocalDate().toString() : "")
+							.description(displayDesc)
+							.url("/post/" + p.getSlug())
+							.icon("book-text")
+							.iconColor("#3b82f6")
+							.type("POST")
+							.score((double) hit.getScore())
+							.build();
+				})
+				.toList();
 
 		if (!items.isEmpty())
 		{

@@ -83,4 +83,29 @@ public class FileUtil
 			return outputStream.toByteArray();
 		}
 	}
+
+	/**
+	 * Converts an image to WebP format.
+	 */
+	public byte[] convertToWebP(byte[] imageBytes) throws IOException
+	{
+		try (ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes);
+				ByteArrayOutputStream outputStream = new ByteArrayOutputStream())
+		{
+			BufferedImage image = ImageIO.read(bais);
+			if (image == null)
+			{
+				throw new IOException("Failed to read image data for WebP conversion");
+			}
+			
+			// Using thumbnailator to output as webp
+			Thumbnails.of(image)
+					.scale(1.0)
+					.outputFormat("webp")
+					.outputQuality(0.8)
+					.toOutputStream(outputStream);
+			
+			return outputStream.toByteArray();
+		}
+	}
 }

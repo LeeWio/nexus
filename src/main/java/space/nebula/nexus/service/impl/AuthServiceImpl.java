@@ -38,6 +38,7 @@ import cn.hutool.core.lang.Dict;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Collections;
 import java.util.Map;
@@ -64,6 +65,11 @@ public class AuthServiceImpl implements IAuthService
 	private final LoginSecurityService loginSecurityService;
 	private final RedisUtil redisUtil;
 	private final RabbitTemplate rabbitTemplate;
+	private final space.nebula.nexus.config.AuthProperties authProperties;
+	private final space.nebula.nexus.security.config.JwtProperties jwtProperties;
+
+	// Local cache for default role to avoid DB hits
+	private Role cachedDefaultRole;
 
 	@Override
 	@Transactional
@@ -122,16 +128,9 @@ public class AuthServiceImpl implements IAuthService
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 
 			var securityUser = (SecurityUser) authentication.getPrincipal();
-			var accessToken = jwtUtils.generateAccessToken(securityUser);
-
-			var roles = securityUser.getAuthorities().stream().map(ga -> ga.getAuthority()).collect(Collectors.toSet());
-
-			var authResponse = AuthResponse.builder().accessToken(accessToken).username(securityUser.getUsername())
-					.email(securityUser.getUser().getEmail()).roles(roles).build();
-
 			log.info("User authenticated successfully: {}", securityUser.getUsername());
-			return ApiResponse.success("Authentication successful", authResponse);
 
+			return ApiResponse.success("Authentication successful", createAuthResponse(securityUser));
 		}
 		catch (BadCredentialsException e)
 		{
@@ -204,16 +203,10 @@ public class AuthServiceImpl implements IAuthService
 		var authentication = new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
 		SecurityContextHolder.getContext().setAuthentication(authentication);
 
-		var accessToken = jwtUtils.generateAccessToken(securityUser);
 		redisUtil.delete(otpKey);
-
-		var roles = securityUser.getAuthorities().stream().map(ga -> ga.getAuthority()).collect(Collectors.toSet());
-
-		var authResponse = AuthResponse.builder().accessToken(accessToken).username(user.getUsername())
-				.email(user.getEmail()).roles(roles).build();
-
 		log.info("User logged in via OTP authentication: {}", user.getUsername());
-		return ApiResponse.success("Login successful", authResponse);
+
+		return ApiResponse.success("Login successful", createAuthResponse(securityUser));
 	}
 
 	@Override
@@ -225,19 +218,56 @@ public class AuthServiceImpl implements IAuthService
 	}
 
 	@Override
-	public ApiResponse<Void> logout()
+	public ApiResponse<Void> logout(HttpServletRequest request)
 	{
-		var authentication = SecurityContextHolder.getContext().getAuthentication();
-		if (ObjectUtil.isNotNull(authentication) && authentication.getCredentials() instanceof String token)
+		final String authHeader = request.getHeader(jwtProperties.getHeader());
+		if (StrUtil.isNotBlank(authHeader) && authHeader.startsWith(jwtProperties.getPrefix()))
 		{
+			String token = authHeader.substring(jwtProperties.getPrefix().length());
 			// Blacklist token in Redis until it naturally expires
 			long remainingTime = jwtUtils.getAccessTokenExpiration();
 			String blacklistKey = "nexus:jwt:blacklist:" + token;
 			redisUtil.set(blacklistKey, "logout", remainingTime, TimeUnit.MILLISECONDS);
-			log.info("Token blacklisted for user: {}", authentication.getName());
+			log.info("Token blacklisted for logout");
 		}
 		SecurityContextHolder.clearContext();
 		return ApiResponse.success("Logged out successfully", null);
+	}
+
+	@Override
+	public ApiResponse<AuthResponse> refreshToken(String refreshToken)
+	{
+		Assert.notBlank(refreshToken, () -> new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is missing"));
+
+		String username = jwtUtils.extractUsername(refreshToken);
+		var user = userRepository.findByUsername(username)
+				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
+
+		Assert.isTrue(user.getStatus() == UserStatus.ACTIVE,
+				() -> new BusinessException(BusinessCode.ACCOUNT_DISABLED, "Account is not active"));
+
+		SecurityUser securityUser = new SecurityUser(user);
+		if (jwtUtils.isTokenValid(refreshToken, securityUser))
+		{
+			return ApiResponse.success("Token refreshed successfully", createAuthResponse(securityUser));
+		}
+
+		throw new BusinessException(BusinessCode.INVALID_TOKEN, "Invalid or expired refresh token");
+	}
+
+	private AuthResponse createAuthResponse(SecurityUser securityUser)
+	{
+		var accessToken = jwtUtils.generateAccessToken(securityUser);
+		var refreshToken = jwtUtils.generateRefreshToken(securityUser);
+		var roles = securityUser.getAuthorities().stream().map(ga -> ga.getAuthority()).collect(Collectors.toSet());
+
+		return AuthResponse.builder()
+				.accessToken(accessToken)
+				.refreshToken(refreshToken)
+				.username(securityUser.getUsername())
+				.email(securityUser.getUser().getEmail())
+				.roles(roles)
+				.build();
 	}
 
 	private User createNewUser(RegisterRequest request)
@@ -252,15 +282,19 @@ public class AuthServiceImpl implements IAuthService
 
 	private void assignDefaultRole(User user)
 	{
-		var userRole = roleRepository.findByCode("ROLE_USER").orElseGet(() ->
+		if (cachedDefaultRole == null)
 		{
-			log.warn("Default 'ROLE_USER' role missing; initializing fallback");
-			var newRole = new Role();
-			newRole.setName("Standard User");
-			newRole.setCode("ROLE_USER");
-			newRole.setDescription("Default role for registered members");
-			return roleRepository.save(newRole);
-		});
-		user.setRoles(Collections.singleton(userRole));
+			String defaultRoleCode = authProperties.getDefaultRoleCode();
+			cachedDefaultRole = roleRepository.findByCode(defaultRoleCode).orElseGet(() ->
+			{
+				log.warn("Default '{}' role missing; initializing fallback", defaultRoleCode);
+				var newRole = new Role();
+				newRole.setName("Standard User");
+				newRole.setCode(defaultRoleCode);
+				newRole.setDescription("Default role for registered members");
+				return roleRepository.save(newRole);
+			});
+		}
+		user.setRoles(Collections.singleton(cachedDefaultRole));
 	}
 }

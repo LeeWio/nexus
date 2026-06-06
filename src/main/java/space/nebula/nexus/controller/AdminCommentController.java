@@ -30,11 +30,15 @@ public class AdminCommentController
 	private final ICommentService commentService;
 
 	@GetMapping
-	@Operation(summary = "Search all comments", description = "Retrieve a paginated list of all comments for moderation purposes.")
+	@Operation(summary = "Search all comments", description = "Retrieve a paginated list of all comments for moderation purposes with filters.")
 	public ApiResponse<PageResult<CommentResponse>> searchComments(
+			@Parameter(description = "Filter by comment status") @RequestParam(required = false) CommentStatus status,
+			@Parameter(description = "Filter by post ID") @RequestParam(required = false) Long postId,
+			@Parameter(description = "Filter by username") @RequestParam(required = false) String username,
+			@Parameter(description = "Filter by keyword in content") @RequestParam(required = false) String keyword,
 			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable)
 	{
-		return commentService.searchCommentsForManagement(pageable);
+		return commentService.searchCommentsForManagement(status, postId, username, keyword, pageable);
 	}
 
 	@GetMapping("/pending")

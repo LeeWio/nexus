@@ -80,6 +80,19 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService
 	}
 
 	@Override
+	public ApiResponse<List<String>> getSearchSuggestions(String keyword)
+	{
+		if (StrUtil.isBlank(keyword))
+		{
+			return ApiResponse.success(List.of());
+		}
+		List<String> suggestions = postRepository
+				.findTop5ByTitleContainingIgnoreCaseAndStatus(keyword, PostStatus.PUBLISHED).stream()
+				.map(Post::getTitle).toList();
+		return ApiResponse.success(suggestions);
+	}
+
+	@Override
 	protected List<QuickSearchResponse.SearchResultItem> searchQuickPosts(String keyword)
 	{
 		return postRepository.findTop5ByTitleContainingIgnoreCaseAndStatus(keyword, PostStatus.PUBLISHED).stream()

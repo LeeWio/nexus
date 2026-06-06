@@ -19,7 +19,12 @@ public interface PostMapper
 {
 
 	@Mapping(target = "authorName", source = "author", qualifiedByName = "mapAuthorName")
+	@Mapping(target = "authorAvatar", source = "author.avatar")
 	@Mapping(target = "series", source = "series", qualifiedByName = "toResponse")
+	@Mapping(target = "parentId", source = "parent.id")
+	@Mapping(target = "breadcrumbs", ignore = true)
+	@Mapping(target = "seo", ignore = true)
+	@Mapping(target = "navigation", ignore = true)
 	@Mapping(target = "isLiked", ignore = true)
 	@Mapping(target = "isFavorited", ignore = true)
 	PostResponse toResponse(Post post);
@@ -43,6 +48,8 @@ public interface PostMapper
 	@Mapping(target = "lastModifiedBy", ignore = true)
 	@Mapping(target = "publishedAt", ignore = true)
 	@Mapping(target = "isDeleted", ignore = true)
+	@Mapping(target = "parent", ignore = true)
+	@Mapping(target = "path", ignore = true)
 	void updateEntity(@MappingTarget Post post, PostRequest request);
 
 	@Named("mapAuthorName")

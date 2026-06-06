@@ -27,4 +27,12 @@ public class AdminAnalyticsController
 	{
 		return analyticsService.retrieveOverviewStats();
 	}
+
+	@Operation(summary = "Retrieve trending posts", description = "Get a list of currently popular posts based on recent traffic.")
+	@GetMapping("/trending")
+	public ApiResponse<java.util.List<space.nebula.nexus.payload.response.PostResponse>> getTrending(
+			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int limit)
+	{
+		return analyticsService.getTrendingPosts(limit);
+	}
 }

@@ -31,4 +31,11 @@ public class PublicSeoController
 	{
 		return seoService.generateRssFeedXml();
 	}
+
+	@Operation(summary = "Retrieve robots.txt", description = "Dynamic robots.txt for search engine crawlers")
+	@GetMapping(value = "/robots.txt", produces = MediaType.TEXT_PLAIN_VALUE)
+	public String retrieveRobotsTxt()
+	{
+		return seoService.generateRobotsTxt();
+	}
 }

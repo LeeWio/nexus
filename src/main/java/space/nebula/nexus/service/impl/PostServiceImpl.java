@@ -45,7 +45,9 @@ import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Professional implementation of IPostService with Event-Driven decoupling,
@@ -69,12 +71,15 @@ public class PostServiceImpl implements IPostService
 	private final ISlugService slugService;
 	private final space.nebula.nexus.common.validator.PostValidator postValidator;
 
+	private final space.nebula.nexus.repository.ConfigRepository configRepository;
+
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<PostResponse>> searchPostsForAdmin(Pageable pageable)
+	public ApiResponse<PageResult<PostResponse>> searchPostsForAdmin(PostStatus status, Long categoryId, String keyword, Pageable pageable)
 	{
-		Page<PostResponse> adminPostPage = postRepository.findAll(pageable).map(postMapper::toResponse);
-		return ApiResponse.success(PageResult.of(adminPostPage));
+		var spec = PostSpecification.filterPosts(status, categoryId, null, keyword);
+		Page<Post> adminPostPage = postRepository.findAll(spec, pageable);
+		return ApiResponse.success(PageResult.of(adminPostPage.map(postMapper::toResponse)));
 	}
 
 	@Override
@@ -87,8 +92,7 @@ public class PostServiceImpl implements IPostService
 		interactionService.populateInteractionData(responseBuilder, id);
 
 		// Merge real-time views from Redis hash
-		Long mergedViews = mergeRealtimeViews(post.getId(), post.getViews());
-		responseBuilder.views(mergedViews);
+		responseBuilder.views(mergeRealtimeViews(post.getId(), post.getViews()));
 
 		return ApiResponse.success(responseBuilder.build());
 	}
@@ -96,6 +100,7 @@ public class PostServiceImpl implements IPostService
 	@Override
 	@Transactional
 	@LogOperation("Create Blog Post")
+	@org.springframework.cache.annotation.CacheEvict(value = { CacheConstants.BLOG_POSTS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<PostResponse> createPost(PostRequest request)
 	{
 		postValidator.validatePostRequest(request);
@@ -119,8 +124,17 @@ public class PostServiceImpl implements IPostService
 		}
 
 		syncCategoryAndTags(newPost, request);
+		syncParentPost(newPost, request);
 
 		postRepository.save(newPost);
+
+		// If it's a new post or path was not set, update path after ID is assigned
+		if (newPost.getPath() == null)
+		{
+			newPost.updatePath(newPost.getParent());
+			postRepository.save(newPost);
+		}
+
 		log.info("Blog post created: {} by {}", newPost.getTitle(), currentAuthor.getUsername());
 
 		// Cleanup potential autosave data
@@ -135,6 +149,7 @@ public class PostServiceImpl implements IPostService
 	@Override
 	@Transactional
 	@LogOperation("Update Blog Post")
+	@org.springframework.cache.annotation.CacheEvict(value = { CacheConstants.BLOG_POSTS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<PostResponse> updatePost(Long id, PostRequest request)
 	{
 		postValidator.validatePostRequest(request);
@@ -150,6 +165,7 @@ public class PostServiceImpl implements IPostService
 		postMapper.updateEntity(existingPost, request);
 
 		syncCategoryAndTags(existingPost, request);
+		syncParentPost(existingPost, request);
 
 		postRepository.save(existingPost);
 		log.info("Blog post updated: {}", existingPost.getTitle());
@@ -167,6 +183,7 @@ public class PostServiceImpl implements IPostService
 	@Override
 	@Transactional
 	@LogOperation("Delete Blog Post")
+	@org.springframework.cache.annotation.CacheEvict(value = { CacheConstants.BLOG_POSTS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<Void> deletePost(Long id)
 	{
 		Post postToDelete = findPostOrThrow(id);
@@ -201,6 +218,7 @@ public class PostServiceImpl implements IPostService
 	@Override
 	@Transactional
 	@LogOperation("Review Post")
+	@org.springframework.cache.annotation.CacheEvict(value = { CacheConstants.BLOG_POSTS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<Void> reviewPost(Long id, boolean approved, String reviewComment)
 	{
 		Post post = findPostOrThrow(id);
@@ -254,11 +272,74 @@ public class PostServiceImpl implements IPostService
 		// Async view count increment using Hash for easier batch sync
 		redisUtil.hashIncrement(CacheConstants.POST_VIEW_EXTRA_HASH, postResponse.id().toString(), 1L);
 
-		// Merge real-time views from Redis hash
-		Long mergedViews = mergeRealtimeViews(postResponse.id(), postResponse.views());
+		// Populate real-time and interaction data
+		PostResponse.PostResponseBuilder responseBuilder = postResponse.toBuilder();
+		responseBuilder.views(mergeRealtimeViews(postResponse.id(), postResponse.views()));
+		interactionService.populateInteractionData(responseBuilder, postResponse.id());
 
-		PostResponse finalPostResponse = postResponse.toBuilder().views(mergedViews).build();
-		return ApiResponse.success(finalPostResponse);
+		// Populate Wiki-specific metadata
+		populateWikiMetadata(responseBuilder, postResponse);
+
+		return ApiResponse.success(responseBuilder.build());
+	}
+
+	private void populateWikiMetadata(PostResponse.PostResponseBuilder builder, PostResponse post)
+	{
+		// 1. Build Breadcrumbs
+		if (StrUtil.isNotBlank(post.path()))
+		{
+			String[] parts = post.path().split("/");
+			java.util.List<String> ancestorPaths = new java.util.ArrayList<>();
+			StringBuilder sb = new StringBuilder();
+			for (String part : parts)
+			{
+				if (StrUtil.isNotBlank(part))
+				{
+					sb.append("/").append(part).append("/");
+					ancestorPaths.add(sb.toString());
+				}
+			}
+
+			if (!ancestorPaths.isEmpty())
+			{
+				var ancestors = postRepository.findByPathInOrderByPathAsc(ancestorPaths);
+				var breadcrumbs = ancestors.stream()
+						.map(p -> new PostResponse.Breadcrumb(p.getId(), p.getTitle(), p.getSlug()))
+						.collect(Collectors.toList());
+				builder.breadcrumbs(breadcrumbs);
+			}
+		}
+
+		// 2. Build Navigation (Prev/Next)
+		if (post.series() != null)
+		{
+			Long seriesId = post.series().id();
+			Integer currentOrder = post.seriesOrder();
+
+			var prev = postRepository.findPreviousInSeries(seriesId, currentOrder);
+			var next = postRepository.findNextInSeries(seriesId, currentOrder);
+
+			PostResponse.Navigation navigation = new PostResponse.Navigation(
+					prev.map(p -> new PostResponse.Navigation.Neighbor(p.getTitle(), p.getSlug())).orElse(null),
+					next.map(p -> new PostResponse.Navigation.Neighbor(p.getTitle(), p.getSlug())).orElse(null));
+			builder.navigation(navigation);
+		}
+
+		// 3. Build SEO Metadata
+		String siteUrl = configRepository.findByConfigKey("site_url")
+				.map(space.nebula.nexus.entity.Config::getConfigValue).orElse("http://localhost:3000");
+		String fullUrl = siteUrl + "/post/" + post.slug();
+
+		PostResponse.SeoMetadata seo = new PostResponse.SeoMetadata(
+				post.title(),
+				post.summary(),
+				post.coverImage(),
+				"article",
+				fullUrl,
+				"summary_large_image",
+				fullUrl
+		);
+		builder.seo(seo);
 	}
 
 	@Override
@@ -313,14 +394,35 @@ public class PostServiceImpl implements IPostService
 		return slug;
 	}
 
+	private void syncParentPost(Post post, PostRequest request)
+	{
+		if (request.parentId() != null)
+		{
+			if (post.getId() != null && request.parentId().equals(post.getId()))
+			{
+				throw new BusinessException(BusinessCode.BAD_REQUEST, "A post cannot be its own parent");
+			}
+
+			Post parent = findPostOrThrow(request.parentId());
+			post.setParent(parent);
+			post.updatePath(parent);
+		}
+		else
+		{
+			post.setParent(null);
+			post.updatePath(null);
+		}
+	}
+
 	private void syncCategoryAndTags(Post post, PostRequest request)
 	{
+		// Sync Category
 		if (request.categoryId() != null)
 		{
 			post.setCategory(categoryRepository.findById(request.categoryId())
 					.orElseThrow(() -> new ResourceNotFoundException("Category", "id", request.categoryId())));
 		}
-		else if (request.categoryId() == null)
+		else
 		{
 			post.setCategory(null);
 		}
@@ -338,9 +440,17 @@ public class PostServiceImpl implements IPostService
 			post.setSeriesOrder(0);
 		}
 
-		if (CollUtil.isNotEmpty(request.tagIds()))
+		// Sync Tags - Fix: handle empty/null tagIds correctly to clear existing tags
+		if (request.tagIds() != null)
 		{
-			post.setTags(new HashSet<>(tagRepository.findAllById(request.tagIds())));
+			if (request.tagIds().isEmpty())
+			{
+				post.setTags(new HashSet<>());
+			}
+			else
+			{
+				post.setTags(new HashSet<>(tagRepository.findAllById(request.tagIds())));
+			}
 		}
 	}
 }

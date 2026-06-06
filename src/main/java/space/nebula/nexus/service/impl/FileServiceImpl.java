@@ -21,6 +21,7 @@ import space.nebula.nexus.entity.FileMetadata;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.mapper.FileMapper;
 import space.nebula.nexus.payload.response.FileResponse;
+import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
@@ -44,14 +45,12 @@ import java.util.Objects;
 public class FileServiceImpl implements IFileService
 {
 
-	private static final List<String> ALLOWED_MIME_TYPES = Arrays.asList("image/jpeg", "image/png", "image/gif",
-			"image/webp", "application/pdf", "text/plain");
-
 	private final StorageProvider storageProvider;
 	private final FileRepository fileRepository;
 	private final UserRepository userRepository;
 	private final FileMapper fileMapper;
 	private final FileUtil fileUtil;
+	private final space.nebula.nexus.config.StorageProperties storageProperties;
 
 	@Override
 	@Transactional
@@ -60,6 +59,12 @@ public class FileServiceImpl implements IFileService
 	{
 		Assert.isFalse(file.isEmpty(),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Cannot process empty file payload"));
+
+		if (file.getSize() > storageProperties.getMaxFileSize())
+		{
+			throw new BusinessException(BusinessCode.BAD_REQUEST,
+					StrUtil.format("File size exceeds limit ({}MB)", storageProperties.getMaxFileSize() / 1024 / 1024));
+		}
 
 		try
 		{
@@ -91,7 +96,7 @@ public class FileServiceImpl implements IFileService
 			}
 			log.debug("Deep MIME verification: detected {} for file {}", detectedMimeType, originalFilename);
 
-			if (!ALLOWED_MIME_TYPES.contains(detectedMimeType))
+			if (!storageProperties.getAllowedMimeTypes().contains(detectedMimeType))
 			{
 				log.warn("Security rejection: Unsupported MIME type {}", detectedMimeType);
 				throw new BusinessException(BusinessCode.BAD_REQUEST, "File content type not supported");
@@ -100,11 +105,38 @@ public class FileServiceImpl implements IFileService
 			var uniqueName = IdUtil.fastSimpleUUID() + extension;
 			String thumbnailUrl = null;
 			Integer width = null, height = null;
+			long finalSize = file.getSize();
 
 			// 3. specialized processing for images
 			if (fileUtil.isImage(detectedMimeType))
 			{
-				var fileBytes = file.getBytes(); // Only read into memory for images
+				byte[] fileBytes = file.getBytes();
+				
+				// Automatically convert to WebP for better performance
+				if (!"image/webp".equals(detectedMimeType)) {
+					try {
+						byte[] webpBytes = fileUtil.convertToWebP(fileBytes);
+						if (webpBytes.length < fileBytes.length) {
+							log.info("Converted image to WebP, size reduced from {} to {} bytes", fileBytes.length, webpBytes.length);
+							fileBytes = webpBytes;
+							detectedMimeType = "image/webp";
+							uniqueName = IdUtil.fastSimpleUUID() + ".webp";
+							
+							// Re-calculate hash for deduplication based on converted content
+							fileHash = SecureUtil.sha256(new ByteArrayInputStream(fileBytes));
+							var existingWebp = fileRepository.findByFileHash(fileHash);
+							if (existingWebp.isPresent()) {
+								FileMetadata metadata = existingWebp.get();
+								metadata.setReferenceCount(metadata.getReferenceCount() + 1);
+								fileRepository.save(metadata);
+								return ApiResponse.success("WebP version reused via deduplication", fileMapper.toResponse(metadata));
+							}
+						}
+					} catch (Exception e) {
+						log.warn("WebP conversion failed, falling back to original format: {}", e.getMessage());
+					}
+				}
+
 				var dimensions = fileUtil.getImageDimensions(fileBytes);
 				if (ObjectUtil.isNotNull(dimensions))
 				{
@@ -123,12 +155,19 @@ public class FileServiceImpl implements IFileService
 				{
 					log.warn("Non-critical failure in thumbnail generation: {}", e.getMessage());
 				}
+				
+				// Final storage with potentially converted bytes
+				storageProvider.store(new ByteArrayInputStream(fileBytes), uniqueName);
+				finalSize = (long) fileBytes.length;
 			}
-
-			// 4. Asset Persistence
-			try (var is = file.getInputStream())
+			else 
 			{
-				storageProvider.store(is, uniqueName);
+				// 4. Non-image Asset Persistence
+				try (var is = file.getInputStream())
+				{
+					storageProvider.store(is, uniqueName);
+				}
+				finalSize = file.getSize();
 			}
 
 			User uploader = null;
@@ -145,7 +184,7 @@ public class FileServiceImpl implements IFileService
 			metadata.setFileName(uniqueName);
 			metadata.setOriginalName(originalFilename);
 			metadata.setFileUrl(storageProvider.getUrl(uniqueName));
-			metadata.setFileSize(file.getSize());
+			metadata.setFileSize(finalSize);
 			metadata.setFileType(detectedMimeType);
 			metadata.setThumbnailUrl(thumbnailUrl);
 			metadata.setWidth(width);
@@ -165,6 +204,23 @@ public class FileServiceImpl implements IFileService
 			log.error("Fatal I/O error during file processing: {}", file.getOriginalFilename(), e);
 			throw new BusinessException(BusinessCode.ERROR, "System failed to process the file");
 		}
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<FileResponse>> searchFiles(String keyword, org.springframework.data.domain.Pageable pageable)
+	{
+		org.springframework.data.domain.Page<FileMetadata> page;
+		if (StrUtil.isNotBlank(keyword))
+		{
+			page = fileRepository.findByOriginalNameContainingIgnoreCaseOrFileNameContainingIgnoreCase(keyword, keyword,
+					pageable);
+		}
+		else
+		{
+			page = fileRepository.findAll(pageable);
+		}
+		return ApiResponse.success(PageResult.of(page.map(fileMapper::toResponse)));
 	}
 
 	@Override

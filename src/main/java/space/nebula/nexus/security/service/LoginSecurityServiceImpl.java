@@ -19,10 +19,8 @@ import java.util.concurrent.TimeUnit;
 public class LoginSecurityServiceImpl implements LoginSecurityService
 {
 
-	private static final int MAX_LOGIN_FAILURES = 5;
-	private static final long LOCK_DURATION_MINUTES = 15;
-
 	private final RedisUtil redisUtil;
+	private final space.nebula.nexus.config.AuthProperties authProperties;
 
 	@Override
 	public void validateLoginLock(String username)
@@ -30,10 +28,10 @@ public class LoginSecurityServiceImpl implements LoginSecurityService
 		String failKey = CacheConstants.LOGIN_FAIL_COUNT + username;
 		Integer fails = redisUtil.get(failKey, Integer.class).orElse(0);
 
-		if (fails >= MAX_LOGIN_FAILURES)
+		if (fails >= authProperties.getMaxLoginFailures())
 		{
 			Long expire = redisUtil.getExpire(failKey);
-			long minutesLeft = (expire != null && expire > 0) ? (expire / 60 + 1) : LOCK_DURATION_MINUTES;
+			long minutesLeft = (expire != null && expire > 0) ? (expire / 60 + 1) : authProperties.getLockDurationMinutes();
 
 			log.warn("Login attempt blocked for locked user: {}", username);
 			throw new BusinessException(403, StrUtil.format(
@@ -49,15 +47,15 @@ public class LoginSecurityServiceImpl implements LoginSecurityService
 
 		if (count != null && count == 1)
 		{
-			redisUtil.expire(failKey, LOCK_DURATION_MINUTES, TimeUnit.MINUTES);
+			redisUtil.expire(failKey, authProperties.getLockDurationMinutes(), TimeUnit.MINUTES);
 		}
 
 		log.warn("Login failure recorded for user: {}. Failure count: {}", username, count);
 
-		if (count != null && count >= MAX_LOGIN_FAILURES)
+		if (count != null && count >= authProperties.getMaxLoginFailures())
 		{
 			log.error("User {} has been locked for {} minutes after {} failed attempts", username,
-					LOCK_DURATION_MINUTES, count);
+					authProperties.getLockDurationMinutes(), count);
 		}
 	}
 

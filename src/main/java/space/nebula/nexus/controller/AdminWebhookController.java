@@ -10,6 +10,11 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.request.WebhookRequest;
 import space.nebula.nexus.payload.response.WebhookResponse;
 import space.nebula.nexus.service.IWebhookService;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
+import io.swagger.v3.oas.annotations.Parameter;
+import space.nebula.nexus.payload.response.PageResult;
 
 import java.util.List;
 
@@ -56,5 +61,14 @@ public class AdminWebhookController
 	public ApiResponse<Void> testWebhook(@PathVariable Long id)
 	{
 		return webhookService.triggerTestWebhook(id);
+	}
+
+	@GetMapping("/{id}/logs")
+	@Operation(summary = "Get webhook logs", description = "Retrieve a paginated list of delivery logs for a specific webhook.")
+	public ApiResponse<PageResult<space.nebula.nexus.entity.WebhookLog>> getWebhookLogs(
+			@Parameter(description = "Webhook ID") @PathVariable Long id,
+			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable)
+	{
+		return webhookService.retrieveWebhookLogs(id, pageable);
 	}
 }

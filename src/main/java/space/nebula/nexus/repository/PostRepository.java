@@ -51,4 +51,15 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	Long sumTotalViews();
 
 	java.util.List<Post> findTop5ByTitleContainingIgnoreCaseAndStatus(String title, PostStatus status);
+
+	java.util.List<Post> findByPathInOrderByPathAsc(java.util.Collection<String> paths);
+
+	java.util.List<Post> findAllBySlugIn(java.util.List<String> slugs);
+
+	// Navigation helpers
+	@Query("SELECT p FROM Post p WHERE p.series.id = :seriesId AND p.status = 'PUBLISHED' AND p.seriesOrder < :currentOrder ORDER BY p.seriesOrder DESC, p.id DESC LIMIT 1")
+	java.util.Optional<Post> findPreviousInSeries(Long seriesId, Integer currentOrder);
+
+	@Query("SELECT p FROM Post p WHERE p.series.id = :seriesId AND p.status = 'PUBLISHED' AND p.seriesOrder > :currentOrder ORDER BY p.seriesOrder ASC, p.id ASC LIMIT 1")
+	java.util.Optional<Post> findNextInSeries(Long seriesId, Integer currentOrder);
 }

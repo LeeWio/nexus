@@ -14,4 +14,9 @@ public interface IStaticGenerationService
 	 * Deletes the static HTML file for the given post.
 	 */
 	void deletePostStaticHtml(String slug);
+
+	/**
+	 * Regenerates static HTML files for all published posts.
+	 */
+	void regenerateAllPosts();
 }

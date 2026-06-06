@@ -21,6 +21,7 @@ public class StaticGenerationServiceImpl implements IStaticGenerationService
 
 	private final TemplateEngine templateEngine;
 	private final StorageProvider storageProvider;
+	private final space.nebula.nexus.repository.PostRepository postRepository;
 
 	@Async("asyncExecutor")
 	@Override
@@ -53,5 +54,17 @@ public class StaticGenerationServiceImpl implements IStaticGenerationService
 		String fileName = "static/posts/" + slug + ".html";
 		storageProvider.delete(fileName);
 		log.info("Deleted static HTML for post: {}", slug);
+	}
+
+	@Override
+	public void regenerateAllPosts()
+	{
+		log.info("Starting site-wide static HTML regeneration...");
+		var publishedPosts = postRepository.findAllByStatus(space.nebula.nexus.enums.PostStatus.PUBLISHED,
+				org.springframework.data.domain.Pageable.unpaged());
+
+		publishedPosts.getContent().forEach(this::generatePostStaticHtml);
+		log.info("Site-wide static HTML regeneration task dispatched for {} posts.",
+				publishedPosts.getTotalElements());
 	}
 }

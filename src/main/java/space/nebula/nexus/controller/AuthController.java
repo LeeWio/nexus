@@ -20,6 +20,8 @@ import space.nebula.nexus.payload.request.RegisterRequest;
 import space.nebula.nexus.payload.response.AuthResponse;
 import space.nebula.nexus.service.IAuthService;
 
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -79,5 +81,22 @@ public class AuthController
 	public ApiResponse<AuthResponse> loginWithOtp(@Valid @RequestBody OtpLoginRequest request)
 	{
 		return authService.loginWithOtp(request);
+	}
+
+	@PostMapping("/refresh")
+	@Operation(summary = "Refresh access token", description = "Uses a valid refresh token to obtain a new access token and refresh token pair.")
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid or expired refresh token") })
+	public ApiResponse<AuthResponse> refresh(@RequestBody Map<String, String> request)
+	{
+		return authService.refreshToken(request.get("refreshToken"));
+	}
+
+	@PostMapping("/logout")
+	@Operation(summary = "Logout", description = "Invalidates the current session and blacklists the current JWT token.")
+	public ApiResponse<Void> logout(HttpServletRequest request)
+	{
+		return authService.logout(request);
 	}
 }

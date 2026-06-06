@@ -19,6 +19,11 @@ public interface IPostSeriesService
 
 	ApiResponse<Void> deleteSeries(Long id);
 
+	/**
+	 * Retrieves the hierarchical tree of posts within a series.
+	 */
+	ApiResponse<java.util.List<cn.hutool.core.lang.tree.Tree<Long>>> retrieveSeriesTree(String slug);
+
 	ApiResponse<List<SeriesResponse>> retrievePublicSeriesList();
 
 	ApiResponse<SeriesResponse> retrieveSeriesWithPosts(String slug);

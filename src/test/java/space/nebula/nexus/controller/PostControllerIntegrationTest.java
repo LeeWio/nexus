@@ -73,7 +73,7 @@ public class PostControllerIntegrationTest {
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testCreateAndGetPost() throws Exception {
 		PostRequest request = new PostRequest("Test Post Title", "test-post-slug", null, "Summary of test post",
-				"Content of test post", PostStatus.PUBLISHED, false, categoryId, null, null, new HashSet<>());
+				"Content of test post", null, PostStatus.PUBLISHED, false, categoryId, null, null, null, new HashSet<>());
 
 		// 1. Create Post
 		mockMvc.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
@@ -90,7 +90,7 @@ public class PostControllerIntegrationTest {
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testUpdatePost() throws Exception {
 		PostRequest createRequest = new PostRequest("Original Title", "original-slug", null, "Summary", "Content",
-				PostStatus.DRAFT, false, categoryId, null, null, null);
+				null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
 
 		String response = mockMvc
 				.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
@@ -100,7 +100,7 @@ public class PostControllerIntegrationTest {
 		Long postId = objectMapper.readTree(response).get("data").get("id").asLong();
 
 		PostRequest updateRequest = new PostRequest("Updated Title", "updated-slug", null, "Updated Summary",
-				"Updated Content", PostStatus.PUBLISHED, true, categoryId, null, null, null);
+				"Updated Content", null, PostStatus.PUBLISHED, true, categoryId, null, null, null, null);
 
 		mockMvc.perform(put("/api/v1/admin/posts/" + postId).contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(updateRequest))).andExpect(status().isOk())

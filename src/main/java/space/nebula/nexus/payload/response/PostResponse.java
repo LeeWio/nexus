@@ -44,16 +44,55 @@ public record PostResponse(@Schema(description = "Post ID") Long id,
 
 		@Schema(description = "Author nickname or username") String authorName,
 
+		@Schema(description = "Author avatar URL") String authorAvatar,
+
 		@Schema(description = "Category details") CategoryResponse category,
 
 		@Schema(description = "Series details") SeriesResponse series,
 
 		@Schema(description = "Ordering index within the series") Integer seriesOrder,
 
-		@Schema(description = "Associated tags") Set<TagResponse> tags,
+		@Schema(description = "ID of the parent post") Long parentId,
+
+		@Schema(description = "Hierarchy path") String path,
+
+		@Schema(description = "Set of associated tags") Set<TagResponse> tags,
 
 		@Schema(description = "Creation time") LocalDateTime createdAt,
 
-		@Schema(description = "Last update time") LocalDateTime updatedAt) implements Serializable {
+		@Schema(description = "Last update time") LocalDateTime updatedAt,
+
+		@Schema(description = "Breadcrumb trail for navigation") java.util.List<Breadcrumb> breadcrumbs,
+
+		@Schema(description = "SEO and OpenGraph metadata") SeoMetadata seo,
+
+		@Schema(description = "Navigation links to adjacent posts") Navigation navigation) implements Serializable {
 	private static final long serialVersionUID = 1L;
+
+	/**
+	 * SEO Metadata for social sharing and search engines.
+	 */
+	public record SeoMetadata(
+			String ogTitle,
+			String ogDescription,
+			String ogImage,
+			String ogType,
+			String ogUrl,
+			String twitterCard,
+			String canonicalUrl
+	) implements Serializable {}
+
+	/**
+	 * Compact representation of a post for breadcrumbs.
+	 */
+	public record Breadcrumb(Long id, String title, String slug) implements Serializable {
+	}
+
+	/**
+	 * Navigation links for sequential reading.
+	 */
+	public record Navigation(Neighbor prev, Neighbor next) implements Serializable {
+		public record Neighbor(String title, String slug) implements Serializable {
+		}
+	}
 }

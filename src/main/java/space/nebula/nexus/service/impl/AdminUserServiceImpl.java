@@ -101,7 +101,7 @@ public class AdminUserServiceImpl implements IAdminUserService
 		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
 		Assert.isTrue(user.getStatus() == UserStatus.PENDING,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "User is not in PENDING status"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only pending registrations can be audited"));
 
 		if (approved)
 		{
@@ -110,13 +110,12 @@ public class AdminUserServiceImpl implements IAdminUserService
 		}
 		else
 		{
-			// Or we could move them to REJECTED if you had that enum, but INACTIVE works
 			user.setStatus(UserStatus.INACTIVE);
 			log.info("Admin rejected registration for user: {}", user.getUsername());
 		}
 
 		userRepository.save(user);
-		return ApiResponse.success(approved ? "User approved" : "User rejected", null);
+		return ApiResponse.success(approved ? "User registration approved" : "User registration rejected", null);
 	}
 
 	@Override
@@ -128,13 +127,14 @@ public class AdminUserServiceImpl implements IAdminUserService
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
 		var roles = roleRepository.findAllById(request.roleIds());
+		Assert.notEmpty(roles, () -> new BusinessException(BusinessCode.BAD_REQUEST, "No valid roles found for provided IDs"));
 		Assert.isTrue(roles.size() == request.roleIds().size(),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "One or more role IDs are invalid"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Some role IDs provided do not exist"));
 
 		user.setRoles(new HashSet<>(roles));
 		userRepository.save(user);
 
 		log.info("Assigned roles {} to user id: {}", request.roleIds(), userId);
-		return ApiResponse.success("Roles assigned successfully", null);
+		return ApiResponse.success("User roles updated successfully", null);
 	}
 }

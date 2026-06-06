@@ -22,35 +22,40 @@ public class PostSpecification
 	 */
 	public static Specification<Post> filterPublicPosts(Long categoryId, Long tagId, String keyword)
 	{
+		return filterPosts(PostStatus.PUBLISHED, categoryId, tagId, keyword);
+	}
+
+	/**
+	 * Generic filter for posts with status, category, tag and keyword.
+	 */
+	public static Specification<Post> filterPosts(PostStatus status, Long categoryId, Long tagId, String keyword)
+	{
 		return (root, query, cb) ->
 		{
 			List<Predicate> predicates = new ArrayList<>();
 
-			// 1. Mandatory: Only published posts
-			predicates.add(cb.equal(root.get("status"), PostStatus.PUBLISHED));
+			if (status != null)
+			{
+				predicates.add(cb.equal(root.get("status"), status));
+			}
 
-			// 2. Optional: Category filter
 			if (categoryId != null)
 			{
 				predicates.add(cb.equal(root.get("category").get("id"), categoryId));
 			}
 
-			// 3. Optional: Tag filter
 			if (tagId != null)
 			{
 				Join<Post, Tag> tagsJoin = root.join("tags");
 				predicates.add(cb.equal(tagsJoin.get("id"), tagId));
 			}
 
-			// 4. Optional: Keyword search (Title, Summary, Content)
 			if (StrUtil.isNotBlank(keyword))
 			{
 				String pattern = "%" + keyword.toLowerCase() + "%";
-				predicates.add(cb.or(
-						cb.like(cb.lower(root.get("title")), pattern),
+				predicates.add(cb.or(cb.like(cb.lower(root.get("title")), pattern),
 						cb.like(cb.lower(root.get("summary")), pattern),
-						cb.like(cb.lower(root.get("content")), pattern)
-				));
+						cb.like(cb.lower(root.get("content")), pattern)));
 			}
 
 			return cb.and(predicates.toArray(new Predicate[0]));

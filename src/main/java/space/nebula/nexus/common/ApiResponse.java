@@ -52,6 +52,13 @@ public record ApiResponse<T>(@Schema(description = "Business response code", exa
 	}
 
 	/**
+	 * Creates an error response with only a code. The message should be resolved via i18n later.
+	 */
+	public static <T> ApiResponse<T> error(int code) {
+		return error(code, null);
+	}
+
+	/**
 	 * Creates an error response from a BusinessCode enum.
 	 */
 	public static <T> ApiResponse<T> error(BusinessCode code) {

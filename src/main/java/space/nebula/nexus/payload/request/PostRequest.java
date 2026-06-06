@@ -37,6 +37,8 @@ public record PostRequest(
 
 		@Schema(description = "Ordering index within the series", example = "1") Integer seriesOrder,
 
+		@Schema(description = "ID of the parent post for Wiki hierarchy", example = "100") Long parentId,
+
 		@Schema(description = "Set of tag IDs to associate with this post", example = "[1, 2, 5]") Set<Long> tagIds) {
 	public PostRequest {
 		if (isFeatured == null)
