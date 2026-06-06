@@ -78,13 +78,20 @@ public class AuthServiceImpl implements IAuthService
 		userRepository.save(newUser);
 		log.info("User account registered successfully, pending audit: {}", newUser.getUsername());
 
+		// Prepare email variables using modern Java Map.of
+		Map<String, Object> emailVars = Map.of(
+				"username", newUser.getUsername(),
+				"message", "Your account is pending administrator approval."
+		);
+
 		// Async Welcome/Pending Email
-		TemplateMailMessage welcomeMail = TemplateMailMessage.builder().to(newUser.getEmail())
-				.subject("Nexus Registration Received").templateName("otp-login") // Ideally a "welcome" template, but
-																					// reusing for demo
-				.variables(Dict.create().set("username", newUser.getUsername()).set("message",
-						"Your account is pending administrator approval."))
-				.type(TemplateMailMessage.MailType.TEMPLATE).build();
+		TemplateMailMessage welcomeMail = TemplateMailMessage.builder()
+				.to(newUser.getEmail())
+				.subject("Nexus Registration Received")
+				.templateName("otp-login")
+				.variables(emailVars)
+				.type(TemplateMailMessage.MailType.TEMPLATE)
+				.build();
 
 		try
 		{

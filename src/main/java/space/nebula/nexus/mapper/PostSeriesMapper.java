@@ -20,9 +20,12 @@ import java.util.List;
 public abstract class PostSeriesMapper
 {
 
-	@Autowired
-	@Lazy
 	protected PostMapper postMapper;
+
+	@org.springframework.beans.factory.annotation.Autowired
+	public void setPostMapper(PostMapper postMapper) {
+		this.postMapper = postMapper;
+	}
 
 	@Named("toResponse")
 	@Mapping(target = "postsCount", expression = "java(series.getPosts() != null ? series.getPosts().size() : 0)")

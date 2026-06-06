@@ -118,14 +118,12 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(AuthenticationException e) {
 		log.warn("[TraceId: {}] Authentication failed: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
 
-		var businessCode = BusinessCode.UNAUTHORIZED;
-		if (e instanceof BadCredentialsException) {
-			businessCode = BusinessCode.BAD_CREDENTIALS;
-		} else if (e instanceof DisabledException) {
-			businessCode = BusinessCode.ACCOUNT_DISABLED;
-		} else if (e instanceof LockedException) {
-			businessCode = BusinessCode.ACCOUNT_LOCKED;
-		}
+		BusinessCode businessCode = switch (e) {
+			case BadCredentialsException ex -> BusinessCode.BAD_CREDENTIALS;
+			case DisabledException ex -> BusinessCode.ACCOUNT_DISABLED;
+			case LockedException ex -> BusinessCode.ACCOUNT_LOCKED;
+			default -> BusinessCode.UNAUTHORIZED;
+		};
 
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(businessCode));
 	}
@@ -138,16 +136,14 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ApiResponse<Void>> handleServletException(jakarta.servlet.ServletException e) {
 		log.warn("[TraceId: {}] HTTP Request error: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
 
-		int statusCode = HttpStatus.BAD_REQUEST.value();
-		if (e instanceof org.springframework.web.HttpRequestMethodNotSupportedException) {
-			statusCode = HttpStatus.METHOD_NOT_ALLOWED.value();
-		} else if (e instanceof org.springframework.web.servlet.NoHandlerFoundException) {
-			statusCode = HttpStatus.NOT_FOUND.value();
-		} else if (e instanceof org.springframework.web.HttpMediaTypeNotSupportedException) {
-			statusCode = HttpStatus.UNSUPPORTED_MEDIA_TYPE.value();
-		}
+		HttpStatus status = switch (e) {
+			case org.springframework.web.HttpRequestMethodNotSupportedException ex -> HttpStatus.METHOD_NOT_ALLOWED;
+			case org.springframework.web.servlet.NoHandlerFoundException ex -> HttpStatus.NOT_FOUND;
+			case org.springframework.web.HttpMediaTypeNotSupportedException ex -> HttpStatus.UNSUPPORTED_MEDIA_TYPE;
+			default -> HttpStatus.BAD_REQUEST;
+		};
 
-		return ResponseEntity.status(statusCode).body(ApiResponse.error(statusCode, e.getMessage()));
+		return ResponseEntity.status(status).body(ApiResponse.error(status.value(), e.getMessage()));
 	}
 
 	/**
