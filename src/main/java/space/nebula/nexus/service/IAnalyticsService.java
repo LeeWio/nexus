@@ -9,6 +9,16 @@ public interface IAnalyticsService
 	ApiResponse<AnalyticsOverviewResponse> retrieveOverviewStats();
 
 	/**
+	 * Retrieves top pages statistics including mocked average time and bounce rate.
+	 */
+	ApiResponse<java.util.List<space.nebula.nexus.payload.response.TopPageResponse>> getTopPages();
+
+	/**
+	 * Retrieves traffic statistics broken down by device and source.
+	 */
+	ApiResponse<space.nebula.nexus.payload.response.TrafficStatsResponse> getTrafficStats(int days);
+
+	/**
 	 * Aggregates logs for a specific date and saves to DailyAnalytics.
 	 */
 	void aggregateDailyData(java.time.LocalDate date);

@@ -14,5 +14,7 @@ public record CategoryRequest(
 
 		@Schema(description = "SEO URL slug", example = "backend") @NotBlank(message = "Slug cannot be empty") @Slug @Size(max = 50) String slug,
 
-		@Schema(description = "Brief description", example = "Posts related to Java, Spring, and MySQL") @Size(max = 200) String description) {
+		@Schema(description = "Brief description", example = "Posts related to Java, Spring, and MySQL") @Size(max = 200) String description,
+
+		@Schema(description = "Icon name or URL", example = "mdi:language-java") @Size(max = 100) String icon) {
 }

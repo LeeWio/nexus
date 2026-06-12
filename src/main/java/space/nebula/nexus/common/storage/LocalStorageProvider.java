@@ -40,8 +40,14 @@ public class LocalStorageProvider implements StorageProvider {
 			Path destinationFile = this.rootLocation.resolve(Paths.get(filename)).normalize().toAbsolutePath();
 
 			// Security check: Ensure destination is still within rootLocation
-			Assert.isTrue(destinationFile.startsWith(this.rootLocation),
-					() -> new BusinessException("Cannot store file outside specified directory"));
+			String destPath = destinationFile.toFile().getCanonicalPath();
+			String rootPath = this.rootLocation.toFile().getCanonicalPath();
+			if (!rootPath.endsWith(java.io.File.separator)) {
+				rootPath += java.io.File.separator;
+			}
+			String finalRootPath = rootPath;
+			Assert.isTrue(destPath.startsWith(finalRootPath),
+					() -> new BusinessException("Cannot store file outside specified directory. root=" + finalRootPath + ", dest=" + destPath));
 
 			// Create parent directories if they don't exist
 			Files.createDirectories(destinationFile.getParent());

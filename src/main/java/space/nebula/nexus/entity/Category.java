@@ -27,4 +27,7 @@ public class Category extends BaseEntity
 
 	@Column(length = 200)
 	private String description;
+
+	@Column(length = 100)
+	private String icon;
 }

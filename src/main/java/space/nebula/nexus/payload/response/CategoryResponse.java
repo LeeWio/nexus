@@ -19,6 +19,8 @@ public record CategoryResponse(@Schema(description = "Category ID") Long id,
 
 		@Schema(description = "Category description") String description,
 
+		@Schema(description = "Category icon") String icon,
+
 		@Schema(description = "Creation time") LocalDateTime createdAt) implements Serializable {
 	private static final long serialVersionUID = 1L;
 }
