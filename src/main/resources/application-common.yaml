@@ -30,6 +30,16 @@ spring:
       key-prefix: "nexus:cache:"
       cache-null-values: false
 
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+
 management:
   endpoints:
     web:

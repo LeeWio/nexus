@@ -20,17 +20,23 @@ import space.nebula.nexus.repository.TagRepository;
 import space.nebula.nexus.repository.search.PostSearchRepository;
 import space.nebula.nexus.enums.PostStatus;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
-import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.IndexOperations;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.query.HighlightQuery;
 import org.springframework.data.elasticsearch.core.query.highlight.Highlight;
 import org.springframework.data.elasticsearch.core.query.highlight.HighlightField;
 import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
+import org.springframework.data.elasticsearch.core.index.AliasAction;
+import org.springframework.data.elasticsearch.core.index.AliasActionParameters;
+import org.springframework.data.elasticsearch.core.index.AliasActions;
+import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
 
 import cn.hutool.core.util.StrUtil;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -79,11 +85,10 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 		try
 		{
 			postSearchRepository.deleteById(postId.toString());
-			log.info("Successfully deleted post from Elasticsearch: {}", postId);
+			log.info("Successfully deleted post from Elasticsearch: postId={}", postId);
 		}
-		catch (Exception e)
-		{
-			log.error("Failed to delete post from Elasticsearch: {}", postId, e);
+		catch (Exception e) {
+			log.error("Failed to delete post from Elasticsearch: postId={}", postId, e);
 		}
 	}
 
@@ -91,8 +96,15 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 	@Override
 	public void rebuildIndex()
 	{
-		log.info("Starting Elasticsearch index rebuild for posts...");
-		postSearchRepository.deleteAll();
+		log.info("Starting Blue-Green Elasticsearch index rebuild for posts...");
+		
+		String aliasName = "nexus-post";
+		String newIndexName = aliasName + "-" + System.currentTimeMillis();
+		
+		// 1. Create new index with mappings
+		IndexOperations newIndexOps = elasticsearchOperations.indexOps(IndexCoordinates.of(newIndexName));
+		newIndexOps.create();
+		newIndexOps.putMapping(newIndexOps.createMapping(PostDocument.class));
 
 		int page = 0;
 		int size = 100;
@@ -107,14 +119,49 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 
 			if (!documents.isEmpty())
 			{
-				postSearchRepository.saveAll(documents);
+				elasticsearchOperations.save(documents, IndexCoordinates.of(newIndexName));
 				totalIndexed += documents.size();
 			}
 			page++;
 		}
 		while (postPage.hasNext());
 
-		log.info("Finished rebuilding Elasticsearch index. Total posts indexed: {}", totalIndexed);
+		// 2. Atomic Alias Switch
+		IndexOperations indexOps = elasticsearchOperations.indexOps(PostDocument.class);
+		AliasActions aliasActions = new AliasActions();
+		
+		// Remove alias from all old indices
+		try {
+			Map<String, Set<org.springframework.data.elasticsearch.core.index.AliasData>> aliases = indexOps.getAliases();
+			aliases.keySet().forEach(oldIndex -> {
+				aliasActions.add(new AliasAction.Remove(AliasActionParameters.builder()
+						.withIndices(oldIndex)
+						.withAliases(aliasName)
+						.build()));
+			});
+		} catch (Exception e) {
+			log.debug("No existing alias found or error fetching aliases: {}", e.getMessage());
+		}
+
+		// Add alias to new index
+		aliasActions.add(new AliasAction.Add(AliasActionParameters.builder()
+				.withIndices(newIndexName)
+				.withAliases(aliasName)
+				.build()));
+		
+		indexOps.alias(aliasActions);
+
+		// 3. Cleanup old indices (Optional but recommended)
+		try {
+			Map<String, Set<org.springframework.data.elasticsearch.core.index.AliasData>> oldIndices = indexOps.getAliases();
+			oldIndices.keySet().stream()
+					.filter(idx -> !idx.equals(newIndexName))
+					.forEach(idx -> elasticsearchOperations.indexOps(IndexCoordinates.of(idx)).delete());
+		} catch (Exception e) {
+			log.warn("Failed to cleanup old indices: {}", e.getMessage());
+		}
+
+		log.info("Finished Blue-Green rebuild. Alias '{}' -> '{}'. Total indexed: {}", aliasName, newIndexName, totalIndexed);
 	}
 
 	@Override

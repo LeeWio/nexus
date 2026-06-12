@@ -21,4 +21,16 @@ public interface StorageProvider {
 	 * Generates a public URL for the file.
 	 */
 	String getUrl(String filename);
+
+	/**
+	 * Get a signed/temporary URL for a file (useful for private buckets).
+	 * Defaults to getUrl if not specialized.
+	 * 
+	 * @param filename file identifier
+	 * @param expireSeconds duration of validity
+	 */
+	default String getSignedUrl(String filename, long expireSeconds)
+	{
+		return getUrl(filename);
+	}
 }

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.entity.document.PostDocument;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.QuickSearchResponse;
@@ -33,6 +34,7 @@ public class PublicSearchController
 
 	@GetMapping("/posts")
 	@Operation(summary = "Search posts", description = "Perform a full-text search across published posts using Elasticsearch.")
+	@RateLimit(count = 10, time = 1, message = "Search frequency too high. Please try again in a moment.")
 	public ApiResponse<PageResult<PostDocument>> searchPosts(
 			@Parameter(description = "Keywords to search for in title, summary, and content") @RequestParam(required = false) String keyword,
 
@@ -43,6 +45,7 @@ public class PublicSearchController
 
 	@GetMapping("/quick")
 	@Operation(summary = "Quick search (Command+K) - Legacy", description = "Lightweight unified search across posts, categories, and tags.")
+	@RateLimit(count = 20, time = 1, message = "Quick search frequency too high.")
 	public ApiResponse<QuickSearchResponse> quickSearch(
 			@Parameter(description = "Search keyword") @RequestParam String keyword)
 	{
@@ -51,6 +54,7 @@ public class PublicSearchController
 
 	@GetMapping("/unified")
 	@Operation(summary = "Unified search (Professional Cmd+K)", description = "Rich grouped search across all content with Next.js routing and metadata.")
+	@RateLimit(count = 20, time = 1)
 	public ApiResponse<UnifiedSearchResponse> unifiedSearch(
 			@Parameter(description = "Search keyword") @RequestParam(required = false) String keyword)
 	{
@@ -59,6 +63,7 @@ public class PublicSearchController
 
 	@GetMapping("/suggestions")
 	@Operation(summary = "Get search suggestions", description = "Provides autocomplete suggestions as the user types.")
+	@RateLimit(count = 30, time = 1)
 	public ApiResponse<java.util.List<String>> getSuggestions(
 			@Parameter(description = "Search prefix") @RequestParam String keyword)
 	{

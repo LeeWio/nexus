@@ -16,7 +16,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(indexName = "blog_post")
+@Document(indexName = "nexus-post")
 public class PostDocument
 {
 

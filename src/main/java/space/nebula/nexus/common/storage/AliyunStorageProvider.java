@@ -75,4 +75,22 @@ public class AliyunStorageProvider implements StorageProvider {
 			return fileName;
 		return config.getDomain() + "/" + fileName;
 	}
+
+	@Override
+	public String getSignedUrl(String fileName, long expireSeconds) {
+		if (fileName == null || fileName.isBlank())
+			return null;
+		
+		OSS ossClient = new OSSClientBuilder().build(config.getEndpoint(), config.getAccessKeyId(),
+				config.getAccessKeySecret());
+		try {
+			java.util.Date expiration = new java.util.Date(System.currentTimeMillis() + expireSeconds * 1000);
+			return ossClient.generatePresignedUrl(config.getBucketName(), fileName, expiration).toString();
+		} catch (Exception e) {
+			log.error("Failed to generate signed URL for Aliyun OSS", e);
+			return getUrl(fileName); // Fallback to public
+		} finally {
+			ossClient.shutdown();
+		}
+	}
 }

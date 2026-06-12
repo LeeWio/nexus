@@ -13,7 +13,7 @@ import space.nebula.nexus.service.IAnalyticsService;
 
 @Tag(name = "Admin Analytics", description = "Endpoints for website traffic analysis and insights")
 @RestController
-@RequestMapping("/api/v1/admin/analytics")
+@RequestMapping(space.nebula.nexus.common.constant.ApiConstants.ADMIN + "/analytics")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class AdminAnalyticsController

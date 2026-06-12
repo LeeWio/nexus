@@ -18,21 +18,21 @@ import java.util.Optional;
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificationExecutor<Post> {
 
-	@EntityGraph(attributePaths = {"category", "author", "tags"})
+	@EntityGraph(attributePaths = {"category", "author", "tags", "series", "parent"})
 	Optional<Post> findBySlug(String slug);
 
-	@EntityGraph(attributePaths = {"category", "author", "tags"})
+	@EntityGraph(attributePaths = {"category", "author", "tags", "series", "parent"})
 	Page<Post> findAllByStatus(PostStatus status, Pageable pageable);
 
-	@EntityGraph(attributePaths = {"category", "author", "tags"})
+	@EntityGraph(attributePaths = {"category", "author", "tags", "series", "parent"})
 	Page<Post> findAllByCategoryIdAndStatus(Long categoryId, PostStatus status, Pageable pageable);
 
 	@Override
-	@EntityGraph(attributePaths = {"category", "author", "tags"})
+	@EntityGraph(attributePaths = {"category", "author", "tags", "series", "parent"})
 	Page<Post> findAll(Pageable pageable);
 
 	@Override
-	@EntityGraph(attributePaths = {"category", "author", "tags"})
+	@EntityGraph(attributePaths = {"category", "author", "tags", "series", "parent"})
 	Page<Post> findAll(@Nullable Specification<Post> spec, Pageable pageable);
 
 	@Modifying

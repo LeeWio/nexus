@@ -23,5 +23,8 @@ public class DailyAnalyticsTask {
         LocalDate yesterday = LocalDate.now().minusDays(1);
         log.info("Executing scheduled daily analytics aggregation for {}", yesterday);
         analyticsService.aggregateDailyData(yesterday);
+        
+        // After aggregation, purge logs older than 90 days
+        analyticsService.purgeOldLogs(90);
     }
 }

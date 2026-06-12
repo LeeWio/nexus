@@ -102,7 +102,7 @@ class PostServiceImplTest {
 
 			// Assert
 			assertEquals(200, response.code());
-			verify(postRepository).save(any(Post.class));
+			verify(postRepository, times(2)).save(any(Post.class));
 			verify(eventPublisher).publishEvent(any());
 		}
 	}

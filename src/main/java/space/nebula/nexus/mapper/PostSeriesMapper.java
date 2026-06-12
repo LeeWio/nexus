@@ -23,7 +23,8 @@ public abstract class PostSeriesMapper
 	protected PostMapper postMapper;
 
 	@org.springframework.beans.factory.annotation.Autowired
-	public void setPostMapper(@org.springframework.context.annotation.Lazy PostMapper postMapper) {
+	public void setPostMapper(@org.springframework.context.annotation.Lazy PostMapper postMapper)
+	{
 		this.postMapper = postMapper;
 	}
 

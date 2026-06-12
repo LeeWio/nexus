@@ -146,10 +146,11 @@ public class FileServiceImpl implements IFileService
 
 				try
 				{
-					var thumbnailBytes = fileUtil.generateThumbnail(fileBytes, 200, 200);
-					var thumbnailName = "thumb_" + uniqueName.substring(0, uniqueName.lastIndexOf('.')) + ".jpg";
+					var thumbnailBytes = fileUtil.convertToWebP(fileUtil.generateThumbnail(fileBytes, 300, 300));
+					var thumbnailName = "thumb_" + uniqueName.substring(0, uniqueName.lastIndexOf('.')) + ".webp";
 					storageProvider.store(new ByteArrayInputStream(thumbnailBytes), thumbnailName);
 					thumbnailUrl = storageProvider.getUrl(thumbnailName);
+					log.info("Generated WebP thumbnail: {}", thumbnailName);
 				}
 				catch (Exception e)
 				{

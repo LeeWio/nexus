@@ -14,6 +14,16 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import space.nebula.nexus.common.constant.CacheConstants;
+import space.nebula.nexus.utils.RedisUtil;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -22,15 +32,16 @@ public class InteractionSyncTask
 {
 
 	private final RedisTemplate<String, Object> redisTemplate;
-	private final PostRepository postRepository;
+	private final JdbcTemplate jdbcTemplate;
 	private final RedisUtil redisUtil;
 
 	private static final String LOCK_KEY = "nexus:lock:interaction-sync";
+	private static final String UPDATE_SQL = "UPDATE blog_post SET likes_count = ?, favorites_count = ? WHERE id = ?";
 
 	/**
 	 * Synchronizes social interaction counts (likes, favorites) from Redis sets to
 	 * the database. This periodically updates the denormalized count fields in the
-	 * Post table for performance.
+	 * Post table for performance using batch updates.
 	 */
 	@Scheduled(fixedRate = 120000) // Runs every 2 minutes
 	@Transactional
@@ -75,7 +86,12 @@ public class InteractionSyncTask
 		scanPrefix.accept(CacheConstants.POST_LIKES_SET);
 		scanPrefix.accept(CacheConstants.POST_FAVORITES_SET);
 
-		int processedInteractionsCount = 0;
+		if (activePostIds.isEmpty())
+		{
+			return;
+		}
+
+		List<Object[]> batchArgs = new ArrayList<>();
 		for (Long activePostId : activePostIds)
 		{
 			try
@@ -83,21 +99,32 @@ public class InteractionSyncTask
 				String likeSetKey = CacheConstants.POST_LIKES_SET + activePostId;
 				String favoriteSetKey = CacheConstants.POST_FAVORITES_SET + activePostId;
 
-				// Get current sizes from Redis
 				Long currentLikesCount = redisTemplate.opsForSet().size(likeSetKey);
 				Long currentFavoritesCount = redisTemplate.opsForSet().size(favoriteSetKey);
 
-				// Update DB using optimized query
-				postRepository.updateSocialMetrics(activePostId, 
+				batchArgs.add(new Object[] { 
 						currentLikesCount != null ? currentLikesCount : 0L, 
-						currentFavoritesCount != null ? currentFavoritesCount : 0L);
-				processedInteractionsCount++;
+						currentFavoritesCount != null ? currentFavoritesCount : 0L, 
+						activePostId 
+				});
 			}
-			catch (Exception itemException)
+			catch (Exception e)
 			{
-				log.error("Error synchronizing interactions for post: {}", activePostId, itemException);
+				log.error("Error preparing interactions for post: {}", activePostId, e);
 			}
 		}
-		log.info("Finished social interaction synchronization. Processed {} active posts.", processedInteractionsCount);
+
+		if (!batchArgs.isEmpty())
+		{
+			try
+			{
+				jdbcTemplate.batchUpdate(UPDATE_SQL, batchArgs);
+				log.info("Successfully synced interactions for {} posts in batch.", batchArgs.size());
+			}
+			catch (Exception e)
+			{
+				log.error("Failed to execute batch update for interactions", e);
+			}
+		}
 	}
 }

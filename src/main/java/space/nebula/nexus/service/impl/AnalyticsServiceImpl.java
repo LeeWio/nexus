@@ -303,4 +303,14 @@ public class AnalyticsServiceImpl implements IAnalyticsService
 
 		return ApiResponse.success(postMapper.toResponseList(sortedPosts));
 	}
+
+	@Override
+	@Transactional
+	public void purgeOldLogs(int daysToKeep)
+	{
+		LocalDateTime cutOff = LocalDateTime.now().minusDays(daysToKeep);
+		log.info("Purging visit logs older than {} ({} days retention)...", cutOff, daysToKeep);
+		int deletedCount = visitLogRepository.deleteByVisitTimeBefore(cutOff);
+		log.info("Successfully purged {} old visit logs.", deletedCount);
+	}
 }

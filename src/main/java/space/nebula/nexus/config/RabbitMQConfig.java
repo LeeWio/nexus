@@ -26,6 +26,10 @@ public class RabbitMQConfig
 	public static final String WEBHOOK_ROUTING_KEY = "nexus.webhook.routing.key";
 	public static final String WEBHOOK_QUEUE = "nexus.webhook.dispatch.queue";
 
+	public static final String STATIC_GEN_EXCHANGE = "nexus.static.exchange";
+	public static final String STATIC_GEN_ROUTING_KEY = "nexus.static.routing.key";
+	public static final String STATIC_GEN_QUEUE = "nexus.static.generation.queue";
+
 	public static final String CACHE_BROADCAST_EXCHANGE = "nexus.cache.broadcast.exchange";
 
 	@Bean
@@ -108,5 +112,23 @@ public class RabbitMQConfig
 	Binding webhookBinding(Queue webhookQueue, DirectExchange webhookExchange)
 	{
 		return BindingBuilder.bind(webhookQueue).to(webhookExchange).with(WEBHOOK_ROUTING_KEY);
+	}
+
+	@Bean
+	DirectExchange staticGenExchange()
+	{
+		return new DirectExchange(STATIC_GEN_EXCHANGE);
+	}
+
+	@Bean
+	Queue staticGenQueue()
+	{
+		return new Queue(STATIC_GEN_QUEUE, true);
+	}
+
+	@Bean
+	Binding staticGenBinding(Queue staticGenQueue, DirectExchange staticGenExchange)
+	{
+		return BindingBuilder.bind(staticGenQueue).to(staticGenExchange).with(STATIC_GEN_ROUTING_KEY);
 	}
 }

@@ -1,6 +1,7 @@
 package space.nebula.nexus.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import space.nebula.nexus.entity.VisitLog;
@@ -32,4 +33,8 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
 
 	@Query("SELECT DATE(v.visitTime) as visitDate, COUNT(v) as pv, COUNT(DISTINCT v.ipAddress) as uv FROM VisitLog v WHERE v.visitTime >= :start GROUP BY visitDate ORDER BY visitDate ASC")
 	List<Map<String, Object>> findDailyTrendRaw(LocalDateTime start);
+
+	@Modifying
+	@Query("DELETE FROM VisitLog v WHERE v.visitTime < :time")
+	int deleteByVisitTimeBefore(LocalDateTime time);
 }

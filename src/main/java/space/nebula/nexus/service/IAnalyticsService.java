@@ -27,4 +27,9 @@ public interface IAnalyticsService
 	 * Retrieves top trending posts based on recent views.
 	 */
 	ApiResponse<java.util.List<space.nebula.nexus.payload.response.PostResponse>> getTrendingPosts(int limit);
+	/**
+	 * Purges old visit logs that have already been aggregated.
+	 * Typically keeps logs for the last 90 days.
+	 */
+	void purgeOldLogs(int daysToKeep);
 }

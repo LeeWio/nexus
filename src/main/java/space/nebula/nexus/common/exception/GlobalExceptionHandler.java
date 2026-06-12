@@ -4,6 +4,8 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.propertyeditors.StringTrimmerEditor;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -38,6 +40,7 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
 	private final MessageUtil messageUtil;
+	private final Environment environment;
 
 	/**
 	 * Globally trim all strings in request parameters and body to prevent
@@ -146,6 +149,16 @@ public class GlobalExceptionHandler {
 	}
 
 	/**
+	 * Handle JPA OptimisticLockingFailureException (e.g., @Version conflict).
+	 */
+	@ExceptionHandler(org.springframework.dao.OptimisticLockingFailureException.class)
+	public ResponseEntity<ApiResponse<Void>> handleOptimisticLockingFailureException(org.springframework.dao.OptimisticLockingFailureException e) {
+		log.warn("[TraceId: {}] Optimistic lock conflict: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+				.body(ApiResponse.error(BusinessCode.BAD_REQUEST.getCode(), "The record has been modified by another user. Please refresh and try again."));
+	}
+
+	/**
 	 * Handle standard Spring MVC exceptions (e.g., 404 No Handler, 405 Method Not
 	 * Allowed).
 	 */
@@ -168,8 +181,15 @@ public class GlobalExceptionHandler {
 	 */
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception e) {
-		log.error("[TraceId: {}] Unexpected system error", org.slf4j.MDC.get("traceId"), e);
-		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-				.body(ApiResponse.error(BusinessCode.ERROR, "System error: " + e.getMessage()));
+		String traceId = org.slf4j.MDC.get("traceId");
+		log.error("[TraceId: {}] Unexpected system error", traceId, e);
+
+		String message = "System error: " + e.getMessage();
+		// In production, sanitize the error message to avoid leaking internal details
+		if (environment.acceptsProfiles(Profiles.of("prod"))) {
+			message = "An unexpected internal server error occurred. Please contact the administrator with Trace ID: " + traceId;
+		}
+
+		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(BusinessCode.ERROR, message));
 	}
 }

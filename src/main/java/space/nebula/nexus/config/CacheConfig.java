@@ -6,6 +6,14 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import space.nebula.nexus.common.cache.CacheMessageListener;
+import space.nebula.nexus.common.cache.MultiLevelCacheManager;
 
 import java.util.concurrent.TimeUnit;
 
@@ -14,21 +22,52 @@ import java.util.concurrent.TimeUnit;
 public class CacheConfig
 {
 
+	private static final String CACHE_TOPIC = "nexus:cache:invalidation";
+	private final String instanceId = cn.hutool.core.util.IdUtil.fastSimpleUUID();
+
 	/**
-	 * Local L1 Cache Manager (Caffeine). Fast, but not distributed.
+	 * Local L1 Cache Manager (Caffeine).
 	 */
 	@Bean
-	CacheManager caffeineCacheManager()
+	public CaffeineCacheManager caffeineCacheManager()
 	{
 		CaffeineCacheManager cacheManager = new CaffeineCacheManager();
 		Caffeine<Object, Object> caffeineBuilder = Caffeine.newBuilder().initialCapacity(100).maximumSize(500)
 				.expireAfterWrite(10, TimeUnit.MINUTES).recordStats();
 
 		cacheManager.setCaffeine(caffeineBuilder);
-
-		// Note: CaffeineCacheManager creates caches on demand.
-		// For monitoring, we might want to pre-define some or use a custom decorator.
-		// However, Micrometer's CaffeineCacheMetrics can bind to a cache instance.
 		return cacheManager;
+	}
+
+	/**
+	 * Primary Cache Manager using Multi-Level Strategy (L1 Caffeine + L2 Redis).
+	 */
+	@Bean
+	@Primary
+	public CacheManager multiLevelCacheManager(CaffeineCacheManager caffeineCacheManager,
+			RedisCacheManager redisCacheManager, RedisTemplate<String, Object> redisTemplate)
+	{
+		return new MultiLevelCacheManager(caffeineCacheManager, redisCacheManager, redisTemplate, instanceId,
+				CACHE_TOPIC);
+	}
+
+	/**
+	 * Redis Message Listener for L1 cache invalidation across multiple instances.
+	 */
+	@Bean
+	public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory factory,
+			CacheMessageListener listener)
+	{
+		RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+		container.setConnectionFactory(factory);
+		container.addMessageListener(listener, new ChannelTopic(CACHE_TOPIC));
+		return container;
+	}
+
+	@Bean
+	public CacheMessageListener cacheMessageListener(RedisTemplate<String, Object> redisTemplate,
+			CaffeineCacheManager caffeineCacheManager)
+	{
+		return new CacheMessageListener(redisTemplate, caffeineCacheManager, instanceId);
 	}
 }

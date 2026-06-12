@@ -22,12 +22,44 @@ public class StaticGenerationServiceImpl implements IStaticGenerationService
 	private final TemplateEngine templateEngine;
 	private final StorageProvider storageProvider;
 	private final space.nebula.nexus.repository.PostRepository postRepository;
+	private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
+	private final space.nebula.nexus.config.RabbitMQConfig rabbitMQConfig;
 
-	@Async("asyncExecutor")
 	@Override
 	public void generatePostStaticHtml(Post post)
 	{
-		log.info("Generating static HTML for post: {}", post.getSlug());
+		log.info("Dispatching static HTML generation for post: {}", post.getSlug());
+		dispatch(new space.nebula.nexus.payload.event.StaticGenerationMessage(post.getId(), post.getSlug(),
+				space.nebula.nexus.payload.event.StaticGenerationMessage.Action.GENERATE));
+	}
+
+	@Override
+	public void deletePostStaticHtml(String slug)
+	{
+		log.info("Dispatching static HTML deletion for post: {}", slug);
+		dispatch(new space.nebula.nexus.payload.event.StaticGenerationMessage(null, slug,
+				space.nebula.nexus.payload.event.StaticGenerationMessage.Action.DELETE));
+	}
+
+	private void dispatch(space.nebula.nexus.payload.event.StaticGenerationMessage message)
+	{
+		rabbitTemplate.convertAndSend(space.nebula.nexus.config.RabbitMQConfig.STATIC_GEN_EXCHANGE,
+				space.nebula.nexus.config.RabbitMQConfig.STATIC_GEN_ROUTING_KEY, message);
+	}
+
+	/**
+	 * Actual execution logic, called by RabbitMQ listener.
+	 */
+	public void executeGenerate(Long postId)
+	{
+		Post post = postRepository.findById(postId).orElse(null);
+		if (post == null)
+		{
+			log.warn("Cannot generate static HTML: Post {} not found", postId);
+			return;
+		}
+
+		log.info("Executing static HTML generation for post: {}", post.getSlug());
 		try
 		{
 			Context context = new Context();
@@ -47,13 +79,14 @@ public class StaticGenerationServiceImpl implements IStaticGenerationService
 		}
 	}
 
-	@Async("asyncExecutor")
-	@Override
-	public void deletePostStaticHtml(String slug)
+	/**
+	 * Actual execution logic, called by RabbitMQ listener.
+	 */
+	public void executeDelete(String slug)
 	{
 		String fileName = "static/posts/" + slug + ".html";
 		storageProvider.delete(fileName);
-		log.info("Deleted static HTML for post: {}", slug);
+		log.info("Executed static HTML deletion for post: {}", slug);
 	}
 
 	@Override
