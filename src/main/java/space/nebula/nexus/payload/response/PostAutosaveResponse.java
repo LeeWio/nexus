@@ -8,7 +8,7 @@ import space.nebula.nexus.enums.PostContentType;
  */
 @Schema(description = "Autosaved post content and its format")
 public record PostAutosaveResponse(
-		@Schema(description = "In-progress content") String content,
+		@Schema(description = "In-progress content") Object content,
 
 		@Schema(description = "Format of the content") PostContentType contentType) {
 }
