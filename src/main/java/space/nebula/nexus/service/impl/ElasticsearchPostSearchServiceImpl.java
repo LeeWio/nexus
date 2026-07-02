@@ -173,13 +173,14 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 		}
 
 		var query = NativeQuery.builder()
-				.withQuery(q -> q.multiMatch(m -> m.fields("title^5", "summary^2", "content")
+				.withQuery(q -> q.multiMatch(m -> m.fields("title^8", "summary^3", "content^1")
 						.query(keyword)
 						.fuzziness("AUTO")
 						.type(TextQueryType.BestFields)))
 				.withHighlightQuery(new HighlightQuery(new Highlight(List.of(
 						new HighlightField("title"),
-						new HighlightField("summary")
+						new HighlightField("summary"),
+						new HighlightField("content")
 				)), PostDocument.class))
 				.withPageable(pageable)
 				.build();
@@ -190,12 +191,19 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 				.map(hit -> {
 					PostDocument doc = hit.getContent();
 					var highlights = hit.getHighlightFields();
+					
+					// 1. Highlight Title if present
 					if (highlights.containsKey("title")) {
 						doc.setTitle(String.join("", highlights.get("title")));
 					}
+					
+					// 2. Highlight Summary if present, otherwise fall back to Content highlight fragment
 					if (highlights.containsKey("summary")) {
 						doc.setSummary(String.join(" ... ", highlights.get("summary")));
+					} else if (highlights.containsKey("content")) {
+						doc.setSummary("... " + String.join(" ... ", highlights.get("content")) + " ...");
 					}
+					
 					return doc;
 				})
 				.collect(Collectors.toList());
@@ -242,10 +250,11 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 	protected void searchPostsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups)
 	{
 		var query = NativeQuery.builder()
-				.withQuery(q -> q.multiMatch(m -> m.fields("title^5", "summary^2", "content").query(keyword).fuzziness("AUTO")))
+				.withQuery(q -> q.multiMatch(m -> m.fields("title^8", "summary^3", "content^1").query(keyword).fuzziness("AUTO")))
 				.withHighlightQuery(new HighlightQuery(new Highlight(List.of(
 						new HighlightField("title"),
-						new HighlightField("summary")
+						new HighlightField("summary"),
+						new HighlightField("content")
 				)), PostDocument.class))
 				.withPageable(org.springframework.data.domain.PageRequest.of(0, 5))
 				.build();
@@ -260,7 +269,11 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 					
 					var highlights = hit.getHighlightFields();
 					if (highlights.containsKey("title")) displayTitle = String.join("", highlights.get("title"));
-					if (highlights.containsKey("summary")) displayDesc = String.join(" ... ", highlights.get("summary"));
+					if (highlights.containsKey("summary")) {
+						displayDesc = String.join(" ... ", highlights.get("summary"));
+					} else if (highlights.containsKey("content")) {
+						displayDesc = "... " + String.join(" ... ", highlights.get("content")) + " ...";
+					}
 
 					return UnifiedSearchResponse.SearchResultItem.builder()
 							.id("post:" + p.getId())

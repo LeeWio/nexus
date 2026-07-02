@@ -67,14 +67,14 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService
 			}
 
 			String pattern = "%" + keyword.toLowerCase() + "%";
-			Specification<Post> keywordSpec = (r, q, c) -> c.or(c.like(r.get("title"), pattern),
-					c.like(r.get("summary"), pattern), c.like(r.get("content"), pattern));
+			Specification<Post> keywordSpec = (r, q, c) -> c.or(c.like(c.lower(r.get("title")), pattern),
+					c.like(c.lower(r.get("summary")), pattern), c.like(c.lower(r.get("content")), pattern));
 
 			return Specification.where(statusSpec).and(keywordSpec).toPredicate(root, query, cb);
 		};
 
 		Page<Post> posts = postRepository.findAll(spec, pageable);
-		Page<PostDocument> documents = posts.map(this::mapToDocument);
+		Page<PostDocument> documents = posts.map(p -> highlightDocument(mapToDocument(p), keyword));
 
 		return ApiResponse.success(PageResult.of(documents));
 	}
@@ -108,14 +108,25 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService
 		{
 			String pattern = "%" + keyword.toLowerCase() + "%";
 			return cb.and(cb.equal(root.get("status"), PostStatus.PUBLISHED), cb.or(
-					cb.like(cb.lower(root.get("title")), pattern), cb.like(cb.lower(root.get("summary")), pattern)));
+					cb.like(cb.lower(root.get("title")), pattern),
+					cb.like(cb.lower(root.get("summary")), pattern),
+					cb.like(cb.lower(root.get("content")), pattern)));
 		};
 
 		List<UnifiedSearchResponse.SearchResultItem> items = postRepository
 				.findAll(postSpec, org.springframework.data.domain.PageRequest.of(0, 5)).stream()
-				.map(p -> UnifiedSearchResponse.SearchResultItem.builder().id("post:" + p.getId()).title(p.getTitle())
-						.subtitle(formatSubtitle(p)).description(p.getSummary()).url("/post/" + p.getSlug())
-						.icon("book-text").iconColor("#3b82f6").type("POST").build())
+				.map(this::mapToDocument)
+				.map(doc -> highlightDocument(doc, keyword))
+				.map(p -> UnifiedSearchResponse.SearchResultItem.builder()
+						.id("post:" + p.getId())
+						.title(p.getTitle())
+						.subtitle(p.getPublishedAt() != null ? p.getPublishedAt().toLocalDate().toString() : "")
+						.description(p.getSummary())
+						.url("/post/" + p.getSlug())
+						.icon("book-text")
+						.iconColor("#3b82f6")
+						.type("POST")
+						.build())
 				.collect(Collectors.toList());
 
 		if (!items.isEmpty())
@@ -123,5 +134,64 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService
 			groups.add(UnifiedSearchResponse.SearchGroup.builder().type("POST").label("Articles").priority(10)
 					.items(items).build());
 		}
+	}
+
+	/**
+	 * Local Java-based Regex highlighter that emulates Elasticsearch highlighting.
+	 * Preserves the original casing of the matched characters and extracts content fallback windows.
+	 */
+	private PostDocument highlightDocument(PostDocument doc, String keyword)
+	{
+		if (StrUtil.isBlank(keyword))
+		{
+			return doc;
+		}
+
+		String escapedKeyword = java.util.regex.Pattern.quote(keyword);
+		java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(?i)(" + escapedKeyword + ")");
+
+		// 1. Highlight Title
+		if (StrUtil.isNotBlank(doc.getTitle()))
+		{
+			java.util.regex.Matcher m = pattern.matcher(doc.getTitle());
+			if (m.find())
+			{
+				doc.setTitle(m.replaceAll("<mark class=\"search-highlight\">$1</mark>"));
+			}
+		}
+
+		// 2. Highlight Summary & fallback to Content snippet
+		boolean summaryHasKeyword = false;
+		if (StrUtil.isNotBlank(doc.getSummary()))
+		{
+			java.util.regex.Matcher m = pattern.matcher(doc.getSummary());
+			if (m.find())
+			{
+				doc.setSummary(m.replaceAll("<mark class=\"search-highlight\">$1</mark>"));
+				summaryHasKeyword = true;
+			}
+		}
+
+		if (!summaryHasKeyword && StrUtil.isNotBlank(doc.getContent()))
+		{
+			java.util.regex.Matcher m = pattern.matcher(doc.getContent());
+			if (m.find())
+			{
+				int matchIndex = m.start();
+				int start = Math.max(0, matchIndex - 45);
+				int end = Math.min(doc.getContent().length(), matchIndex + keyword.length() + 45);
+				
+				String snippet = doc.getContent().substring(start, end);
+				String prefix = start > 0 ? "... " : "";
+				String suffix = end < doc.getContent().length() ? " ..." : "";
+				
+				java.util.regex.Matcher snippetMatcher = pattern.matcher(snippet);
+				String highlightedSnippet = snippetMatcher.replaceAll("<mark class=\"search-highlight\">$1</mark>");
+				
+				doc.setSummary(prefix + highlightedSnippet + suffix);
+			}
+		}
+
+		return doc;
 	}
 }

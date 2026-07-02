@@ -23,16 +23,16 @@ public class PostDocument
 	@Id
 	private String id; // Post ID as string
 
-	@Field(type = FieldType.Text, analyzer = "standard")
+	@Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_smart")
 	private String title;
 
 	@Field(type = FieldType.Keyword)
 	private String slug;
 
-	@Field(type = FieldType.Text, analyzer = "standard")
+	@Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_smart")
 	private String summary;
 
-	@Field(type = FieldType.Text, analyzer = "standard")
+	@Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_smart")
 	private String content;
 
 	@Field(type = FieldType.Keyword)
