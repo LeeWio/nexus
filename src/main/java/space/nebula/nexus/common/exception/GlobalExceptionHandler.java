@@ -63,14 +63,27 @@ public class GlobalExceptionHandler {
 			status = HttpStatus.BAD_REQUEST;
 
 		String message = e.getMessage();
-		try {
-			// Try to get localized message based on code
-			String localizedMessage = messageUtil.get(code);
-			if (StrUtil.isNotBlank(localizedMessage)) {
-				message = localizedMessage;
+
+		// Determine if the message in the exception is the generic default enum message.
+		// If it is custom (e.g. hand-written details), we keep it and do not overwrite it.
+		boolean isDefaultMessage = false;
+		for (BusinessCode bc : BusinessCode.values()) {
+			if (bc.getCode() == code && StrUtil.equals(bc.getMessage(), message)) {
+				isDefaultMessage = true;
+				break;
 			}
-		} catch (Exception ex) {
-			// Fallback to original message
+		}
+
+		if (isDefaultMessage || StrUtil.isBlank(message)) {
+			try {
+				// Try to get localized message based on code
+				String localizedMessage = messageUtil.get(code);
+				if (StrUtil.isNotBlank(localizedMessage)) {
+					message = localizedMessage;
+				}
+			} catch (Exception ex) {
+				// Fallback to original message
+			}
 		}
 
 		var traceId = org.slf4j.MDC.get("traceId");

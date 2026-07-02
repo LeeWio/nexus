@@ -16,6 +16,13 @@ services:
       - RABBITMQ_HOST=nexus-rabbitmq
       - ES_URIS=http://nexus-elasticsearch:9200
       - MANAGEMENT_HEALTH_MAIL_ENABLED=false
+      - MAIL_HOST=nexus-mail
+      - MAIL_PORT=1025
+      - MAIL_USERNAME=test@nexus.com
+      - MAIL_PASSWORD=testpassword
+      - MAIL_AUTH=false
+      - MAIL_SSL=false
+      - MAIL_STARTTLS=false
     depends_on:
       nexus-db:
         condition: service_healthy
@@ -25,6 +32,18 @@ services:
         condition: service_started
       nexus-elasticsearch:
         condition: service_healthy
+      nexus-mail:
+        condition: service_started
+    networks:
+      - nexus-network
+    restart: always
+
+  nexus-mail:
+    image: axllent/mailpit:latest
+    container_name: nexus-mail
+    ports:
+      - "1025:1025"
+      - "8025:8025"
     networks:
       - nexus-network
     restart: always
@@ -62,7 +81,7 @@ services:
     restart: always
 
   nexus-rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:3.13-management
     container_name: nexus-rabbitmq
     ports:
       - "5672:5672"

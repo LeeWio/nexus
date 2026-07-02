@@ -132,8 +132,8 @@ public class FileServiceImpl implements IFileService
 								return ApiResponse.success("WebP version reused via deduplication", fileMapper.toResponse(metadata));
 							}
 						}
-					} catch (Exception e) {
-						log.warn("WebP conversion failed, falling back to original format: {}", e.getMessage());
+					} catch (Throwable t) {
+						log.warn("WebP conversion failed, falling back to original format: {}", t.getMessage());
 					}
 				}
 
@@ -152,9 +152,9 @@ public class FileServiceImpl implements IFileService
 					thumbnailUrl = storageProvider.getUrl(thumbnailName);
 					log.info("Generated WebP thumbnail: {}", thumbnailName);
 				}
-				catch (Exception e)
+				catch (Throwable t)
 				{
-					log.warn("Non-critical failure in thumbnail generation: {}", e.getMessage());
+					log.warn("Non-critical failure in thumbnail generation: {}", t.getMessage());
 				}
 				
 				// Final storage with potentially converted bytes

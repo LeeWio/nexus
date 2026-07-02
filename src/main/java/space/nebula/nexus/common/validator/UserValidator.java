@@ -21,8 +21,8 @@ public class UserValidator {
 
 	private final UserRepository userRepository;
 
-	// Regex for professional password: at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
-	private static final String PASSWORD_PATTERN = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
+	// Regex for professional password: at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char (supporting periods, underscores, hyphens, and hashes)
+	private static final String PASSWORD_PATTERN = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&._\\-#])[A-Za-z\\d@$!%*?&._\\-#]{8,}$";
 
 	/**
 	 * Validates if the registration request meets all business constraints.
@@ -30,24 +30,24 @@ public class UserValidator {
 	public void validateRegistration(RegisterRequest request) {
 		// 1. Basic format checks using Hutool
 		Assert.isFalse(StrUtil.isBlank(request.username()) || request.username().length() < 4,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Username must be at least 4 characters"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "用户名长度不能少于 4 个字符"));
 
 		Assert.isTrue(Validator.isEmail(request.email()),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Invalid email format"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "邮箱格式不正确，请输入有效的邮箱地址"));
 
 		// 2. Password strength validation
 		Assert.isTrue(ReUtil.isMatch(PASSWORD_PATTERN, request.password()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Password must be at least 8 characters long and include uppercase, lowercase, numbers, and special characters"));
+						"密码必须至少为 8 位字符，且必须包含大小写字母、数字和特殊字符"));
 
 		// 3. Uniqueness checks
 		Assert.isFalse(userRepository.existsByUsername(request.username()),
 				() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-						"Username '" + request.username() + "' is already taken"));
+						"用户名 '" + request.username() + "' 已被占用，请更换用户名"));
 
 		Assert.isFalse(userRepository.existsByEmail(request.email()),
 				() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-						"Email '" + request.email() + "' is already in use"));
+						"邮箱 '" + request.email() + "' 已被注册，您可以直接登录或更换邮箱"));
 	}
 
 	/**
@@ -60,6 +60,6 @@ public class UserValidator {
 	 */
 	public void checkUsernameExists(String username) {
 		Assert.isTrue(userRepository.existsByUsername(username),
-				() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "User not found: " + username));
+				() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "未找到该用户：" + username));
 	}
 }

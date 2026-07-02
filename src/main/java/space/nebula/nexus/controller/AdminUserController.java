@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.payload.request.AssignRoleRequest;
 import space.nebula.nexus.payload.response.UserResponse;
 import space.nebula.nexus.service.IAdminUserService;
@@ -42,6 +43,26 @@ public class AdminUserController
 		return adminUserService.getUserById(id);
 	}
 
+	@PatchMapping("/{id}/status")
+	@Operation(summary = "Update user status", description = "Approve, suspend, or activate a user account.")
+	public ApiResponse<Void> updateUserStatus(
+			@Parameter(description = "User ID") @PathVariable Long id,
+			@Parameter(description = "Target status (e.g., ACTIVE, INACTIVE)") @RequestParam UserStatus status)
+	{
+		if (status == UserStatus.ACTIVE)
+		{
+			return adminUserService.enableUser(id);
+		}
+		else if (status == UserStatus.INACTIVE)
+		{
+			return adminUserService.disableUser(id);
+		}
+		else
+		{
+			throw new IllegalArgumentException("Unsupported user status update: " + status);
+		}
+	}
+
 	@PutMapping("/{id}/disable")
 	@Operation(summary = "Disable user", description = "Suspend a user account to prevent login and access.")
 	public ApiResponse<Void> disableUser(@Parameter(description = "User ID") @PathVariable Long id)
@@ -71,8 +92,8 @@ public class AdminUserController
 		return adminUserService.auditUser(id, approved);
 	}
 
-	@PostMapping("/{id}/roles")
-	@Operation(summary = "Assign roles to user", description = "Associate a set of security roles with a specific user.")
+	@RequestMapping(value = "/{id}/roles", method = {RequestMethod.POST, RequestMethod.PUT})
+	@Operation(summary = "Assign roles to user", description = "Associate a set of security roles with a specific user (supports both POST and PUT).")
 	public ApiResponse<Void> assignRoles(@Parameter(description = "User ID") @PathVariable Long id,
 			@Valid @RequestBody AssignRoleRequest request)
 	{
