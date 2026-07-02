@@ -36,9 +36,8 @@ public class MailMessageListener
 		catch (Exception e)
 		{
 			log.error("Failed to send async email to: {}. Reason: {}", message.getTo(), e.getMessage(), e);
-			// Depending on business requirements, you could implement a dead-letter queue
-			// (DLQ) here
-			// or simply throw an AmqpRejectAndDontRequeueException.
+			// Rethrow exception to trigger RabbitMQ listener retry mechanism and eventual DLQ routing
+			throw new RuntimeException("Async email delivery failed", e);
 		}
 	}
 }

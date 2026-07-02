@@ -5,6 +5,7 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
@@ -32,10 +33,32 @@ public class RabbitMQConfig
 
 	public static final String CACHE_BROADCAST_EXCHANGE = "nexus.cache.broadcast.exchange";
 
+	public static final String DLX_EXCHANGE = "nexus.dlx";
+	public static final String DLQ_ROUTING_KEY = "nexus.dlq.routing.key";
+	public static final String DLQ_QUEUE = "nexus.dlq";
+
 	@Bean
 	MessageConverter jsonMessageConverter()
 	{
 		return new JacksonJsonMessageConverter();
+	}
+
+	@Bean
+	DirectExchange deadLetterExchange()
+	{
+		return new DirectExchange(DLX_EXCHANGE);
+	}
+
+	@Bean
+	Queue deadLetterQueue()
+	{
+		return new Queue(DLQ_QUEUE, true);
+	}
+
+	@Bean
+	Binding deadLetterBinding(Queue deadLetterQueue, DirectExchange deadLetterExchange)
+	{
+		return BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(DLQ_ROUTING_KEY);
 	}
 
 	@Bean
@@ -87,7 +110,10 @@ public class RabbitMQConfig
 	@Bean
 	Queue mailQueue()
 	{
-		return new Queue(MAIL_QUEUE, true);
+		return QueueBuilder.durable(MAIL_QUEUE)
+				.deadLetterExchange(DLX_EXCHANGE)
+				.deadLetterRoutingKey(DLQ_ROUTING_KEY)
+				.build();
 	}
 
 	@Bean
@@ -105,7 +131,10 @@ public class RabbitMQConfig
 	@Bean
 	Queue webhookQueue()
 	{
-		return new Queue(WEBHOOK_QUEUE, true);
+		return QueueBuilder.durable(WEBHOOK_QUEUE)
+				.deadLetterExchange(DLX_EXCHANGE)
+				.deadLetterRoutingKey(DLQ_ROUTING_KEY)
+				.build();
 	}
 
 	@Bean
