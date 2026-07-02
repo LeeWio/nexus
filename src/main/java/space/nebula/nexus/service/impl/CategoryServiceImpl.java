@@ -18,6 +18,7 @@ import space.nebula.nexus.mapper.CategoryMapper;
 import space.nebula.nexus.payload.request.CategoryRequest;
 import space.nebula.nexus.payload.response.CategoryResponse;
 import space.nebula.nexus.repository.CategoryRepository;
+import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.service.ICategoryService;
 import space.nebula.nexus.utils.RedisUtil;
 
@@ -30,6 +31,7 @@ public class CategoryServiceImpl implements ICategoryService
 {
 
 	private final CategoryRepository categoryRepository;
+	private final PostRepository postRepository;
 	private final CategoryMapper categoryMapper;
 	private final RedisUtil redisUtil;
 
@@ -123,6 +125,11 @@ public class CategoryServiceImpl implements ICategoryService
 	public ApiResponse<Void> deleteCategory(Long id)
 	{
 		Assert.isTrue(categoryRepository.existsById(id), () -> new ResourceNotFoundException("Category", "id", id));
+
+		// Check if any active posts are still associated with this category
+		Assert.isFalse(postRepository.existsByCategoryId(id),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Cannot delete category as it is still referenced by active posts"));
 
 		categoryRepository.deleteById(id);
 		log.info("Category deleted id: {}", id);

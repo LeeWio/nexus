@@ -62,4 +62,8 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 
 	@Query("SELECT p FROM Post p WHERE p.series.id = :seriesId AND p.status = 'PUBLISHED' AND p.seriesOrder > :currentOrder ORDER BY p.seriesOrder ASC, p.id ASC LIMIT 1")
 	java.util.Optional<Post> findNextInSeries(Long seriesId, Integer currentOrder);
+
+	boolean existsByCategoryId(Long categoryId);
+
+	boolean existsByTagsId(Long tagId);
 }

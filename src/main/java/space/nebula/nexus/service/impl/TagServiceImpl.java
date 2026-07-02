@@ -18,6 +18,7 @@ import space.nebula.nexus.entity.Tag;
 import space.nebula.nexus.mapper.TagMapper;
 import space.nebula.nexus.payload.request.TagRequest;
 import space.nebula.nexus.payload.response.TagResponse;
+import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.TagRepository;
 import space.nebula.nexus.service.ITagService;
 import space.nebula.nexus.utils.RedisUtil;
@@ -31,6 +32,7 @@ public class TagServiceImpl implements ITagService
 {
 
 	private final TagRepository tagRepository;
+	private final PostRepository postRepository;
 	private final TagMapper tagMapper;
 	private final RedisUtil redisUtil;
 
@@ -122,6 +124,12 @@ public class TagServiceImpl implements ITagService
 	public ApiResponse<Void> deleteTag(Long id)
 	{
 		Assert.isTrue(tagRepository.existsById(id), () -> new ResourceNotFoundException("Tag", "id", id));
+
+		// Check if any active posts are still associated with this tag
+		Assert.isFalse(postRepository.existsByTagsId(id),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Cannot delete tag as it is still referenced by active posts"));
+
 		tagRepository.deleteById(id);
 		log.info("Tag deleted id: {}", id);
 		return ApiResponse.success("Tag deleted successfully", null);
