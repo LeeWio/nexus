@@ -74,10 +74,10 @@ public class GlobalExceptionHandler {
 			}
 		}
 
-		if (isDefaultMessage || StrUtil.isBlank(message)) {
+		if (isDefaultMessage || StrUtil.isBlank(message) || e.getArgs() != null) {
 			try {
-				// Try to get localized message based on code
-				String localizedMessage = messageUtil.get(code);
+				// Try to get localized message based on code and dynamic parameters
+				String localizedMessage = messageUtil.get(String.valueOf(code), e.getArgs());
 				if (StrUtil.isNotBlank(localizedMessage)) {
 					message = localizedMessage;
 				}

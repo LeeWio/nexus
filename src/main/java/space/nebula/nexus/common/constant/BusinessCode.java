@@ -20,8 +20,12 @@ public enum BusinessCode {
 			"Post not found"), CATEGORY_NOT_FOUND(40403, "Category not found"),
 
 	// Request & Validation (400xx)
-	BAD_REQUEST(400, "Invalid request parameters"), VALIDATION_FAILED(40001, "Field validation failed"), DUPLICATE_KEY(
-			40002, "Resource already exists"), FILE_TOO_LARGE(413, "File size exceeds limit"),
+	BAD_REQUEST(400, "Invalid request parameters"),
+	VALIDATION_FAILED(40001, "Field validation failed"),
+	DUPLICATE_KEY(40002, "Resource already exists"),
+	FILE_TOO_LARGE(413, "File size exceeds limit"),
+	FILE_SIZE_LIMIT(41301, "File size exceeds the maximum allowed limit"),
+	FILE_TYPE_NOT_SUPPORTED(40003, "File type is not supported"),
 
 	// Infrastructure / Integration
 	MAIL_SEND_FAILED(503, "Unable to send email at the moment"),

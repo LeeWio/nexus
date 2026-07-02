@@ -10,6 +10,7 @@ import space.nebula.nexus.common.constant.BusinessCode;
 public class BusinessException extends RuntimeException {
 
 	private final int code;
+	private final Object[] args;
 
 	public BusinessException(String message) {
 		this(400, message);
@@ -18,15 +19,24 @@ public class BusinessException extends RuntimeException {
 	public BusinessException(int code, String message) {
 		super(message);
 		this.code = code;
+		this.args = null;
 	}
 
 	public BusinessException(BusinessCode businessCode) {
 		super(businessCode.getMessage());
 		this.code = businessCode.getCode();
+		this.args = null;
 	}
 
 	public BusinessException(BusinessCode businessCode, String customMessage) {
 		super(customMessage);
 		this.code = businessCode.getCode();
+		this.args = null;
+	}
+
+	public BusinessException(BusinessCode businessCode, Object... args) {
+		super(businessCode.getMessage());
+		this.code = businessCode.getCode();
+		this.args = args;
 	}
 }

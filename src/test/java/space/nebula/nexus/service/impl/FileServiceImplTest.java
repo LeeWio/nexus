@@ -107,4 +107,25 @@ class FileServiceImplTest {
         verify(storageProvider).delete(fileName);
         verify(fileRepository).delete(metadata);
     }
+
+    @Test
+    void uploadFile_SizeExceeded_ThrowsException() {
+        MockMultipartFile file = new MockMultipartFile("file", "test.jpg", "image/jpeg", new byte[10485761]);
+
+        var ex = assertThrows(space.nebula.nexus.common.exception.BusinessException.class, () -> fileService.uploadFile(file));
+        assertEquals(41301, ex.getCode());
+        assertArrayEquals(new Object[]{"10 MB", "10 MB"}, ex.getArgs());
+    }
+
+    @Test
+    void uploadFile_MimeNotAllowed_ThrowsException() throws IOException {
+        MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", "content".getBytes());
+        
+        when(fileRepository.findByFileHash(anyString())).thenReturn(Optional.empty());
+        when(fileUtil.detectMimeType(any(InputStream.class))).thenReturn("text/plain");
+
+        var ex = assertThrows(space.nebula.nexus.common.exception.BusinessException.class, () -> fileService.uploadFile(file));
+        assertEquals(40003, ex.getCode());
+        assertArrayEquals(new Object[]{"text/plain", "image/jpeg, image/png"}, ex.getArgs());
+    }
 }

@@ -62,8 +62,9 @@ public class FileServiceImpl implements IFileService
 
 		if (file.getSize() > storageProperties.getMaxFileSize())
 		{
-			throw new BusinessException(BusinessCode.BAD_REQUEST,
-					StrUtil.format("File size exceeds limit ({}MB)", storageProperties.getMaxFileSize() / 1024 / 1024));
+			throw new BusinessException(BusinessCode.FILE_SIZE_LIMIT,
+					formatFileSize(file.getSize()),
+					formatFileSize(storageProperties.getMaxFileSize()));
 		}
 
 		try
@@ -99,7 +100,9 @@ public class FileServiceImpl implements IFileService
 			if (!storageProperties.getAllowedMimeTypes().contains(detectedMimeType))
 			{
 				log.warn("Security rejection: Unsupported MIME type {}", detectedMimeType);
-				throw new BusinessException(BusinessCode.BAD_REQUEST, "File content type not supported");
+				throw new BusinessException(BusinessCode.FILE_TYPE_NOT_SUPPORTED,
+						detectedMimeType,
+						String.join(", ", storageProperties.getAllowedMimeTypes()));
 			}
 
 			var uniqueName = IdUtil.fastSimpleUUID() + extension;
@@ -271,5 +274,13 @@ public class FileServiceImpl implements IFileService
 	private String extractFileNameFromUrl(String url)
 	{
 		return url.substring(url.lastIndexOf('/') + 1);
+	}
+
+	private String formatFileSize(long size)
+	{
+		if (size <= 0) return "0 B";
+		final String[] units = new String[] { "B", "KB", "MB", "GB", "TB" };
+		int digitGroups = (int) (Math.log10(size) / Math.log10(1024));
+		return new java.text.DecimalFormat("#,##0.#").format(size / Math.pow(1024, digitGroups)) + " " + units[digitGroups];
 	}
 }
