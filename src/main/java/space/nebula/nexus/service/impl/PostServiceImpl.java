@@ -72,6 +72,7 @@ public class PostServiceImpl implements IPostService
 	private final space.nebula.nexus.common.validator.PostValidator postValidator;
 
 	private final space.nebula.nexus.repository.ConfigRepository configRepository;
+	private final space.nebula.nexus.service.IPostRevisionService postRevisionService;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -135,6 +136,9 @@ public class PostServiceImpl implements IPostService
 			postRepository.save(newPost);
 		}
 
+		// Save a new revision snapshot for history
+		postRevisionService.saveRevision(newPost);
+
 		log.info("Blog post created: {} by {}", newPost.getTitle(), currentAuthor.getUsername());
 
 		// Cleanup potential autosave data
@@ -168,6 +172,10 @@ public class PostServiceImpl implements IPostService
 		syncParentPost(existingPost, request);
 
 		postRepository.save(existingPost);
+
+		// Save a new revision snapshot for history (Version N+1)
+		postRevisionService.saveRevision(existingPost);
+
 		log.info("Blog post updated: {}", existingPost.getTitle());
 
 		// Cleanup autosave data

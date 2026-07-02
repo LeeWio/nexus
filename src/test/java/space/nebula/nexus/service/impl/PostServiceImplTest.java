@@ -60,6 +60,8 @@ class PostServiceImplTest {
 	private space.nebula.nexus.service.ISlugService slugService;
 	@Mock
 	private space.nebula.nexus.common.validator.PostValidator postValidator;
+	@Mock
+	private space.nebula.nexus.service.IPostRevisionService postRevisionService;
 
 	@InjectMocks
 	private PostServiceImpl postService;
