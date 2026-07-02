@@ -97,6 +97,12 @@ public class FileServiceImpl implements IFileService
 			}
 			log.debug("Deep MIME verification: detected {} for file {}", detectedMimeType, originalFilename);
 
+			// SVG XML-XSS script injection defense
+			if ("image/svg+xml".equals(detectedMimeType) || ".svg".equalsIgnoreCase(extension))
+			{
+				checkSvgScriptSecurity(file.getBytes());
+			}
+
 			if (!storageProperties.getAllowedMimeTypes().contains(detectedMimeType))
 			{
 				log.warn("Security rejection: Unsupported MIME type {}", detectedMimeType);
@@ -114,7 +120,17 @@ public class FileServiceImpl implements IFileService
 			if (fileUtil.isImage(detectedMimeType))
 			{
 				byte[] fileBytes = file.getBytes();
-				
+
+				// Strip private EXIF metadata from JPEG and PNG images
+				if ("image/jpeg".equals(detectedMimeType))
+				{
+					fileBytes = stripImageMetadata(fileBytes, "jpeg");
+				}
+				else if ("image/png".equals(detectedMimeType))
+				{
+					fileBytes = stripImageMetadata(fileBytes, "png");
+				}
+
 				// Automatically convert to WebP for better performance
 				if (!"image/webp".equals(detectedMimeType)) {
 					try {
@@ -282,5 +298,59 @@ public class FileServiceImpl implements IFileService
 		final String[] units = new String[] { "B", "KB", "MB", "GB", "TB" };
 		int digitGroups = (int) (Math.log10(size) / Math.log10(1024));
 		return new java.text.DecimalFormat("#,##0.#").format(size / Math.pow(1024, digitGroups)) + " " + units[digitGroups];
+	}
+
+	private void checkSvgScriptSecurity(byte[] fileBytes)
+	{
+		try
+		{
+			String content = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
+			String lowerContent = content.toLowerCase();
+
+			// Scan for malicious tags, javascript schemes, or XML External Entity (XXE) vectors
+			if (lowerContent.contains("<script") 
+					|| lowerContent.contains("javascript:") 
+					|| lowerContent.contains("onload=")
+					|| lowerContent.contains("onerror=")
+					|| lowerContent.contains("<!entity") 
+					|| lowerContent.contains("<!doctype"))
+			{
+				log.warn("Security violation: Malicious scripts or XML entities detected in uploaded SVG file.");
+				throw new BusinessException(BusinessCode.BAD_REQUEST, 
+						"SVG file is rejected due to security risk (potential XSS/XXE scripts detected).");
+			}
+		}
+		catch (BusinessException ex)
+		{
+			throw ex;
+		}
+		catch (Exception e)
+		{
+			log.warn("Failed to parse SVG file for security scan: {}", e.getMessage());
+		}
+	}
+
+	private byte[] stripImageMetadata(byte[] fileBytes, String format)
+	{
+		try (java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(fileBytes);
+			 java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream())
+		{
+			java.awt.image.BufferedImage image = javax.imageio.ImageIO.read(bais);
+			if (image != null)
+			{
+				// Reading and writing via ImageIO naturally drops all EXIF/app segments!
+				boolean success = javax.imageio.ImageIO.write(image, format, baos);
+				if (success)
+				{
+					log.info("Successfully stripped EXIF/metadata from uploaded {} image.", format);
+					return baos.toByteArray();
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			log.warn("Failed to strip image metadata, falling back to original: {}", e.getMessage());
+		}
+		return fileBytes;
 	}
 }

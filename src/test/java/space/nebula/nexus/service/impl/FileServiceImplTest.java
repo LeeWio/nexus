@@ -128,4 +128,14 @@ class FileServiceImplTest {
         assertEquals(40003, ex.getCode());
         assertArrayEquals(new Object[]{"text/plain", "image/jpeg, image/png"}, ex.getArgs());
     }
+
+    @Test
+    void uploadFile_SvgMalicious_ThrowsException() {
+        String svgContent = "<?xml version=\"1.0\" standalone=\"no\"?><svg><script>alert('XSS')</script></svg>";
+        MockMultipartFile file = new MockMultipartFile("file", "test.svg", "image/svg+xml", svgContent.getBytes());
+
+        var ex = assertThrows(space.nebula.nexus.common.exception.BusinessException.class, () -> fileService.uploadFile(file));
+        assertEquals(400, ex.getCode());
+        assertEquals("SVG file is rejected due to security risk (potential XSS/XXE scripts detected).", ex.getMessage());
+    }
 }
