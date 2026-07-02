@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Weekly Digest</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+        .header {
+            background-color: #0f172a;
+            color: #ffffff;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 26px;
+            letter-spacing: 3px;
+            font-weight: 800;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            color: #94a3b8;
+            font-size: 14px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .intro {
+            padding: 35px 30px 20px 30px;
+            color: #334155;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .intro h2 {
+            margin-top: 0;
+            color: #0f172a;
+            font-size: 22px;
+            font-weight: 700;
+        }
+        .post-list {
+            padding: 0 30px;
+        }
+        .post-card {
+            padding: 25px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .post-card:last-child {
+            border-bottom: none;
+        }
+        .post-title {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .post-title a {
+            color: #0f172a;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .post-title a:hover {
+            color: #3b82f6;
+        }
+        .post-summary {
+            margin: 0 0 15px 0;
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .post-meta {
+            font-size: 12px;
+            color: #94a3b8;
+            display: flex;
+            gap: 15px;
+        }
+        .post-meta span {
+            display: inline-block;
+        }
+        .post-meta .icon-text {
+            color: #64748b;
+            font-weight: 500;
+        }
+        .read-more-btn {
+            display: inline-block;
+            margin-top: 10px;
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .read-more-btn:hover {
+            text-decoration: underline;
+        }
+        .footer {
+            background-color: #f8fafc;
+            padding: 35px 30px;
+            text-align: center;
+            font-size: 13px;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+        .footer p {
+            margin: 0 0 10px 0;
+        }
+        .footer a {
+            color: #ef4444;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>NEXUS WEEKLY</h1>
+            <p>Your Weekly Curated Tech &amp; Design Insights</p>
+        </div>
+        <div class="intro">
+            <h2>🔥 Trending This Week</h2>
+            <p>Hello! Here are the most popular, high-value articles trending on Nexus this week. We selected these based on readers' activities to help you stay ahead in tech and design.</p>
+        </div>
+        
+        <div class="post-list">
+            <!-- Iterate over trending posts -->
+            <div class="post-card" th:each="post : ${posts}">
+                <h3 class="post-title">
+                    <a th:href="${baseUrl} + '/post/' + ${post.slug}" th:text="${post.title}" target="_blank">Post Title Placeholder</a>
+                </h3>
+                <p class="post-summary" th:text="${post.summary}">This is a short summary of the post, explaining the major value proposition and what readers can expect to learn from this article.</p>
+                <div class="post-meta">
+                    <span>👀 <span class="icon-text" th:text="${post.views} + ' views'">1.2k views</span></span>
+                    <span>❤️ <span class="icon-text" th:text="${post.likesCount} + ' likes'">328 likes</span></span>
+                    <span>✍️ <span class="icon-text" th:text="${post.authorName}">Admin</span></span>
+                </div>
+                <a th:href="${baseUrl} + '/post/' + ${post.slug}" class="read-more-btn" target="_blank">Read Article &rarr;</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>You are receiving this email because you subscribed to Nexus Weekly.</p>
+            <p>&copy; 2026 Nexus. All rights reserved.</p>
+            <p>Too much mail? <a th:href="${unsubscribeUrl}" target="_blank">Unsubscribe here</a></p>
+        </div>
+    </div>
+</body>
+</html>

@@ -101,10 +101,13 @@ public class NewsletterServiceImpl implements INewsletterService {
         List<Subscriber> activeSubscribers = subscriberRepository.findAllByStatus("ACTIVE");
         log.info("Broadcasting newsletter to {} active subscribers", activeSubscribers.size());
 
+        String currentBaseUrl = baseUrl != null ? baseUrl : "http://localhost:8080";
+
         for (Subscriber sub : activeSubscribers) {
             Map<String, Object> variables = Map.of(
                 "posts", trendingResponse.data(),
-                "unsubscribeUrl", baseUrl + "/api/v1/public/newsletter/unsubscribe?token=" + sub.getUnsubscribeToken()
+                "baseUrl", currentBaseUrl,
+                "unsubscribeUrl", currentBaseUrl + "/api/v1/public/newsletter/unsubscribe?token=" + sub.getUnsubscribeToken()
             );
 
             TemplateMailMessage mail = TemplateMailMessage.builder()
@@ -120,18 +123,20 @@ public class NewsletterServiceImpl implements INewsletterService {
     }
 
     private void sendVerificationEmail(Subscriber subscriber) {
-        String verifyUrl = baseUrl + "/api/v1/public/newsletter/verify?token=" + subscriber.getVerificationToken();
+        String currentBaseUrl = baseUrl != null ? baseUrl : "http://localhost:8080";
+        String verifyUrl = currentBaseUrl + "/api/v1/public/newsletter/verify?token=" + subscriber.getVerificationToken();
         
         Map<String, Object> variables = Map.of(
             "verifyUrl", verifyUrl,
-            "email", subscriber.getEmail()
+            "email", subscriber.getEmail(),
+            "baseUrl", currentBaseUrl
         );
 
         TemplateMailMessage mail = TemplateMailMessage.builder()
             .to(subscriber.getEmail())
             .subject("Verify your Nexus subscription")
-            .templateName("otp-login") // Using otp-login as a base placeholder, should create a custom one later
-            .variables(Map.of("otp", "Verify", "message", "Please verify your subscription by clicking: " + verifyUrl))
+            .templateName("newsletter-verify")
+            .variables(variables)
             .type(TemplateMailMessage.MailType.TEMPLATE)
             .build();
 
