@@ -115,4 +115,18 @@ public class AdminRoleServiceImpl implements IAdminRoleService
 		log.info("Assigned menus {} to role id: {}", request.menuIds(), roleId);
 		return ApiResponse.success("Menus assigned successfully", null);
 	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<List<Long>> getRoleMenuIds(Long roleId)
+	{
+		var role = roleRepository.findById(roleId)
+				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
+
+		List<Long> menuIds = role.getMenus().stream()
+				.map(space.nebula.nexus.entity.Menu::getId)
+				.toList();
+
+		return ApiResponse.success(menuIds);
+	}
 }

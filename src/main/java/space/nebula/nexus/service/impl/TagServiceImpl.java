@@ -47,7 +47,48 @@ public class TagServiceImpl implements ITagService
 	@CacheEvict(value = { CacheConstants.TAGS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<TagResponse> createTag(TagRequest request)
 	{
-		validateUniqueConstraints(null, request);
+		// Check name and slug including deleted rows for self-healing / seamless restore
+		if (StrUtil.isNotBlank(request.name()))
+		{
+			var existingByName = tagRepository.findByNameIncludeDeleted(request.name());
+			if (existingByName.isPresent())
+			{
+				Tag tag = existingByName.get();
+				if (Boolean.TRUE.equals(tag.getIsDeleted()))
+				{
+					tag.setIsDeleted(false);
+					tagMapper.updateEntity(tag, request);
+					tagRepository.save(tag);
+					log.info("Restored soft-deleted tag by name: {}", tag.getName());
+					return ApiResponse.success("Tag created successfully", tagMapper.toResponse(tag));
+				}
+				else
+				{
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag name already exists: " + request.name());
+				}
+			}
+		}
+
+		if (StrUtil.isNotBlank(request.slug()))
+		{
+			var existingBySlug = tagRepository.findBySlugIncludeDeleted(request.slug());
+			if (existingBySlug.isPresent())
+			{
+				Tag tag = existingBySlug.get();
+				if (Boolean.TRUE.equals(tag.getIsDeleted()))
+				{
+					tag.setIsDeleted(false);
+					tagMapper.updateEntity(tag, request);
+					tagRepository.save(tag);
+					log.info("Restored soft-deleted tag by slug: {}", tag.getName());
+					return ApiResponse.success("Tag created successfully", tagMapper.toResponse(tag));
+				}
+				else
+				{
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag slug already exists: " + request.slug());
+				}
+			}
+		}
 
 		Tag tag = new Tag();
 		tagMapper.updateEntity(tag, request);
@@ -91,14 +132,14 @@ public class TagServiceImpl implements ITagService
 		if (StrUtil.isNotBlank(request.name())
 				&& (existing == null || !StrUtil.equals(existing.getName(), request.name())))
 		{
-			Assert.isFalse(tagRepository.findByName(request.name()).isPresent(),
+			Assert.isFalse(tagRepository.findByNameIncludeDeleted(request.name()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 							"Tag name already exists: " + request.name()));
 		}
 		if (StrUtil.isNotBlank(request.slug())
 				&& (existing == null || !StrUtil.equals(existing.getSlug(), request.slug())))
 		{
-			Assert.isFalse(tagRepository.findBySlug(request.slug()).isPresent(),
+			Assert.isFalse(tagRepository.findBySlugIncludeDeleted(request.slug()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 							"Tag slug already exists: " + request.slug()));
 		}

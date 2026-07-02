@@ -47,7 +47,48 @@ public class CategoryServiceImpl implements ICategoryService
 	@CacheEvict(value = { CacheConstants.CATEGORIES, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<CategoryResponse> createCategory(CategoryRequest request)
 	{
-		validateUniqueConstraints(null, request);
+		// Check name and slug including deleted rows for self-healing / seamless restore
+		if (request.name() != null)
+		{
+			var existingByName = categoryRepository.findByNameIncludeDeleted(request.name());
+			if (existingByName.isPresent())
+			{
+				Category category = existingByName.get();
+				if (Boolean.TRUE.equals(category.getIsDeleted()))
+				{
+					category.setIsDeleted(false);
+					categoryMapper.updateEntity(category, request);
+					categoryRepository.save(category);
+					log.info("Restored soft-deleted category by name: {}", category.getName());
+					return ApiResponse.success("Category created successfully", categoryMapper.toResponse(category));
+				}
+				else
+				{
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category name already exists: " + request.name());
+				}
+			}
+		}
+
+		if (request.slug() != null)
+		{
+			var existingBySlug = categoryRepository.findBySlugIncludeDeleted(request.slug());
+			if (existingBySlug.isPresent())
+			{
+				Category category = existingBySlug.get();
+				if (Boolean.TRUE.equals(category.getIsDeleted()))
+				{
+					category.setIsDeleted(false);
+					categoryMapper.updateEntity(category, request);
+					categoryRepository.save(category);
+					log.info("Restored soft-deleted category by slug: {}", category.getName());
+					return ApiResponse.success("Category created successfully", categoryMapper.toResponse(category));
+				}
+				else
+				{
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category slug already exists: " + request.slug());
+				}
+			}
+		}
 
 		Category newCategory = new Category();
 		categoryMapper.updateEntity(newCategory, request);
@@ -92,13 +133,13 @@ public class CategoryServiceImpl implements ICategoryService
 	{
 		if (request.name() != null && (existing == null || !existing.getName().equals(request.name())))
 		{
-			Assert.isFalse(categoryRepository.findByName(request.name()).isPresent(),
+			Assert.isFalse(categoryRepository.findByNameIncludeDeleted(request.name()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 							"Category name already exists: " + request.name()));
 		}
 		if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug())))
 		{
-			Assert.isFalse(categoryRepository.findBySlug(request.slug()).isPresent(),
+			Assert.isFalse(categoryRepository.findBySlugIncludeDeleted(request.slug()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 							"Category slug already exists: " + request.slug()));
 		}

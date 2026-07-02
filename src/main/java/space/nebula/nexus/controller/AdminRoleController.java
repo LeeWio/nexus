@@ -65,4 +65,11 @@ public class AdminRoleController
 	{
 		return adminRoleService.assignMenus(id, request);
 	}
+
+	@GetMapping("/{id}/menus")
+	@Operation(summary = "Get role menus", description = "Retrieve a list of menu IDs assigned to a specific role.")
+	public ApiResponse<List<Long>> getRoleMenus(@Parameter(description = "Role ID") @PathVariable Long id)
+	{
+		return adminRoleService.getRoleMenuIds(id);
+	}
 }

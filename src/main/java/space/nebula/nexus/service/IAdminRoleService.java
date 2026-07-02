@@ -19,4 +19,6 @@ public interface IAdminRoleService
 	ApiResponse<Void> deleteRole(Long id);
 
 	ApiResponse<Void> assignMenus(Long roleId, AssignMenuRequest request);
+
+	ApiResponse<List<Long>> getRoleMenuIds(Long roleId);
 }
