@@ -45,9 +45,10 @@ class FileServiceImplTest {
     private FileServiceImpl fileService;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws java.io.IOException {
         lenient().when(storageProperties.getMaxFileSize()).thenReturn(10485760L);
         lenient().when(storageProperties.getAllowedMimeTypes()).thenReturn(Arrays.asList("image/jpeg", "image/png"));
+        lenient().when(fileUtil.convertToWebP(any())).thenAnswer(i -> i.getArgument(0));
     }
 
     @Test
