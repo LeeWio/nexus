@@ -10,9 +10,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.payload.response.FileResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.service.IFileService;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * Controller for administrative file operations. Handles secure file uploads
@@ -39,6 +42,7 @@ public class AdminFileController
 
 	@PostMapping("/upload")
 	@Operation(summary = "Upload a file", description = "Securely uploads a file and returns its metadata including URLs.")
+	@RateLimit(count = 20, time = 1, unit = TimeUnit.MINUTES, message = "File upload is too frequent. Please wait a moment.")
 	public ApiResponse<FileResponse> uploadFile(
 			@Parameter(description = "The file payload to upload") @RequestParam("file") MultipartFile file)
 	{
