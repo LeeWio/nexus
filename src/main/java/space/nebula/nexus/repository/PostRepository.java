@@ -66,4 +66,8 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	boolean existsByCategoryId(Long categoryId);
 
 	boolean existsByTagsId(Long tagId);
+
+	boolean existsByContentContaining(String keyword);
+
+	boolean existsBySummaryContaining(String keyword);
 }

@@ -43,4 +43,6 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	long countByStatus(CommentStatus status);
 
 	long countByCreatedAtBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
+
+	boolean existsByContentContaining(String keyword);
 }

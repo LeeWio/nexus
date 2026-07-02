@@ -20,6 +20,8 @@ public interface FileRepository extends JpaRepository<FileMetadata, Long>, JpaSp
 
 	Optional<FileMetadata> findByFileHash(String fileHash);
 
+	java.util.List<FileMetadata> findByCreatedAtBefore(java.time.LocalDateTime cutoff);
+
 	@Override
 	@EntityGraph(attributePaths = {"uploader"})
 	Page<FileMetadata> findAll(@Nullable Specification<FileMetadata> spec, Pageable pageable);

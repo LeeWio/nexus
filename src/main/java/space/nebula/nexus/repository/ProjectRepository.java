@@ -13,4 +13,6 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
 	List<Project> findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCaseAndIsPublishedTrue(String name,
 			String description);
+
+	boolean existsByCoverImageContaining(String keyword);
 }
