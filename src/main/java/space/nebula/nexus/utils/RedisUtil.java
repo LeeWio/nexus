@@ -250,6 +250,27 @@ public class RedisUtil
 	}
 
 	/**
+	 * Renames a key.
+	 *
+	 * @param oldKey the old key
+	 * @param newKey the new key
+	 * @return true if successful, false otherwise
+	 */
+	public boolean rename(String oldKey, String newKey)
+	{
+		try
+		{
+			redisTemplate.rename(oldKey, newKey);
+			return true;
+		}
+		catch (Exception e)
+		{
+			log.error("Error renaming key {} to {}: {}", oldKey, newKey, e.getMessage());
+			return false;
+		}
+	}
+
+	/**
 	 * Deletes multiple keys.
 	 *
 	 * @param keys the collection of keys to delete

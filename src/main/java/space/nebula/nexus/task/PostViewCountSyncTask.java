@@ -40,9 +40,24 @@ public class PostViewCountSyncTask
 			return;
 		}
 
-		Map<Object, Object> viewCounts = redisUtil.hashGetAllAndDelete(CacheConstants.POST_VIEW_EXTRA_HASH);
+		String syncKey = CacheConstants.POST_VIEW_EXTRA_HASH + "_sync_temp";
+
+		if (!redisUtil.hasKey(syncKey))
+		{
+			if (redisUtil.hasKey(CacheConstants.POST_VIEW_EXTRA_HASH))
+			{
+				redisUtil.rename(CacheConstants.POST_VIEW_EXTRA_HASH, syncKey);
+			}
+			else
+			{
+				return;
+			}
+		}
+
+		Map<Object, Object> viewCounts = redisUtil.hashGetAll(syncKey);
 		if (viewCounts == null || viewCounts.isEmpty())
 		{
+			redisUtil.delete(syncKey);
 			return;
 		}
 
@@ -72,11 +87,16 @@ public class PostViewCountSyncTask
 			{
 				jdbcTemplate.batchUpdate(UPDATE_SQL, batchArgs);
 				log.info("Successfully synced {} post view records in batch.", batchArgs.size());
+				redisUtil.delete(syncKey);
 			}
 			catch (Exception e)
 			{
-				log.error("Failed to execute batch update for view counts", e);
+				log.error("Failed to execute batch update for view counts. Temp key is retained to prevent data loss.", e);
 			}
+		}
+		else
+		{
+			redisUtil.delete(syncKey);
 		}
 	}
 }

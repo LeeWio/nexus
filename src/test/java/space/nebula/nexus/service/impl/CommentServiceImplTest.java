@@ -68,7 +68,6 @@ class CommentServiceImplTest {
         CommentRequest request = new CommentRequest("Hello World", 1L, null);
         
         when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
-        when(sensitiveWordService.containsSensitiveWord("Hello World")).thenReturn(false);
         when(sensitiveWordService.filter("Hello World")).thenReturn("Hello World");
         
         try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
@@ -87,7 +86,6 @@ class CommentServiceImplTest {
         CommentRequest request = new CommentRequest("Bad Word", 1L, null);
         
         when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
-        when(sensitiveWordService.containsSensitiveWord("Bad Word")).thenReturn(true);
         when(sensitiveWordService.filter("Bad Word")).thenReturn("***");
         
         try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {

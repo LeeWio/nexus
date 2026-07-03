@@ -251,7 +251,7 @@ public class PostServiceImpl implements IPostService
 	}
 
 	@Override
-	@Cacheable(value = CacheConstants.BLOG_POSTS, key = CacheConstants.POST_LIST_KEY)
+	@Cacheable(value = CacheConstants.BLOG_POSTS, key = CacheConstants.POST_LIST_KEY, sync = true)
 	public ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
 			Pageable pageable)
 	{

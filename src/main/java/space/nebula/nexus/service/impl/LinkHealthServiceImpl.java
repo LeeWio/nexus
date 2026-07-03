@@ -42,12 +42,22 @@ public class LinkHealthServiceImpl implements ILinkHealthService {
     // Basic regex to find URLs in Markdown: [text](url) or directly http://...
     private static final String URL_REGEX = "https?://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,}(?:/[\\w\\.\\-\\?%&=\\+\\!]*)?";
 
+    private record LinkCheckResult(
+            String url,
+            String sourceType,
+            Long sourceId,
+            String sourceTitle,
+            Integer status,
+            boolean isBroken,
+            String error
+    ) {}
+
     @Override
     public void runFullScan() {
         log.info("Starting full external link health check scan...");
         
         AtomicInteger brokenCount = new AtomicInteger(0);
-        java.util.List<CompletableFuture<Void>> futures = new java.util.ArrayList<>();
+        java.util.List<CompletableFuture<LinkCheckResult>> futures = new java.util.ArrayList<>();
 
         // 1. Check Friend Links
         List<FriendLink> friendLinks = friendLinkRepository.findAll();
@@ -65,13 +75,20 @@ public class LinkHealthServiceImpl implements ILinkHealthService {
             return;
         }
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenRun(() -> {
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenAccept(v -> {
+            List<LinkCheckResult> results = futures.stream()
+                    .map(CompletableFuture::join)
+                    .collect(java.util.stream.Collectors.toList());
+
+            // Save results sequentially using one database connection to avoid pool starvation
+            saveResultsInBatch(results);
+
             int found = brokenCount.get();
             log.info("Full link scan completed. Found {} broken links.", found);
             if (found > 0) {
                 notifyAdmins(found);
             }
-        });
+        }).join(); // Sync wait on the scheduling thread for accurate metrics/logging
     }
 
     @Override
@@ -99,36 +116,55 @@ public class LinkHealthServiceImpl implements ILinkHealthService {
             ));
     }
 
-    private CompletableFuture<Void> checkLinkAsync(String url, String sourceType, Long sourceId, String sourceTitle, AtomicInteger brokenCount) {
-        return CompletableFuture.runAsync(() -> {
+    private CompletableFuture<LinkCheckResult> checkLinkAsync(String url, String sourceType, Long sourceId, String sourceTitle, AtomicInteger brokenCount) {
+        return CompletableFuture.supplyAsync(() -> {
             try {
-                int status = HttpUtil.createGet(url).timeout(5000).execute().getStatus();
+                // 1. Try HEAD first (fast, minimal bandwidth)
+                int status = HttpUtil.createRequest(cn.hutool.http.Method.HEAD, url).timeout(5000).execute().getStatus();
+                if (status == 405 || status == 501) {
+                    status = HttpUtil.createGet(url).timeout(5000).execute().getStatus();
+                }
                 boolean isBroken = status >= 400;
                 if (isBroken) brokenCount.incrementAndGet();
-                updateLog(url, sourceType, sourceId, sourceTitle, status, isBroken, null);
+                return new LinkCheckResult(url, sourceType, sourceId, sourceTitle, status, isBroken, null);
             } catch (Exception e) {
-                brokenCount.incrementAndGet();
-                updateLog(url, sourceType, sourceId, sourceTitle, null, true, e.getMessage());
+                try {
+                    // 2. Fall back to GET on any exception
+                    int status = HttpUtil.createGet(url).timeout(5000).execute().getStatus();
+                    boolean isBroken = status >= 400;
+                    if (isBroken) brokenCount.incrementAndGet();
+                    return new LinkCheckResult(url, sourceType, sourceId, sourceTitle, status, isBroken, null);
+                } catch (Exception ex) {
+                    brokenCount.incrementAndGet();
+                    return new LinkCheckResult(url, sourceType, sourceId, sourceTitle, null, true, ex.getMessage());
+                }
             }
         }, asyncExecutor);
     }
 
-    private void updateLog(String url, String sourceType, Long sourceId, String sourceTitle, Integer status, boolean isBroken, String error) {
-        LinkCheckLog logEntry = linkCheckLogRepository.findByUrlAndSourceTypeAndSourceId(url, sourceType, sourceId)
-                .orElse(new LinkCheckLog());
-        
-        logEntry.setUrl(url);
-        logEntry.setSourceType(sourceType);
-        logEntry.setSourceId(sourceId);
-        logEntry.setSourceTitle(sourceTitle);
-        logEntry.setStatusCode(status);
-        logEntry.setIsBroken(isBroken);
-        logEntry.setErrorMessage(StrUtil.maxLength(error, 450));
-        
-        linkCheckLogRepository.save(logEntry);
-        
-        if (isBroken) {
-            log.warn("Broken link detected in {}: {} -> {}", sourceType, sourceTitle, url);
+    private void saveResultsInBatch(List<LinkCheckResult> results) {
+        log.info("Persisting {} link health check logs...", results.size());
+        for (LinkCheckResult result : results) {
+            try {
+                LinkCheckLog logEntry = linkCheckLogRepository.findByUrlAndSourceTypeAndSourceId(result.url(), result.sourceType(), result.sourceId())
+                        .orElse(new LinkCheckLog());
+                
+                logEntry.setUrl(result.url());
+                logEntry.setSourceType(result.sourceType());
+                logEntry.setSourceId(result.sourceId());
+                logEntry.setSourceTitle(result.sourceTitle());
+                logEntry.setStatusCode(result.status());
+                logEntry.setIsBroken(result.isBroken());
+                logEntry.setErrorMessage(StrUtil.maxLength(result.error(), 450));
+                
+                linkCheckLogRepository.save(logEntry);
+                
+                if (result.isBroken()) {
+                    log.warn("Broken link detected in {}: {} -> {}", result.sourceType(), result.sourceTitle(), result.url());
+                }
+            } catch (Exception e) {
+                log.error("Failed to save health check log for url: {}", result.url(), e);
+            }
         }
     }
 

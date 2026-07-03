@@ -33,7 +33,11 @@ public class SensitiveWordServiceImpl implements SensitiveWordService
 				try (BufferedReader reader = new BufferedReader(
 						new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8)))
 				{
-					reader.lines().filter(line -> !line.isBlank()).forEach(wordTree::addWord);
+					reader.lines()
+							.filter(line -> !line.isBlank())
+							.map(String::trim)
+							.map(this::normalizeText)
+							.forEach(wordTree::addWord);
 				}
 			}
 			log.info("Sensitive word dictionary initialized successfully.");
@@ -51,7 +55,8 @@ public class SensitiveWordServiceImpl implements SensitiveWordService
 		{
 			return false;
 		}
-		return wordTree.isMatch(text);
+		String normalized = normalizeText(text);
+		return wordTree.isMatch(normalized);
 	}
 
 	@Override
@@ -61,9 +66,49 @@ public class SensitiveWordServiceImpl implements SensitiveWordService
 		{
 			return text;
 		}
-		// Hutool's WordTree doesn't have a direct "replace" in older versions,
-		// but it can find all matches. For simplicity in this demo:
-		return wordTree.matchAll(text, -1, true, true).stream().reduce(text, (res, match) -> res.replace(match, "***"),
-				(a, b) -> a);
+
+		String normalized = normalizeText(text);
+		java.util.List<String> matchedWords = wordTree.matchAll(normalized, -1, true, true);
+		
+		if (matchedWords.isEmpty())
+		{
+			return text;
+		}
+
+		String result = text;
+		for (String match : matchedWords)
+		{
+			String fuzzyRegex = buildFuzzyRegex(match);
+			result = result.replaceAll(fuzzyRegex, "***");
+		}
+
+		return result;
+	}
+
+	private String normalizeText(String text)
+	{
+		if (text == null)
+		{
+			return "";
+		}
+		// Convert to lowercase and strip all punctuation, spacing, and symbols (currency, math, modifier)
+		return text.toLowerCase()
+				.replaceAll("[\\s\\p{Punct}\\p{Sc}\\p{Sm}\\p{So}\\p{Sk}]+", "");
+	}
+
+	private String buildFuzzyRegex(String word)
+	{
+		StringBuilder regex = new StringBuilder("(?i)");
+		String noisePattern = "[\\s\\p{Punct}\\p{Sc}\\p{Sm}\\p{So}\\p{Sk}]*";
+		
+		for (int i = 0; i < word.length(); i++)
+		{
+			if (i > 0)
+			{
+				regex.append(noisePattern);
+			}
+			regex.append(java.util.regex.Pattern.quote(String.valueOf(word.charAt(i))));
+		}
+		return regex.toString();
 	}
 }

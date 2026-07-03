@@ -47,6 +47,12 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	@Query("update Post p set p.likesCount = :likesCount, p.favoritesCount = :favoritesCount where p.id = :id")
 	void updateSocialMetrics(Long id, Long likesCount, Long favoritesCount);
 
+	@Query("SELECT p.content FROM Post p WHERE p.content IS NOT NULL")
+	java.util.List<String> findAllContents();
+
+	@Query("SELECT p.summary FROM Post p WHERE p.summary IS NOT NULL")
+	java.util.List<String> findAllSummaries();
+
 	@Query("SELECT SUM(p.views) FROM Post p")
 	Long sumTotalViews();
 

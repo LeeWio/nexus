@@ -14,5 +14,8 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 	List<Project> findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCaseAndIsPublishedTrue(String name,
 			String description);
 
+	@org.springframework.data.jpa.repository.Query("SELECT p.coverImage FROM Project p WHERE p.coverImage IS NOT NULL")
+	java.util.List<String> findAllCoverImages();
+
 	boolean existsByCoverImageContaining(String keyword);
 }

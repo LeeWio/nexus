@@ -37,7 +37,7 @@ public class TagServiceImpl implements ITagService
 	private final RedisUtil redisUtil;
 
 	@Override
-	@Cacheable(value = CacheConstants.TAGS, key = "'all'")
+	@Cacheable(value = CacheConstants.TAGS, key = "'all'", sync = true)
 	public ApiResponse<List<TagResponse>> getAllTags()
 	{
 		return ApiResponse.success(tagMapper.toResponseList(tagRepository.findAll()));

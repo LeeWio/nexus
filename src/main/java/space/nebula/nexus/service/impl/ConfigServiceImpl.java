@@ -36,7 +36,7 @@ public class ConfigServiceImpl implements IConfigService
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.SYS_CONFIG, key = "'all'")
+	@Cacheable(value = CacheConstants.SYS_CONFIG, key = "'all'", sync = true)
 	public ApiResponse<List<ConfigResponse>> getAllConfigs()
 	{
 		return ApiResponse.success(configMapper.toResponseList(configRepository.findAll()));
@@ -44,7 +44,7 @@ public class ConfigServiceImpl implements IConfigService
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.SYS_CONFIG, key = CacheConstants.PUBLIC_CONFIGS_KEY)
+	@Cacheable(value = CacheConstants.SYS_CONFIG, key = CacheConstants.PUBLIC_CONFIGS_KEY, sync = true)
 	public ApiResponse<List<ConfigResponse>> getPublicConfigs()
 	{
 		return ApiResponse.success(configMapper.toResponseList(configRepository.findByIsPublicTrue()));
@@ -52,7 +52,7 @@ public class ConfigServiceImpl implements IConfigService
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.SYS_CONFIG, key = "#configKey")
+	@Cacheable(value = CacheConstants.SYS_CONFIG, key = "#configKey", sync = true)
 	public ApiResponse<ConfigResponse> getConfigByKey(String configKey)
 	{
 		return configRepository.findByConfigKey(configKey)

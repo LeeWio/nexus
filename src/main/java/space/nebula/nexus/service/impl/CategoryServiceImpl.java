@@ -36,7 +36,7 @@ public class CategoryServiceImpl implements ICategoryService
 	private final RedisUtil redisUtil;
 
 	@Override
-	@Cacheable(value = CacheConstants.CATEGORIES, key = "'all'")
+	@Cacheable(value = CacheConstants.CATEGORIES, key = "'all'", sync = true)
 	public ApiResponse<List<CategoryResponse>> retrieveAllCategories()
 	{
 		List<Category> allCategories = categoryRepository.findAll();

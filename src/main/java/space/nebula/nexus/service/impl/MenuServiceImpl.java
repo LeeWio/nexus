@@ -110,7 +110,7 @@ public class MenuServiceImpl implements IMenuService
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.NAVIGATION, key = CacheConstants.PUBLIC_TREE_KEY)
+	@Cacheable(value = CacheConstants.NAVIGATION, key = CacheConstants.PUBLIC_TREE_KEY, sync = true)
 	public ApiResponse<List<Tree<Long>>> retrievePublicNavigationMenuTree()
 	{
 		List<Menu> publicVisibleMenus = menuRepository.findByIsPublicTrueAndIsVisibleTrueOrderBySortOrderAsc();

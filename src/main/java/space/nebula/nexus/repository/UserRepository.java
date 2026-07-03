@@ -36,6 +36,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 	boolean existsByEmail(String email);
 
+	@org.springframework.data.jpa.repository.Query("SELECT u.avatar FROM User u WHERE u.avatar IS NOT NULL")
+	java.util.List<String> findAllAvatars();
+
 	java.util.Optional<User> findByGithubId(String githubId);
 
 	boolean existsByAvatarContaining(String keyword);

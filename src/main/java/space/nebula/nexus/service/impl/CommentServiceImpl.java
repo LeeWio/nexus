@@ -72,8 +72,8 @@ public class CommentServiceImpl implements ICommentService
 		}
 
 		// 2. Content Moderation
-		boolean hasViolation = sensitiveWordService.containsSensitiveWord(request.content());
 		String filteredContent = sensitiveWordService.filter(request.content());
+		boolean hasViolation = request.content() != null && !request.content().equals(filteredContent);
 
 		// 3. Hierarchy Validation
 		Comment parentComment = null;

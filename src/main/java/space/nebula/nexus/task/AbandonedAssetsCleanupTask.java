@@ -37,6 +37,20 @@ public class AbandonedAssetsCleanupTask
 		LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
 		List<FileMetadata> potentialOrphans = fileRepository.findByCreatedAtBefore(cutoff);
 
+		if (potentialOrphans.isEmpty())
+		{
+			log.info("Cleanup completed. No potential abandoned media assets were found.");
+			return;
+		}
+
+		// Preload all text content fields once to avoid N+1 full-table wildcard SELECT queries
+		log.info("Preloading database content for in-memory asset reference tracking...");
+		List<String> postContents = postRepository.findAllContents();
+		List<String> postSummaries = postRepository.findAllSummaries();
+		List<String> commentContents = commentRepository.findAllContents();
+		List<String> userAvatars = userRepository.findAllAvatars();
+		List<String> projectCovers = projectRepository.findAllCoverImages();
+
 		long purgedCount = 0;
 		long spaceSavedBytes = 0;
 
@@ -44,12 +58,12 @@ public class AbandonedAssetsCleanupTask
 		{
 			String fileName = file.getFileName();
 			
-			// Verify if the file unique stored name is referenced anywhere in active database fields
-			boolean referencedInPosts = postRepository.existsByContentContaining(fileName) 
-					|| postRepository.existsBySummaryContaining(fileName);
-			boolean referencedInComments = commentRepository.existsByContentContaining(fileName);
-			boolean referencedInAvatars = userRepository.existsByAvatarContaining(fileName);
-			boolean referencedInProjects = projectRepository.existsByCoverImageContaining(fileName);
+			// Verify if the file unique stored name is referenced anywhere in preloaded strings
+			boolean referencedInPosts = postContents.stream().anyMatch(content -> content.contains(fileName))
+					|| postSummaries.stream().anyMatch(summary -> summary.contains(fileName));
+			boolean referencedInComments = commentContents.stream().anyMatch(content -> content.contains(fileName));
+			boolean referencedInAvatars = userAvatars.stream().anyMatch(avatar -> avatar.contains(fileName));
+			boolean referencedInProjects = projectCovers.stream().anyMatch(cover -> cover.contains(fileName));
 
 			if (!referencedInPosts && !referencedInComments && !referencedInAvatars && !referencedInProjects)
 			{
