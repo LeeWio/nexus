@@ -3,6 +3,7 @@ package space.nebula.nexus.task;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import space.nebula.nexus.service.IAnalyticsService;
 
@@ -19,6 +20,7 @@ public class DailyAnalyticsTask {
      * Runs every day at 00:05 AM to aggregate data for the previous day.
      */
     @Scheduled(cron = "0 5 0 * * ?")
+    @SchedulerLock(name = "dailyAnalytics", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
     public void runDailyAggregation() {
         LocalDate yesterday = LocalDate.now().minusDays(1);
         log.info("Executing scheduled daily analytics aggregation for {}", yesterday);

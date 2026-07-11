@@ -8,9 +8,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import space.nebula.nexus.entity.Notification;
 
+import java.util.Optional;
+
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
     Page<Notification> findByRecipientId(Long userId, Pageable pageable);
+    Optional<Notification> findByIdAndRecipientId(Long id, Long userId);
     long countByRecipientIdAndIsReadFalse(Long userId);
 
     @Modifying

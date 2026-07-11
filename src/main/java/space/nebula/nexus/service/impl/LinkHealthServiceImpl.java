@@ -3,15 +3,19 @@ package space.nebula.nexus.service.impl;
 import cn.hutool.core.util.ReUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpUtil;
+import cn.hutool.http.HttpResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.config.LinkHealthProperties;
 import space.nebula.nexus.entity.FriendLink;
 import space.nebula.nexus.entity.LinkCheckLog;
 import space.nebula.nexus.entity.Post;
+import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.FriendLinkRepository;
 import space.nebula.nexus.repository.LinkCheckLogRepository;
@@ -19,6 +23,7 @@ import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.ILinkHealthService;
 import space.nebula.nexus.service.INotificationService;
+import space.nebula.nexus.security.OutboundUrlValidator;
 
 import java.util.HashSet;
 import java.util.List;
@@ -37,7 +42,9 @@ public class LinkHealthServiceImpl implements ILinkHealthService {
     private final LinkCheckLogRepository linkCheckLogRepository;
     private final INotificationService notificationService;
     private final UserRepository userRepository;
-    private final Executor asyncExecutor;
+    private final Executor outboundExecutor;
+    private final OutboundUrlValidator outboundUrlValidator;
+    private final LinkHealthProperties linkHealthProperties;
 
     // Basic regex to find URLs in Markdown: [text](url) or directly http://...
     private static final String URL_REGEX = "https?://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,}(?:/[\\w\\.\\-\\?%&=\\+\\!]*)?";
@@ -55,40 +62,42 @@ public class LinkHealthServiceImpl implements ILinkHealthService {
     @Override
     public void runFullScan() {
         log.info("Starting full external link health check scan...");
-        
+
         AtomicInteger brokenCount = new AtomicInteger(0);
-        java.util.List<CompletableFuture<LinkCheckResult>> futures = new java.util.ArrayList<>();
+        int pageNumber = 0;
+        org.springframework.data.domain.Page<FriendLink> friendPage;
+        do {
+            friendPage = friendLinkRepository.findAll(PageRequest.of(pageNumber++, linkHealthProperties.getFriendPageSize()));
+            processBatch(friendPage.getContent().stream()
+                    .map(link -> new LinkTarget(link.getUrl(), "FRIEND_LINK", link.getId(), link.getName())).toList(), brokenCount);
+        } while (friendPage.hasNext());
 
-        // 1. Check Friend Links
-        List<FriendLink> friendLinks = friendLinkRepository.findAll();
-        friendLinks.forEach(fl -> futures.add(checkLinkAsync(fl.getUrl(), "FRIEND_LINK", fl.getId(), fl.getName(), brokenCount)));
+        pageNumber = 0;
+        org.springframework.data.domain.Page<Post> postPage;
+        do {
+            postPage = postRepository.findScanPageByStatus(PostStatus.PUBLISHED,
+                    PageRequest.of(pageNumber++, linkHealthProperties.getPostPageSize()));
+            List<LinkTarget> targets = postPage.getContent().stream()
+                    .flatMap(post -> extractLinks(post.getContent()).stream()
+                            .map(url -> new LinkTarget(url, "POST", post.getId(), post.getTitle())))
+                    .toList();
+            processBatch(targets, brokenCount);
+        } while (postPage.hasNext());
 
-        // 2. Check Post Content
-        List<Post> posts = postRepository.findAll();
-        posts.stream().filter(Post::isPublished).forEach(post -> {
-            Set<String> urls = extractLinks(post.getContent());
-            urls.forEach(url -> futures.add(checkLinkAsync(url, "POST", post.getId(), post.getTitle(), brokenCount)));
-        });
+        int found = brokenCount.get();
+        log.info("Full link scan completed. Found {} broken links.", found);
+        if (found > 0) notifyAdmins(found);
+    }
 
-        if (futures.isEmpty()) {
-            log.info("No links found to scan.");
-            return;
-        }
+    private record LinkTarget(String url, String sourceType, Long sourceId, String sourceTitle) {}
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenAccept(v -> {
-            List<LinkCheckResult> results = futures.stream()
-                    .map(CompletableFuture::join)
-                    .collect(java.util.stream.Collectors.toList());
-
-            // Save results sequentially using one database connection to avoid pool starvation
-            saveResultsInBatch(results);
-
-            int found = brokenCount.get();
-            log.info("Full link scan completed. Found {} broken links.", found);
-            if (found > 0) {
-                notifyAdmins(found);
-            }
-        }).join(); // Sync wait on the scheduling thread for accurate metrics/logging
+    private void processBatch(List<LinkTarget> targets, AtomicInteger brokenCount) {
+        if (targets.isEmpty()) return;
+        List<CompletableFuture<LinkCheckResult>> futures = targets.stream()
+                .map(target -> checkLinkAsync(target.url(), target.sourceType(), target.sourceId(), target.sourceTitle(), brokenCount))
+                .toList();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        saveResultsInBatch(futures.stream().map(CompletableFuture::join).toList());
     }
 
     @Override
@@ -119,10 +128,15 @@ public class LinkHealthServiceImpl implements ILinkHealthService {
     private CompletableFuture<LinkCheckResult> checkLinkAsync(String url, String sourceType, Long sourceId, String sourceTitle, AtomicInteger brokenCount) {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                outboundUrlValidator.validate(url);
                 // 1. Try HEAD first (fast, minimal bandwidth)
-                int status = HttpUtil.createRequest(cn.hutool.http.Method.HEAD, url).timeout(5000).execute().getStatus();
+                int status;
+                try (HttpResponse response = HttpUtil.createRequest(cn.hutool.http.Method.HEAD, url).setFollowRedirects(false)
+                        .timeout(requestTimeoutMillis()).execute()) {
+                    status = response.getStatus();
+                }
                 if (status == 405 || status == 501) {
-                    status = HttpUtil.createGet(url).timeout(5000).execute().getStatus();
+                    status = executeGet(url);
                 }
                 boolean isBroken = status >= 400;
                 if (isBroken) brokenCount.incrementAndGet();
@@ -130,7 +144,8 @@ public class LinkHealthServiceImpl implements ILinkHealthService {
             } catch (Exception e) {
                 try {
                     // 2. Fall back to GET on any exception
-                    int status = HttpUtil.createGet(url).timeout(5000).execute().getStatus();
+                    outboundUrlValidator.validate(url);
+                    int status = executeGet(url);
                     boolean isBroken = status >= 400;
                     if (isBroken) brokenCount.incrementAndGet();
                     return new LinkCheckResult(url, sourceType, sourceId, sourceTitle, status, isBroken, null);
@@ -139,7 +154,17 @@ public class LinkHealthServiceImpl implements ILinkHealthService {
                     return new LinkCheckResult(url, sourceType, sourceId, sourceTitle, null, true, ex.getMessage());
                 }
             }
-        }, asyncExecutor);
+        }, outboundExecutor);
+    }
+
+    private int executeGet(String url) {
+        try (HttpResponse response = HttpUtil.createGet(url).setFollowRedirects(false).timeout(requestTimeoutMillis()).execute()) {
+            return response.getStatus();
+        }
+    }
+
+    private int requestTimeoutMillis() {
+        return Math.toIntExact(linkHealthProperties.getRequestTimeout().toMillis());
     }
 
     private void saveResultsInBatch(List<LinkCheckResult> results) {

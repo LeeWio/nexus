@@ -3,6 +3,7 @@ package space.nebula.nexus.task;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.storage.StorageProvider;
@@ -30,6 +31,7 @@ public class AbandonedAssetsCleanupTask
 	 * Assets must be older than 24 hours to prevent cleaning files currently being drafted.
 	 */
 	@Scheduled(cron = "0 0 2 * * ?")
+	@SchedulerLock(name = "abandonedAssetsCleanup", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
 	@Transactional
 	public void cleanAbandonedAssets()
 	{

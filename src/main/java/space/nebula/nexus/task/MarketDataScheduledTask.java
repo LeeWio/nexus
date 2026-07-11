@@ -3,6 +3,7 @@ package space.nebula.nexus.task;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
@@ -29,6 +30,7 @@ public class MarketDataScheduledTask
 	 * users first load the dashboard.
 	 */
 	@Scheduled(cron = "0 * * * * *")
+	@SchedulerLock(name = "marketDataPreWarm", lockAtMostFor = "PT50S")
 	public void preWarmMarketData1D()
 	{
 		if (!redisUtil.lock(LOCK_KEY_1D, "locked", 50, TimeUnit.SECONDS))

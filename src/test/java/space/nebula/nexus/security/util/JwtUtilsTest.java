@@ -9,6 +9,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import space.nebula.nexus.security.config.JwtProperties;
+import space.nebula.nexus.security.model.SecurityUser;
+import space.nebula.nexus.enums.UserStatus;
 
 import java.util.Collections;
 
@@ -45,5 +47,40 @@ class JwtUtilsTest {
 		assertEquals("testuser", username);
 
 		assertTrue(jwtUtils.isTokenValid(token, userDetails));
+		assertTrue(jwtUtils.isAccessToken(token));
+		assertFalse(jwtUtils.isRefreshToken(token));
+		assertNotNull(jwtUtils.extractTokenId(token));
+
+		String refreshToken = jwtUtils.generateRefreshToken(userDetails);
+		assertTrue(jwtUtils.isRefreshToken(refreshToken));
+		assertFalse(jwtUtils.isAccessToken(refreshToken));
+	}
+
+	@Test
+	void rejectsTokenAfterSecurityVersionChanges() {
+		space.nebula.nexus.entity.User user = new space.nebula.nexus.entity.User();
+		user.setUsername("testuser");
+		user.setPassword("password");
+		user.setStatus(UserStatus.ACTIVE);
+		SecurityUser securityUser = new SecurityUser(user);
+		String token = jwtUtils.generateAccessToken(securityUser);
+
+		user.setTokenVersion(1);
+
+		assertFalse(jwtUtils.isTokenValid(token, securityUser));
+	}
+
+	@Test
+	void rejectsTokenForDisabledAccount() {
+		space.nebula.nexus.entity.User user = new space.nebula.nexus.entity.User();
+		user.setUsername("testuser");
+		user.setPassword("password");
+		user.setStatus(UserStatus.ACTIVE);
+		SecurityUser securityUser = new SecurityUser(user);
+		String token = jwtUtils.generateAccessToken(securityUser);
+
+		user.setStatus(UserStatus.INACTIVE);
+
+		assertFalse(jwtUtils.isTokenValid(token, securityUser));
 	}
 }

@@ -28,6 +28,8 @@ import space.nebula.nexus.payload.response.AuthResponse;
 import space.nebula.nexus.repository.RoleRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.model.SecurityUser;
+import space.nebula.nexus.security.token.RevokedTokenStore;
+import space.nebula.nexus.security.token.RefreshTokenStore;
 import space.nebula.nexus.security.service.LoginSecurityService;
 import space.nebula.nexus.security.util.JwtUtils;
 import space.nebula.nexus.service.IAuthService;
@@ -64,12 +66,11 @@ public class AuthServiceImpl implements IAuthService
 	private final UserValidator userValidator;
 	private final LoginSecurityService loginSecurityService;
 	private final RedisUtil redisUtil;
+	private final RevokedTokenStore revokedTokenStore;
+	private final RefreshTokenStore refreshTokenStore;
 	private final RabbitTemplate rabbitTemplate;
 	private final space.nebula.nexus.config.AuthProperties authProperties;
 	private final space.nebula.nexus.security.config.JwtProperties jwtProperties;
-
-	// Local cache for default role to avoid DB hits
-	private Role cachedDefaultRole;
 
 	@Override
 	@Transactional
@@ -168,7 +169,7 @@ public class AuthServiceImpl implements IAuthService
 		try
 		{
 			rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mailMessage);
-			log.info("OTP task dispatched to MQ for {}: {}", email, otp);
+			log.info("OTP task dispatched to MQ for {}", email);
 		}
 		catch (Exception e)
 		{
@@ -189,8 +190,7 @@ public class AuthServiceImpl implements IAuthService
 		var code = request.code();
 		var otpKey = CacheConstants.OTP_CODE + email;
 
-		var storedOtp = redisUtil.get(otpKey, String.class).orElse(null);
-		Assert.isTrue(StrUtil.equals(storedOtp, code),
+		Assert.isTrue(redisUtil.consumeIfEquals(otpKey, code),
 				() -> new BusinessException(BusinessCode.INVALID_TOKEN, "Invalid or expired verification code"));
 
 		var user = userRepository.findByEmail(email)
@@ -203,7 +203,6 @@ public class AuthServiceImpl implements IAuthService
 		var authentication = new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
 		SecurityContextHolder.getContext().setAuthentication(authentication);
 
-		redisUtil.delete(otpKey);
 		log.info("User logged in via OTP authentication: {}", user.getUsername());
 
 		return ApiResponse.success("Login successful", createAuthResponse(securityUser));
@@ -226,8 +225,7 @@ public class AuthServiceImpl implements IAuthService
 			String token = authHeader.substring(jwtProperties.getPrefix().length());
 			// Blacklist token in Redis until it naturally expires
 			long remainingTime = jwtUtils.getAccessTokenExpiration();
-			String blacklistKey = "nexus:jwt:blacklist:" + token;
-			redisUtil.set(blacklistKey, "logout", remainingTime, TimeUnit.MILLISECONDS);
+			revokedTokenStore.revoke(token, java.time.Duration.ofMillis(remainingTime));
 			log.info("Token blacklisted for logout");
 		}
 		SecurityContextHolder.clearContext();
@@ -239,6 +237,8 @@ public class AuthServiceImpl implements IAuthService
 	{
 		Assert.notBlank(refreshToken, () -> new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is missing"));
 
+		Assert.isTrue(jwtUtils.isRefreshToken(refreshToken),
+				() -> new BusinessException(BusinessCode.INVALID_TOKEN, "A refresh token is required"));
 		String username = jwtUtils.extractUsername(refreshToken);
 		var user = userRepository.findByUsername(username)
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
@@ -247,7 +247,8 @@ public class AuthServiceImpl implements IAuthService
 				() -> new BusinessException(BusinessCode.ACCOUNT_DISABLED, "Account is not active"));
 
 		SecurityUser securityUser = new SecurityUser(user);
-		if (jwtUtils.isTokenValid(refreshToken, securityUser))
+		if (jwtUtils.isTokenValid(refreshToken, securityUser)
+				&& refreshTokenStore.consume(jwtUtils.extractTokenId(refreshToken), username))
 		{
 			return ApiResponse.success("Token refreshed successfully", createAuthResponse(securityUser));
 		}
@@ -259,6 +260,8 @@ public class AuthServiceImpl implements IAuthService
 	{
 		var accessToken = jwtUtils.generateAccessToken(securityUser);
 		var refreshToken = jwtUtils.generateRefreshToken(securityUser);
+		refreshTokenStore.issue(jwtUtils.extractTokenId(refreshToken), securityUser.getUsername(),
+				java.time.Duration.ofMillis(jwtUtils.getRefreshTokenExpiration()));
 		var roles = securityUser.getAuthorities().stream().map(ga -> ga.getAuthority()).collect(Collectors.toSet());
 
 		return AuthResponse.builder()
@@ -282,10 +285,8 @@ public class AuthServiceImpl implements IAuthService
 
 	private void assignDefaultRole(User user)
 	{
-		if (cachedDefaultRole == null)
-		{
-			String defaultRoleCode = authProperties.getDefaultRoleCode();
-			cachedDefaultRole = roleRepository.findByCode(defaultRoleCode).orElseGet(() ->
+		String defaultRoleCode = authProperties.getDefaultRoleCode();
+		Role defaultRole = roleRepository.findByCode(defaultRoleCode).orElseGet(() ->
 			{
 				log.warn("Default '{}' role missing; initializing fallback", defaultRoleCode);
 				var newRole = new Role();
@@ -294,7 +295,6 @@ public class AuthServiceImpl implements IAuthService
 				newRole.setDescription("Default role for registered members");
 				return roleRepository.save(newRole);
 			});
-		}
-		user.setRoles(Collections.singleton(cachedDefaultRole));
+		user.setRoles(Collections.singleton(defaultRole));
 	}
 }

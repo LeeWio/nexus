@@ -71,6 +71,16 @@ public class Post extends BaseEntity
 	@Column(name = "published_at")
 	private java.time.LocalDateTime publishedAt;
 
+	@Column(name = "review_comment", length = 1000)
+	private String reviewComment;
+
+	@Column(name = "reviewed_at")
+	private java.time.LocalDateTime reviewedAt;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "reviewed_by")
+	private User reviewedBy;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "category_id")
 	private Category category;

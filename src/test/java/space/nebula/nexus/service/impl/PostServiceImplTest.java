@@ -33,6 +33,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class PostServiceImplTest {
@@ -60,9 +61,6 @@ class PostServiceImplTest {
 	private space.nebula.nexus.service.ISlugService slugService;
 	@Mock
 	private space.nebula.nexus.common.validator.PostValidator postValidator;
-	@Mock
-	private space.nebula.nexus.service.IPostRevisionService postRevisionService;
-
 	@InjectMocks
 	private PostServiceImpl postService;
 
@@ -105,6 +103,9 @@ class PostServiceImplTest {
 			// Assert
 			assertEquals(200, response.code());
 			verify(postRepository, times(2)).save(any(Post.class));
+			ArgumentCaptor<Post> savedPost = ArgumentCaptor.forClass(Post.class);
+			verify(postRepository, times(2)).save(savedPost.capture());
+			assertTrue(savedPost.getAllValues().stream().allMatch(post -> post.getStatus() == PostStatus.DRAFT));
 			verify(eventPublisher).publishEvent(any());
 		}
 	}

@@ -22,7 +22,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.security.config.JwtProperties;
 import space.nebula.nexus.security.util.JwtUtils;
-import space.nebula.nexus.utils.RedisUtil;
+import space.nebula.nexus.security.token.RevokedTokenStore;
 
 import java.io.IOException;
 
@@ -36,14 +36,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter
 	private final JwtUtils jwtUtils;
 	private final UserDetailsService userDetailsService;
 	private final JwtProperties jwtProperties;
-	private final RedisUtil redisUtil;
+	private final RevokedTokenStore revokedTokenStore;
 
 	public JwtAuthenticationFilter(JwtUtils jwtUtils, @Lazy UserDetailsService userDetailsService,
-			JwtProperties jwtProperties, RedisUtil redisUtil) {
+			JwtProperties jwtProperties, RevokedTokenStore revokedTokenStore) {
 		this.jwtUtils = jwtUtils;
 		this.userDetailsService = userDetailsService;
 		this.jwtProperties = jwtProperties;
-		this.redisUtil = redisUtil;
+		this.revokedTokenStore = revokedTokenStore;
 	}
 
 	@Override
@@ -68,8 +68,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter
 			jwt = authHeader.substring(jwtProperties.getPrefix().length());
 
 			// 3. Check Blacklist (Redis)
-			String blacklistKey = "nexus:jwt:blacklist:" + jwt;
-			if (redisUtil.hasKey(blacklistKey))
+				if (!jwtUtils.isAccessToken(jwt) || revokedTokenStore.isRevoked(jwt))
 			{
 				log.warn("Rejected blacklisted JWT token");
 				request.setAttribute(SECURITY_ERROR_CODE, BusinessCode.INVALID_TOKEN);

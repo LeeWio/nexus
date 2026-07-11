@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.constant.CacheConstants;
@@ -32,6 +33,7 @@ public class PostViewCountSyncTask
 	 * Sync view counts every 10 minutes using batch updates for performance.
 	 */
 	@Scheduled(fixedRate = 600000)
+	@SchedulerLock(name = "postViewCountSync", lockAtMostFor = "PT9M")
 	@Transactional
 	public void syncViewCounts()
 	{

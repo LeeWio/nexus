@@ -8,7 +8,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
-import space.nebula.nexus.entity.Notification;
+import space.nebula.nexus.payload.response.NotificationResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.service.INotificationService;
 
@@ -22,7 +22,7 @@ public class NotificationController {
 
     @GetMapping
     @Operation(summary = "Get my notifications", description = "Retrieve a paginated list of notifications for the current user.")
-    public ApiResponse<PageResult<Notification>> getMyNotifications(
+    public ApiResponse<PageResult<NotificationResponse>> getMyNotifications(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return notificationService.getMyNotifications(pageable);
     }

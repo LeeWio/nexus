@@ -81,6 +81,7 @@ class UserServiceImplTest {
 
         assertEquals(200, response.code());
         assertEquals("encodedNewPassword", testUser.getPassword());
+		assertEquals(1, testUser.getTokenVersion());
         verify(userRepository).save(testUser);
     }
 }

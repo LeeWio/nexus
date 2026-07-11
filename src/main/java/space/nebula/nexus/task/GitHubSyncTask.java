@@ -3,6 +3,7 @@ package space.nebula.nexus.task;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import space.nebula.nexus.service.IGitHubService;
 import space.nebula.nexus.utils.RedisUtil;
@@ -24,6 +25,7 @@ public class GitHubSyncTask
 	 * Periodically sync project metrics from GitHub. Runs every 12 hours.
 	 */
 	@Scheduled(cron = "0 0 0/12 * * ?")
+	@SchedulerLock(name = "githubMetricsSync", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
 	public void syncGitHubMetrics()
 	{
 		if (!redisUtil.lock(LOCK_KEY, "locked", 11, TimeUnit.HOURS))

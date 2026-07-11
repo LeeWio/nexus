@@ -2,8 +2,8 @@ package space.nebula.nexus.service;
 
 import org.springframework.data.domain.Pageable;
 import space.nebula.nexus.common.ApiResponse;
-import space.nebula.nexus.entity.Notification;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.payload.response.NotificationResponse;
 import space.nebula.nexus.payload.response.PageResult;
 
 public interface INotificationService {
@@ -16,7 +16,7 @@ public interface INotificationService {
     /**
      * Retrieves notifications for the current user.
      */
-    ApiResponse<PageResult<Notification>> getMyNotifications(Pageable pageable);
+    ApiResponse<PageResult<NotificationResponse>> getMyNotifications(Pageable pageable);
 
     /**
      * Marks a specific notification as read.

@@ -44,7 +44,7 @@ public class MarketDataServiceImpl implements IMarketDataService
 	private final ObjectMapper objectMapper = new ObjectMapper();
 	private final RedisUtil redisUtil;
 	private final MarketProperties marketProperties;
-	private final Executor asyncExecutor;
+	private final Executor outboundExecutor;
 
 	@Override
 	@CircuitBreaker(name = "marketService", fallbackMethod = "fallbackIndices")
@@ -120,7 +120,7 @@ public class MarketDataServiceImpl implements IMarketDataService
 					{
 						return parseCnIndex(body, config, normalizedPeriod);
 					}
-				}, asyncExecutor)).collect(Collectors.toList());
+				}, outboundExecutor)).collect(Collectors.toList());
 
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 

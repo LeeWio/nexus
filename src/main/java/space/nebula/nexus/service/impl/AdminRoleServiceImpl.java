@@ -21,6 +21,7 @@ import space.nebula.nexus.service.IAdminRoleService;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Implementation of administrative role management service.
@@ -30,6 +31,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminRoleServiceImpl implements IAdminRoleService
 {
+	private static final Set<String> SYSTEM_ROLE_CODES = Set.of("ROLE_ADMIN", "ROLE_USER");
 
 	private final RoleRepository roleRepository;
 	private final MenuRepository menuRepository;
@@ -67,6 +69,8 @@ public class AdminRoleServiceImpl implements IAdminRoleService
 	{
 		var role = roleRepository.findById(id)
 				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
+		Assert.isFalse(SYSTEM_ROLE_CODES.contains(role.getCode()) && ObjectUtil.notEqual(role.getCode(), request.code()),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "System role codes cannot be changed"));
 
 		if (ObjectUtil.notEqual(role.getCode(), request.code()))
 		{
@@ -89,10 +93,12 @@ public class AdminRoleServiceImpl implements IAdminRoleService
 	@LogOperation("Delete Role")
 	public ApiResponse<Void> deleteRole(Long id)
 	{
-		Assert.isTrue(roleRepository.existsById(id),
-				() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
+		var role = roleRepository.findById(id)
+				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
+		Assert.isFalse(SYSTEM_ROLE_CODES.contains(role.getCode()),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "System roles cannot be deleted"));
 
-		roleRepository.deleteById(id);
+		roleRepository.delete(role);
 		log.info("Admin deleted role id: {}", id);
 		return ApiResponse.success("Role deleted successfully", null);
 	}

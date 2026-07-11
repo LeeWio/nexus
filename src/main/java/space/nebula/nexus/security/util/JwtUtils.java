@@ -13,11 +13,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import space.nebula.nexus.security.config.JwtProperties;
+import space.nebula.nexus.security.model.SecurityUser;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.function.Function;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -56,7 +58,7 @@ public class JwtUtils
 	 */
 	public String generateAccessToken(UserDetails userDetails)
 	{
-		return buildToken(userDetails, jwtProperties.getAccessTokenExpiration());
+		return buildToken(userDetails, jwtProperties.getAccessTokenExpiration(), "access");
 	}
 
 	/**
@@ -64,7 +66,7 @@ public class JwtUtils
 	 */
 	public String generateRefreshToken(UserDetails userDetails)
 	{
-		return buildToken(userDetails, jwtProperties.getRefreshTokenExpiration());
+		return buildToken(userDetails, jwtProperties.getRefreshTokenExpiration(), "refresh");
 	}
 
 	public long getAccessTokenExpiration()
@@ -72,9 +74,27 @@ public class JwtUtils
 		return jwtProperties.getAccessTokenExpiration();
 	}
 
-	private String buildToken(UserDetails userDetails, long expiration)
+	public long getRefreshTokenExpiration() {
+		return jwtProperties.getRefreshTokenExpiration();
+	}
+
+	public String extractTokenId(String token) {
+		return extractClaim(token, Claims::getId);
+	}
+
+	public boolean isAccessToken(String token) {
+		return "access".equals(extractClaim(token, claims -> claims.get("token_type", String.class)));
+	}
+
+	public boolean isRefreshToken(String token) {
+		return "refresh".equals(extractClaim(token, claims -> claims.get("token_type", String.class)));
+	}
+
+	private String buildToken(UserDetails userDetails, long expiration, String tokenType)
 	{
-		return Jwts.builder().subject(userDetails.getUsername()).issuedAt(new Date(System.currentTimeMillis()))
+		return Jwts.builder().id(UUID.randomUUID().toString()).subject(userDetails.getUsername())
+				.claim("token_type", tokenType).claim("token_version", tokenVersion(userDetails))
+				.issuedAt(new Date(System.currentTimeMillis()))
 				.expiration(new Date(System.currentTimeMillis() + expiration)).signWith(key).compact();
 	}
 
@@ -84,7 +104,18 @@ public class JwtUtils
 	public boolean isTokenValid(String token, UserDetails userDetails)
 	{
 		final String username = extractUsername(token);
-		return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+		Number versionClaim = extractClaim(token, claims -> claims.get("token_version", Number.class));
+		return username.equals(userDetails.getUsername())
+				&& versionClaim != null && versionClaim.intValue() == tokenVersion(userDetails)
+				&& userDetails.isEnabled() && userDetails.isAccountNonLocked()
+				&& userDetails.isAccountNonExpired() && userDetails.isCredentialsNonExpired()
+				&& !isTokenExpired(token);
+	}
+
+	private int tokenVersion(UserDetails userDetails) {
+		return userDetails instanceof SecurityUser securityUser
+				? securityUser.getUser().getTokenVersion()
+				: 0;
 	}
 
 	private boolean isTokenExpired(String token)

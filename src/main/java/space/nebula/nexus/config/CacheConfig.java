@@ -7,6 +7,7 @@ import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -55,6 +56,7 @@ public class CacheConfig
 	 * Redis Message Listener for L1 cache invalidation across multiple instances.
 	 */
 	@Bean
+	@ConditionalOnProperty(name = "app.cache.invalidation-listener-enabled", havingValue = "true", matchIfMissing = true)
 	public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory factory,
 			CacheMessageListener listener)
 	{

@@ -3,6 +3,7 @@ package space.nebula.nexus.task;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.repository.PostRepository;
@@ -30,6 +31,7 @@ public class PostTask
 	 * minute.
 	 */
 	@Scheduled(cron = "0 * * * * ?")
+	@SchedulerLock(name = "scheduledPostPublish", lockAtMostFor = "PT50S")
 	@Transactional
 	public void publishScheduledPosts()
 	{

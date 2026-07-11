@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.config.RabbitMQConfig;
@@ -35,6 +36,7 @@ public class KanbanReminderTask
 	 * minute.
 	 */
 	@Scheduled(cron = "0 * * * * *")
+	@SchedulerLock(name = "kanbanReminder", lockAtMostFor = "PT50S")
 	@Transactional
 	public void checkReminders()
 	{

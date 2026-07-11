@@ -11,11 +11,11 @@ import cn.hutool.http.HttpResponse;
 import cn.hutool.json.JSONUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import space.nebula.nexus.common.event.CommentSubmittedEvent;
 import space.nebula.nexus.common.event.PostChangedEvent;
+import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.common.event.PostDeletedEvent;
 import space.nebula.nexus.entity.Webhook;
 import space.nebula.nexus.enums.WebhookEvent;
@@ -36,10 +36,10 @@ public class WebhookDispatcher
 	private final space.nebula.nexus.config.RabbitMQConfig rabbitMQConfig;
 
 	@Async("asyncExecutor")
-	@EventListener
+	@org.springframework.transaction.event.TransactionalEventListener(phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
 	public void handlePostChangedEvent(PostChangedEvent event)
 	{
-		if (event.isNew())
+		if (event.getChangeType() == PostChangeType.PUBLISHED)
 		{
 			dispatchToSubscribers(WebhookEvent.POST_PUBLISHED,
 					Dict.create().set("postId", event.getPost().getId()).set("title", event.getPost().getTitle())
@@ -48,7 +48,7 @@ public class WebhookDispatcher
 	}
 
 	@Async("asyncExecutor")
-	@EventListener
+	@org.springframework.transaction.event.TransactionalEventListener(phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
 	public void handlePostDeletedEvent(PostDeletedEvent event)
 	{
 		dispatchToSubscribers(WebhookEvent.POST_DELETED,
@@ -56,7 +56,7 @@ public class WebhookDispatcher
 	}
 
 	@Async("asyncExecutor")
-	@EventListener
+	@org.springframework.transaction.event.TransactionalEventListener(phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
 	public void handleCommentSubmittedEvent(CommentSubmittedEvent event)
 	{
 		dispatchToSubscribers(WebhookEvent.COMMENT_SUBMITTED, Dict.create().set("commentId", event.getComment().getId())
@@ -78,6 +78,7 @@ public class WebhookDispatcher
 				
 				var message = space.nebula.nexus.payload.request.WebhookMessage.builder()
 						.webhookId(webhook.getId())
+						.deliveryId(cn.hutool.core.util.IdUtil.fastSimpleUUID())
 						.event(eventType.name())
 						.payload(payload)
 						.build();
@@ -101,6 +102,7 @@ public class WebhookDispatcher
 	{
 		var message = space.nebula.nexus.payload.request.WebhookMessage.builder()
 				.webhookId(webhook.getId())
+				.deliveryId(cn.hutool.core.util.IdUtil.fastSimpleUUID())
 				.event(payload.getStr("event"))
 				.payload(payload)
 				.build();

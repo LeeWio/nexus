@@ -29,6 +29,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminUserServiceImpl implements IAdminUserService
 {
+	private static final String ADMIN_ROLE_CODE = "ROLE_ADMIN";
 
 	private final UserRepository userRepository;
 	private final RoleRepository roleRepository;
@@ -59,6 +60,7 @@ public class AdminUserServiceImpl implements IAdminUserService
 
 		Assert.isFalse(user.getStatus() == UserStatus.INACTIVE,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "User is already inactive"));
+		protectLastActiveAdministrator(user, false);
 
 		user.setStatus(UserStatus.INACTIVE);
 		userRepository.save(user);
@@ -87,8 +89,10 @@ public class AdminUserServiceImpl implements IAdminUserService
 	@LogOperation("Delete User")
 	public ApiResponse<Void> deleteUser(Long id)
 	{
-		Assert.isTrue(userRepository.existsById(id), () -> new BusinessException(BusinessCode.USER_NOT_FOUND));
-		userRepository.deleteById(id);
+		var user = userRepository.findById(id)
+				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
+		protectLastActiveAdministrator(user, false);
+		userRepository.delete(user);
 		log.info("Admin deleted user id: {}", id);
 		return ApiResponse.success("User deleted successfully", null);
 	}
@@ -130,11 +134,30 @@ public class AdminUserServiceImpl implements IAdminUserService
 		Assert.notEmpty(roles, () -> new BusinessException(BusinessCode.BAD_REQUEST, "No valid roles found for provided IDs"));
 		Assert.isTrue(roles.size() == request.roleIds().size(),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Some role IDs provided do not exist"));
+		boolean retainsAdminRole = roles.stream().anyMatch(role -> ADMIN_ROLE_CODE.equals(role.getCode()));
+		protectLastActiveAdministrator(user, retainsAdminRole);
 
 		user.setRoles(new HashSet<>(roles));
 		userRepository.save(user);
 
 		log.info("Assigned roles {} to user id: {}", request.roleIds(), userId);
 		return ApiResponse.success("User roles updated successfully", null);
+	}
+
+	private void protectLastActiveAdministrator(space.nebula.nexus.entity.User target, boolean retainsAdminRole)
+	{
+		boolean removesActiveAdmin = target.getStatus() == UserStatus.ACTIVE
+				&& target.getRoles().stream().anyMatch(role -> ADMIN_ROLE_CODE.equals(role.getCode()))
+				&& !retainsAdminRole;
+		if (!removesActiveAdmin)
+		{
+			return;
+		}
+
+		List<space.nebula.nexus.entity.User> activeAdmins =
+				userRepository.findByRoleCodeAndStatusForUpdate(ADMIN_ROLE_CODE, UserStatus.ACTIVE);
+		Assert.isTrue(activeAdmins.stream().anyMatch(user -> !user.getId().equals(target.getId())),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"At least one active administrator must remain"));
 	}
 }

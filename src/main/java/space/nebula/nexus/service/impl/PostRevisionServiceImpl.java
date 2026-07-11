@@ -44,6 +44,8 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 	@Transactional
 	public void saveRevision(Post post)
 	{
+		Post lockedPost = postRepository.findByIdForUpdate(post.getId())
+				.orElseThrow(() -> new ResourceNotFoundException("Post", "id", post.getId()));
 		int nextVersion = postRevisionRepository.findMaxVersionByPostId(post.getId()).orElse(0) + 1;
 
 		PostRevision revision = new PostRevision();
@@ -53,7 +55,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 		revision.setContent(post.getContent());
 		revision.setContentType(post.getContentType());
 		revision.setVersionNumber(nextVersion);
-		revision.setCreatedBy(post.getAuthor());
+		revision.setCreatedBy(lockedPost.getAuthor());
 
 		postRevisionRepository.save(revision);
 		log.info("Saved revision {} for post {}", nextVersion, post.getId());

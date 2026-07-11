@@ -1,74 +1,85 @@
 package space.nebula.nexus.service.impl;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import space.nebula.nexus.common.exception.BusinessException;
+import space.nebula.nexus.config.NewsletterProperties;
 import space.nebula.nexus.entity.Subscriber;
+import space.nebula.nexus.enums.SubscriberStatus;
 import space.nebula.nexus.repository.SubscriberRepository;
 import space.nebula.nexus.service.IAnalyticsService;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class NewsletterServiceImplTest {
 
-    @Mock
-    private SubscriberRepository subscriberRepository;
-    @Mock
-    private RabbitTemplate rabbitTemplate;
-    @Mock
-    private IAnalyticsService analyticsService;
+	@Mock private SubscriberRepository subscriberRepository;
+	@Mock private RabbitTemplate rabbitTemplate;
+	@Mock private IAnalyticsService analyticsService;
+	@Mock private NewsletterProperties newsletterProperties;
+	@InjectMocks private NewsletterServiceImpl service;
 
-    @InjectMocks
-    private NewsletterServiceImpl newsletterService;
+	@BeforeEach
+	void setUp() {
+		org.mockito.Mockito.lenient().when(newsletterProperties.getBaseUrl()).thenReturn("https://nexus.example");
+		org.mockito.Mockito.lenient().when(newsletterProperties.getVerificationTtl()).thenReturn(Duration.ofHours(24));
+	}
 
-    @Test
-    void subscribe_NewEmail_Success() {
-        String email = "test@example.com";
-        when(subscriberRepository.findByEmail(email)).thenReturn(Optional.empty());
+	@Test
+	void resubscribeNormalizesEmailAndRotatesOldTokens() {
+		Subscriber subscriber = new Subscriber();
+		subscriber.setEmail("user@example.com");
+		subscriber.setStatus(SubscriberStatus.UNSUBSCRIBED);
+		subscriber.setVerificationToken("old-verification-token");
+		subscriber.setUnsubscribeToken("old-unsubscribe-token");
+		when(subscriberRepository.findByEmail("user@example.com")).thenReturn(Optional.of(subscriber));
 
-        var response = newsletterService.subscribe(email);
+		service.subscribe(" User@Example.COM ");
 
-        assertEquals(200, response.code());
-        verify(subscriberRepository).save(any(Subscriber.class));
-        verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
-    }
+		assertEquals(SubscriberStatus.PENDING, subscriber.getStatus());
+		assertNotEquals("old-verification-token", subscriber.getVerificationToken());
+		assertNotEquals("old-unsubscribe-token", subscriber.getUnsubscribeToken());
+		assertNotNull(subscriber.getVerificationExpiresAt());
+		verify(subscriberRepository).save(subscriber);
+	}
 
-    @Test
-    void verify_ValidToken_Success() {
-        String token = "valid-token";
-        Subscriber subscriber = new Subscriber();
-        subscriber.setEmail("test@example.com");
-        subscriber.setStatus("PENDING");
-        
-        when(subscriberRepository.findByVerificationToken(token)).thenReturn(Optional.of(subscriber));
+	@Test
+	void verifyRejectsExpiredToken() {
+		Subscriber subscriber = new Subscriber();
+		subscriber.setStatus(SubscriberStatus.PENDING);
+		subscriber.setVerificationExpiresAt(LocalDateTime.now().minusMinutes(1));
+		when(subscriberRepository.findByVerificationToken("expired")).thenReturn(Optional.of(subscriber));
 
-        var response = newsletterService.verify(token);
+		assertThrows(BusinessException.class, () -> service.verify("expired"));
+	}
 
-        assertEquals(200, response.code());
-        assertEquals("ACTIVE", subscriber.getStatus());
-        verify(subscriberRepository).save(subscriber);
-    }
+	@Test
+	void verifyActivatesPendingSubscriptionAndConsumesToken() {
+		Subscriber subscriber = new Subscriber();
+		subscriber.setStatus(SubscriberStatus.PENDING);
+		subscriber.setVerificationToken("valid");
+		subscriber.setVerificationExpiresAt(LocalDateTime.now().plusMinutes(5));
+		when(subscriberRepository.findByVerificationToken("valid")).thenReturn(Optional.of(subscriber));
 
-    @Test
-    void unsubscribe_ValidToken_Success() {
-        String token = "unsub-token";
-        Subscriber subscriber = new Subscriber();
-        subscriber.setStatus("ACTIVE");
-        
-        when(subscriberRepository.findByUnsubscribeToken(token)).thenReturn(Optional.of(subscriber));
+		service.verify("valid");
 
-        var response = newsletterService.unsubscribe(token);
-
-        assertEquals(200, response.code());
-        assertEquals("UNSUBSCRIBED", subscriber.getStatus());
-        verify(subscriberRepository).save(subscriber);
-    }
+		assertEquals(SubscriberStatus.ACTIVE, subscriber.getStatus());
+		assertEquals(null, subscriber.getVerificationToken());
+		assertEquals(null, subscriber.getVerificationExpiresAt());
+	}
 }

@@ -21,18 +21,24 @@ import space.nebula.nexus.common.validator.UserValidator;
 import space.nebula.nexus.config.RabbitMQConfig;
 import space.nebula.nexus.entity.Role;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.payload.request.LoginRequest;
+import space.nebula.nexus.payload.request.OtpLoginRequest;
 import space.nebula.nexus.payload.request.RegisterRequest;
 import space.nebula.nexus.payload.response.AuthResponse;
 import space.nebula.nexus.repository.RoleRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.model.SecurityUser;
 import space.nebula.nexus.security.service.LoginSecurityService;
+import space.nebula.nexus.security.token.RevokedTokenStore;
+import space.nebula.nexus.security.token.RefreshTokenStore;
 import space.nebula.nexus.security.util.JwtUtils;
 import space.nebula.nexus.utils.RedisUtil;
 
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import jakarta.servlet.http.HttpServletRequest;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -59,6 +65,10 @@ class AuthServiceImplTest {
 	@Mock
 	private RedisUtil redisUtil;
 	@Mock
+	private RevokedTokenStore revokedTokenStore;
+	@Mock
+	private RefreshTokenStore refreshTokenStore;
+	@Mock
 	private RabbitTemplate rabbitTemplate;
 	@Mock
 	private space.nebula.nexus.config.AuthProperties authProperties;
@@ -76,6 +86,7 @@ class AuthServiceImplTest {
 		lenient().when(authProperties.getDefaultRoleCode()).thenReturn("ROLE_USER");
 		lenient().when(jwtProperties.getHeader()).thenReturn("Authorization");
 		lenient().when(jwtProperties.getPrefix()).thenReturn("Bearer ");
+		lenient().when(jwtUtils.extractTokenId(anyString())).thenReturn("refresh-id");
 
 		registerRequest = new RegisterRequest("testuser", "test@example.com", "Password123!");
 		loginRequest = new LoginRequest("testuser", "Password123!");
@@ -148,6 +159,30 @@ class AuthServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("Should revoke the access token on logout")
+	void logout_RevokesAccessToken() {
+		HttpServletRequest request = mock(HttpServletRequest.class);
+		when(request.getHeader("Authorization")).thenReturn("Bearer access-token");
+		when(jwtUtils.getAccessTokenExpiration()).thenReturn(120_000L);
+
+		authService.logout(request);
+
+		verify(revokedTokenStore).revoke("access-token", Duration.ofMinutes(2));
+	}
+
+	@Test
+	@DisplayName("Should reject an access token at the refresh endpoint")
+	void refreshToken_RejectsAccessToken() {
+		when(jwtUtils.isRefreshToken("access-token")).thenReturn(false);
+
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> authService.refreshToken("access-token"));
+
+		assertEquals(BusinessCode.INVALID_TOKEN.getCode(), exception.getCode());
+		verifyNoInteractions(refreshTokenStore);
+	}
+
+	@Test
 	@DisplayName("Should send OTP and keep it in Redis when email dispatch succeeds")
 	void sendOtp_Success() {
 		User user = new User();
@@ -161,6 +196,41 @@ class AuthServiceImplTest {
 		assertEquals(200, response.code());
 		verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.MAIL_EXCHANGE), eq(RabbitMQConfig.MAIL_ROUTING_KEY), any(Object.class));
 		verify(redisUtil, never()).delete(anyString());
+	}
+
+	@Test
+	@DisplayName("Should atomically consume OTP during login")
+	void loginWithOtp_ConsumesOtpAtomically() {
+		String email = "test@example.com";
+		String otpKey = CacheConstants.OTP_CODE + email;
+		User user = new User();
+		user.setUsername("testuser");
+		user.setEmail(email);
+		user.setStatus(UserStatus.ACTIVE);
+		when(redisUtil.consumeIfEquals(otpKey, "123456")).thenReturn(true);
+		when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+		when(jwtUtils.generateAccessToken(any())).thenReturn("access-token");
+		when(jwtUtils.generateRefreshToken(any())).thenReturn("refresh-token");
+
+		ApiResponse<AuthResponse> response = authService.loginWithOtp(new OtpLoginRequest(email, "123456"));
+
+		assertEquals(200, response.code());
+		verify(redisUtil).consumeIfEquals(otpKey, "123456");
+		verify(redisUtil, never()).get(eq(otpKey), eq(String.class));
+		verify(redisUtil, never()).delete(otpKey);
+	}
+
+	@Test
+	@DisplayName("Should reject an invalid OTP without loading the user")
+	void loginWithOtp_RejectsInvalidOtp() {
+		String email = "test@example.com";
+		when(redisUtil.consumeIfEquals(CacheConstants.OTP_CODE + email, "000000")).thenReturn(false);
+
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> authService.loginWithOtp(new OtpLoginRequest(email, "000000")));
+
+		assertEquals(BusinessCode.INVALID_TOKEN.getCode(), exception.getCode());
+		verifyNoInteractions(userRepository);
 	}
 
 	@Test

@@ -4,7 +4,6 @@ import cn.hutool.core.lang.Assert;
 import cn.hutool.core.lang.tree.Tree;
 import cn.hutool.core.lang.tree.TreeNodeConfig;
 import cn.hutool.core.lang.tree.TreeUtil;
-import cn.hutool.core.util.IdUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -89,13 +88,15 @@ public class CommentServiceImpl implements ICommentService
 
 			Assert.isTrue(contextMatch,
 					() -> new BusinessException(BusinessCode.BAD_REQUEST, "Comment context mismatch with parent"));
+			Assert.isTrue(parentComment.getStatus() == CommentStatus.APPROVED,
+					() -> new BusinessException(BusinessCode.BAD_REQUEST,
+							"Replies can only be added to approved comments"));
 		}
 
 		User author = SecurityUtil.getCurrentUserOrThrow(userRepository);
 
 		// 4. Persistence
 		var comment = new Comment();
-		comment.setId(IdUtil.getSnowflakeNextId()); // Use Snowflake to avoid double-save for path generation
 		comment.setContent(filteredContent);
 		comment.setPost(targetPost);
 		comment.setUser(author);
@@ -113,9 +114,9 @@ public class CommentServiceImpl implements ICommentService
 			comment.setStatus(CommentStatus.PENDING);
 		}
 
-		// Generate and set Path Enumeration for fast tree queries
+		// Obtain the database-generated identity before constructing the materialized path.
+		commentRepository.saveAndFlush(comment);
 		comment.updatePath(parentComment);
-
 		commentRepository.save(comment);
 
 		eventPublisher.publishEvent(new CommentSubmittedEvent(this, comment));
@@ -168,6 +169,9 @@ public class CommentServiceImpl implements ICommentService
 	@LogOperation("Moderate Comment")
 	public ApiResponse<Void> moderateComment(Long id, CommentStatus status)
 	{
+		Assert.isTrue(status == CommentStatus.APPROVED || status == CommentStatus.REJECTED,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Moderation status must be APPROVED or REJECTED"));
 		var comment = commentRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
 
@@ -195,6 +199,9 @@ public class CommentServiceImpl implements ICommentService
 	public ApiResponse<Void> deleteComment(Long id)
 	{
 		Assert.isTrue(commentRepository.existsById(id), () -> new ResourceNotFoundException("Comment", "id", id));
+		Assert.isFalse(commentRepository.existsByParentId(id),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Delete child comments before deleting their parent"));
 
 		commentRepository.deleteById(id);
 		log.info("Comment {} permanently deleted", id);

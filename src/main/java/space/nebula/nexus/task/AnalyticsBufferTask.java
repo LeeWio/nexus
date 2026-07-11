@@ -3,6 +3,7 @@ package space.nebula.nexus.task;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.constant.CacheConstants;
@@ -28,6 +29,7 @@ public class AnalyticsBufferTask
 	 * 5 minutes.
 	 */
 	@Scheduled(fixedRate = 300000)
+	@SchedulerLock(name = "analyticsBufferFlush", lockAtMostFor = "PT4M")
 	@Transactional
 	public void flushAnalyticsBuffer()
 	{

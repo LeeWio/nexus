@@ -26,13 +26,18 @@ public class ScheduledTaskMetricsAspect {
 	@Around("@annotation(org.springframework.scheduling.annotation.Scheduled)")
 	public Object profile(ProceedingJoinPoint pjp) throws Throwable {
 		String methodName = pjp.getSignature().toShortString();
-
 		Timer.Sample sample = Timer.start(meterRegistry);
+		String outcome = "success";
 		try {
 			return pjp.proceed();
+		} catch (Throwable failure) {
+			outcome = "error";
+			meterRegistry.counter("nexus.scheduled.task.failures", "method", methodName,
+					"exception", failure.getClass().getSimpleName()).increment();
+			throw failure;
 		} finally {
 			sample.stop(Timer.builder("nexus.scheduled.task").description("Duration of scheduled tasks")
-					.tag("method", methodName).register(meterRegistry));
+					.tag("method", methodName).tag("outcome", outcome).register(meterRegistry));
 		}
 	}
 }

@@ -13,6 +13,7 @@ import space.nebula.nexus.common.annotation.LogOperation;
 import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.event.PostChangedEvent;
+import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.common.event.PostDeletedEvent;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
@@ -72,8 +73,6 @@ public class PostServiceImpl implements IPostService
 	private final space.nebula.nexus.common.validator.PostValidator postValidator;
 
 	private final space.nebula.nexus.repository.ConfigRepository configRepository;
-	private final space.nebula.nexus.service.IPostRevisionService postRevisionService;
-
 	@Override
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<PostResponse>> searchPostsForAdmin(PostStatus status, Long categoryId, String keyword, Pageable pageable)
@@ -113,11 +112,8 @@ public class PostServiceImpl implements IPostService
 		postMapper.updateEntity(newPost, request);
 		newPost.setSlug(uniqueSlug);
 		newPost.setAuthor(currentAuthor);
-
-		if (newPost.getStatus() == null)
-		{
-			newPost.moveToDraft();
-		}
+		// Workflow state is controlled by dedicated commands, never by CRUD payloads.
+		newPost.moveToDraft();
 
 		if (request.contentType() != null)
 		{
@@ -136,16 +132,13 @@ public class PostServiceImpl implements IPostService
 			postRepository.save(newPost);
 		}
 
-		// Save a new revision snapshot for history
-		postRevisionService.saveRevision(newPost);
-
 		log.info("Blog post created: {} by {}", newPost.getTitle(), currentAuthor.getUsername());
 
 		// Cleanup potential autosave data
 		clearAutosaveData(request.slug());
 
 		// Publish event
-		eventPublisher.publishEvent(new PostChangedEvent(this, newPost, true));
+		eventPublisher.publishEvent(new PostChangedEvent(this, newPost, PostChangeType.CREATED));
 
 		return ApiResponse.success("Post created successfully", postMapper.toResponse(newPost));
 	}
@@ -158,6 +151,8 @@ public class PostServiceImpl implements IPostService
 	{
 		postValidator.validatePostRequest(request);
 		Post existingPost = findPostOrThrow(id);
+		String previousPath = existingPost.getPath();
+		String previousSlug = existingPost.getSlug();
 
 		if (StrUtil.isNotBlank(request.slug()) && !StrUtil.equals(request.slug(), existingPost.getSlug()))
 		{
@@ -172,9 +167,10 @@ public class PostServiceImpl implements IPostService
 		syncParentPost(existingPost, request);
 
 		postRepository.save(existingPost);
-
-		// Save a new revision snapshot for history (Version N+1)
-		postRevisionService.saveRevision(existingPost);
+		if (previousPath != null && !previousPath.equals(existingPost.getPath()))
+		{
+			postRepository.replaceDescendantPathPrefix(existingPost.getId(), previousPath, existingPost.getPath());
+		}
 
 		log.info("Blog post updated: {}", existingPost.getTitle());
 
@@ -183,7 +179,7 @@ public class PostServiceImpl implements IPostService
 		clearAutosaveData(existingPost.getSlug());
 
 		// Publish event
-		eventPublisher.publishEvent(new PostChangedEvent(this, existingPost, false));
+		eventPublisher.publishEvent(new PostChangedEvent(this, existingPost, PostChangeType.UPDATED, previousSlug));
 
 		return ApiResponse.success("Post updated successfully", postMapper.toResponse(existingPost));
 	}
@@ -195,6 +191,9 @@ public class PostServiceImpl implements IPostService
 	public ApiResponse<Void> deletePost(Long id)
 	{
 		Post postToDelete = findPostOrThrow(id);
+		Assert.isFalse(postRepository.existsByParentId(id),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Move or delete child posts before deleting this post"));
 		String currentSlug = postToDelete.getSlug();
 
 		postRepository.delete(postToDelete);
@@ -217,7 +216,11 @@ public class PostServiceImpl implements IPostService
 						"Only Draft or Rejected posts can be submitted for review"));
 
 		post.setStatus(PostStatus.PENDING_REVIEW);
+		post.setReviewComment(null);
+		post.setReviewedAt(null);
+		post.setReviewedBy(null);
 		postRepository.save(post);
+		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.SUBMITTED_FOR_REVIEW));
 		log.info("Post '{}' submitted for review by {}", post.getTitle(),
 				SecurityUtil.getCurrentUserOrThrow(userRepository).getUsername());
 		return ApiResponse.success("Post submitted for review successfully", null);
@@ -232,12 +235,22 @@ public class PostServiceImpl implements IPostService
 		Post post = findPostOrThrow(id);
 		Assert.isTrue(post.getStatus() == PostStatus.PENDING_REVIEW,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post is not pending review"));
+		if (!approved)
+		{
+			Assert.notBlank(reviewComment,
+					() -> new BusinessException(BusinessCode.BAD_REQUEST,
+							"A rejection reason is required"));
+		}
+		User reviewer = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		post.setReviewComment(StrUtil.blankToDefault(reviewComment, null));
+		post.setReviewedAt(java.time.LocalDateTime.now());
+		post.setReviewedBy(reviewer);
 
 		if (approved)
 		{
 			post.publish();
 			log.info("Post '{}' approved and published", post.getTitle());
-			eventPublisher.publishEvent(new PostChangedEvent(this, post, true));
+			eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.PUBLISHED));
 		}
 		else
 		{
@@ -247,6 +260,10 @@ public class PostServiceImpl implements IPostService
 		}
 
 		postRepository.save(post);
+		if (!approved)
+		{
+			eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.REJECTED));
+		}
 		return ApiResponse.success(approved ? "Post approved and published" : "Post rejected", null);
 	}
 
@@ -353,7 +370,7 @@ public class PostServiceImpl implements IPostService
 	@Override
 	public ApiResponse<Void> autosavePostContent(PostAutosaveRequest request)
 	{
-		String autosaveKey = CacheConstants.POST_AUTOSAVE_PREFIX + request.identifier();
+		String autosaveKey = autosaveKey(request.identifier());
 		PostAutosaveResponse autosaveData = new PostAutosaveResponse(request.content(), request.contentType());
 		redisUtil.set(autosaveKey, autosaveData, 24, TimeUnit.HOURS);
 		log.debug("Autosaved content for identifier: {}", request.identifier());
@@ -363,7 +380,7 @@ public class PostServiceImpl implements IPostService
 	@Override
 	public ApiResponse<PostAutosaveResponse> retrieveAutosavedContent(String identifier)
 	{
-		String autosaveKey = CacheConstants.POST_AUTOSAVE_PREFIX + identifier;
+		String autosaveKey = autosaveKey(identifier);
 		return redisUtil.get(autosaveKey, PostAutosaveResponse.class).map(ApiResponse::success).orElse(
 				ApiResponse.error(BusinessCode.NOT_FOUND.getCode(), "No autosaved content found for this identifier"));
 	}
@@ -385,8 +402,15 @@ public class PostServiceImpl implements IPostService
 	{
 		if (identifier != null)
 		{
-			redisUtil.delete(CacheConstants.POST_AUTOSAVE_PREFIX + identifier);
+			redisUtil.delete(autosaveKey(identifier));
 		}
+	}
+
+	private String autosaveKey(String identifier)
+	{
+		String username = SecurityUtil.getCurrentUsername();
+		Assert.notBlank(username, () -> new BusinessException(BusinessCode.UNAUTHORIZED, "User not authenticated"));
+		return CacheConstants.POST_AUTOSAVE_PREFIX + username + ":" + identifier;
 	}
 
 	private Post findPostOrThrow(Long id)
@@ -412,6 +436,12 @@ public class PostServiceImpl implements IPostService
 			}
 
 			Post parent = findPostOrThrow(request.parentId());
+			if (post.getId() != null && parent.getPath() != null
+					&& parent.getPath().contains("/" + post.getId() + "/"))
+			{
+				throw new BusinessException(BusinessCode.BAD_REQUEST,
+						"A post cannot be moved below one of its descendants");
+			}
 			post.setParent(parent);
 			post.updatePath(parent);
 		}
@@ -457,7 +487,10 @@ public class PostServiceImpl implements IPostService
 			}
 			else
 			{
-				post.setTags(new HashSet<>(tagRepository.findAllById(request.tagIds())));
+				List<space.nebula.nexus.entity.Tag> tags = tagRepository.findAllById(request.tagIds());
+				Assert.isTrue(tags.size() == request.tagIds().size(),
+						() -> new BusinessException(BusinessCode.BAD_REQUEST, "One or more selected tags do not exist"));
+				post.setTags(new HashSet<>(tags));
 			}
 		}
 	}

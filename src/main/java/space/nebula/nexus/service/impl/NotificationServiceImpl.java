@@ -10,6 +10,7 @@ import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Notification;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.NotificationResponse;
 import space.nebula.nexus.repository.NotificationRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
@@ -38,25 +39,23 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     @Transactional(readOnly = true)
-    public ApiResponse<PageResult<Notification>> getMyNotifications(Pageable pageable) {
+    public ApiResponse<PageResult<NotificationResponse>> getMyNotifications(Pageable pageable) {
         User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
         var notifications = notificationRepository.findByRecipientId(currentUser.getId(), pageable);
-        return ApiResponse.success(PageResult.of(notifications));
+        return ApiResponse.success(PageResult.of(notifications.map(this::toResponse)));
     }
 
     @Override
     @Transactional
     public ApiResponse<Void> markAsRead(Long id) {
-        Notification notification = notificationRepository.findById(id)
+		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		Notification notification = notificationRepository.findByIdAndRecipientId(id, currentUser.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Notification", "id", id));
-        
-        User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
-        if (!notification.getRecipient().getId().equals(currentUser.getId())) {
-            throw new space.nebula.nexus.common.exception.BusinessException(403, "Unauthorized");
-        }
 
-        notification.setIsRead(true);
-        notificationRepository.save(notification);
+		if (!Boolean.TRUE.equals(notification.getIsRead())) {
+			notification.setIsRead(true);
+			notificationRepository.save(notification);
+		}
         return ApiResponse.success("Notification marked as read", null);
     }
 
@@ -75,4 +74,9 @@ public class NotificationServiceImpl implements INotificationService {
         long count = notificationRepository.countByRecipientIdAndIsReadFalse(currentUser.getId());
         return ApiResponse.success(count);
     }
+
+	private NotificationResponse toResponse(Notification notification) {
+		return new NotificationResponse(notification.getId(), notification.getTitle(), notification.getContent(),
+				notification.getType(), notification.getIsRead(), notification.getLink(), notification.getCreatedAt());
+	}
 }

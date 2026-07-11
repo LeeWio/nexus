@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.scheduling.annotation.EnableAsync;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import space.nebula.nexus.common.aspect.MdcTaskDecorator;
@@ -23,7 +22,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 @Slf4j
 @Configuration
 @EnableAsync
-@EnableScheduling
 @RequiredArgsConstructor
 public class ThreadPoolConfig
 {
@@ -61,6 +59,21 @@ public class ThreadPoolConfig
 		executor.setAwaitTerminationSeconds(properties.getAsync().getAwaitTerminationSeconds());
 		executor.setTaskDecorator(new MdcTaskDecorator());
 		executor.initialize();
+		return executor;
+	}
+
+	/**
+	 * Executor dedicated to outbound network calls. The concurrency limit protects
+	 * connection pools and remote services even when virtual threads are enabled.
+	 */
+	@Bean(name = "outboundExecutor")
+	Executor outboundExecutor()
+	{
+		SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor();
+		executor.setThreadNamePrefix(properties.getOutbound().getThreadNamePrefix());
+		executor.setVirtualThreads(virtualThreadsEnabled);
+		executor.setConcurrencyLimit(properties.getOutbound().getMaxConcurrency());
+		executor.setTaskDecorator(new MdcTaskDecorator());
 		return executor;
 	}
 

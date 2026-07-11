@@ -9,6 +9,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
@@ -61,6 +62,11 @@ class CommentServiceImplTest {
         testPost = new Post();
         testPost.setId(1L);
         testPost.setStatus(PostStatus.PUBLISHED);
+        lenient().when(commentRepository.saveAndFlush(any(Comment.class))).thenAnswer(invocation -> {
+            Comment comment = invocation.getArgument(0);
+            comment.setId(100L);
+            return comment;
+        });
     }
 
     @Test
@@ -97,6 +103,34 @@ class CommentServiceImplTest {
             verify(commentRepository).save(any(Comment.class));
             verify(eventPublisher).publishEvent(any());
         }
+    }
+
+    @Test
+    void publishComment_RejectsReplyToUnapprovedParent() {
+        Comment parent = new Comment();
+        parent.setId(10L);
+        parent.setPost(testPost);
+        parent.setStatus(CommentStatus.PENDING);
+        CommentRequest request = new CommentRequest("Reply", 1L, 10L);
+
+        when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
+        when(sensitiveWordService.filter("Reply")).thenReturn("Reply");
+        when(commentRepository.findById(10L)).thenReturn(Optional.of(parent));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> commentService.publishComment(request, servletRequest));
+
+        assertEquals(400, exception.getCode());
+        verify(commentRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void moderateComment_RejectsNonTerminalStatus() {
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> commentService.moderateComment(1L, CommentStatus.PENDING));
+
+        assertEquals(400, exception.getCode());
+        verifyNoInteractions(commentRepository);
     }
 
     @Test

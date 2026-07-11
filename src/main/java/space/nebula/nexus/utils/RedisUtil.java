@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class RedisUtil
 {
+	private static final RedisScript<Long> COMPARE_AND_DELETE_SCRIPT = RedisScript.of(
+			"if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end",
+			Long.class);
 
 	private final RedisTemplate<String, Object> redisTemplate;
 
@@ -98,6 +102,27 @@ public class RedisUtil
 		{
 			log.error("Error getting value for key: {}", key, e);
 			return Optional.empty();
+		}
+	}
+
+	/**
+	 * Atomically deletes a key only when its current value equals the expected value.
+	 *
+	 * @param key the Redis key
+	 * @param expectedValue the value that must currently be stored
+	 * @return {@code true} when the value matched and the key was deleted
+	 */
+	public boolean consumeIfEquals(String key, String expectedValue)
+	{
+		try
+		{
+			Long result = redisTemplate.execute(COMPARE_AND_DELETE_SCRIPT, List.of(key), expectedValue);
+			return result != null && result == 1L;
+		}
+		catch (Exception e)
+		{
+			log.error("Error atomically consuming value for key: {}", key, e);
+			return false;
 		}
 	}
 

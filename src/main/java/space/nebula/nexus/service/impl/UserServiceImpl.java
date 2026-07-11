@@ -62,6 +62,7 @@ public class UserServiceImpl implements IUserService {
             () -> new BusinessException(BusinessCode.BAD_CREDENTIALS, "Current password does not match"));
             
         currentUser.setPassword(passwordEncoder.encode(request.newPassword()));
+		currentUser.setTokenVersion(currentUser.getTokenVersion() + 1);
         userRepository.save(currentUser);
         
         log.info("User {} changed password", currentUser.getUsername());

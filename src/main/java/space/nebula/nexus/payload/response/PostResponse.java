@@ -30,6 +30,12 @@ public record PostResponse(@Schema(description = "Post ID") Long id,
 
 		@Schema(description = "Current status") PostStatus status,
 
+		@Schema(description = "Latest editorial review comment") String reviewComment,
+
+		@Schema(description = "Latest reviewer display name") String reviewerName,
+
+		@Schema(description = "Latest review time") LocalDateTime reviewedAt,
+
 		@Schema(description = "Is featured post") Boolean isFeatured,
 
 		@Schema(description = "Total view count") Long views,

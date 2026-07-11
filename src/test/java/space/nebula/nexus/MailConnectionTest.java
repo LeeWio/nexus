@@ -1,12 +1,14 @@
 package space.nebula.nexus;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import space.nebula.nexus.utils.MailUtil;
 
 @SpringBootTest(classes = {space.nebula.nexus.config.MockRedisConfig.class, space.nebula.nexus.config.MockRabbitMQConfig.class})
 @org.springframework.test.context.ActiveProfiles("test")
+@Disabled("Manual SMTP smoke test; must not send external email during automated tests")
 public class MailConnectionTest {
 
 	@Autowired

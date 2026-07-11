@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
@@ -23,7 +24,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "blog_post_revision")
+@Table(name = "blog_post_revision", uniqueConstraints =
+		@UniqueConstraint(name = "uk_revision_post_version", columnNames = { "post_id", "version_number" }))
 public class PostRevision implements Serializable
 {
 

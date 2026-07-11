@@ -2,64 +2,62 @@ package space.nebula.nexus.service.impl;
 
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.IdUtil;
-import cn.hutool.core.util.StrUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.config.RabbitMQConfig;
+import space.nebula.nexus.config.NewsletterProperties;
 import space.nebula.nexus.entity.Subscriber;
+import space.nebula.nexus.enums.SubscriberStatus;
 import space.nebula.nexus.payload.request.TemplateMailMessage;
 import space.nebula.nexus.repository.SubscriberRepository;
 import space.nebula.nexus.service.IAnalyticsService;
 import space.nebula.nexus.service.INewsletterService;
 
-import java.util.List;
 import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.Locale;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class NewsletterServiceImpl implements INewsletterService {
+	private static final String SUBSCRIPTION_RESPONSE =
+			"If this address is eligible, subscription instructions have been sent.";
 
     private final SubscriberRepository subscriberRepository;
     private final RabbitTemplate rabbitTemplate;
     private final IAnalyticsService analyticsService;
-
-    @Value("${app.baseUrl:http://localhost:8080}")
-    private String baseUrl;
+	private final NewsletterProperties newsletterProperties;
 
     @Override
     @Transactional
     public ApiResponse<Void> subscribe(String email) {
         Assert.notBlank(email, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Email is required"));
-        
-        var existing = subscriberRepository.findByEmail(email);
+		String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+		var existing = subscriberRepository.findByEmail(normalizedEmail);
         if (existing.isPresent()) {
-            if ("ACTIVE".equals(existing.get().getStatus())) {
-                return ApiResponse.success("You are already subscribed", null);
+			if (existing.get().getStatus() == SubscriberStatus.ACTIVE) {
+				return ApiResponse.success(SUBSCRIPTION_RESPONSE, null);
             }
-            // If pending or unsubscribed, reset tokens and status
-            existing.get().setStatus("PENDING");
-            existing.get().setVerificationToken(IdUtil.fastSimpleUUID());
+			preparePendingSubscription(existing.get());
             subscriberRepository.save(existing.get());
             sendVerificationEmail(existing.get());
         } else {
             Subscriber subscriber = new Subscriber();
-            subscriber.setEmail(email);
-            subscriber.setStatus("PENDING");
-            subscriber.setVerificationToken(IdUtil.fastSimpleUUID());
-            subscriber.setUnsubscribeToken(IdUtil.fastSimpleUUID());
+			subscriber.setEmail(normalizedEmail);
+			preparePendingSubscription(subscriber);
             subscriberRepository.save(subscriber);
             sendVerificationEmail(subscriber);
         }
 
-        return ApiResponse.success("Subscription requested. Please check your inbox for verification.", null);
+		return ApiResponse.success(SUBSCRIPTION_RESPONSE, null);
     }
 
     @Override
@@ -68,8 +66,13 @@ public class NewsletterServiceImpl implements INewsletterService {
         var subscriber = subscriberRepository.findByVerificationToken(token)
                 .orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST, "Invalid or expired verification token"));
         
-        subscriber.setStatus("ACTIVE");
+		Assert.isTrue(subscriber.getStatus() == SubscriberStatus.PENDING
+				&& subscriber.getVerificationExpiresAt() != null
+				&& subscriber.getVerificationExpiresAt().isAfter(LocalDateTime.now()),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Invalid or expired verification token"));
+		subscriber.setStatus(SubscriberStatus.ACTIVE);
         subscriber.setVerificationToken(null);
+		subscriber.setVerificationExpiresAt(null);
         subscriberRepository.save(subscriber);
         
         log.info("New subscriber activated: {}", subscriber.getEmail());
@@ -82,7 +85,9 @@ public class NewsletterServiceImpl implements INewsletterService {
         var subscriber = subscriberRepository.findByUnsubscribeToken(token)
                 .orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST, "Invalid unsubscribe token"));
         
-        subscriber.setStatus("UNSUBSCRIBED");
+		subscriber.setStatus(SubscriberStatus.UNSUBSCRIBED);
+		subscriber.setVerificationToken(null);
+		subscriber.setVerificationExpiresAt(null);
         subscriberRepository.save(subscriber);
         
         log.info("Subscriber opted out: {}", subscriber.getEmail());
@@ -98,16 +103,17 @@ public class NewsletterServiceImpl implements INewsletterService {
             return;
         }
 
-        List<Subscriber> activeSubscribers = subscriberRepository.findAllByStatus("ACTIVE");
-        log.info("Broadcasting newsletter to {} active subscribers", activeSubscribers.size());
-
-        String currentBaseUrl = baseUrl != null ? baseUrl : "http://localhost:8080";
-
-        for (Subscriber sub : activeSubscribers) {
+		int pageNumber = 0;
+		long delivered = 0;
+		org.springframework.data.domain.Page<Subscriber> page;
+		do {
+			page = subscriberRepository.findAllByStatus(SubscriberStatus.ACTIVE,
+					PageRequest.of(pageNumber++, newsletterProperties.getBatchSize()));
+			for (Subscriber sub : page.getContent()) {
             Map<String, Object> variables = Map.of(
                 "posts", trendingResponse.data(),
-                "baseUrl", currentBaseUrl,
-                "unsubscribeUrl", currentBaseUrl + "/api/v1/public/newsletter/unsubscribe?token=" + sub.getUnsubscribeToken()
+				"baseUrl", newsletterProperties.getBaseUrl(),
+				"unsubscribeUrl", newsletterProperties.getBaseUrl() + "/api/v1/public/newsletter/unsubscribe?token=" + sub.getUnsubscribeToken()
             );
 
             TemplateMailMessage mail = TemplateMailMessage.builder()
@@ -118,18 +124,24 @@ public class NewsletterServiceImpl implements INewsletterService {
                 .type(TemplateMailMessage.MailType.TEMPLATE)
                 .build();
 
-            rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mail);
-        }
+				try {
+					rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mail);
+					delivered++;
+				} catch (Exception e) {
+					log.error("Failed to enqueue newsletter for subscriber id {}", sub.getId(), e);
+				}
+			}
+		} while (page.hasNext());
+		log.info("Newsletter broadcast queued for {} subscribers", delivered);
     }
 
     private void sendVerificationEmail(Subscriber subscriber) {
-        String currentBaseUrl = baseUrl != null ? baseUrl : "http://localhost:8080";
-        String verifyUrl = currentBaseUrl + "/api/v1/public/newsletter/verify?token=" + subscriber.getVerificationToken();
+		String verifyUrl = newsletterProperties.getBaseUrl() + "/api/v1/public/newsletter/verify?token=" + subscriber.getVerificationToken();
         
         Map<String, Object> variables = Map.of(
             "verifyUrl", verifyUrl,
             "email", subscriber.getEmail(),
-            "baseUrl", currentBaseUrl
+			"baseUrl", newsletterProperties.getBaseUrl()
         );
 
         TemplateMailMessage mail = TemplateMailMessage.builder()
@@ -142,4 +154,12 @@ public class NewsletterServiceImpl implements INewsletterService {
 
         rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mail);
     }
+
+	private void preparePendingSubscription(Subscriber subscriber) {
+		subscriber.setStatus(SubscriberStatus.PENDING);
+		subscriber.setVerificationToken(IdUtil.fastSimpleUUID());
+		subscriber.setVerificationExpiresAt(LocalDateTime.now().plus(newsletterProperties.getVerificationTtl()));
+		// A new consent flow invalidates every unsubscribe link from an older flow.
+		subscriber.setUnsubscribeToken(IdUtil.fastSimpleUUID());
+	}
 }

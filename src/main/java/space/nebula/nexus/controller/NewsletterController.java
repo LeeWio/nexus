@@ -4,21 +4,31 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.service.INewsletterService;
+
+import java.util.concurrent.TimeUnit;
 
 @Tag(name = "Newsletter", description = "Public endpoints for blog newsletter subscriptions")
 @RestController
 @RequestMapping("/api/v1/public/newsletter")
 @RequiredArgsConstructor
+@Validated
 public class NewsletterController {
 
     private final INewsletterService newsletterService;
 
     @PostMapping("/subscribe")
+	@RateLimit(count = 3, time = 1, unit = TimeUnit.HOURS,
+			message = "Too many subscription requests. Please try again later.")
     @Operation(summary = "Subscribe to newsletter", description = "Request to join the blog's newsletter mailing list.")
-    public ApiResponse<Void> subscribe(@RequestParam String email) {
+    public ApiResponse<Void> subscribe(
+			@Email(message = "Invalid email format") @NotBlank(message = "Email is required") @RequestParam String email) {
         return newsletterService.subscribe(email);
     }
 

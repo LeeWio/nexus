@@ -11,6 +11,8 @@ import space.nebula.nexus.common.event.PostDeletedEvent;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostSearchService;
+import space.nebula.nexus.utils.RedisUtil;
+import space.nebula.nexus.common.constant.CacheConstants;
 
 /**
  * Listener for Post related events. Decouples core business from side-effects
@@ -23,6 +25,7 @@ public class PostEventListener {
 
 	private final IPostSearchService postSearchService;
 	private final IPostRevisionService postRevisionService;
+	private final RedisUtil redisUtil;
 
 	/**
 	 * Handle post created or updated. Executed AFTER transaction commit to ensure
@@ -32,6 +35,10 @@ public class PostEventListener {
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onPostChanged(PostChangedEvent event) {
 		log.info("Processing PostChangedEvent for post: {}", event.getPost().getId());
+		redisUtil.delete(CacheConstants.POST_SLUG_PREFIX + event.getPost().getSlug());
+		if (event.getPreviousSlug() != null && !event.getPost().getSlug().equals(event.getPreviousSlug())) {
+			redisUtil.delete(CacheConstants.POST_SLUG_PREFIX + event.getPreviousSlug());
+		}
 
 		// 1. Sync to Search Engine - ONLY if published
 		if (event.getPost().getStatus() == PostStatus.PUBLISHED) {
@@ -52,6 +59,7 @@ public class PostEventListener {
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onPostDeleted(PostDeletedEvent event) {
 		log.info("Processing PostDeletedEvent for post: {}", event.getPostId());
+		redisUtil.delete(CacheConstants.POST_SLUG_PREFIX + event.getSlug());
 
 		// Remove from Search Engine
 		postSearchService.deletePostIndex(event.getPostId());

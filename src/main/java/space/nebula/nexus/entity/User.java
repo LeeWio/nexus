@@ -60,6 +60,9 @@ public class User extends BaseEntity
 	@Column(name = "github_username", length = 100)
 	private String githubUsername;
 
+	@Column(name = "token_version", nullable = false)
+	private Integer tokenVersion = 0;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
 	private UserStatus status = UserStatus.ACTIVE;

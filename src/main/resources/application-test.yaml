@@ -51,9 +51,15 @@ spring:
     socket-timeout: 10s
 
 app:
+  scheduling:
+    enabled: false
+  cache:
+    invalidation-listener-enabled: false
   jwt:
     secret: "4A614E645267556B58703273357638792F423F4528482B4D6251655468576D5A" # Test only
   github:
     token: "test-token"
   search:
     type: database # Use DB search instead of ES for tests
+
+spring.rabbitmq.listener.simple.auto-startup: false

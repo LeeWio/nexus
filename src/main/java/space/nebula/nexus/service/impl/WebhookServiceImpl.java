@@ -18,6 +18,7 @@ import space.nebula.nexus.repository.WebhookRepository;
 import space.nebula.nexus.service.IWebhookService;
 import space.nebula.nexus.listener.WebhookDispatcher;
 import space.nebula.nexus.enums.WebhookEvent;
+import space.nebula.nexus.security.OutboundUrlValidator;
 import cn.hutool.core.lang.Dict;
 
 import java.util.List;
@@ -33,6 +34,7 @@ public class WebhookServiceImpl implements IWebhookService
 	private final space.nebula.nexus.repository.WebhookLogRepository webhookLogRepository;
 	private final WebhookMapper webhookMapper;
 	private final WebhookDispatcher webhookDispatcher;
+	private final OutboundUrlValidator outboundUrlValidator;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -49,6 +51,7 @@ public class WebhookServiceImpl implements IWebhookService
 	@org.springframework.cache.annotation.CacheEvict(value = space.nebula.nexus.common.constant.CacheConstants.SYS_CONFIG, key = "'active_webhooks'")
 	public ApiResponse<WebhookResponse> createWebhook(WebhookRequest request)
 	{
+		outboundUrlValidator.validate(request.url());
 		Webhook webhook = webhookMapper.toEntity(request);
 		if (StrUtil.isBlank(webhook.getSecret()))
 		{
@@ -65,6 +68,7 @@ public class WebhookServiceImpl implements IWebhookService
 	@org.springframework.cache.annotation.CacheEvict(value = space.nebula.nexus.common.constant.CacheConstants.SYS_CONFIG, key = "'active_webhooks'")
 	public ApiResponse<WebhookResponse> updateWebhook(Long id, WebhookRequest request)
 	{
+		outboundUrlValidator.validate(request.url());
 		Webhook webhook = webhookRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Webhook", "id", id));
 		webhookMapper.updateEntity(webhook, request);

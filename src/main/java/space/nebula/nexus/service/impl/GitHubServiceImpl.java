@@ -31,7 +31,7 @@ public class GitHubServiceImpl implements IGitHubService
 	private final RestClient restClient;
 	private final RedisUtil redisUtil;
 	private final ProjectRepository projectRepository;
-	private final Executor asyncExecutor;
+	private final Executor outboundExecutor;
 
 	@Value("${app.github.username}")
 	private String githubUsername;
@@ -108,7 +108,7 @@ public class GitHubServiceImpl implements IGitHubService
 				}
 			}
 			return null;
-		}, asyncExecutor)).toList();
+		}, outboundExecutor)).toList();
 
 		List<Project> updatedProjects = futures.stream().map(CompletableFuture::join).filter(java.util.Objects::nonNull)
 				.toList();

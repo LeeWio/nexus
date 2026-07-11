@@ -3,9 +3,10 @@ package space.nebula.nexus.common.listener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import space.nebula.nexus.common.event.CommentSubmittedEvent;
 import space.nebula.nexus.config.RabbitMQConfig;
 import space.nebula.nexus.entity.Comment;
@@ -30,7 +31,7 @@ public class CommentEventListener {
 	 * Handle comment submission. Dispatched asynchronously via 'asyncExecutor'.
 	 */
 	@Async("asyncExecutor")
-	@EventListener
+	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onCommentSubmitted(CommentSubmittedEvent event) {
 		Comment comment = event.getComment();
 

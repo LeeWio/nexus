@@ -5,20 +5,19 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
 import cn.hutool.crypto.digest.HMac;
 import cn.hutool.crypto.digest.HmacAlgorithm;
-import cn.hutool.http.HttpRequest;
-import cn.hutool.http.HttpResponse;
 import cn.hutool.json.JSONUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.config.RabbitMQConfig;
 import space.nebula.nexus.entity.Webhook;
 import space.nebula.nexus.entity.WebhookLog;
 import space.nebula.nexus.payload.request.WebhookMessage;
 import space.nebula.nexus.repository.WebhookLogRepository;
 import space.nebula.nexus.repository.WebhookRepository;
+import space.nebula.nexus.security.OutboundUrlValidator;
+import space.nebula.nexus.service.WebhookDeliveryClient;
 
 @Slf4j
 @Component
@@ -27,20 +26,35 @@ public class WebhookMessageListener {
 
     private final WebhookRepository webhookRepository;
     private final WebhookLogRepository webhookLogRepository;
+    private final OutboundUrlValidator outboundUrlValidator;
+    private final WebhookDeliveryClient deliveryClient;
 
     @RabbitListener(queues = RabbitMQConfig.WEBHOOK_QUEUE)
-    @Transactional
     public void handleWebhookDispatch(WebhookMessage message) {
         webhookRepository.findById(message.getWebhookId()).ifPresent(webhook -> {
             if (Boolean.FALSE.equals(webhook.getIsActive())) {
                 return;
             }
             
-            executeDispatch(webhook, message.getEvent(), message.getPayload());
+            executeDispatch(webhook, message);
         });
     }
 
-    private void executeDispatch(Webhook webhook, String event, Dict payload) {
+    private void executeDispatch(Webhook webhook, WebhookMessage message) {
+        String deliveryId = message.getDeliveryId();
+        if (StrUtil.isBlank(deliveryId)) {
+            deliveryId = SecureUtil.sha256(message.getWebhookId() + ":" + message.getEvent() + ":"
+                    + JSONUtil.toJsonStr(message.getPayload()));
+        }
+        WebhookLog webhookLog = webhookLogRepository.findByDeliveryId(deliveryId).orElseGet(WebhookLog::new);
+        if (Boolean.TRUE.equals(webhookLog.getIsSuccess())) {
+            log.debug("Skipping already delivered webhook message: {}", deliveryId);
+            return;
+        }
+
+        String event = message.getEvent();
+        Dict payload = message.getPayload();
+        outboundUrlValidator.validate(webhook.getUrl());
         String jsonPayload = JSONUtil.toJsonStr(payload);
         String signature = "";
         
@@ -49,28 +63,22 @@ public class WebhookMessageListener {
             signature = mac.digestHex(jsonPayload);
         }
 
-        WebhookLog webhookLog = new WebhookLog();
+        webhookLog.setDeliveryId(deliveryId);
         webhookLog.setWebhook(webhook);
         webhookLog.setEvent(event);
         webhookLog.setUrl(webhook.getUrl());
         webhookLog.setRequestPayload(jsonPayload);
 
-        try (HttpResponse response = HttpRequest.post(webhook.getUrl())
-                .header("Content-Type", "application/json")
-                .header("X-Nexus-Signature", signature)
-                .header("X-Nexus-Event", event)
-                .body(jsonPayload)
-                .timeout(10000) // 10 seconds timeout for reliability
-                .execute()) {
-
-            webhookLog.setResponseCode(response.getStatus());
-            webhookLog.setResponsePayload(response.body());
-            webhookLog.setIsSuccess(response.isOk());
+        try {
+            WebhookDeliveryClient.DeliveryResult response = deliveryClient.post(webhook.getUrl(), event, signature, jsonPayload);
+            webhookLog.setResponseCode(response.statusCode());
+            webhookLog.setResponsePayload(response.responseBody());
+            webhookLog.setIsSuccess(response.success());
             
-            if (response.isOk()) {
+            if (response.success()) {
                 log.debug("Successfully dispatched webhook {} to URL: {}", event, webhook.getUrl());
             } else {
-                log.warn("Webhook dispatch failed for {} to URL: {}. HTTP Status: {}", event, webhook.getUrl(), response.getStatus());
+                log.warn("Webhook dispatch failed for {} to URL: {}. HTTP Status: {}", event, webhook.getUrl(), response.statusCode());
             }
         } catch (Exception e) {
             log.error("Exception occurred while dispatching webhook {} to URL: {}", event, webhook.getUrl(), e);
@@ -78,6 +86,10 @@ public class WebhookMessageListener {
             webhookLog.setErrorMessage(StrUtil.maxLength(e.getMessage(), 450));
         } finally {
             webhookLogRepository.save(webhookLog);
+        }
+
+        if (!Boolean.TRUE.equals(webhookLog.getIsSuccess())) {
+            throw new IllegalStateException("Webhook delivery failed: " + deliveryId);
         }
     }
 }

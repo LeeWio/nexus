@@ -11,6 +11,9 @@ import java.time.LocalDateTime;
 @Table(name = "blog_webhook_log")
 public class WebhookLog extends BaseEntity {
 
+    @Column(name = "delivery_id", nullable = false, unique = true, length = 64)
+    private String deliveryId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "webhook_id", nullable = false)
     private Webhook webhook;

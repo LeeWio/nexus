@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.stereotype.Service;
 import space.nebula.nexus.service.IMetricsService;
 
@@ -21,7 +22,7 @@ public class MetricsServiceImpl implements IMetricsService
 {
 
 	private final MeterRegistry meterRegistry;
-	private final CacheManager caffeineCacheManager;
+	private final CaffeineCacheManager caffeineCacheManager;
 
 	@Override
 	public Dict getSystemPerformanceSnapshot()

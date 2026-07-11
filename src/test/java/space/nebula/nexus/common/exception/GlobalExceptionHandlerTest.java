@@ -24,7 +24,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void handleBusinessException_Localized() {
         BusinessException ex = new BusinessException(404, "Resource not found");
-        when(messageUtil.get(404)).thenReturn("Localized Not Found");
+        when(messageUtil.get("404", (Object[]) null)).thenReturn("Localized Not Found");
 
         ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBusinessException(ex);
 
@@ -35,7 +35,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void handleBusinessException_Fallback() {
         BusinessException ex = new BusinessException(40010, "Post is already published");
-        when(messageUtil.get(40010)).thenReturn(""); // Simulate no translation
+        when(messageUtil.get("40010", (Object[]) null)).thenReturn(""); // Simulate no translation
 
         ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBusinessException(ex);
 

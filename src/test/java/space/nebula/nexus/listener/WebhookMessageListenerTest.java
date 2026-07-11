@@ -12,6 +12,8 @@ import space.nebula.nexus.entity.WebhookLog;
 import space.nebula.nexus.payload.request.WebhookMessage;
 import space.nebula.nexus.repository.WebhookLogRepository;
 import space.nebula.nexus.repository.WebhookRepository;
+import space.nebula.nexus.security.OutboundUrlValidator;
+import space.nebula.nexus.service.WebhookDeliveryClient;
 
 import java.util.Optional;
 
@@ -25,6 +27,10 @@ class WebhookMessageListenerTest {
     private WebhookRepository webhookRepository;
     @Mock
     private WebhookLogRepository webhookLogRepository;
+    @Mock
+    private OutboundUrlValidator outboundUrlValidator;
+    @Mock
+    private WebhookDeliveryClient deliveryClient;
 
     @InjectMocks
     private WebhookMessageListener webhookMessageListener;
@@ -45,16 +51,10 @@ class WebhookMessageListenerTest {
         WebhookMessage message = new WebhookMessage(1L, "POST_PUBLISHED", Dict.create().set("postId", 123));
         
         when(webhookRepository.findById(1L)).thenReturn(Optional.of(testWebhook));
+        when(deliveryClient.post(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(new WebhookDeliveryClient.DeliveryResult(200, "ok", true));
         
-        // Mock actual HTTP call would be complex here as it uses Static HttpRequest.post
-        // In a real project, we might wrap HttpRequest in a service for better mockability
-        // For now, we'll check if it attempts to save a log at least (though it might fail the HTTP call in test)
-        
-        try {
-            webhookMessageListener.handleWebhookDispatch(message);
-        } catch (Exception e) {
-            // Expected failure if network is unreachable
-        }
+        webhookMessageListener.handleWebhookDispatch(message);
         
         verify(webhookLogRepository).save(any(WebhookLog.class));
     }
@@ -68,6 +68,23 @@ class WebhookMessageListenerTest {
         
         webhookMessageListener.handleWebhookDispatch(message);
         
+        verify(webhookLogRepository, never()).save(any(WebhookLog.class));
+    }
+
+    @Test
+    void handleWebhookDispatch_AlreadySuccessful_Skip() {
+        WebhookMessage message = new WebhookMessage(1L, "delivery-1", "POST_PUBLISHED",
+                Dict.create().set("postId", 123));
+        WebhookLog existingLog = new WebhookLog();
+        existingLog.setDeliveryId("delivery-1");
+        existingLog.setIsSuccess(true);
+
+        when(webhookRepository.findById(1L)).thenReturn(Optional.of(testWebhook));
+        when(webhookLogRepository.findByDeliveryId("delivery-1")).thenReturn(Optional.of(existingLog));
+
+        webhookMessageListener.handleWebhookDispatch(message);
+
+        verifyNoInteractions(outboundUrlValidator, deliveryClient);
         verify(webhookLogRepository, never()).save(any(WebhookLog.class));
     }
 }

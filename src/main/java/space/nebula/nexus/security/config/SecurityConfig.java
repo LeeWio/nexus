@@ -24,6 +24,7 @@ import space.nebula.nexus.security.exception.CustomAuthenticationEntryPoint;
 import space.nebula.nexus.security.filter.JwtAuthenticationFilter;
 import space.nebula.nexus.security.handler.OAuth2AuthenticationSuccessHandler;
 import space.nebula.nexus.security.service.CustomOAuth2UserService;
+import space.nebula.nexus.config.WebSecurityProperties;
 
 import java.util.List;
 
@@ -39,6 +40,7 @@ public class SecurityConfig
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final CustomOAuth2UserService customOAuth2UserService;
 	private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+	private final WebSecurityProperties webSecurityProperties;
 
 	/**
 	 * Configure BCrypt as our password encoder.
@@ -122,8 +124,7 @@ public class SecurityConfig
 	public CorsConfigurationSource corsConfigurationSource()
 	{
 		CorsConfiguration configuration = new CorsConfiguration();
-		// In production, these should be loaded from application properties
-		configuration.setAllowedOrigins(List.of("http://localhost:3000", "https://yourblog.com"));
+		configuration.setAllowedOrigins(webSecurityProperties.getAllowedOrigins());
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
 		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Trace-Id", "X-Requested-With"));
 		configuration.setExposedHeaders(List.of("Authorization"));
