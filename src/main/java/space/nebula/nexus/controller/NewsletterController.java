@@ -23,12 +23,12 @@ public class NewsletterController {
 
     private final INewsletterService newsletterService;
 
-    @PostMapping("/subscribe")
+	@PostMapping("/subscribe")
 	@RateLimit(count = 3, time = 1, unit = TimeUnit.HOURS,
 			message = "Too many subscription requests. Please try again later.")
     @Operation(summary = "Subscribe to newsletter", description = "Request to join the blog's newsletter mailing list.")
     public ApiResponse<Void> subscribe(
-			@Email(message = "Invalid email format") @NotBlank(message = "Email is required") @RequestParam String email) {
+			@Email(message = "Email address is invalid") @NotBlank(message = "Email is required") @RequestParam String email) {
         return newsletterService.subscribe(email);
     }
 

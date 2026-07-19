@@ -7,7 +7,7 @@ services:
     env_file:
       - .env
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_PROFILES_ACTIVE=common,dev
       - APP_SEARCH_TYPE=database
       - SPRING_DATASOURCE_URL=jdbc:mysql://nexus-db:3306/nexus_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC
       - SPRING_DATASOURCE_USERNAME=root
@@ -27,13 +27,19 @@ services:
       nexus-db:
         condition: service_healthy
       nexus-redis:
-        condition: service_started
+        condition: service_healthy
       nexus-rabbitmq:
-        condition: service_started
+        condition: service_healthy
       nexus-elasticsearch:
         condition: service_healthy
       nexus-mail:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - nexus-network
     restart: always
@@ -78,6 +84,11 @@ services:
       - nexus-redis-data:/data
     networks:
       - nexus-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
 
   nexus-rabbitmq:
@@ -91,6 +102,12 @@ services:
       - RABBITMQ_DEFAULT_PASS=nexus_password
     networks:
       - nexus-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
     restart: always
 
   nexus-canal-server:

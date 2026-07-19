@@ -15,7 +15,7 @@ import java.util.Set;
  */
 @Schema(description = "Request body for creating or updating a blog post")
 public record PostRequest(
-		@Schema(description = "Title of the post", example = "Getting Started with Spring Boot 3") @NotBlank(message = "Title cannot be empty") @Size(max = 200) String title,
+		@Schema(description = "Title of the post", example = "Getting Started with Spring Boot 3") @NotBlank(message = "Title is required") @Size(max = 200) String title,
 
 		@Schema(description = "SEO friendly URL slug", example = "spring-boot-3-intro") @Slug @Size(max = 200) String slug,
 
@@ -23,7 +23,7 @@ public record PostRequest(
 
 		@Schema(description = "Short summary/excerpt of the post", example = "A comprehensive guide to the latest Spring Boot version.") @Size(max = 500) String summary,
 
-		@Schema(description = "Main content in JSON or MDX") @NotBlank(message = "Content cannot be empty") String content,
+		@Schema(description = "Main content in JSON or MDX") @NotBlank(message = "Content is required") String content,
 
 		@Schema(description = "Format of the content (JSON, MDX)") PostContentType contentType,
 

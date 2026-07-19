@@ -23,7 +23,9 @@ import space.nebula.nexus.security.exception.CustomAccessDeniedHandler;
 import space.nebula.nexus.security.exception.CustomAuthenticationEntryPoint;
 import space.nebula.nexus.security.filter.JwtAuthenticationFilter;
 import space.nebula.nexus.security.handler.OAuth2AuthenticationSuccessHandler;
+import space.nebula.nexus.security.handler.OAuth2AuthenticationFailureHandler;
 import space.nebula.nexus.security.service.CustomOAuth2UserService;
+import space.nebula.nexus.security.service.CustomOidcUserService;
 import space.nebula.nexus.config.WebSecurityProperties;
 
 import java.util.List;
@@ -39,14 +41,16 @@ public class SecurityConfig
 	private final CustomAccessDeniedHandler accessDeniedHandler;
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final CustomOAuth2UserService customOAuth2UserService;
+	private final CustomOidcUserService customOidcUserService;
 	private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+	private final OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
 	private final WebSecurityProperties webSecurityProperties;
 
 	/**
 	 * Configure BCrypt as our password encoder.
 	 */
 	@Bean
-	public PasswordEncoder passwordEncoder()
+	public static PasswordEncoder passwordEncoder()
 	{
 		return new BCryptPasswordEncoder();
 	}
@@ -87,8 +91,10 @@ public class SecurityConfig
 						.contentSecurityPolicy(csp -> csp.policyDirectives(
 								"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none';")))
 
-				// 4. Set session management to stateless
-				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				// 4. Configure session management for JWT APIs and OAuth2 state handling
+				// OAuth2 authorization requires a short-lived session for the state parameter.
+				// The success handler invalidates it immediately after issuing the JWT.
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 
 				// 5. Handle authorization exceptions (401 and 403)
 				.exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint)
@@ -98,7 +104,7 @@ public class SecurityConfig
 				.authorizeHttpRequests(authorize -> authorize
 						// Permit all access to Auth APIs, Swagger UI, and Public APIs
 						.requestMatchers("/api/v1/auth/**", "/api/v1/public/**", "/v3/api-docs/**", "/swagger-ui/**",
-								"/swagger-ui.html", "/login/oauth2/**")
+								"/swagger-ui.html", "/oauth2/**", "/login/oauth2/**", "/livez", "/readyz")
 						.permitAll()
 						// Protect actuator management endpoints
 						.requestMatchers("/management/**").hasRole("ADMIN")
@@ -107,8 +113,10 @@ public class SecurityConfig
 
 				// 7. Configure OAuth2 Login
 				.oauth2Login(
-						oauth2 -> oauth2.userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-								.successHandler(oauth2AuthenticationSuccessHandler))
+						oauth2 -> oauth2.userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService)
+								.oidcUserService(customOidcUserService))
+								.successHandler(oauth2AuthenticationSuccessHandler)
+								.failureHandler(oauth2AuthenticationFailureHandler))
 
 				// 8. Add our custom JWT filter before the standard
 				// UsernamePasswordAuthenticationFilter

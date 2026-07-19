@@ -105,7 +105,7 @@ public class AdminUserServiceImpl implements IAdminUserService
 		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
 		Assert.isTrue(user.getStatus() == UserStatus.PENDING,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only pending registrations can be audited"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only pending registrations can be reviewed"));
 
 		if (approved)
 		{
@@ -131,9 +131,9 @@ public class AdminUserServiceImpl implements IAdminUserService
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
 		var roles = roleRepository.findAllById(request.roleIds());
-		Assert.notEmpty(roles, () -> new BusinessException(BusinessCode.BAD_REQUEST, "No valid roles found for provided IDs"));
+		Assert.notEmpty(roles, () -> new BusinessException(BusinessCode.BAD_REQUEST, "No valid roles were found"));
 		Assert.isTrue(roles.size() == request.roleIds().size(),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Some role IDs provided do not exist"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "One or more role IDs do not exist"));
 		boolean retainsAdminRole = roles.stream().anyMatch(role -> ADMIN_ROLE_CODE.equals(role.getCode()));
 		protectLastActiveAdministrator(user, retainsAdminRole);
 

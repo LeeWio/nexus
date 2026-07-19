@@ -46,7 +46,7 @@ public class AdminKanbanController
 	}
 
 	@PutMapping("/columns/{id}")
-	@Operation(summary = "Update column", description = "Modify the name, color, or order of an existing column.")
+	@Operation(summary = "Update column", description = "Modify a column's name or color. Use the sequence endpoint for ordering.")
 	public ApiResponse<KanbanColumnResponse> updateColumn(@Parameter(description = "Column ID") @PathVariable Long id,
 			@Valid @RequestBody KanbanColumnRequest request)
 	{
@@ -54,7 +54,7 @@ public class AdminKanbanController
 	}
 
 	@DeleteMapping("/columns/{id}")
-	@Operation(summary = "Delete column", description = "Remove a column and all its associated tasks.")
+	@Operation(summary = "Delete column", description = "Remove an empty column. Tasks must be moved or deleted first.")
 	public ApiResponse<Void> deleteColumn(@Parameter(description = "Column ID") @PathVariable Long id)
 	{
 		return kanbanService.deleteColumn(id);

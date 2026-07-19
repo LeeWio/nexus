@@ -14,11 +14,10 @@ import space.nebula.nexus.payload.request.KanbanItemMoveRequest;
 import space.nebula.nexus.repository.KanbanColumnRepository;
 import space.nebula.nexus.repository.KanbanItemRepository;
 import space.nebula.nexus.repository.TagRepository;
-import space.nebula.nexus.utils.RedisLockUtil;
 
 import java.util.ArrayList;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -35,14 +34,11 @@ class KanbanServiceImplTest {
 	private TagRepository tagRepository;
 	@Mock
 	private KanbanMapper kanbanMapper;
-	@Mock
-	private RedisLockUtil redisLockUtil;
-
 	@InjectMocks
 	private KanbanServiceImpl kanbanService;
 
 	@Test
-	@DisplayName("Should successfully relocate task and release mutex lock")
+	@DisplayName("Should relocate task to the requested position and compact both columns")
 	void relocateTask_Success() {
 		// Arrange
 		KanbanItemMoveRequest request = new KanbanItemMoveRequest();
@@ -52,36 +48,56 @@ class KanbanServiceImplTest {
 
 		KanbanItem task = new KanbanItem();
 		task.setId(1L);
-		task.setOrderIndex(5);
+		task.setOrderIndex(1);
+		KanbanItem sourceFirst = item(3L, 0);
+		KanbanColumn sourceColumn = column(1L);
+		task.setColumn(sourceColumn);
+		sourceFirst.setColumn(sourceColumn);
 
-		KanbanColumn destinationColumn = new KanbanColumn();
-		destinationColumn.setId(2L);
-		destinationColumn.setItems(new ArrayList<>());
+		KanbanColumn destinationColumn = column(2L);
+		KanbanItem destinationFirst = item(4L, 0);
+		destinationFirst.setColumn(destinationColumn);
 
-		when(redisLockUtil.tryLock(anyString(), anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
-		when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
-		when(columnRepository.findById(2L)).thenReturn(Optional.of(destinationColumn));
+		when(taskRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(task));
+		when(columnRepository.findAllByIdForUpdate(anyCollection())).thenReturn(List.of(sourceColumn, destinationColumn));
+		when(taskRepository.findByColumnIdOrderByOrderIndexAscIdAsc(1L)).thenReturn(List.of(sourceFirst, task));
+		when(taskRepository.findByColumnIdOrderByOrderIndexAscIdAsc(2L)).thenReturn(List.of(destinationFirst));
 
 		// Act
 		kanbanService.relocateTask(request);
 
 		// Assert
 		assertEquals(destinationColumn, task.getColumn());
-		verify(taskRepository).saveAll(anyList());
-		verify(redisLockUtil).unlock(anyString(), anyString());
+		assertEquals(0, task.getOrderIndex());
+		assertEquals(1, destinationFirst.getOrderIndex());
+		assertEquals(0, sourceFirst.getOrderIndex());
+		verify(taskRepository, times(2)).saveAll(anyList());
 	}
 
 	@Test
-	@DisplayName("Should fail to relocate task if column mutex is locked")
-	void relocateTask_MutexLocked() {
-		// Arrange
+	@DisplayName("Should reject a negative target position")
+	void relocateTask_NegativePosition() {
 		KanbanItemMoveRequest request = new KanbanItemMoveRequest();
+		request.setItemId(1L);
 		request.setTargetColumnId(2L);
-		when(redisLockUtil.tryLock(anyString(), anyString(), anyLong(), any(TimeUnit.class))).thenReturn(false);
+		request.setTargetOrderIndex(-1);
 
-		// Act & Assert
 		BusinessException exception = assertThrows(BusinessException.class, () -> kanbanService.relocateTask(request));
-		assertTrue(exception.getMessage().contains("busy"));
-		verify(taskRepository, never()).findById(anyLong());
+		assertTrue(exception.getMessage().contains("negative"));
+		verify(taskRepository, never()).findByIdForUpdate(anyLong());
+	}
+
+	private static KanbanColumn column(Long id) {
+		KanbanColumn column = new KanbanColumn();
+		column.setId(id);
+		column.setItems(new ArrayList<>());
+		return column;
+	}
+
+	private static KanbanItem item(Long id, int orderIndex) {
+		KanbanItem item = new KanbanItem();
+		item.setId(id);
+		item.setOrderIndex(orderIndex);
+		return item;
 	}
 }

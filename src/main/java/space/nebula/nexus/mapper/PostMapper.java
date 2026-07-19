@@ -10,6 +10,7 @@ import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.response.PostResponse;
+import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.mapper.config.CentralMapperConfig;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public interface PostMapper
 	@Mapping(target = "series", source = "series", qualifiedByName = "toResponse")
 	@Mapping(target = "parentId", source = "parent.id")
 	@Mapping(target = "reviewerName", source = "reviewedBy", qualifiedByName = "mapAuthorName")
+	@Mapping(target = "archivedByName", source = "archivedBy", qualifiedByName = "mapAuthorName")
 	@Mapping(target = "breadcrumbs", ignore = true)
 	@Mapping(target = "seo", ignore = true)
 	@Mapping(target = "navigation", ignore = true)
@@ -31,6 +33,10 @@ public interface PostMapper
 	PostResponse toResponse(Post post);
 
 	List<PostResponse> toResponseList(List<Post> posts);
+
+	@Mapping(target = "authorName", source = "author", qualifiedByName = "mapAuthorName")
+	@Mapping(target = "authorAvatar", source = "author.avatar")
+	PostDigestResponse toDigestResponse(Post post);
 
 	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 	@Mapping(target = "id", ignore = true)
@@ -48,9 +54,13 @@ public interface PostMapper
 	@Mapping(target = "updatedAt", ignore = true)
 	@Mapping(target = "lastModifiedBy", ignore = true)
 	@Mapping(target = "publishedAt", ignore = true)
+	@Mapping(target = "scheduledAt", ignore = true)
 	@Mapping(target = "reviewComment", ignore = true)
 	@Mapping(target = "reviewedAt", ignore = true)
 	@Mapping(target = "reviewedBy", ignore = true)
+	@Mapping(target = "archiveReason", ignore = true)
+	@Mapping(target = "archivedAt", ignore = true)
+	@Mapping(target = "archivedBy", ignore = true)
 	@Mapping(target = "status", ignore = true)
 	@Mapping(target = "isDeleted", ignore = true)
 	@Mapping(target = "parent", ignore = true)

@@ -15,10 +15,12 @@ import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.config.RabbitMQConfig;
+import space.nebula.nexus.config.FriendLinkProperties;
 import space.nebula.nexus.entity.FriendLink;
 import space.nebula.nexus.enums.FriendLinkStatus;
 import space.nebula.nexus.mapper.FriendLinkMapper;
 import space.nebula.nexus.payload.request.FriendLinkRequest;
+import space.nebula.nexus.payload.request.FriendLinkApplicationRequest;
 import space.nebula.nexus.payload.request.TemplateMailMessage;
 import space.nebula.nexus.payload.response.FriendLinkResponse;
 import space.nebula.nexus.payload.response.PageResult;
@@ -29,6 +31,9 @@ import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 
 import java.util.List;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Locale;
 
 /**
  * Implementation of friend link management service. Handles public applications
@@ -43,6 +48,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	private final FriendLinkRepository friendLinkRepository;
 	private final FriendLinkMapper friendLinkMapper;
 	private final RabbitTemplate rabbitTemplate;
+	private final FriendLinkProperties friendLinkProperties;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -66,13 +72,14 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	@LogOperation("Create Friend Link")
 	public ApiResponse<FriendLinkResponse> createFriendLink(FriendLinkRequest request)
 	{
-		validateUrlUniqueness(request.url(), null);
+		String normalizedUrl = normalizeHttpUrl(request.url(), "Site URL");
+		validateUrlUniqueness(normalizedUrl, null);
 
 		var newLink = friendLinkMapper.toEntity(request);
-		if (newLink.getStatus() == null)
-		{
-			newLink.setStatus(FriendLinkStatus.APPROVED);
-		}
+		newLink.setUrl(normalizedUrl);
+		newLink.setAvatar(normalizeOptionalHttpUrl(request.avatar(), "Avatar URL"));
+		newLink.setStatus(FriendLinkStatus.APPROVED);
+		newLink.setIsPublished(true);
 
 		var savedLink = friendLinkRepository.save(newLink);
 		log.info("New friend link created: {}", savedLink.getName());
@@ -86,9 +93,12 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	public ApiResponse<FriendLinkResponse> updateFriendLink(Long id, FriendLinkRequest request)
 	{
 		var existingLink = findFriendLinkOrThrow(id);
-		validateUrlUniqueness(request.url(), id);
+		String normalizedUrl = normalizeHttpUrl(request.url(), "Site URL");
+		validateUrlUniqueness(normalizedUrl, id);
 
 		friendLinkMapper.updateEntity(existingLink, request);
+		existingLink.setUrl(normalizedUrl);
+		existingLink.setAvatar(normalizeOptionalHttpUrl(request.avatar(), "Avatar URL"));
 		var updatedLink = friendLinkRepository.save(existingLink);
 
 		log.info("Friend link updated: {}", updatedLink.getName());
@@ -104,7 +114,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 		Assert.isTrue(friendLinkRepository.existsById(id), () -> new ResourceNotFoundException("FriendLink", "id", id));
 		friendLinkRepository.deleteById(id);
 		log.info("Friend link deleted ID: {}", id);
-		return ApiResponse.success("Friend link deleted", null);
+		return ApiResponse.success("Friend link deleted successfully.", null);
 	}
 
 	@Override
@@ -120,11 +130,17 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	@Override
 	@Transactional
 	@LogOperation("Apply for Friend Link")
-	public ApiResponse<Void> applyForFriendLink(FriendLinkRequest request)
+	public ApiResponse<Void> applyForFriendLink(FriendLinkApplicationRequest request)
 	{
-		validateUrlUniqueness(request.url(), null);
+		String normalizedUrl = normalizeHttpUrl(request.url(), "Site URL");
+		validateUrlUniqueness(normalizedUrl, null);
 
-		var application = friendLinkMapper.toEntity(request);
+		var application = new FriendLink();
+		application.setName(request.name().trim());
+		application.setUrl(normalizedUrl);
+		application.setAvatar(normalizeOptionalHttpUrl(request.avatar(), "Avatar URL"));
+		application.setDescription(StrUtil.trim(request.description()));
+		application.setEmail(request.email().trim().toLowerCase(Locale.ROOT));
 		application.setStatus(FriendLinkStatus.APPLYING);
 		application.setIsPublished(false);
 		application.setSortOrder(0);
@@ -134,8 +150,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 
 		sendApplicationNotification(application);
 
-		return ApiResponse.success("Application submitted successfully. It will be reviewed by the administrator.",
-				null);
+		return ApiResponse.success("Application submitted successfully. It will be reviewed.", null);
 	}
 
 	@Override
@@ -145,14 +160,17 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	public ApiResponse<Void> moderateFriendLink(Long id, FriendLinkStatus status)
 	{
 		var link = findFriendLinkOrThrow(id);
+			Assert.isTrue(link.getStatus() == FriendLinkStatus.APPLYING,
+					() -> new BusinessException(BusinessCode.BAD_REQUEST,
+							"Only pending applications can be moderated"));
+			Assert.isTrue(status == FriendLinkStatus.APPROVED || status == FriendLinkStatus.REJECTED,
+					() -> new BusinessException(BusinessCode.BAD_REQUEST,
+							"Moderation result must be APPROVED or REJECTED"));
 		link.setStatus(status);
-		if (status == FriendLinkStatus.APPROVED)
-		{
-			link.setIsPublished(true);
-		}
+		link.setIsPublished(status == FriendLinkStatus.APPROVED);
 		friendLinkRepository.save(link);
 		log.info("Friend link ID {} status updated to {}", id, status);
-		return ApiResponse.success("Friend link status updated to " + status, null);
+		return ApiResponse.success("Friend link status updated.", null);
 	}
 
 	private FriendLink findFriendLinkOrThrow(Long id)
@@ -165,13 +183,18 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	{
 		friendLinkRepository.findByUrl(url).ifPresent(link ->
 		{
-			Assert.isFalse(excludeId == null || !link.getId().equals(excludeId),
-					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Friend link with this URL already exists"));
+				Assert.isFalse(excludeId == null || !link.getId().equals(excludeId),
+						() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Friend link URL is already in use"));
 		});
 	}
 
 	private void sendApplicationNotification(FriendLink link)
 	{
+		if (StrUtil.isBlank(friendLinkProperties.getModerationEmail()))
+		{
+			log.warn("Friend-link moderation email is not configured; application {} remains queued", link.getId());
+			return;
+		}
 		String subject = "New Friend Link Application: " + link.getName();
 		String content = StrUtil.format(
 				"Hello Admin,\n\nA new friend link application has been submitted:\n\n"
@@ -179,9 +202,43 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 						+ "Please log in to moderate this application.",
 				link.getName(), link.getUrl(), link.getDescription(), link.getEmail());
 
-		TemplateMailMessage message = TemplateMailMessage.builder().to("admin@nexus.com").subject(subject)
+		TemplateMailMessage message = TemplateMailMessage.builder().to(friendLinkProperties.getModerationEmail()).subject(subject)
 				.content(content).type(TemplateMailMessage.MailType.SIMPLE).build();
 
-		rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
+		try
+		{
+			rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
+		}
+		catch (RuntimeException e)
+		{
+			log.error("Failed to enqueue moderation notification for friend-link application {}", link.getId(), e);
+		}
+	}
+
+	private String normalizeOptionalHttpUrl(String value, String fieldName)
+	{
+		return StrUtil.isBlank(value) ? null : normalizeHttpUrl(value, fieldName);
+	}
+
+	private String normalizeHttpUrl(String value, String fieldName)
+	{
+		try
+		{
+			URI uri = new URI(value.trim());
+			String scheme = uri.getScheme() == null ? null : uri.getScheme().toLowerCase(Locale.ROOT);
+			Assert.isTrue(("http".equals(scheme) || "https".equals(scheme)) && uri.getHost() != null
+					&& uri.getUserInfo() == null,
+						() -> new BusinessException(BusinessCode.BAD_REQUEST,
+								fieldName + " must be an absolute HTTP or HTTPS URL without embedded credentials"));
+			URI normalized = new URI(scheme, null, uri.getHost().toLowerCase(Locale.ROOT), uri.getPort(),
+					uri.getPath(), uri.getQuery(), null).normalize();
+			String result = normalized.toASCIIString();
+			return result.endsWith("/") && "/".equals(normalized.getPath())
+					? result.substring(0, result.length() - 1) : result;
+		}
+		catch (URISyntaxException | IllegalArgumentException e)
+		{
+			throw new BusinessException(BusinessCode.BAD_REQUEST, fieldName + " is invalid");
+		}
 	}
 }

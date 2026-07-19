@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotBlank;
  */
 @Schema(description = "User login request information")
 public record LoginRequest(
-		@Schema(description = "Username or Email address", example = "admin") @NotBlank(message = "Username cannot be empty") String username,
+		@Schema(description = "Username or email address", example = "admin") @NotBlank(message = "Username is required") String username,
 
-		@Schema(description = "User password", example = "Password123!") @NotBlank(message = "Password cannot be empty") String password) {
+		@Schema(description = "User password", example = "Password123!") @NotBlank(message = "Password is required") String password) {
 }

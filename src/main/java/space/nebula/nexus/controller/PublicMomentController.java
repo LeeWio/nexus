@@ -32,7 +32,7 @@ public class PublicMomentController
 
 	@PostMapping("/{id}/like")
 	@Operation(summary = "Like a moment (anonymous allowed with rate limit)")
-	@RateLimit(count = 5, time = 1, unit = TimeUnit.MINUTES, message = "Too many likes, please slow down")
+	@RateLimit(count = 5, time = 1, unit = TimeUnit.MINUTES, message = "Too many likes. Please slow down.")
 	public ApiResponse<Void> likeMoment(@PathVariable Long id)
 	{
 		return momentService.likeMoment(id);

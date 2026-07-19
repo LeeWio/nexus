@@ -66,7 +66,7 @@ public class TagServiceImpl implements ITagService
 				}
 				else
 				{
-					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag name already exists: " + request.name());
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag name is already in use: " + request.name());
 				}
 			}
 		}
@@ -87,7 +87,7 @@ public class TagServiceImpl implements ITagService
 				}
 				else
 				{
-					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag slug already exists: " + request.slug());
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag slug is already in use: " + request.slug());
 				}
 			}
 		}
@@ -128,7 +128,7 @@ public class TagServiceImpl implements ITagService
 		// Check if any active posts are still associated with this tag
 		Assert.isFalse(postRepository.existsByTagsId(id),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Cannot delete tag as it is still referenced by active posts"));
+						"Tag is still referenced by active posts"));
 
 		tagRepository.deleteById(id);
 		log.info("Tag deleted id: {}", id);
@@ -142,14 +142,14 @@ public class TagServiceImpl implements ITagService
 		{
 			Assert.isFalse(tagRepository.findByNameIncludeDeleted(request.name()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-							"Tag name already exists: " + request.name()));
+							"Tag name is already in use: " + request.name()));
 		}
 		if (StrUtil.isNotBlank(request.slug())
 				&& (existing == null || !StrUtil.equals(existing.getSlug(), request.slug())))
 		{
 			Assert.isFalse(tagRepository.findBySlugIncludeDeleted(request.slug()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-							"Tag slug already exists: " + request.slug()));
+							"Tag slug is already in use: " + request.slug()));
 		}
 	}
 }

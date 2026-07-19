@@ -90,7 +90,24 @@ class FileServiceImplTest {
         assertEquals(200, response.code());
         verify(storageProvider, times(2)).store(any(), any()); // one for image, one for thumbnail
         verify(fileRepository).save(any(FileMetadata.class));
+		verify(fileRepository).flush();
     }
+
+	@Test
+	void uploadFile_DatabaseFailure_CleansUpStoredObjects() throws IOException {
+		MockMultipartFile file = new MockMultipartFile("file", "test.jpg", "image/jpeg", "test content".getBytes());
+		when(fileRepository.findByFileHash(anyString())).thenReturn(Optional.empty());
+		when(fileUtil.detectMimeType(any(InputStream.class))).thenReturn("image/jpeg");
+		when(fileUtil.isImage("image/jpeg")).thenReturn(true);
+		when(fileUtil.generateThumbnail(any(), anyInt(), anyInt())).thenReturn("thumb content".getBytes());
+		when(storageProvider.getUrl(anyString())).thenReturn("http://example.com/file.jpg");
+		when(fileRepository.save(any(FileMetadata.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		doThrow(new RuntimeException("database unavailable")).when(fileRepository).flush();
+
+		assertThrows(RuntimeException.class, () -> fileService.uploadFile(file));
+
+		verify(storageProvider, times(2)).delete(anyString());
+	}
 
     @Test
     void deleteFile_Permanent_Success() {

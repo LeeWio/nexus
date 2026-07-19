@@ -18,6 +18,11 @@ public enum WebhookEvent
 	POST_PUBLISHED("Triggered when a post is published or updated"),
 
 	/**
+	 * Triggered when a published post is removed from public visibility.
+	 */
+	POST_ARCHIVED("Triggered when a published post is archived"),
+
+	/**
 	 * Triggered when a blog post is permanently deleted from the system. The
 	 * webhook payload typically includes the ID and metadata of the deleted post.
 	 */

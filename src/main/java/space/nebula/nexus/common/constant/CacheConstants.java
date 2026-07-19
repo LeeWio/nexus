@@ -32,6 +32,7 @@ public final class CacheConstants {
 
 	// Blog related
 	public static final String POST_LIST_KEY = "'list:' + #categoryId + ':' + #tagId + ':' + #keyword + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort";
+	public static final String BLOG_DISCOVERY_KEY = "'discovery'";
 	public static final String POST_SLUG_KEY = "'slug:' + #slug";
 	public static final String POST_SLUG_PREFIX = "nexus:post:slug:";
 	public static final String POST_AUTOSAVE_PREFIX = "nexus:post:autosave:";

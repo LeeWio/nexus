@@ -6,5 +6,5 @@ import java.util.List;
 
 @Schema(description = "Request to assign multiple roles to a user")
 public record AssignRoleRequest(
-		@Schema(description = "List of role IDs to be assigned", example = "[1, 2]") @NotEmpty(message = "Role IDs cannot be empty") List<Long> roleIds) {
+		@Schema(description = "List of role IDs to be assigned", example = "[1, 2]") @NotEmpty(message = "Role IDs are required") List<Long> roleIds) {
 }

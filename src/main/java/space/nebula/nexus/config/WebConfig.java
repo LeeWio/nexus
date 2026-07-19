@@ -39,5 +39,11 @@ public class WebConfig implements WebMvcConfigurer
 		String path = Paths.get(location).toAbsolutePath().toUri().toString();
 
 		registry.addResourceHandler(baseUrl + "**").addResourceLocations(path);
+
+		// Explicitly register Swagger UI and Webjars resources to ensure they are served correctly
+		registry.addResourceHandler("/swagger-ui/**")
+				.addResourceLocations("classpath:/META-INF/resources/webjars/swagger-ui/", "classpath:/META-INF/resources/");
+		registry.addResourceHandler("/webjars/**")
+				.addResourceLocations("classpath:/META-INF/resources/webjars/");
 	}
 }

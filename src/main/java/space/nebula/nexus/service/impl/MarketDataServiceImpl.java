@@ -51,11 +51,7 @@ public class MarketDataServiceImpl implements IMarketDataService
 	@Retry(name = "marketService")
 	public ApiResponse<List<MarketIndexResponse>> getIndices(String period)
 	{
-		String normalizedPeriod = period != null ? period.toUpperCase() : CacheConstants.MARKET_1D;
-		if (!List.of("1D", "1M", "1Y", "ALL").contains(normalizedPeriod))
-		{
-			normalizedPeriod = CacheConstants.MARKET_1D;
-		}
+		String normalizedPeriod = normalizePeriod(period);
 
 		String cacheKey = CacheConstants.buildFullKey(CacheConstants.MARKET_INDICES, normalizedPeriod);
 		Optional<List> cachedData = redisUtil.get(cacheKey, List.class);
@@ -68,24 +64,13 @@ public class MarketDataServiceImpl implements IMarketDataService
 
 		if (!responses.isEmpty())
 		{
-			long ttl = 1;
-			TimeUnit unit = TimeUnit.MINUTES;
-			if ("1M".equals(normalizedPeriod))
-			{
-				ttl = 30;
-			}
-			else if ("1Y".equals(normalizedPeriod) || "ALL".equals(normalizedPeriod))
-			{
-				ttl = 6;
-				unit = TimeUnit.HOURS;
-			}
-			redisUtil.set(cacheKey, responses, ttl, unit);
+			cacheIndices(normalizedPeriod, responses);
 		}
 
 		return ApiResponse.success(responses);
 	}
 
-	public List<MarketIndexResponse> fetchIndicesFromApi(String normalizedPeriod)
+	private List<MarketIndexResponse> fetchIndicesFromApi(String normalizedPeriod)
 	{
 		if (marketProperties.getIndices() == null || marketProperties.getIndices().isEmpty())
 		{
@@ -142,6 +127,63 @@ public class MarketDataServiceImpl implements IMarketDataService
 			}
 		}
 		return ApiResponse.error(404, "Market index not found for symbol: " + symbol);
+	}
+
+	@Override
+	@CircuitBreaker(name = "marketService", fallbackMethod = "fallbackRefreshIndices")
+	@Retry(name = "marketService")
+	public int refreshIndices(String period)
+	{
+		String normalizedPeriod = normalizePeriod(period);
+		List<MarketIndexResponse> responses = fetchIndicesFromApi(normalizedPeriod);
+		if (responses.isEmpty())
+		{
+			return 0;
+		}
+
+		cacheIndices(normalizedPeriod, responses);
+		return responses.size();
+	}
+
+	/**
+	 * Returns a safe refresh result when the upstream market provider is unavailable.
+	 *
+	 * @param period requested market data period
+	 * @param exception upstream failure that triggered the fallback
+	 * @return zero because no cache entries were refreshed
+	 */
+	public int fallbackRefreshIndices(String period, Exception exception)
+	{
+		log.error("Market cache refresh fallback triggered for period {}: {}", period, exception.getMessage());
+		return 0;
+	}
+
+	private String normalizePeriod(String period)
+	{
+		String normalizedPeriod = period != null ? period.toUpperCase() : CacheConstants.MARKET_1D;
+		return List.of("1D", "1M", "1Y", "ALL").contains(normalizedPeriod)
+				? normalizedPeriod
+				: CacheConstants.MARKET_1D;
+	}
+
+	private long cacheTtl(String period)
+	{
+		if ("1M".equals(period))
+		{
+			return 30;
+		}
+		return "1Y".equals(period) || "ALL".equals(period) ? 6 : 1;
+	}
+
+	private TimeUnit cacheTtlUnit(String period)
+	{
+		return "1Y".equals(period) || "ALL".equals(period) ? TimeUnit.HOURS : TimeUnit.MINUTES;
+	}
+
+	private void cacheIndices(String period, List<MarketIndexResponse> responses)
+	{
+		String cacheKey = CacheConstants.buildFullKey(CacheConstants.MARKET_INDICES, period);
+		redisUtil.set(cacheKey, responses, cacheTtl(period), cacheTtlUnit(period));
 	}
 
 	public ApiResponse<List<MarketIndexResponse>> fallbackIndices(String period, Exception e)

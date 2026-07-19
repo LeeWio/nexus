@@ -49,7 +49,7 @@ public class UserServiceImpl implements IUserService {
         userRepository.save(currentUser);
         
         log.info("User {} updated profile", currentUser.getUsername());
-        return ApiResponse.success("Profile updated successfully", null);
+		return ApiResponse.success("Profile updated successfully.", null);
     }
 
     @Override
@@ -59,13 +59,13 @@ public class UserServiceImpl implements IUserService {
         User currentUser = authService.getAuthenticatedUser().data();
         
         Assert.isTrue(passwordEncoder.matches(request.currentPassword(), currentUser.getPassword()),
-            () -> new BusinessException(BusinessCode.BAD_CREDENTIALS, "Current password does not match"));
+            () -> new BusinessException(BusinessCode.BAD_CREDENTIALS, "Current password is incorrect"));
             
         currentUser.setPassword(passwordEncoder.encode(request.newPassword()));
 		currentUser.setTokenVersion(currentUser.getTokenVersion() + 1);
         userRepository.save(currentUser);
         
         log.info("User {} changed password", currentUser.getUsername());
-        return ApiResponse.success("Password changed successfully", null);
+        return ApiResponse.success("Password changed successfully.", null);
     }
 }

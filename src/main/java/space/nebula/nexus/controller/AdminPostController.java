@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.payload.request.PostAutosaveRequest;
+import space.nebula.nexus.payload.request.PostArchiveRequest;
 import space.nebula.nexus.payload.request.PostRequest;
+import space.nebula.nexus.payload.request.PostScheduleRequest;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostDiffResponse;
@@ -102,6 +104,14 @@ public class AdminPostController
 		return postService.submitForReview(id);
 	}
 
+	@PostMapping("/{id}/withdraw")
+	@PreAuthorize("hasPermission(#id, 'Post', 'SUBMIT')")
+	@Operation(summary = "Withdraw from review", description = "Return a pending post to draft status for revision.")
+	public ApiResponse<Void> withdrawFromReview(@PathVariable Long id)
+	{
+		return postService.withdrawFromReview(id);
+	}
+
 	@PostMapping("/{id}/review")
 	@PreAuthorize("hasPermission(#id, 'Post', 'APPROVE')")
 	@Operation(summary = "Review post", description = "Approve or reject a submitted post.")
@@ -109,6 +119,40 @@ public class AdminPostController
 			@Valid @RequestBody space.nebula.nexus.payload.request.PostReviewRequest request)
 	{
 		return postService.reviewPost(id, request.approved(), request.reviewComment());
+	}
+
+	@PostMapping("/{id}/schedule")
+	@PreAuthorize("hasPermission(#id, 'Post', 'APPROVE')")
+	@Operation(summary = "Schedule publication", description = "Approve a pending post and schedule it for future publication.")
+	public ApiResponse<Void> schedulePost(@PathVariable Long id,
+			@Valid @RequestBody PostScheduleRequest request)
+	{
+		return postService.schedulePost(id, request);
+	}
+
+	@DeleteMapping("/{id}/schedule")
+	@PreAuthorize("hasPermission(#id, 'Post', 'APPROVE')")
+	@Operation(summary = "Cancel scheduled publication", description = "Return a scheduled post to editorial review without publishing it.")
+	public ApiResponse<Void> cancelScheduledPost(@PathVariable Long id)
+	{
+		return postService.cancelScheduledPost(id);
+	}
+
+	@PostMapping("/{id}/archive")
+	@PreAuthorize("hasPermission(#id, 'Post', 'APPROVE')")
+	@Operation(summary = "Archive published post", description = "Remove a published post from public visibility while retaining its audit history.")
+	public ApiResponse<Void> archivePost(@PathVariable Long id,
+			@Valid @RequestBody PostArchiveRequest request)
+	{
+		return postService.archivePost(id, request);
+	}
+
+	@PostMapping("/{id}/restore")
+	@PreAuthorize("hasPermission(#id, 'Post', 'APPROVE')")
+	@Operation(summary = "Restore archived post", description = "Return an archived post to draft status for revision and a new review cycle.")
+	public ApiResponse<Void> restoreArchivedPost(@PathVariable Long id)
+	{
+		return postService.restoreArchivedPost(id);
 	}
 
 	@PostMapping("/autosave")

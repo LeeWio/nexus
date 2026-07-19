@@ -50,4 +50,6 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	boolean existsByContentContaining(String keyword);
 
 	boolean existsByParentId(Long parentId);
+
+	boolean existsByParentIdAndStatus(Long parentId, CommentStatus status);
 }

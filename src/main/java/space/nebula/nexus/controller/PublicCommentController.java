@@ -31,7 +31,7 @@ public class PublicCommentController
 
 	@PostMapping
 	@Operation(summary = "Publish a new comment", description = "Submit a comment on a blog post. Requires user authentication.")
-	@RateLimit(count = 5, time = 15, unit = TimeUnit.MINUTES, message = "Comment frequency too high. Please wait a moment.")
+	@RateLimit(count = 5, time = 15, unit = TimeUnit.MINUTES, message = "Too many comments. Please wait a moment.")
 	public ApiResponse<Void> publishComment(@Valid @RequestBody CommentRequest request,
 			HttpServletRequest servletRequest)
 	{

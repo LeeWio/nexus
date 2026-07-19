@@ -42,7 +42,7 @@ public class AdminFileController
 
 	@PostMapping("/upload")
 	@Operation(summary = "Upload a file", description = "Securely uploads a file and returns its metadata including URLs.")
-	@RateLimit(count = 20, time = 1, unit = TimeUnit.MINUTES, message = "File upload is too frequent. Please wait a moment.")
+	@RateLimit(count = 20, time = 1, unit = TimeUnit.MINUTES, message = "Too many file uploads. Please wait a moment.")
 	public ApiResponse<FileResponse> uploadFile(
 			@Parameter(description = "The file payload to upload") @RequestParam("file") MultipartFile file)
 	{

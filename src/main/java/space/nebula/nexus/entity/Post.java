@@ -71,6 +71,9 @@ public class Post extends BaseEntity
 	@Column(name = "published_at")
 	private java.time.LocalDateTime publishedAt;
 
+	@Column(name = "scheduled_at")
+	private java.time.LocalDateTime scheduledAt;
+
 	@Column(name = "review_comment", length = 1000)
 	private String reviewComment;
 
@@ -80,6 +83,16 @@ public class Post extends BaseEntity
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "reviewed_by")
 	private User reviewedBy;
+
+	@Column(name = "archive_reason", length = 1000)
+	private String archiveReason;
+
+	@Column(name = "archived_at")
+	private java.time.LocalDateTime archivedAt;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "archived_by")
+	private User archivedBy;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "category_id")
@@ -115,10 +128,98 @@ public class Post extends BaseEntity
 	public void publish()
 	{
 		this.status = PostStatus.PUBLISHED;
+		this.scheduledAt = null;
 		if (this.publishedAt == null)
 		{
 			this.publishedAt = java.time.LocalDateTime.now();
 		}
+	}
+
+	/**
+	 * Approves the post for publication at the given future time.
+	 *
+	 * @param scheduledAt planned publication time
+	 */
+	public void schedule(java.time.LocalDateTime scheduledAt)
+	{
+		this.status = PostStatus.SCHEDULED;
+		this.scheduledAt = scheduledAt;
+		this.publishedAt = null;
+	}
+
+	/**
+	 * Cancels an approved publication schedule and returns the post to editorial
+	 * review.
+	 */
+	public void cancelSchedule()
+	{
+		this.status = PostStatus.PENDING_REVIEW;
+		this.scheduledAt = null;
+	}
+
+	/**
+	 * Withdraws the post from editorial review so the author can revise it.
+	 */
+	public void withdrawFromReview()
+	{
+		this.status = PostStatus.DRAFT;
+		this.reviewComment = null;
+		this.reviewedAt = null;
+		this.reviewedBy = null;
+	}
+
+	/**
+	 * Removes a published post from public visibility while retaining its
+	 * publication history.
+	 *
+	 * @param reason editorial archive reason
+	 * @param archivedBy editor who archived the post
+	 */
+	public void archive(String reason, User archivedBy)
+	{
+		this.status = PostStatus.ARCHIVED;
+		this.archiveReason = reason;
+		this.archivedAt = java.time.LocalDateTime.now();
+		this.archivedBy = archivedBy;
+		this.isFeatured = false;
+	}
+
+	/**
+	 * Restores an archived post as a draft that must pass review before it can be
+	 * published again.
+	 */
+	public void restoreToDraft()
+	{
+		this.status = PostStatus.DRAFT;
+		this.publishedAt = null;
+		this.archiveReason = null;
+		this.archivedAt = null;
+		this.archivedBy = null;
+		this.reviewComment = null;
+		this.reviewedAt = null;
+		this.reviewedBy = null;
+	}
+
+	/**
+	 * Checks whether content fields may be changed through the standard edit
+	 * command.
+	 *
+	 * @return {@code true} for draft or rejected posts
+	 */
+	public boolean isEditable()
+	{
+		return PostStatus.DRAFT.equals(this.status) || PostStatus.REJECTED.equals(this.status);
+	}
+
+	/**
+	 * Checks whether the post can be deleted without bypassing its active workflow.
+	 *
+	 * @return {@code true} for draft, rejected, or archived posts
+	 */
+	public boolean isDeletable()
+	{
+		return PostStatus.DRAFT.equals(this.status) || PostStatus.REJECTED.equals(this.status)
+				|| PostStatus.ARCHIVED.equals(this.status);
 	}
 
 	/**
@@ -127,6 +228,7 @@ public class Post extends BaseEntity
 	public void moveToDraft()
 	{
 		this.status = PostStatus.DRAFT;
+		this.scheduledAt = null;
 	}
 
 	/**
@@ -135,6 +237,7 @@ public class Post extends BaseEntity
 	public void reject()
 	{
 		this.status = PostStatus.REJECTED;
+		this.scheduledAt = null;
 	}
 
 	/**

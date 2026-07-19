@@ -8,9 +8,14 @@ import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.info.License;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Configures OpenAPI metadata when API documentation is explicitly enabled.
+ */
 @Configuration
+@ConditionalOnProperty(name = "springdoc.api-docs.enabled", havingValue = "true")
 @OpenAPIDefinition(info = @Info(title = "Nexus API", version = "v1.2", description = "### Professional Blog & CMS Backend \n"
 		+ "Nexus provides a robust foundation for modern web applications with built-in: \n"
 		+ "- **Full-Link Tracing** (TraceId in every response) \n" + "- **Asynchronous Auditing** \n"

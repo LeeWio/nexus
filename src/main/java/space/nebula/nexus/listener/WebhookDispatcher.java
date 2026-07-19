@@ -45,6 +45,13 @@ public class WebhookDispatcher
 					Dict.create().set("postId", event.getPost().getId()).set("title", event.getPost().getTitle())
 							.set("slug", event.getPost().getSlug()).set("status", event.getPost().getStatus().name()));
 		}
+		else if (event.getChangeType() == PostChangeType.ARCHIVED)
+		{
+			dispatchToSubscribers(WebhookEvent.POST_ARCHIVED,
+					Dict.create().set("postId", event.getPost().getId()).set("title", event.getPost().getTitle())
+							.set("slug", event.getPost().getSlug()).set("status", event.getPost().getStatus().name())
+							.set("reason", event.getPost().getArchiveReason()));
+		}
 	}
 
 	@Async("asyncExecutor")

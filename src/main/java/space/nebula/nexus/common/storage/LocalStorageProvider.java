@@ -27,7 +27,7 @@ public class LocalStorageProvider implements StorageProvider {
 		try {
 			Files.createDirectories(this.rootLocation);
 		} catch (IOException e) {
-			throw new BusinessException("Could not initialize storage location: " + this.rootLocation);
+			throw new BusinessException("Storage location could not be initialized: " + this.rootLocation);
 		}
 	}
 
@@ -35,7 +35,7 @@ public class LocalStorageProvider implements StorageProvider {
 	public String store(InputStream inputStream, String filename) {
 		try {
 			Assert.isFalse(filename.contains(".."),
-					() -> new BusinessException("Cannot store file with relative path outside current directory " + filename));
+					() -> new BusinessException("File path is invalid: " + filename));
 
 			Path destinationFile = this.rootLocation.resolve(Paths.get(filename)).normalize().toAbsolutePath();
 
@@ -47,7 +47,7 @@ public class LocalStorageProvider implements StorageProvider {
 			}
 			String finalRootPath = rootPath;
 			Assert.isTrue(destPath.startsWith(finalRootPath),
-					() -> new BusinessException("Cannot store file outside specified directory. root=" + finalRootPath + ", dest=" + destPath));
+					() -> new BusinessException("File path is outside the storage directory"));
 
 			// Create parent directories if they don't exist
 			Files.createDirectories(destinationFile.getParent());
@@ -56,18 +56,29 @@ public class LocalStorageProvider implements StorageProvider {
 			return filename;
 		} catch (IOException e) {
 			log.error("Failed to store file {}", filename, e);
-			throw new BusinessException("Failed to store file " + filename);
+			throw new BusinessException("Failed to store file: " + filename);
 		}
 	}
 
 	@Override
 	public void delete(String filename) {
 		try {
-			Path file = rootLocation.resolve(filename);
+			Path file = resolveWithinRoot(filename);
 			Files.deleteIfExists(file);
 		} catch (IOException e) {
 			log.error("Could not delete file {}", filename, e);
 		}
+	}
+
+	private Path resolveWithinRoot(String filename) throws IOException {
+		Assert.isFalse(filename.contains(".."),
+				() -> new BusinessException("File path is invalid"));
+		Path resolved = rootLocation.resolve(filename).normalize().toAbsolutePath();
+		Path canonicalRoot = rootLocation.toFile().getCanonicalFile().toPath();
+		Path canonicalTarget = resolved.toFile().getCanonicalFile().toPath();
+		Assert.isTrue(canonicalTarget.startsWith(canonicalRoot),
+				() -> new BusinessException("File path is outside the storage directory"));
+		return canonicalTarget;
 	}
 
 	@Override

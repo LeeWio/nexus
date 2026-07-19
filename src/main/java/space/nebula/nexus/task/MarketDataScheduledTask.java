@@ -6,13 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import space.nebula.nexus.common.constant.CacheConstants;
-import space.nebula.nexus.payload.response.MarketIndexResponse;
 import space.nebula.nexus.service.IMarketDataService;
-import space.nebula.nexus.service.impl.MarketDataServiceImpl;
-import space.nebula.nexus.utils.RedisUtil;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Component
 @Slf4j
@@ -21,9 +15,6 @@ public class MarketDataScheduledTask
 {
 
 	private final IMarketDataService marketDataService;
-	private final RedisUtil redisUtil;
-
-	private static final String LOCK_KEY_1D = "nexus:lock:market-1d";
 
 	/**
 	 * Pre-warm cache for 1D period every 1 minute. This avoids cold starts when
@@ -33,24 +24,13 @@ public class MarketDataScheduledTask
 	@SchedulerLock(name = "marketDataPreWarm", lockAtMostFor = "PT50S")
 	public void preWarmMarketData1D()
 	{
-		if (!redisUtil.lock(LOCK_KEY_1D, "locked", 50, TimeUnit.SECONDS))
-		{
-			return;
-		}
-
 		log.info("Starting scheduled pre-warming of 1D market data");
 		try
 		{
-			if (marketDataService instanceof MarketDataServiceImpl impl)
+			int refreshedCount = marketDataService.refreshIndices(CacheConstants.MARKET_1D);
+			if (refreshedCount > 0)
 			{
-				List<MarketIndexResponse> responses = impl.fetchIndicesFromApi(CacheConstants.MARKET_1D);
-				if (!responses.isEmpty())
-				{
-					String cacheKey = CacheConstants.buildFullKey(CacheConstants.MARKET_INDICES,
-							CacheConstants.MARKET_1D);
-					redisUtil.set(cacheKey, responses, 1, TimeUnit.MINUTES);
-					log.info("Successfully pre-warmed 1D market data for {} indices", responses.size());
-				}
+				log.info("Successfully pre-warmed 1D market data for {} indices", refreshedCount);
 			}
 		}
 		catch (Exception e)

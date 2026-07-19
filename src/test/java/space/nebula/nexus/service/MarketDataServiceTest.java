@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.RestClient;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.config.MarketProperties;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
 import space.nebula.nexus.service.impl.MarketDataServiceImpl;
@@ -117,4 +118,21 @@ class MarketDataServiceTest {
         assertEquals("SSE Composite", sse.getName());
         assertEquals(new BigDecimal("3050.00"), sse.getCurrent());
     }
+
+	@Test
+	void refreshIndicesReplacesCacheWithFreshData()
+	{
+		when(restClient.get()).thenReturn(requestHeadersUriSpec);
+		when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
+		when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
+		when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+		when(responseSpec.body(byte[].class)).thenReturn(mockHqResponse);
+		when(responseSpec.body(String.class)).thenReturn("[]");
+
+		int refreshedCount = marketDataService.refreshIndices("1D");
+
+		assertEquals(2, refreshedCount);
+		verify(redisUtil).set(eq(CacheConstants.buildFullKey(CacheConstants.MARKET_INDICES, CacheConstants.MARKET_1D)),
+				anyList(), eq(1L), eq(java.util.concurrent.TimeUnit.MINUTES));
+	}
 }

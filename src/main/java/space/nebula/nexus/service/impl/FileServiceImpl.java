@@ -31,8 +31,11 @@ import space.nebula.nexus.utils.FileUtil;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Professional implementation of File Management Service. Enhanced with deep
@@ -67,6 +70,7 @@ public class FileServiceImpl implements IFileService
 					formatFileSize(storageProperties.getMaxFileSize()));
 		}
 
+		List<String> newlyStoredFiles = new ArrayList<>();
 		try
 		{
 			// 1. Content-based Deduplication (SHA-256) - Streaming approach
@@ -168,6 +172,7 @@ public class FileServiceImpl implements IFileService
 					var thumbnailBytes = fileUtil.convertToWebP(fileUtil.generateThumbnail(fileBytes, 300, 300));
 					var thumbnailName = "thumb_" + uniqueName.substring(0, uniqueName.lastIndexOf('.')) + ".webp";
 					storageProvider.store(new ByteArrayInputStream(thumbnailBytes), thumbnailName);
+					newlyStoredFiles.add(thumbnailName);
 					thumbnailUrl = storageProvider.getUrl(thumbnailName);
 					log.info("Generated WebP thumbnail: {}", thumbnailName);
 				}
@@ -178,6 +183,7 @@ public class FileServiceImpl implements IFileService
 				
 				// Final storage with potentially converted bytes
 				storageProvider.store(new ByteArrayInputStream(fileBytes), uniqueName);
+				newlyStoredFiles.add(uniqueName);
 				finalSize = (long) fileBytes.length;
 			}
 			else 
@@ -186,6 +192,7 @@ public class FileServiceImpl implements IFileService
 				try (var is = file.getInputStream())
 				{
 					storageProvider.store(is, uniqueName);
+					newlyStoredFiles.add(uniqueName);
 				}
 				finalSize = file.getSize();
 			}
@@ -214,6 +221,8 @@ public class FileServiceImpl implements IFileService
 			metadata.setReferenceCount(1);
 
 			var savedFile = fileRepository.save(metadata);
+			fileRepository.flush();
+			newlyStoredFiles.clear();
 			log.info("File asset indexed successfully: {} (ID: {})", uniqueName, savedFile.getId());
 
 			return ApiResponse.success("File uploaded successfully", fileMapper.toResponse(savedFile));
@@ -221,8 +230,14 @@ public class FileServiceImpl implements IFileService
 		}
 		catch (IOException e)
 		{
+			cleanupNewlyStoredFiles(newlyStoredFiles);
 			log.error("Fatal I/O error during file processing: {}", file.getOriginalFilename(), e);
 			throw new BusinessException(BusinessCode.ERROR, "System failed to process the file");
+		}
+		catch (RuntimeException e)
+		{
+			cleanupNewlyStoredFiles(newlyStoredFiles);
+			throw e;
 		}
 	}
 
@@ -250,7 +265,7 @@ public class FileServiceImpl implements IFileService
 	{
 		var sanitizedName = StringUtils.cleanPath(fileName);
 		Assert.isFalse(sanitizedName.contains(".."),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Security violation: Invalid path"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Invalid file path"));
 
 		var metadata = fileRepository.findByFileName(sanitizedName)
 				.orElseThrow(() -> new ResourceNotFoundException("File", "name", sanitizedName));
@@ -266,19 +281,64 @@ public class FileServiceImpl implements IFileService
 			return ApiResponse.success("File reference removed", null);
 		}
 
-		// 2. If count reaches zero, purge physical files and DB record
-		storageProvider.delete(sanitizedName);
-
+		// 2. Delete metadata transactionally, then purge physical objects only after
+		// commit so a database rollback never leaves a live row pointing to a missing file.
+		List<String> filesToDelete = new ArrayList<>();
+		filesToDelete.add(sanitizedName);
 		if (StrUtil.isNotBlank(metadata.getThumbnailUrl()))
 		{
 			var thumbnailName = extractFileNameFromUrl(metadata.getThumbnailUrl());
-			storageProvider.delete(thumbnailName);
+			filesToDelete.add(thumbnailName);
 		}
 
 		fileRepository.delete(metadata);
+		registerStorageDeletionAfterCommit(filesToDelete);
 		log.info("File asset and related records purged for: {}", sanitizedName);
 
 		return ApiResponse.success("File permanently deleted", null);
+	}
+
+	private void cleanupNewlyStoredFiles(List<String> fileNames)
+	{
+		for (String fileName : fileNames)
+		{
+			try
+			{
+				storageProvider.delete(fileName);
+			}
+			catch (RuntimeException cleanupError)
+			{
+				log.error("Failed to clean up newly stored file {} after upload failure", fileName, cleanupError);
+			}
+		}
+	}
+
+	private void registerStorageDeletionAfterCommit(List<String> fileNames)
+	{
+		if (!TransactionSynchronizationManager.isSynchronizationActive())
+		{
+			// Supports direct service invocation in maintenance tools while normal web
+			// requests still use the transaction-aware path below.
+			cleanupNewlyStoredFiles(fileNames);
+			return;
+		}
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit()
+			{
+				for (String fileName : fileNames)
+				{
+					try
+					{
+						storageProvider.delete(fileName);
+					}
+					catch (RuntimeException e)
+					{
+						log.error("Failed to delete committed storage object {}", fileName, e);
+					}
+				}
+			}
+		});
 	}
 
 	private String extractFileExtension(String filename)

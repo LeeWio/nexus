@@ -42,11 +42,18 @@ public interface ICommentService
 
 	/**
 	 * Moderates a comment by updating its status.
+	 *
+	 * @param id comment identifier
+	 * @param status approved or rejected moderation outcome
+	 * @return successful response after the moderation decision is persisted
 	 */
 	ApiResponse<Void> moderateComment(Long id, CommentStatus status);
 
 	/**
-	 * Performs a hard/soft delete of a comment.
+	 * Soft-deletes a comment that has no active replies.
+	 *
+	 * @param id comment identifier
+	 * @return successful response after the comment is archived
 	 */
 	ApiResponse<Void> deleteComment(Long id);
 }

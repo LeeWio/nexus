@@ -34,7 +34,7 @@ public class PublicSearchController
 
 	@GetMapping("/posts")
 	@Operation(summary = "Search posts", description = "Perform a full-text search across published posts using Elasticsearch.")
-	@RateLimit(count = 10, time = 1, message = "Search frequency too high. Please try again in a moment.")
+	@RateLimit(count = 10, time = 1, message = "Too many search requests. Please try again shortly.")
 	public ApiResponse<PageResult<PostDocument>> searchPosts(
 			@Parameter(description = "Keywords to search for in title, summary, and content") @RequestParam(required = false) String keyword,
 
@@ -45,7 +45,7 @@ public class PublicSearchController
 
 	@GetMapping("/quick")
 	@Operation(summary = "Quick search (Command+K) - Legacy", description = "Lightweight unified search across posts, categories, and tags.")
-	@RateLimit(count = 20, time = 1, message = "Quick search frequency too high.")
+	@RateLimit(count = 20, time = 1, message = "Too many quick search requests.")
 	public ApiResponse<QuickSearchResponse> quickSearch(
 			@Parameter(description = "Search keyword") @RequestParam String keyword)
 	{

@@ -36,6 +36,16 @@ public record PostResponse(@Schema(description = "Post ID") Long id,
 
 		@Schema(description = "Latest review time") LocalDateTime reviewedAt,
 
+		@Schema(description = "Actual publication time") LocalDateTime publishedAt,
+
+		@Schema(description = "Planned publication time for a scheduled post") LocalDateTime scheduledAt,
+
+		@Schema(description = "Reason the post was removed from public visibility") String archiveReason,
+
+		@Schema(description = "Archive time") LocalDateTime archivedAt,
+
+		@Schema(description = "Editor who archived the post") String archivedByName,
+
 		@Schema(description = "Is featured post") Boolean isFeatured,
 
 		@Schema(description = "Total view count") Long views,

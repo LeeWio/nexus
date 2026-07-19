@@ -2,14 +2,12 @@ package space.nebula.nexus.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.lang.Assert;
-import cn.hutool.core.util.IdUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.constant.BusinessCode;
-import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.KanbanColumn;
@@ -24,12 +22,12 @@ import space.nebula.nexus.repository.KanbanColumnRepository;
 import space.nebula.nexus.repository.KanbanItemRepository;
 import space.nebula.nexus.repository.TagRepository;
 import space.nebula.nexus.service.IKanbanService;
-import space.nebula.nexus.utils.RedisLockUtil;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
+import java.util.LinkedHashSet;
+import java.util.ArrayList;
 
 /**
  * Implementation of Kanban board management service. Standardized with
@@ -45,7 +43,6 @@ public class KanbanServiceImpl implements IKanbanService
 	private final KanbanItemRepository taskRepository;
 	private final TagRepository tagRepository;
 	private final KanbanMapper kanbanMapper;
-	private final RedisLockUtil redisLockUtil;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -59,19 +56,12 @@ public class KanbanServiceImpl implements IKanbanService
 	@Transactional
 	public ApiResponse<KanbanColumnResponse> createColumn(KanbanColumnRequest request)
 	{
+		List<KanbanColumn> existingColumns = columnRepository.findAllForUpdate();
 		var newColumn = new KanbanColumn();
 		newColumn.setName(request.getName());
 		newColumn.setColor(request.getColor());
 
-		if (request.getOrderIndex() != null)
-		{
-			newColumn.setOrderIndex(request.getOrderIndex());
-		}
-		else
-		{
-			Integer maxSequence = columnRepository.findMaxOrderIndex();
-			newColumn.setOrderIndex(maxSequence != null ? maxSequence + 1 : 0);
-		}
+		newColumn.setOrderIndex(existingColumns.size());
 
 		var savedColumn = columnRepository.save(newColumn);
 		log.info("Kanban column created: {}", savedColumn.getName());
@@ -86,11 +76,6 @@ public class KanbanServiceImpl implements IKanbanService
 
 		column.setName(request.getName());
 		column.setColor(request.getColor());
-		if (request.getOrderIndex() != null)
-		{
-			column.setOrderIndex(request.getOrderIndex());
-		}
-
 		var updatedColumn = columnRepository.save(column);
 		log.info("Kanban column updated: {}", updatedColumn.getName());
 		return ApiResponse.success("Column updated", kanbanMapper.toResponse(updatedColumn));
@@ -100,9 +85,18 @@ public class KanbanServiceImpl implements IKanbanService
 	@Transactional
 	public ApiResponse<Void> deleteColumn(Long id)
 	{
-		Assert.isTrue(columnRepository.existsById(id),
-				() -> new ResourceNotFoundException("KanbanColumn", "id", id));
-		columnRepository.deleteById(id);
+		List<KanbanColumn> columns = columnRepository.findAllForUpdate();
+		KanbanColumn column = columns.stream().filter(candidate -> candidate.getId().equals(id)).findFirst()
+				.orElseThrow(() -> new ResourceNotFoundException("KanbanColumn", "id", id));
+		Assert.isTrue(taskRepository.findByColumnIdOrderByOrderIndexAscIdAsc(id).isEmpty(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Move or delete all tasks before deleting this column"));
+		columnRepository.delete(column);
+		List<KanbanColumn> remaining = columns.stream().filter(candidate -> !candidate.getId().equals(id))
+				.sorted(java.util.Comparator.comparing(KanbanColumn::getOrderIndex)
+						.thenComparing(KanbanColumn::getId)).toList();
+		IntStream.range(0, remaining.size()).forEach(index -> remaining.get(index).setOrderIndex(index));
+		columnRepository.saveAll(remaining);
 		log.info("Kanban column deleted: {}", id);
 		return ApiResponse.success("Column deleted", null);
 	}
@@ -111,7 +105,8 @@ public class KanbanServiceImpl implements IKanbanService
 	@Transactional
 	public ApiResponse<KanbanItemResponse> createTask(KanbanItemRequest request)
 	{
-		var column = findColumnOrThrow(request.getColumnId());
+		var column = columnRepository.findAllByIdForUpdate(List.of(request.getColumnId())).stream().findFirst()
+				.orElseThrow(() -> new ResourceNotFoundException("KanbanColumn", "id", request.getColumnId()));
 
 		var newTask = new KanbanItem();
 		newTask.setTitle(request.getTitle());
@@ -120,22 +115,25 @@ public class KanbanServiceImpl implements IKanbanService
 		newTask.setReminderAt(request.getReminderAt());
 		newTask.setColumn(column);
 
-		if (request.getOrderIndex() != null)
-		{
-			newTask.setOrderIndex(request.getOrderIndex());
-		}
-		else
-		{
-			Integer maxSequence = taskRepository.findMaxOrderIndexByColumnId(column.getId());
-			newTask.setOrderIndex(maxSequence != null ? maxSequence + 1 : 0);
-		}
+		List<KanbanItem> existingItems = new ArrayList<>(
+				taskRepository.findByColumnIdOrderByOrderIndexAscIdAsc(column.getId()));
+		int insertIndex = request.getOrderIndex() == null
+				? existingItems.size()
+				: Math.max(0, Math.min(request.getOrderIndex(), existingItems.size()));
+		newTask.setOrderIndex(insertIndex);
+		existingItems.stream().filter(item -> item.getOrderIndex() >= insertIndex)
+				.forEach(item -> item.setOrderIndex(item.getOrderIndex() + 1));
 
 		if (CollUtil.isNotEmpty(request.getTagIds()))
 		{
-			var tags = tagRepository.findAllById(request.getTagIds());
+			var tagIds = new HashSet<>(request.getTagIds());
+			var tags = tagRepository.findAllById(tagIds);
+			Assert.isTrue(tags.size() == tagIds.size(),
+					() -> new BusinessException(BusinessCode.BAD_REQUEST, "One or more tags do not exist"));
 			newTask.setTags(new HashSet<>(tags));
 		}
 
+		taskRepository.saveAll(existingItems);
 		var savedTask = taskRepository.save(newTask);
 		log.info("Kanban task created: {}", savedTask.getTitle());
 		return ApiResponse.success("Task created", kanbanMapper.toResponse(savedTask));
@@ -146,18 +144,18 @@ public class KanbanServiceImpl implements IKanbanService
 	public ApiResponse<KanbanItemResponse> updateTask(Long id, KanbanItemRequest request)
 	{
 		var task = findItemOrThrow(id);
+		Assert.isTrue(task.getColumn().getId().equals(request.getColumnId()),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Use the relocate command to change a task column or position"));
 
 		kanbanMapper.updateItem(task, request);
 
-		if (request.getColumnId() != null && !task.getColumn().getId().equals(request.getColumnId()))
-		{
-			var targetColumn = findColumnOrThrow(request.getColumnId());
-			task.setColumn(targetColumn);
-		}
-
 		if (request.getTagIds() != null)
 		{
-			var tags = tagRepository.findAllById(request.getTagIds());
+			var tagIds = new HashSet<>(request.getTagIds());
+			var tags = tagRepository.findAllById(tagIds);
+			Assert.isTrue(tags.size() == tagIds.size(),
+					() -> new BusinessException(BusinessCode.BAD_REQUEST, "One or more tags do not exist"));
 			task.setTags(new HashSet<>(tags));
 		}
 
@@ -170,9 +168,16 @@ public class KanbanServiceImpl implements IKanbanService
 	@Transactional
 	public ApiResponse<Void> deleteTask(Long id)
 	{
-		Assert.isTrue(taskRepository.existsById(id),
-				() -> new ResourceNotFoundException("KanbanItem", "id", id));
-		taskRepository.deleteById(id);
+		KanbanItem task = taskRepository.findByIdForUpdate(id)
+				.orElseThrow(() -> new ResourceNotFoundException("KanbanItem", "id", id));
+		Long columnId = task.getColumn().getId();
+		columnRepository.findAllByIdForUpdate(List.of(columnId));
+		List<KanbanItem> remaining = new ArrayList<>(
+				taskRepository.findByColumnIdOrderByOrderIndexAscIdAsc(columnId));
+		remaining.removeIf(candidate -> candidate.getId().equals(id));
+		taskRepository.delete(task);
+		renumberItems(remaining);
+		taskRepository.saveAll(remaining);
 		log.info("Kanban task deleted: {}", id);
 		return ApiResponse.success("Task deleted", null);
 	}
@@ -181,60 +186,63 @@ public class KanbanServiceImpl implements IKanbanService
 	@Transactional
 	public ApiResponse<Void> relocateTask(KanbanItemMoveRequest request)
 	{
-		String lockKey = CacheConstants.LOCK_KANBAN_COLUMN_PREFIX + request.getTargetColumnId();
-		String lockToken = IdUtil.fastUUID();
+		Assert.isTrue(request.getTargetOrderIndex() != null && request.getTargetOrderIndex() >= 0,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Target order index cannot be negative"));
+		var task = taskRepository.findByIdForUpdate(request.getItemId())
+				.orElseThrow(() -> new ResourceNotFoundException("KanbanItem", "id", request.getItemId()));
+		Long sourceColumnId = task.getColumn().getId();
+		Long targetColumnId = request.getTargetColumnId();
+		var lockedColumns = columnRepository.findAllByIdForUpdate(
+				new LinkedHashSet<>(List.of(sourceColumnId, targetColumnId)));
+		Assert.isTrue(lockedColumns.size() == (sourceColumnId.equals(targetColumnId) ? 1 : 2),
+				() -> new ResourceNotFoundException("KanbanColumn", "id", targetColumnId));
+		KanbanColumn targetColumn = lockedColumns.stream()
+				.filter(column -> column.getId().equals(targetColumnId)).findFirst()
+				.orElseThrow(() -> new ResourceNotFoundException("KanbanColumn", "id", targetColumnId));
 
-		Assert.isTrue(redisLockUtil.tryLock(lockKey, lockToken, 5, TimeUnit.SECONDS),
-				() -> new BusinessException(BusinessCode.ERROR, "Board is busy, please try again"));
+		List<KanbanItem> sourceItems = new ArrayList<>(
+				taskRepository.findByColumnIdOrderByOrderIndexAscIdAsc(sourceColumnId));
+		sourceItems.removeIf(item -> item.getId().equals(task.getId()));
+		List<KanbanItem> targetItems = sourceColumnId.equals(targetColumnId)
+				? sourceItems
+				: new ArrayList<>(taskRepository.findByColumnIdOrderByOrderIndexAscIdAsc(targetColumnId));
 
-		try
+		int targetIndex = Math.min(request.getTargetOrderIndex(), targetItems.size());
+		task.setColumn(targetColumn);
+		targetItems.add(targetIndex, task);
+		renumberItems(sourceItems);
+		if (targetItems != sourceItems)
 		{
-			var task = findItemOrThrow(request.getItemId());
-			var destColumn = findColumnOrThrow(request.getTargetColumnId());
-
-			task.setColumn(destColumn);
-			task.setOrderIndex(request.getTargetOrderIndex());
-			taskRepository.save(task);
-
-			var tasks = destColumn.getItems();
-			if (!tasks.contains(task))
-			{
-				tasks.add(task);
-			}
-
-			tasks.sort((a, b) ->
-			{
-				if (a.getId().equals(task.getId()))
-					return -1;
-				if (b.getId().equals(task.getId()))
-					return 1;
-				return a.getOrderIndex().compareTo(b.getOrderIndex());
-			});
-
-			IntStream.range(0, tasks.size()).forEach(i -> tasks.get(i).setOrderIndex(i));
-			taskRepository.saveAll(tasks);
-
-			return ApiResponse.success("Task relocated", null);
+			renumberItems(targetItems);
+			taskRepository.saveAll(sourceItems);
 		}
-		finally
-		{
-			redisLockUtil.unlock(lockKey, lockToken);
-		}
+		taskRepository.saveAll(targetItems);
+
+		return ApiResponse.success("Task relocated", null);
 	}
 
 	@Override
 	@Transactional
 	public ApiResponse<Void> adjustColumnSequence(List<Long> columnIds)
 	{
-		IntStream.range(0, columnIds.size()).forEach(i ->
-		{
-			columnRepository.findById(columnIds.get(i)).ifPresent(column ->
-			{
-				column.setOrderIndex(i);
-				columnRepository.save(column);
-			});
-		});
+		Assert.notEmpty(columnIds, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Column IDs are required"));
+		Assert.isTrue(new HashSet<>(columnIds).size() == columnIds.size(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Column IDs must not contain duplicates"));
+		List<KanbanColumn> columns = columnRepository.findAllForUpdate();
+		Assert.isTrue(columns.size() == columnIds.size()
+				&& columns.stream().map(KanbanColumn::getId).collect(java.util.stream.Collectors.toSet())
+						.equals(new HashSet<>(columnIds)),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Column sequence must contain every board column exactly once"));
+		var byId = columns.stream().collect(java.util.stream.Collectors.toMap(KanbanColumn::getId, column -> column));
+		IntStream.range(0, columnIds.size()).forEach(i -> byId.get(columnIds.get(i)).setOrderIndex(i));
+		columnRepository.saveAll(columns);
 		return ApiResponse.success("Sequence adjusted", null);
+	}
+
+	private void renumberItems(List<KanbanItem> items)
+	{
+		IntStream.range(0, items.size()).forEach(index -> items.get(index).setOrderIndex(index));
 	}
 
 	private KanbanColumn findColumnOrThrow(Long id)

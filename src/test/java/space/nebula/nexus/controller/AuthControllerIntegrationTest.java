@@ -50,14 +50,14 @@ public class AuthControllerIntegrationTest {
 		mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(registerRequest))).andExpect(status().isOk())
 				.andExpect(jsonPath("$.message")
-						.value("Registration successful. Your account is pending administrator approval."));
+						.value("Registration successful. Your account is awaiting approval."));
 
 		// 2. Login
 		LoginRequest loginRequest = new LoginRequest("testuser", "P@ssw0rd123!");
 
 		mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(loginRequest))).andExpect(status().isInternalServerError())
-				.andExpect(jsonPath("$.message").value("Authentication service error"));
+				.andExpect(jsonPath("$.message").value("Authentication service is temporarily unavailable"));
 	}
 
 	@Test

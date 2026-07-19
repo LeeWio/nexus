@@ -30,24 +30,24 @@ public class UserValidator {
 	public void validateRegistration(RegisterRequest request) {
 		// 1. Basic format checks using Hutool
 		Assert.isFalse(StrUtil.isBlank(request.username()) || request.username().length() < 4,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "用户名长度不能少于 4 个字符"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Username must be at least 4 characters long"));
 
 		Assert.isTrue(Validator.isEmail(request.email()),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "邮箱格式不正确，请输入有效的邮箱地址"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Email address is invalid"));
 
 		// 2. Password strength validation
 		Assert.isTrue(ReUtil.isMatch(PASSWORD_PATTERN, request.password()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"密码必须至少为 8 位字符，且必须包含大小写字母、数字和特殊字符"));
+						"Password must be at least 8 characters and include upper-case letters, lower-case letters, a number, and a special character"));
 
 		// 3. Uniqueness checks
 		Assert.isFalse(userRepository.existsByUsername(request.username()),
 				() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-						"用户名 '" + request.username() + "' 已被占用，请更换用户名"));
+						"Username '" + request.username() + "' is already in use"));
 
 		Assert.isFalse(userRepository.existsByEmail(request.email()),
 				() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-						"邮箱 '" + request.email() + "' 已被注册，您可以直接登录或更换邮箱"));
+						"Email '" + request.email() + "' is already registered"));
 	}
 
 	/**
@@ -60,6 +60,6 @@ public class UserValidator {
 	 */
 	public void checkUsernameExists(String username) {
 		Assert.isTrue(userRepository.existsByUsername(username),
-				() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "未找到该用户：" + username));
+				() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "User not found: " + username));
 	}
 }

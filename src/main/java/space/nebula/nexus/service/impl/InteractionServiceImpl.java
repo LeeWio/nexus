@@ -16,6 +16,8 @@ import space.nebula.nexus.utils.RedisUtil;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.security.util.SecurityUtil;
 import cn.hutool.core.lang.Assert;
+import org.springframework.cache.CacheManager;
+import space.nebula.nexus.entity.Post;
 
 @Slf4j
 @Service
@@ -27,18 +29,20 @@ public class InteractionServiceImpl implements IInteractionService
 	private final PostRepository postRepository;
 	private final UserRepository userRepository;
 	private final JdbcTemplate jdbcTemplate;
+	private final CacheManager cacheManager;
 
 	@Override
 	@Transactional
 	public ApiResponse<Void> likePost(Long postId)
 	{
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
-		validatePublishedPost(postId);
+		Post post = validatePublishedPost(postId);
 		int inserted = jdbcTemplate.update("INSERT IGNORE INTO blog_post_like(post_id, user_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
 				postId, user.getId());
 		if (inserted > 0) postRepository.incrementLikes(postId, 1L);
 		String key = CacheConstants.POST_LIKES_SET + postId;
 		redisUtil.setAdd(key, user.getId().toString());
+		evictCaches(post);
 		return ApiResponse.success("Post liked", null);
 	}
 
@@ -47,11 +51,12 @@ public class InteractionServiceImpl implements IInteractionService
 	public ApiResponse<Void> unlikePost(Long postId)
 	{
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
-		validatePostExists(postId);
+		Post post = validatePostExists(postId);
 		int deleted = jdbcTemplate.update("DELETE FROM blog_post_like WHERE post_id = ? AND user_id = ?", postId, user.getId());
 		if (deleted > 0) postRepository.incrementLikes(postId, -1L);
 		String key = CacheConstants.POST_LIKES_SET + postId;
 		redisUtil.setRemove(key, user.getId().toString());
+		evictCaches(post);
 		return ApiResponse.success("Post unliked", null);
 	}
 
@@ -60,12 +65,13 @@ public class InteractionServiceImpl implements IInteractionService
 	public ApiResponse<Void> favoritePost(Long postId)
 	{
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
-		validatePublishedPost(postId);
+		Post post = validatePublishedPost(postId);
 		int inserted = jdbcTemplate.update("INSERT IGNORE INTO blog_post_favorite(post_id, user_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
 				postId, user.getId());
 		if (inserted > 0) postRepository.incrementFavorites(postId, 1L);
 		String key = CacheConstants.POST_FAVORITES_SET + postId;
 		redisUtil.setAdd(key, user.getId().toString());
+		evictCaches(post);
 		return ApiResponse.success("Post favorited", null);
 	}
 
@@ -74,11 +80,12 @@ public class InteractionServiceImpl implements IInteractionService
 	public ApiResponse<Void> unfavoritePost(Long postId)
 	{
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
-		validatePostExists(postId);
+		Post post = validatePostExists(postId);
 		int deleted = jdbcTemplate.update("DELETE FROM blog_post_favorite WHERE post_id = ? AND user_id = ?", postId, user.getId());
 		if (deleted > 0) postRepository.incrementFavorites(postId, -1L);
 		String key = CacheConstants.POST_FAVORITES_SET + postId;
 		redisUtil.setRemove(key, user.getId().toString());
+		evictCaches(post);
 		return ApiResponse.success("Post unfavorited", null);
 	}
 
@@ -112,17 +119,32 @@ public class InteractionServiceImpl implements IInteractionService
 		}
 	}
 
-	private void validatePostExists(Long postId)
+	private void evictCaches(Post post)
 	{
-		Assert.isTrue(postRepository.existsById(postId),
-				() -> new ResourceNotFoundException("Post", "id", postId));
+		// 1. Evict manual post slug cache
+		String slugKey = CacheConstants.POST_SLUG_PREFIX + post.getSlug();
+		redisUtil.delete(slugKey);
+
+		// 2. Evict Spring-managed list/discovery caches for blog posts
+		org.springframework.cache.Cache cache = cacheManager.getCache(CacheConstants.BLOG_POSTS);
+		if (cache != null)
+		{
+			cache.clear();
+		}
 	}
 
-	private void validatePublishedPost(Long postId)
+	private Post validatePostExists(Long postId)
+	{
+		return postRepository.findById(postId)
+				.orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
+	}
+
+	private Post validatePublishedPost(Long postId)
 	{
 		var post = postRepository.findById(postId)
 				.orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
 		Assert.isTrue(post.isPublished(), () -> new space.nebula.nexus.common.exception.BusinessException(
 				space.nebula.nexus.common.constant.BusinessCode.BAD_REQUEST, "Only published posts can be interacted with"));
+		return post;
 	}
 }

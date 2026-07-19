@@ -8,6 +8,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+/**
+ * Periodically reconciles denormalized post interaction counters.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -24,12 +27,12 @@ public class InteractionSyncTask
 	@Transactional
 	public void synchronizeSocialInteractions()
 	{
-		int updated = jdbcTemplate.update("UPDATE blog_post p SET "
-				+ "likes_count = (SELECT COUNT(*) FROM blog_post_like l WHERE l.post_id = p.id), "
-				+ "favorites_count = (SELECT COUNT(*) FROM blog_post_favorite f WHERE f.post_id = p.id) "
+		int updated = jdbcTemplate.update("UPDATE blog_post p "
+				+ "LEFT JOIN (SELECT post_id, COUNT(*) AS total FROM blog_post_like GROUP BY post_id) l ON l.post_id = p.id "
+				+ "LEFT JOIN (SELECT post_id, COUNT(*) AS total FROM blog_post_favorite GROUP BY post_id) f ON f.post_id = p.id "
+				+ "SET p.likes_count = COALESCE(l.total, 0), p.favorites_count = COALESCE(f.total, 0) "
 				+ "WHERE p.is_deleted = false AND ("
-				+ "EXISTS (SELECT 1 FROM blog_post_like l2 WHERE l2.post_id = p.id) OR "
-				+ "EXISTS (SELECT 1 FROM blog_post_favorite f2 WHERE f2.post_id = p.id))");
+				+ "p.likes_count <> COALESCE(l.total, 0) OR p.favorites_count <> COALESCE(f.total, 0))");
 		log.info("Reconciled interaction counters for {} posts", updated);
 	}
 }

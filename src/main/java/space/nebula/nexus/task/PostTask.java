@@ -1,30 +1,22 @@
 package space.nebula.nexus.task;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-import space.nebula.nexus.repository.PostRepository;
-import space.nebula.nexus.utils.RedisUtil;
-
-import java.util.concurrent.TimeUnit;
+import space.nebula.nexus.service.IPostService;
 
 /**
  * Scheduled tasks for Post-related background processing.
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PostTask
 {
 
-	private final PostRepository postRepository;
+	private static final int PUBLICATION_BATCH_SIZE = 100;
 
-	private final RedisUtil redisUtil;
-
-	private static final String LOCK_KEY = "nexus:lock:publish-posts";
+	private final IPostService postService;
 
 	/**
 	 * Publish posts that are scheduled and their time has reached. Runs every
@@ -32,19 +24,9 @@ public class PostTask
 	 */
 	@Scheduled(cron = "0 * * * * ?")
 	@SchedulerLock(name = "scheduledPostPublish", lockAtMostFor = "PT50S")
-	@Transactional
 	public void publishScheduledPosts()
 	{
-		if (!redisUtil.lock(LOCK_KEY, "locked", 50, TimeUnit.SECONDS))
-		{
-			return;
-		}
-
 		java.time.LocalDateTime now = java.time.LocalDateTime.now();
-		int updated = postRepository.updateScheduledPosts(now);
-		if (updated > 0)
-		{
-			log.info("Published {} scheduled posts at {}", updated, now);
-		}
+		postService.publishDueScheduledPosts(now, PUBLICATION_BATCH_SIZE);
 	}
 }

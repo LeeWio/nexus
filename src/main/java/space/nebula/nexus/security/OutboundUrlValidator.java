@@ -65,6 +65,6 @@ public class OutboundUrlValidator {
 	}
 
 	private BusinessException invalidUrl() {
-		return new BusinessException("Outbound URL must resolve to a public HTTP(S) address");
+		return new BusinessException("Outbound URL must use a public HTTP or HTTPS address");
 	}
 }

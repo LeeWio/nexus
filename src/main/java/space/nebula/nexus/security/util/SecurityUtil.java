@@ -39,9 +39,9 @@ public class SecurityUtil
 	public User getCurrentUserOrThrow(UserRepository userRepository)
 	{
 		String username = getCurrentUsername();
-		Assert.notNull(username, () -> new BusinessException(401, "User not authenticated"));
+		Assert.notNull(username, () -> new BusinessException(401, "Authentication required"));
 		return userRepository.findByUsername(username)
-				.orElseThrow(() -> new BusinessException(404, "Current user not found"));
+				.orElseThrow(() -> new BusinessException(404, "Current user could not be resolved"));
 	}
 
 	/**

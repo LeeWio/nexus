@@ -50,7 +50,7 @@ public class AdminRoleServiceImpl implements IAdminRoleService
 	public ApiResponse<RoleResponse> createRole(RoleRequest request)
 	{
 		Assert.isFalse(roleRepository.findByCode(request.code()).isPresent(),
-				() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Role code already exists: " + request.code()));
+				() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Role code is already in use: " + request.code()));
 
 		var role = new Role();
 		role.setName(request.name());
@@ -70,13 +70,13 @@ public class AdminRoleServiceImpl implements IAdminRoleService
 		var role = roleRepository.findById(id)
 				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
 		Assert.isFalse(SYSTEM_ROLE_CODES.contains(role.getCode()) && ObjectUtil.notEqual(role.getCode(), request.code()),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "System role codes cannot be changed"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "System role codes cannot be modified"));
 
 		if (ObjectUtil.notEqual(role.getCode(), request.code()))
 		{
 			Assert.isFalse(roleRepository.findByCode(request.code()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-							"Role code already exists: " + request.code()));
+							"Role code is already in use: " + request.code()));
 		}
 
 		role.setName(request.name());

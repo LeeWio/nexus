@@ -5,7 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
@@ -23,8 +25,12 @@ import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.mapper.PostMapper;
 import space.nebula.nexus.payload.request.PostAutosaveRequest;
+import space.nebula.nexus.payload.request.PostArchiveRequest;
 import space.nebula.nexus.payload.request.PostRequest;
+import space.nebula.nexus.payload.request.PostScheduleRequest;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.BlogDiscoveryResponse;
+import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.repository.CategoryRepository;
@@ -46,7 +52,9 @@ import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -59,6 +67,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PostServiceImpl implements IPostService
 {
+	private static final int DISCOVERY_SECTION_SIZE = 6;
+	private static final int DISCOVERY_CANDIDATE_SIZE = 20;
 
 	private final PostRepository postRepository;
 	private final CategoryRepository categoryRepository;
@@ -150,7 +160,10 @@ public class PostServiceImpl implements IPostService
 	public ApiResponse<PostResponse> updatePost(Long id, PostRequest request)
 	{
 		postValidator.validatePostRequest(request);
-		Post existingPost = findPostOrThrow(id);
+		Post existingPost = findPostForUpdateOrThrow(id);
+		Assert.isTrue(existingPost.isEditable(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Only draft or rejected posts can be edited"));
 		String previousPath = existingPost.getPath();
 		String previousSlug = existingPost.getSlug();
 
@@ -190,7 +203,10 @@ public class PostServiceImpl implements IPostService
 	@org.springframework.cache.annotation.CacheEvict(value = { CacheConstants.BLOG_POSTS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<Void> deletePost(Long id)
 	{
-		Post postToDelete = findPostOrThrow(id);
+		Post postToDelete = findPostForUpdateOrThrow(id);
+		Assert.isTrue(postToDelete.isDeletable(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Withdraw, cancel, or archive this post before deleting it"));
 		Assert.isFalse(postRepository.existsByParentId(id),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST,
 						"Move or delete child posts before deleting this post"));
@@ -210,7 +226,7 @@ public class PostServiceImpl implements IPostService
 	@LogOperation("Submit Post For Review")
 	public ApiResponse<Void> submitForReview(Long id)
 	{
-		Post post = findPostOrThrow(id);
+		Post post = findPostForUpdateOrThrow(id);
 		Assert.isTrue(post.getStatus() == PostStatus.DRAFT || post.getStatus() == PostStatus.REJECTED,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST,
 						"Only Draft or Rejected posts can be submitted for review"));
@@ -228,11 +244,27 @@ public class PostServiceImpl implements IPostService
 
 	@Override
 	@Transactional
+	@LogOperation("Withdraw Post From Review")
+	public ApiResponse<Void> withdrawFromReview(Long id)
+	{
+		Post post = findPostForUpdateOrThrow(id);
+		Assert.isTrue(post.getStatus() == PostStatus.PENDING_REVIEW,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post is not pending review"));
+
+		post.withdrawFromReview();
+		postRepository.save(post);
+		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.WITHDRAWN_FROM_REVIEW));
+		log.info("Post '{}' withdrawn from review", post.getTitle());
+		return ApiResponse.success("Post withdrawn from review", null);
+	}
+
+	@Override
+	@Transactional
 	@LogOperation("Review Post")
 	@org.springframework.cache.annotation.CacheEvict(value = { CacheConstants.BLOG_POSTS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<Void> reviewPost(Long id, boolean approved, String reviewComment)
 	{
-		Post post = findPostOrThrow(id);
+		Post post = findPostForUpdateOrThrow(id);
 		Assert.isTrue(post.getStatus() == PostStatus.PENDING_REVIEW,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post is not pending review"));
 		if (!approved)
@@ -268,6 +300,127 @@ public class PostServiceImpl implements IPostService
 	}
 
 	@Override
+	@Transactional
+	@LogOperation("Schedule Post Publication")
+	public ApiResponse<Void> schedulePost(Long id, PostScheduleRequest request)
+	{
+		Assert.notNull(request,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "A publication schedule is required"));
+		Assert.notNull(request.scheduledAt(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "A publication time is required"));
+		Assert.isTrue(request.scheduledAt().isAfter(java.time.LocalDateTime.now()),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "The publication time must be in the future"));
+		Post post = findPostForUpdateOrThrow(id);
+		Assert.isTrue(post.getStatus() == PostStatus.PENDING_REVIEW || post.getStatus() == PostStatus.SCHEDULED,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Only posts awaiting review or already scheduled can be scheduled"));
+
+		User reviewer = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		post.schedule(request.scheduledAt());
+		post.setReviewComment(null);
+		post.setReviewedAt(java.time.LocalDateTime.now());
+		post.setReviewedBy(reviewer);
+		postRepository.save(post);
+		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.SCHEDULED));
+		log.info("Post '{}' scheduled for publication at {} by {}", post.getTitle(), request.scheduledAt(),
+				reviewer.getUsername());
+		return ApiResponse.success("Post publication scheduled", null);
+	}
+
+	@Override
+	@Transactional
+	@LogOperation("Cancel Scheduled Post Publication")
+	public ApiResponse<Void> cancelScheduledPost(Long id)
+	{
+		Post post = findPostForUpdateOrThrow(id);
+		Assert.isTrue(post.getStatus() == PostStatus.SCHEDULED,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post is not scheduled for publication"));
+
+		post.cancelSchedule();
+		post.setReviewComment(null);
+		post.setReviewedAt(null);
+		post.setReviewedBy(null);
+		postRepository.save(post);
+		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.SCHEDULE_CANCELED));
+		log.info("Scheduled publication canceled for post '{}'", post.getTitle());
+		return ApiResponse.success("Scheduled publication canceled", null);
+	}
+
+	@Override
+	@Transactional
+	@LogOperation("Archive Published Post")
+	public ApiResponse<Void> archivePost(Long id, PostArchiveRequest request)
+	{
+		Assert.notNull(request,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "An archive request is required"));
+		Assert.notBlank(request.reason(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "An archive reason is required"));
+		Assert.isTrue(request.reason().trim().length() <= 1000,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"The archive reason must not exceed 1000 characters"));
+
+		Post post = findPostForUpdateOrThrow(id);
+		Assert.isTrue(post.getStatus() == PostStatus.PUBLISHED,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only published posts can be archived"));
+		User editor = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		post.archive(request.reason().trim(), editor);
+		postRepository.save(post);
+		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.ARCHIVED));
+		log.info("Post '{}' archived by {}", post.getTitle(), editor.getUsername());
+		return ApiResponse.success("Post archived", null);
+	}
+
+	@Override
+	@Transactional
+	@LogOperation("Restore Archived Post")
+	public ApiResponse<Void> restoreArchivedPost(Long id)
+	{
+		Post post = findPostForUpdateOrThrow(id);
+		Assert.isTrue(post.getStatus() == PostStatus.ARCHIVED,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post is not archived"));
+
+		post.restoreToDraft();
+		postRepository.save(post);
+		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.RESTORED_TO_DRAFT));
+		log.info("Archived post '{}' restored to draft", post.getTitle());
+		return ApiResponse.success("Post restored to draft", null);
+	}
+
+	@Override
+	@Transactional
+	public int publishDueScheduledPosts(java.time.LocalDateTime now, int batchSize)
+	{
+		Assert.notNull(now, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Publication cutoff is required"));
+		Assert.isTrue(batchSize >= 1 && batchSize <= 100,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Publication batch size must be between 1 and 100"));
+
+		List<Long> duePostIds = postRepository.findDueScheduledPostIds(PostStatus.SCHEDULED, now,
+				PageRequest.of(0, batchSize));
+		if (duePostIds.isEmpty())
+		{
+			return 0;
+		}
+		List<Post> duePosts = postRepository.findScheduledPublicationBatch(PostStatus.SCHEDULED, duePostIds).stream()
+				.sorted(java.util.Comparator.comparing(Post::getScheduledAt).thenComparing(Post::getId)).toList();
+		for (Post post : duePosts)
+		{
+			post.publish();
+		}
+		postRepository.saveAll(duePosts);
+		for (Post post : duePosts)
+		{
+			eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.PUBLISHED));
+		}
+		if (!duePosts.isEmpty())
+		{
+			log.info("Published {} scheduled posts at {}", duePosts.size(), now);
+		}
+		return duePosts.size();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.BLOG_POSTS, key = CacheConstants.POST_LIST_KEY, sync = true)
 	public ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
 			Pageable pageable)
@@ -279,6 +432,40 @@ public class PostServiceImpl implements IPostService
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.BLOG_POSTS, key = CacheConstants.BLOG_DISCOVERY_KEY, sync = true)
+	public ApiResponse<BlogDiscoveryResponse> retrievePublicDiscovery()
+	{
+		Sort latestFirst = Sort.by(Sort.Order.desc("publishedAt"), Sort.Order.desc("id"));
+		List<Post> latestCandidates = postRepository.findAllByStatus(PostStatus.PUBLISHED,
+				PageRequest.of(0, DISCOVERY_CANDIDATE_SIZE, latestFirst)).getContent();
+
+		Post spotlight = postRepository.findAllByStatusAndIsFeaturedTrue(PostStatus.PUBLISHED,
+				PageRequest.of(0, 1, latestFirst)).stream().findFirst()
+				.orElseGet(() -> latestCandidates.stream().findFirst().orElse(null));
+
+		Set<Long> selectedPostIds = new LinkedHashSet<>();
+		if (spotlight != null)
+		{
+			selectedPostIds.add(spotlight.getId());
+		}
+
+		List<PostDigestResponse> latest = selectDistinctDigests(latestCandidates, selectedPostIds,
+				DISCOVERY_SECTION_SIZE);
+
+		Sort mostReadFirst = Sort.by(Sort.Order.desc("views"), Sort.Order.desc("likesCount"),
+				Sort.Order.desc("publishedAt"), Sort.Order.desc("id"));
+		List<Post> mostReadCandidates = postRepository.findAllByStatus(PostStatus.PUBLISHED,
+				PageRequest.of(0, DISCOVERY_CANDIDATE_SIZE, mostReadFirst)).getContent();
+		List<PostDigestResponse> mostRead = selectDistinctDigests(mostReadCandidates, selectedPostIds,
+				DISCOVERY_SECTION_SIZE);
+
+		PostDigestResponse spotlightResponse = spotlight == null ? null : postMapper.toDigestResponse(spotlight);
+		return ApiResponse.success(new BlogDiscoveryResponse(spotlightResponse, latest, mostRead));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public ApiResponse<PostResponse> retrievePostBySlug(String slug)
 	{
 		String cacheKey = CacheConstants.POST_SLUG_PREFIX + slug;
@@ -374,7 +561,7 @@ public class PostServiceImpl implements IPostService
 		PostAutosaveResponse autosaveData = new PostAutosaveResponse(request.content(), request.contentType());
 		redisUtil.set(autosaveKey, autosaveData, 24, TimeUnit.HOURS);
 		log.debug("Autosaved content for identifier: {}", request.identifier());
-		return ApiResponse.success("Content autosaved", null);
+			return ApiResponse.success("Content autosaved.", null);
 	}
 
 	@Override
@@ -382,7 +569,7 @@ public class PostServiceImpl implements IPostService
 	{
 		String autosaveKey = autosaveKey(identifier);
 		return redisUtil.get(autosaveKey, PostAutosaveResponse.class).map(ApiResponse::success).orElse(
-				ApiResponse.error(BusinessCode.NOT_FOUND.getCode(), "No autosaved content found for this identifier"));
+			ApiResponse.error(BusinessCode.NOT_FOUND.getCode(), "No autosaved content was found for this identifier"));
 	}
 
 	// --- Private Helper Methods ---
@@ -398,6 +585,13 @@ public class PostServiceImpl implements IPostService
 		return totalViews;
 	}
 
+	private List<PostDigestResponse> selectDistinctDigests(List<Post> candidates, Set<Long> selectedPostIds,
+			int limit)
+	{
+		return candidates.stream().filter(post -> post.getId() != null && selectedPostIds.add(post.getId()))
+				.limit(limit).map(postMapper::toDigestResponse).toList();
+	}
+
 	private void clearAutosaveData(String identifier)
 	{
 		if (identifier != null)
@@ -409,7 +603,7 @@ public class PostServiceImpl implements IPostService
 	private String autosaveKey(String identifier)
 	{
 		String username = SecurityUtil.getCurrentUsername();
-		Assert.notBlank(username, () -> new BusinessException(BusinessCode.UNAUTHORIZED, "User not authenticated"));
+		Assert.notBlank(username, () -> new BusinessException(BusinessCode.UNAUTHORIZED, "Authentication required"));
 		return CacheConstants.POST_AUTOSAVE_PREFIX + username + ":" + identifier;
 	}
 
@@ -418,11 +612,17 @@ public class PostServiceImpl implements IPostService
 		return postRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Post", "id", id));
 	}
 
+	private Post findPostForUpdateOrThrow(Long id)
+	{
+		return postRepository.findByIdForUpdate(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Post", "id", id));
+	}
+
 	private String validateAndGenerateSlug(String requestedSlug, String title)
 	{
 		String slug = StrUtil.isBlank(requestedSlug) ? SlugUtil.toSlug(title) : SlugUtil.toSlug(requestedSlug);
 		Assert.isFalse(postRepository.findBySlug(slug).isPresent(),
-				() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Post slug already exists: " + slug));
+				() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Post slug is already in use: " + slug));
 		return slug;
 	}
 

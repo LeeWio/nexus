@@ -88,7 +88,7 @@ public class AuthServiceImpl implements IAuthService
 		// Prepare email variables using modern Java Map.of
 		Map<String, Object> emailVars = Map.of(
 				"username", newUser.getUsername(),
-				"message", "Your account is pending administrator approval."
+				"message", "Your account is awaiting administrator approval."
 		);
 
 		// Async Welcome/Pending Email
@@ -109,7 +109,7 @@ public class AuthServiceImpl implements IAuthService
 			log.error("Failed to dispatch registration email for: {}", newUser.getEmail());
 		}
 
-		return ApiResponse.success("Registration successful. Your account is pending administrator approval.", null);
+		return ApiResponse.success("Registration successful. Your account is awaiting approval.", null);
 	}
 
 	@Override
@@ -131,7 +131,7 @@ public class AuthServiceImpl implements IAuthService
 			var securityUser = (SecurityUser) authentication.getPrincipal();
 			log.info("User authenticated successfully: {}", securityUser.getUsername());
 
-			return ApiResponse.success("Authentication successful", createAuthResponse(securityUser));
+			return ApiResponse.success("Login successful", createAuthResponse(securityUser));
 		}
 		catch (BadCredentialsException e)
 		{
@@ -145,7 +145,7 @@ public class AuthServiceImpl implements IAuthService
 		catch (Exception e)
 		{
 			log.error("Unexpected authentication error for user: {}", username, e);
-			throw new BusinessException(BusinessCode.ERROR, "Authentication service error");
+			throw new BusinessException(BusinessCode.ERROR, "Authentication service is temporarily unavailable");
 		}
 	}
 
@@ -153,13 +153,13 @@ public class AuthServiceImpl implements IAuthService
 	@LogOperation("Send Login OTP")
 	public ApiResponse<Void> sendOtp(String email)
 	{
-		userRepository.findByEmail(email).orElseThrow(
-				() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "No account linked to this email"));
+			userRepository.findByEmail(email).orElseThrow(
+					() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "No account is linked to this email"));
 
 		var otp = RandomUtil.randomNumbers(6);
 		var otpKey = CacheConstants.OTP_CODE + email;
-		Assert.isTrue(redisUtil.set(otpKey, otp, 5, TimeUnit.MINUTES),
-				() -> new BusinessException(BusinessCode.ERROR, "Failed to store OTP code"));
+			Assert.isTrue(redisUtil.set(otpKey, otp, 5, TimeUnit.MINUTES),
+					() -> new BusinessException(BusinessCode.ERROR, "Failed to store the OTP code"));
 
 		Map<String, Object> variables = Dict.create().set("otp", otp).set("expireMin", 5);
 
@@ -175,7 +175,7 @@ public class AuthServiceImpl implements IAuthService
 		{
 			redisUtil.delete(otpKey);
 			log.error("Failed to dispatch OTP email task to MQ for: {}", email, e);
-			throw new BusinessException(BusinessCode.ERROR, "Failed to dispatch email task");
+				throw new BusinessException(BusinessCode.ERROR, "Failed to dispatch the email task");
 		}
 
 		return ApiResponse.success("OTP code sent successfully. Please check your inbox.", null);
@@ -190,14 +190,14 @@ public class AuthServiceImpl implements IAuthService
 		var code = request.code();
 		var otpKey = CacheConstants.OTP_CODE + email;
 
-		Assert.isTrue(redisUtil.consumeIfEquals(otpKey, code),
-				() -> new BusinessException(BusinessCode.INVALID_TOKEN, "Invalid or expired verification code"));
+			Assert.isTrue(redisUtil.consumeIfEquals(otpKey, code),
+					() -> new BusinessException(BusinessCode.INVALID_TOKEN, "Verification code is invalid or expired"));
 
 		var user = userRepository.findByEmail(email)
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
-		Assert.isTrue(user.getStatus() == UserStatus.ACTIVE,
-				() -> new BusinessException(BusinessCode.ACCOUNT_DISABLED, "Account status: " + user.getStatus()));
+			Assert.isTrue(user.getStatus() == UserStatus.ACTIVE,
+					() -> new BusinessException(BusinessCode.ACCOUNT_DISABLED, "Account is not active"));
 
 		var securityUser = new SecurityUser(user);
 		var authentication = new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
@@ -213,7 +213,7 @@ public class AuthServiceImpl implements IAuthService
 	{
 		var username = SecurityContextHolder.getContext().getAuthentication().getName();
 		return userRepository.findByUsername(username).map(ApiResponse::success)
-				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "Identity data unavailable"));
+				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "Authenticated user could not be resolved"));
 	}
 
 	@Override
@@ -235,10 +235,10 @@ public class AuthServiceImpl implements IAuthService
 	@Override
 	public ApiResponse<AuthResponse> refreshToken(String refreshToken)
 	{
-		Assert.notBlank(refreshToken, () -> new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is missing"));
+		Assert.notBlank(refreshToken, () -> new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is required"));
 
-		Assert.isTrue(jwtUtils.isRefreshToken(refreshToken),
-				() -> new BusinessException(BusinessCode.INVALID_TOKEN, "A refresh token is required"));
+			Assert.isTrue(jwtUtils.isRefreshToken(refreshToken),
+					() -> new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is required"));
 		String username = jwtUtils.extractUsername(refreshToken);
 		var user = userRepository.findByUsername(username)
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
@@ -253,7 +253,7 @@ public class AuthServiceImpl implements IAuthService
 			return ApiResponse.success("Token refreshed successfully", createAuthResponse(securityUser));
 		}
 
-		throw new BusinessException(BusinessCode.INVALID_TOKEN, "Invalid or expired refresh token");
+		throw new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is invalid or expired");
 	}
 
 	private AuthResponse createAuthResponse(SecurityUser securityUser)

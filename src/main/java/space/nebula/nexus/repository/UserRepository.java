@@ -60,5 +60,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 	java.util.Optional<User> findByGithubId(String githubId);
 
+	java.util.Optional<User> findByGoogleId(String googleId);
+
 	boolean existsByAvatarContaining(String keyword);
 }

@@ -30,6 +30,7 @@ public interface KanbanMapper
 	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 	@Mapping(target = "id", ignore = true)
 	@Mapping(target = "column", ignore = true)
+	@Mapping(target = "orderIndex", ignore = true)
 	@Mapping(target = "tags", ignore = true)
 	@Mapping(target = "createdAt", ignore = true)
 	@Mapping(target = "createdBy", ignore = true)

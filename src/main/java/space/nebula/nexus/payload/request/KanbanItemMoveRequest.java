@@ -2,6 +2,7 @@ package space.nebula.nexus.payload.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
 @Data
@@ -18,5 +19,6 @@ public class KanbanItemMoveRequest {
 
 	@Schema(description = "The new 0-based index position within the target column", example = "0")
 	@NotNull(message = "Target order index is required")
+	@PositiveOrZero(message = "Target order index cannot be negative")
 	private Integer targetOrderIndex;
 }

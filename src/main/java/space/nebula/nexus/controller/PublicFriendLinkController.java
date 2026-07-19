@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.RateLimit;
-import space.nebula.nexus.payload.request.FriendLinkRequest;
+import space.nebula.nexus.payload.request.FriendLinkApplicationRequest;
 import space.nebula.nexus.payload.response.FriendLinkResponse;
 import space.nebula.nexus.service.IFriendLinkService;
 
@@ -36,8 +36,8 @@ public class PublicFriendLinkController
 
 	@PostMapping("/apply")
 	@Operation(summary = "Apply for link exchange", description = "Submit a request to add your site to our blogroll. Requires review.")
-	@RateLimit(count = 5, time = 1, unit = TimeUnit.HOURS, message = "Link application frequency too high. Please try again later.")
-	public ApiResponse<Void> applyForFriendLink(@Valid @RequestBody FriendLinkRequest request)
+	@RateLimit(count = 5, time = 1, unit = TimeUnit.HOURS, message = "Too many link applications. Please try again later.")
+	public ApiResponse<Void> applyForFriendLink(@Valid @RequestBody FriendLinkApplicationRequest request)
 	{
 		return friendLinkService.applyForFriendLink(request);
 	}

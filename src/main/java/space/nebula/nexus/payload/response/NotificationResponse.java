@@ -9,6 +9,7 @@ public record NotificationResponse(
 		String content,
 		String type,
 		Boolean read,
+		LocalDateTime readAt,
 		String link,
 		LocalDateTime createdAt) {
 }

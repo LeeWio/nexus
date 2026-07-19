@@ -35,7 +35,7 @@ public class LoginSecurityServiceImpl implements LoginSecurityService
 
 			log.warn("Login attempt blocked for locked user: {}", username);
 			throw new BusinessException(403, StrUtil.format(
-					"Account is locked due to too many failed attempts. Please try again in {} minutes.", minutesLeft));
+					"Account is locked. Try again in {} minutes.", minutesLeft));
 		}
 	}
 

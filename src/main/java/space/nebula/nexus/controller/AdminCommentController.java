@@ -58,7 +58,7 @@ public class AdminCommentController
 	}
 
 	@DeleteMapping("/{id}")
-	@Operation(summary = "Delete comment", description = "Permanently remove a comment from the system.")
+	@Operation(summary = "Delete comment", description = "Archive a comment that has no active replies.")
 	public ApiResponse<Void> deleteComment(@Parameter(description = "Comment ID") @PathVariable Long id)
 	{
 		return commentService.deleteComment(id);

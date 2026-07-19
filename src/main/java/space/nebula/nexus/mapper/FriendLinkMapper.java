@@ -22,6 +22,8 @@ public interface FriendLinkMapper
 	@Mapping(target = "updatedAt", ignore = true)
 	@Mapping(target = "lastModifiedBy", ignore = true)
 	@Mapping(target = "isDeleted", ignore = true)
+	@Mapping(target = "status", ignore = true)
+	@Mapping(target = "isPublished", ignore = true)
 	FriendLink toEntity(FriendLinkRequest request);
 
 	FriendLinkResponse toResponse(FriendLink friendLink);
@@ -35,5 +37,7 @@ public interface FriendLinkMapper
 	@Mapping(target = "updatedAt", ignore = true)
 	@Mapping(target = "lastModifiedBy", ignore = true)
 	@Mapping(target = "isDeleted", ignore = true)
+	@Mapping(target = "status", ignore = true)
+	@Mapping(target = "isPublished", ignore = true)
 	void updateEntity(@MappingTarget FriendLink friendLink, FriendLinkRequest request);
 }

@@ -43,7 +43,7 @@ public class AuthController
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Registration successful"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input or account already exists", content = @Content(schema = @Schema(implementation = ApiResponse.class))),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "Registration rate limit exceeded") })
-	@RateLimit(count = 3, time = 1, unit = TimeUnit.HOURS, message = "Registration frequency too high. Please try again in an hour.")
+	@RateLimit(count = 3, time = 1, unit = TimeUnit.HOURS, message = "Too many registration attempts. Please try again later.")
 	public ApiResponse<Void> register(@Valid @RequestBody RegisterRequest request)
 	{
 		return authService.registerAccount(request);
@@ -55,7 +55,7 @@ public class AuthController
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Login successful", content = @Content(schema = @Schema(implementation = AuthResponse.class))),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid username or password"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Account locked or disabled") })
-	@RateLimit(count = 10, time = 1, unit = TimeUnit.MINUTES, message = "Login attempts too frequent. Please wait a moment.")
+	@RateLimit(count = 10, time = 1, unit = TimeUnit.MINUTES, message = "Too many login attempts. Please wait a moment.")
 	public ApiResponse<AuthResponse> authenticate(@Valid @RequestBody LoginRequest request)
 	{
 		return authService.authenticate(request);
@@ -66,7 +66,7 @@ public class AuthController
 	@ApiResponses({
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "OTP code sent successfully"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Email address not found") })
-	@RateLimit(count = 1, time = 1, unit = TimeUnit.MINUTES, message = "Please wait a minute before requesting another OTP.")
+	@RateLimit(count = 1, time = 1, unit = TimeUnit.MINUTES, message = "Please wait before requesting another OTP.")
 	public ApiResponse<Void> sendOtp(@Valid @RequestBody OtpSendRequest request)
 	{
 		return authService.sendOtp(request.email());

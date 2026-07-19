@@ -15,6 +15,7 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
 import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.event.CommentSubmittedEvent;
+import space.nebula.nexus.common.event.CommentModeratedEvent;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Comment;
@@ -67,7 +68,7 @@ public class CommentServiceImpl implements ICommentService
 					.orElseThrow(() -> new ResourceNotFoundException("Post", "id", request.postId()));
 
 			Assert.isTrue(targetPost.getStatus() == PostStatus.PUBLISHED,
-					() -> new BusinessException(BusinessCode.FORBIDDEN, "Cannot comment on unpublished posts"));
+					() -> new BusinessException(BusinessCode.FORBIDDEN, "Comments are disabled for unpublished posts"));
 		}
 
 		// 2. Content Moderation
@@ -87,7 +88,7 @@ public class CommentServiceImpl implements ICommentService
 							&& parentComment.getPost().getId().equals(finalTargetPost.getId()));
 
 			Assert.isTrue(contextMatch,
-					() -> new BusinessException(BusinessCode.BAD_REQUEST, "Comment context mismatch with parent"));
+					() -> new BusinessException(BusinessCode.BAD_REQUEST, "Comment context does not match the parent"));
 			Assert.isTrue(parentComment.getStatus() == CommentStatus.APPROVED,
 					() -> new BusinessException(BusinessCode.BAD_REQUEST,
 							"Replies can only be added to approved comments"));
@@ -126,7 +127,7 @@ public class CommentServiceImpl implements ICommentService
 			return ApiResponse.error(BusinessCode.BAD_REQUEST, "Content policy violation detected. Comment rejected.");
 		}
 
-		return ApiResponse.success("Comment submitted successfully and is awaiting moderation", null);
+		return ApiResponse.success("Comment submitted successfully. It is awaiting moderation.", null);
 	}
 
 	@Override
@@ -175,12 +176,23 @@ public class CommentServiceImpl implements ICommentService
 		var comment = commentRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
 
+		if (comment.getStatus() == status)
+		{
+			return ApiResponse.success("Comment moderation status is already up to date", null);
+		}
+
 		if (status == CommentStatus.APPROVED)
 		{
+			Assert.isTrue(comment.getParent() == null || comment.getParent().getStatus() == CommentStatus.APPROVED,
+					() -> new BusinessException(BusinessCode.BAD_REQUEST,
+							"Approve the parent comment before approving this reply"));
 			comment.approve();
 		}
 		else if (status == CommentStatus.REJECTED)
 		{
+			Assert.isFalse(commentRepository.existsByParentIdAndStatus(id, CommentStatus.APPROVED),
+					() -> new BusinessException(BusinessCode.BAD_REQUEST,
+							"Reject approved replies before rejecting their parent comment"));
 			comment.reject();
 		}
 		else
@@ -189,8 +201,23 @@ public class CommentServiceImpl implements ICommentService
 		}
 
 		commentRepository.save(comment);
+		publishModerationEvent(comment, status);
 		log.info("Comment {} moderation status updated to {}", id, status);
-		return ApiResponse.success("Moderation successful", null);
+		return ApiResponse.success("Moderation completed successfully.", null);
+	}
+
+	private void publishModerationEvent(Comment comment, CommentStatus status)
+	{
+		Long replyRecipientId = comment.getParent() == null ? null : comment.getParent().getUser().getId();
+		String link = status == CommentStatus.APPROVED ? buildCommentLink(comment) : null;
+		eventPublisher.publishEvent(new CommentModeratedEvent(this, comment.getId(), comment.getUser().getId(),
+				replyRecipientId, comment.getUser().getUsername(), status, link));
+	}
+
+	private String buildCommentLink(Comment comment)
+	{
+		String anchor = "#comment-" + comment.getId();
+		return comment.getPost() == null ? "/guestbook" + anchor : "/posts/" + comment.getPost().getSlug() + anchor;
 	}
 
 	@Override
@@ -204,8 +231,8 @@ public class CommentServiceImpl implements ICommentService
 						"Delete child comments before deleting their parent"));
 
 		commentRepository.deleteById(id);
-		log.info("Comment {} permanently deleted", id);
-		return ApiResponse.success("Comment deleted", null);
+		log.info("Comment {} archived through soft deletion", id);
+		return ApiResponse.success("Comment deleted successfully.", null);
 	}
 
 	private List<Tree<Long>> buildCommentTree(List<CommentResponse> flatComments)

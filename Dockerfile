@@ -1,11 +1,14 @@
+# syntax=docker/dockerfile:1.7
+
 # Build stage
 FROM maven:3.9.9-amazoncorretto-21 AS build
 WORKDIR /app
 COPY pom.xml .
-# Pre-fetch dependencies to leverage Docker cache
-RUN mvn dependency:go-offline -B
 COPY src ./src
-RUN mvn package -DskipTests
+# Resolve only the dependencies required by the actual build and retain them
+# independently of Docker layer invalidation.
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn package -DskipTests
 
 # Run stage
 FROM amazoncorretto:21-alpine

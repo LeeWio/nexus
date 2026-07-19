@@ -1,0 +1,142 @@
+package space.nebula.nexus.service.impl;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import space.nebula.nexus.common.exception.ResourceNotFoundException;
+import space.nebula.nexus.entity.Notification;
+import space.nebula.nexus.entity.Category;
+import space.nebula.nexus.entity.Post;
+import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.repository.NotificationRepository;
+import space.nebula.nexus.repository.PostRepository;
+import space.nebula.nexus.repository.UserRepository;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
+
+@ExtendWith(MockitoExtension.class)
+class NotificationServiceImplTest
+{
+	@Mock
+	private NotificationRepository notificationRepository;
+
+	@Mock
+	private UserRepository userRepository;
+
+	@Mock
+	private PostRepository postRepository;
+
+	@InjectMocks
+	private NotificationServiceImpl notificationService;
+
+	private User currentUser;
+
+	@BeforeEach
+	void setUp()
+	{
+		currentUser = new User();
+		currentUser.setId(42L);
+		currentUser.setUsername("reader");
+		SecurityContextHolder.getContext().setAuthentication(
+				new UsernamePasswordAuthenticationToken("reader", "password", List.of()));
+		lenient().when(userRepository.findByUsername("reader")).thenReturn(Optional.of(currentUser));
+	}
+
+	@AfterEach
+	void tearDown()
+	{
+		SecurityContextHolder.clearContext();
+	}
+
+	@Test
+	void categoryPublicationUsesOneIdempotentBulkInsert()
+	{
+		Category category = new Category();
+		category.setId(3L);
+		category.setName("Architecture");
+		User author = new User();
+		author.setId(9L);
+		Post post = new Post();
+		post.setId(7L);
+		post.setTitle("Designing Reliable Services");
+		post.setSlug("designing-reliable-services");
+		post.setStatus(PostStatus.PUBLISHED);
+		post.setCategory(category);
+		post.setAuthor(author);
+		when(postRepository.findPublicationNotificationPost(7L)).thenReturn(Optional.of(post));
+		when(notificationRepository.insertCategoryPublicationNotifications(3L, 9L, 7L,
+				"New post in Architecture",
+				"\"Designing Reliable Services\" is now available in a category you follow.",
+				"/post/designing-reliable-services")).thenReturn(12);
+
+		int recipients = notificationService.sendCategoryPublication(7L);
+
+		assertEquals(12, recipients);
+		verify(notificationRepository).insertCategoryPublicationNotifications(3L, 9L, 7L,
+				"New post in Architecture",
+				"\"Designing Reliable Services\" is now available in a category you follow.",
+				"/post/designing-reliable-services");
+	}
+
+	@Test
+	void getMyNotificationsCanFilterUnreadItems()
+	{
+		var pageable = PageRequest.of(0, 10);
+		when(notificationRepository.findByRecipientIdAndIsReadFalse(42L, pageable))
+				.thenReturn(new PageImpl<>(List.of()));
+
+		notificationService.getMyNotifications(true, pageable);
+
+		verify(notificationRepository).findByRecipientIdAndIsReadFalse(42L, pageable);
+		verify(notificationRepository, never()).findByRecipientId(42L, pageable);
+	}
+
+	@Test
+	void markAsReadRecordsReadTimestamp()
+	{
+		Notification notification = new Notification();
+		notification.setIsRead(false);
+		when(notificationRepository.findByIdAndRecipientId(7L, 42L)).thenReturn(Optional.of(notification));
+
+		notificationService.markAsRead(7L);
+
+		assertTrue(notification.getIsRead());
+		assertNotNull(notification.getReadAt());
+		verify(notificationRepository).save(notification);
+	}
+
+	@Test
+	void deleteNotificationRejectsMissingOrForeignNotification()
+	{
+		when(notificationRepository.deleteOwnedById(7L, 42L)).thenReturn(0);
+
+		assertThrows(ResourceNotFoundException.class, () -> notificationService.deleteNotification(7L));
+	}
+
+	@Test
+	void clearReadNotificationsDeletesOnlyOwnedReadItems()
+	{
+		notificationService.clearReadNotifications();
+
+		verify(notificationRepository).deleteReadByRecipientId(42L);
+	}
+}

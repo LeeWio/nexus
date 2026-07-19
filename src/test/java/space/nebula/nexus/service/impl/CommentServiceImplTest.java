@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.exception.BusinessException;
+import space.nebula.nexus.common.event.CommentModeratedEvent;
 import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
@@ -57,6 +58,7 @@ class CommentServiceImplTest {
     @BeforeEach
     void setUp() {
         testUser = new User();
+		testUser.setId(1L);
         testUser.setUsername("testuser");
 
         testPost = new Post();
@@ -132,6 +134,69 @@ class CommentServiceImplTest {
         assertEquals(400, exception.getCode());
         verifyNoInteractions(commentRepository);
     }
+
+	@Test
+	void moderateCommentRejectsReplyWhenParentIsNotApproved()
+	{
+		Comment parent = new Comment();
+		parent.setStatus(CommentStatus.REJECTED);
+		Comment reply = new Comment();
+		reply.setParent(parent);
+		reply.setStatus(CommentStatus.PENDING);
+		when(commentRepository.findById(20L)).thenReturn(Optional.of(reply));
+
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> commentService.moderateComment(20L, CommentStatus.APPROVED));
+
+		assertEquals(400, exception.getCode());
+		verify(commentRepository, never()).save(reply);
+	}
+
+	@Test
+	void moderateCommentApprovalNotifiesAuthorAndParentAuthor()
+	{
+		User parentAuthor = new User();
+		parentAuthor.setId(2L);
+		parentAuthor.setUsername("parent-author");
+		Comment parent = new Comment();
+		parent.setStatus(CommentStatus.APPROVED);
+		parent.setUser(parentAuthor);
+
+		Comment reply = new Comment();
+		reply.setId(20L);
+		reply.setParent(parent);
+		reply.setPost(testPost);
+		reply.setUser(testUser);
+		reply.setStatus(CommentStatus.PENDING);
+		testPost.setSlug("professional-comments");
+		when(commentRepository.findById(20L)).thenReturn(Optional.of(reply));
+
+		commentService.moderateComment(20L, CommentStatus.APPROVED);
+
+		var eventCaptor = org.mockito.ArgumentCaptor.forClass(CommentModeratedEvent.class);
+		verify(eventPublisher).publishEvent(eventCaptor.capture());
+		CommentModeratedEvent event = eventCaptor.getValue();
+		assertEquals(1L, event.getAuthorId());
+		assertEquals(2L, event.getReplyRecipientId());
+		assertEquals(CommentStatus.APPROVED, event.getStatus());
+		assertEquals("/posts/professional-comments#comment-20", event.getLink());
+	}
+
+	@Test
+	void moderateCommentRejectsParentWithApprovedReplies()
+	{
+		Comment parent = new Comment();
+		parent.setId(10L);
+		parent.setStatus(CommentStatus.APPROVED);
+		when(commentRepository.findById(10L)).thenReturn(Optional.of(parent));
+		when(commentRepository.existsByParentIdAndStatus(10L, CommentStatus.APPROVED)).thenReturn(true);
+
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> commentService.moderateComment(10L, CommentStatus.REJECTED));
+
+		assertEquals(400, exception.getCode());
+		verify(commentRepository, never()).save(parent);
+	}
 
     @Test
     void searchCommentsForManagement_Success() {

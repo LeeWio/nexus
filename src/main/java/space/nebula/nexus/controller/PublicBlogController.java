@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.PostResponse;
+import space.nebula.nexus.payload.response.BlogDiscoveryResponse;
 import space.nebula.nexus.service.IPostService;
 
 /**
@@ -25,6 +26,14 @@ public class PublicBlogController
 {
 
 	private final IPostService postService;
+
+	@GetMapping("/discovery")
+	@Operation(summary = "Retrieve blog discovery content",
+			description = "Returns compact spotlight, latest, and most-read content groups for the public blog experience.")
+	public ApiResponse<BlogDiscoveryResponse> retrieveDiscovery()
+	{
+		return postService.retrievePublicDiscovery();
+	}
 
 	@GetMapping("/posts")
 	@Operation(summary = "Search published posts", description = "Browse all published posts with filtering by category, tag, or keyword.")

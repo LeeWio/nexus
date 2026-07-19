@@ -60,6 +60,9 @@ public class User extends BaseEntity
 	@Column(name = "github_username", length = 100)
 	private String githubUsername;
 
+	@Column(name = "google_id", length = 100, unique = true)
+	private String googleId;
+
 	@Column(name = "token_version", nullable = false)
 	private Integer tokenVersion = 0;
 

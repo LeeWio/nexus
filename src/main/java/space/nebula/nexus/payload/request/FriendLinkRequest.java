@@ -16,7 +16,7 @@ public record FriendLinkRequest(
 
 		@Schema(description = "Brief site description", example = "A blog about technology and space.") @Size(max = 500) String description,
 
-		@Schema(description = "Contact email of the owner/applicant", example = "owner@example.com") @Email(message = "Invalid email format") @Size(max = 100) String email,
+		@Schema(description = "Contact email of the owner/applicant", example = "owner@example.com") @Email(message = "Email address is invalid") @Size(max = 100) String email,
 
 		@Schema(description = "Display priority (lower value means higher priority)", example = "10") Integer sortOrder,
 

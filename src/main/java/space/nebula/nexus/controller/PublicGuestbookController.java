@@ -41,7 +41,7 @@ public class PublicGuestbookController
 	@PostMapping
 	@PreAuthorize("isAuthenticated()")
 	@Operation(summary = "Post to guestbook", description = "Submit a new message to the global guestbook. Requires authentication.")
-	@RateLimit(count = 3, time = 10, unit = TimeUnit.MINUTES, message = "Guestbook posting frequency too high. Please try again later.")
+	@RateLimit(count = 3, time = 10, unit = TimeUnit.MINUTES, message = "Too many guestbook posts. Please try again later.")
 	public ApiResponse<Void> publishComment(@Valid @RequestBody GuestbookRequest request,
 			HttpServletRequest servletRequest)
 	{

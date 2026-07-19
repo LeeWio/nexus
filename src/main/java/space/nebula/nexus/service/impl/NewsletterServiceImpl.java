@@ -29,7 +29,7 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class NewsletterServiceImpl implements INewsletterService {
 	private static final String SUBSCRIPTION_RESPONSE =
-			"If this address is eligible, subscription instructions have been sent.";
+			"Subscription instructions have been sent if the address is eligible.";
 
     private final SubscriberRepository subscriberRepository;
     private final RabbitTemplate rabbitTemplate;
@@ -64,26 +64,26 @@ public class NewsletterServiceImpl implements INewsletterService {
     @Transactional
     public ApiResponse<Void> verify(String token) {
         var subscriber = subscriberRepository.findByVerificationToken(token)
-                .orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST, "Invalid or expired verification token"));
+                .orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST, "Verification token is invalid or expired"));
         
 		Assert.isTrue(subscriber.getStatus() == SubscriberStatus.PENDING
 				&& subscriber.getVerificationExpiresAt() != null
 				&& subscriber.getVerificationExpiresAt().isAfter(LocalDateTime.now()),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Invalid or expired verification token"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Verification token is invalid or expired"));
 		subscriber.setStatus(SubscriberStatus.ACTIVE);
         subscriber.setVerificationToken(null);
 		subscriber.setVerificationExpiresAt(null);
         subscriberRepository.save(subscriber);
         
         log.info("New subscriber activated: {}", subscriber.getEmail());
-        return ApiResponse.success("Subscription verified successfully. Welcome to our newsletter!", null);
+        return ApiResponse.success("Subscription verified successfully.", null);
     }
 
     @Override
     @Transactional
     public ApiResponse<Void> unsubscribe(String token) {
         var subscriber = subscriberRepository.findByUnsubscribeToken(token)
-                .orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST, "Invalid unsubscribe token"));
+                .orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST, "Unsubscribe token is invalid or expired"));
         
 		subscriber.setStatus(SubscriberStatus.UNSUBSCRIBED);
 		subscriber.setVerificationToken(null);
@@ -91,7 +91,7 @@ public class NewsletterServiceImpl implements INewsletterService {
         subscriberRepository.save(subscriber);
         
         log.info("Subscriber opted out: {}", subscriber.getEmail());
-        return ApiResponse.success("You have been successfully unsubscribed", null);
+        return ApiResponse.success("Unsubscribed successfully.", null);
     }
 
     @Override

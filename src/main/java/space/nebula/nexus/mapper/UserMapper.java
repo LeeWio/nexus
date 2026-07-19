@@ -43,6 +43,7 @@ public interface UserMapper
 	@Mapping(target = "lastModifiedBy", ignore = true)
 	@Mapping(target = "isDeleted", ignore = true)
 	@Mapping(target = "githubId", ignore = true)
+	@Mapping(target = "googleId", ignore = true)
 	@Mapping(target = "githubUsername", ignore = true)
 	void updateEntity(@MappingTarget User user, space.nebula.nexus.payload.request.UserProfileRequest request);
 

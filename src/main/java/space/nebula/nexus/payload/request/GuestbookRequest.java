@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
  */
 @Schema(description = "Guestbook submission request")
 public record GuestbookRequest(
-		@Schema(description = "The markdown or plain text content of the entry", example = "Great site!") @NotBlank(message = "Guestbook content cannot be empty") @Size(max = 1000, message = "Guestbook content too long (max 1000 characters)") String content,
+		@Schema(description = "The markdown or plain text content of the entry", example = "Great site!") @NotBlank(message = "Guestbook content is required") @Size(max = 1000, message = "Guestbook content must not exceed 1000 characters") String content,
 
 		@Schema(description = "ID of the parent comment (for replies)", example = "0") Long parentId) {
 }

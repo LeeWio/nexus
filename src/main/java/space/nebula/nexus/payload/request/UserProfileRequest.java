@@ -16,5 +16,5 @@ public record UserProfileRequest(
 
 		@Schema(description = "Link to personal website or blog") @Size(max = 100) String website,
 
-		@Schema(description = "Public contact email", example = "hello@johndoe.com") @Email(message = "Invalid email format") @Size(max = 100) String email) {
+		@Schema(description = "Public contact email", example = "hello@johndoe.com") @Email(message = "Email address is invalid") @Size(max = 100) String email) {
 }

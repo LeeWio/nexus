@@ -32,7 +32,9 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-    baseline-version: 1
+    # Legacy databases were managed by Hibernate before Flyway was activated.
+    # Baseline them at the last pre-adoption migration; empty databases still run from V1.
+    baseline-version: 131
     out-of-order: false # Strict ordering in prod
 
   security:
@@ -48,6 +50,13 @@ spring:
             scope:
               - read:user
               - user:email
+          google:
+            client-id: ${GOOGLE_OAUTH_CLIENT_ID}
+            client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET}
+            scope:
+              - openid
+              - profile
+              - email
   
   data:
     redis:
@@ -66,7 +75,20 @@ spring:
     uris: ${ES_URIS}
 
 app:
+  oauth2:
+    redirect-uri: ${OAUTH2_REDIRECT_URI}
   jwt:
     secret: ${JWT_SECRET}
   github:
     token: ${GITHUB_TOKEN}
+
+logging:
+  structured:
+    format:
+      console: logstash
+    json:
+      context:
+        include: true
+      add:
+        "service.name": ${spring.application.name}
+        "deployment.environment": production

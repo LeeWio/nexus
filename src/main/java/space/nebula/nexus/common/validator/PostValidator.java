@@ -25,9 +25,9 @@ public class PostValidator
 	{
 		// 1. Content integrity
 		Assert.notBlank(request.title(),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post title cannot be empty"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post title is required"));
 		Assert.notBlank(request.content(),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post content cannot be empty"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post content is required"));
 
 		// 2. Relation validation
 		if (request.categoryId() != null)

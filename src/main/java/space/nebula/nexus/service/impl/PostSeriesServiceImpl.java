@@ -56,7 +56,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 	@CacheEvict(value = { CacheConstants.PROJECTS, CacheConstants.SEO }, allEntries = true)
 	public ApiResponse<SeriesResponse> createSeries(SeriesRequest request)
 	{
-		Assert.isFalse(seriesRepository.existsBySlug(request.slug()), () -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Series slug already exists: " + request.slug()));
+		Assert.isFalse(seriesRepository.existsBySlug(request.slug()), () -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Series slug is already in use: " + request.slug()));
 
 		PostSeries series = new PostSeries();
 		seriesMapper.updateEntity(series, request);
@@ -77,7 +77,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 		if (request.slug() != null && !request.slug().equals(series.getSlug()))
 		{
 			Assert.isFalse(seriesRepository.existsBySlug(request.slug()), () -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-					"Series slug already exists: " + request.slug()));
+					"Series slug is already in use: " + request.slug()));
 		}
 
 		seriesMapper.updateEntity(series, request);
@@ -121,7 +121,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService
 		PostSeries series = seriesRepository.findBySlug(slug)
 				.orElseThrow(() -> new ResourceNotFoundException("Series", "slug", slug));
 
-		Assert.isTrue(series.getIsPublished(), () -> new BusinessException(BusinessCode.FORBIDDEN, "This series is not publicly available"));
+		Assert.isTrue(series.getIsPublished(), () -> new BusinessException(BusinessCode.FORBIDDEN, "This series is not public"));
 
 		return ApiResponse.success(seriesMapper.toResponseWithPosts(series));
 	}

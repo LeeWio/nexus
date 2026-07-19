@@ -66,7 +66,7 @@ public class CategoryServiceImpl implements ICategoryService
 				}
 				else
 				{
-					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category name already exists: " + request.name());
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category name is already in use: " + request.name());
 				}
 			}
 		}
@@ -87,7 +87,7 @@ public class CategoryServiceImpl implements ICategoryService
 				}
 				else
 				{
-					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category slug already exists: " + request.slug());
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category slug is already in use: " + request.slug());
 				}
 			}
 		}
@@ -129,7 +129,7 @@ public class CategoryServiceImpl implements ICategoryService
 		// Check if any active posts are still associated with this category
 		Assert.isFalse(postRepository.existsByCategoryId(id),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Cannot delete category as it is still referenced by active posts"));
+						"Category is still referenced by active posts"));
 
 		categoryRepository.deleteById(id);
 		log.info("Category deleted id: {}", id);
@@ -142,13 +142,13 @@ public class CategoryServiceImpl implements ICategoryService
 		{
 			Assert.isFalse(categoryRepository.findByNameIncludeDeleted(request.name()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-							"Category name already exists: " + request.name()));
+							"Category name is already in use: " + request.name()));
 		}
 		if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug())))
 		{
 			Assert.isFalse(categoryRepository.findBySlugIncludeDeleted(request.slug()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-							"Category slug already exists: " + request.slug()));
+							"Category slug is already in use: " + request.slug()));
 		}
 	}
 }

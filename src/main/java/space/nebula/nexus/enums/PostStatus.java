@@ -20,6 +20,12 @@ public enum PostStatus
 	PENDING_REVIEW("Pending Review"),
 
 	/**
+	 * The post has passed editorial review and will be published at a specified
+	 * future time.
+	 */
+	SCHEDULED("Scheduled"),
+
+	/**
 	 * The post has been approved and is publicly visible.
 	 */
 	PUBLISHED("Published"),

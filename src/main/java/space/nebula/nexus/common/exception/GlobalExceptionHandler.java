@@ -76,7 +76,7 @@ public class GlobalExceptionHandler {
 
 		if (isDefaultMessage || StrUtil.isBlank(message) || e.getArgs() != null) {
 			try {
-				// Try to get localized message based on code and dynamic parameters
+				// Resolve the standard English message template for the business code.
 				String localizedMessage = messageUtil.get(String.valueOf(code), e.getArgs());
 				if (StrUtil.isNotBlank(localizedMessage)) {
 					message = localizedMessage;
@@ -132,7 +132,7 @@ public class GlobalExceptionHandler {
 				.collect(Collectors.joining(", "));
 		log.warn("[TraceId: {}] Constraint violation: {}", org.slf4j.MDC.get("traceId"), message);
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-				.body(ApiResponse.error(BusinessCode.BAD_REQUEST, "Parameter validation failed: " + message));
+				.body(ApiResponse.error(BusinessCode.BAD_REQUEST, "Validation failed: " + message));
 	}
 
 	/**
@@ -168,7 +168,8 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ApiResponse<Void>> handleOptimisticLockingFailureException(org.springframework.dao.OptimisticLockingFailureException e) {
 		log.warn("[TraceId: {}] Optimistic lock conflict: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
 		return ResponseEntity.status(HttpStatus.CONFLICT)
-				.body(ApiResponse.error(BusinessCode.BAD_REQUEST.getCode(), "The record has been modified by another user. Please refresh and try again."));
+				.body(ApiResponse.error(BusinessCode.BAD_REQUEST.getCode(),
+						"Resource has changed. Refresh and try again."));
 	}
 
 	/**
@@ -186,7 +187,13 @@ public class GlobalExceptionHandler {
 			default -> HttpStatus.BAD_REQUEST;
 		};
 
-		return ResponseEntity.status(status).body(ApiResponse.error(status.value(), e.getMessage()));
+		String message = switch (status) {
+			case METHOD_NOT_ALLOWED -> "HTTP method is not allowed";
+			case NOT_FOUND -> "Requested endpoint was not found";
+			case UNSUPPORTED_MEDIA_TYPE -> "Unsupported request content type";
+			default -> "Malformed request";
+		};
+		return ResponseEntity.status(status).body(ApiResponse.error(status.value(), message));
 	}
 
 	/**
@@ -197,10 +204,9 @@ public class GlobalExceptionHandler {
 		String traceId = org.slf4j.MDC.get("traceId");
 		log.error("[TraceId: {}] Unexpected system error", traceId, e);
 
-		String message = "System error: " + e.getMessage();
-		// In production, sanitize the error message to avoid leaking internal details
+		String message = "Unexpected server error";
 		if (environment.acceptsProfiles(Profiles.of("prod"))) {
-			message = "An unexpected internal server error occurred. Please contact the administrator with Trace ID: " + traceId;
+			message = "Unexpected server error. Reference ID: " + traceId;
 		}
 
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(BusinessCode.ERROR, message));
