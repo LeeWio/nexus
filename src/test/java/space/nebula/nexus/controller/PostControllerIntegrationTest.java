@@ -88,6 +88,21 @@ public class PostControllerIntegrationTest {
 		// 2. Get Public Posts
 		mockMvc.perform(get("/api/v1/public/blog/posts").param("page", "1").param("size", "10"))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.list").isArray());
+
+		// 3. Get curated prominent posts without forcing the frontend to page through all posts.
+		mockMvc.perform(get("/api/v1/public/blog/posts/featured").param("page", "1").param("size", "10"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.list").isArray());
+
+		// 4. Get archive and facet metadata for browse surfaces.
+		mockMvc.perform(get("/api/v1/public/blog/archive").param("page", "1").param("size", "10"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.list").isArray());
+		mockMvc.perform(get("/api/v1/public/blog/facets"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.totalPublishedCount").isNumber())
+				.andExpect(jsonPath("$.data.categories").isArray())
+				.andExpect(jsonPath("$.data.tags").isArray())
+				.andExpect(jsonPath("$.data.archives").isArray())
+				.andExpect(jsonPath("$.data.contentTypes").isArray());
 	}
 
 	@Test

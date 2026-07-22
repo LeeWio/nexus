@@ -8,7 +8,9 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import space.nebula.nexus.common.event.PostChangedEvent;
 import space.nebula.nexus.common.event.PostDeletedEvent;
+import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.service.IStaticGenerationService;
 import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostSearchService;
 import space.nebula.nexus.utils.RedisUtil;
@@ -25,6 +27,7 @@ public class PostEventListener {
 
 	private final IPostSearchService postSearchService;
 	private final IPostRevisionService postRevisionService;
+	private final IStaticGenerationService staticGenerationService;
 	private final RedisUtil redisUtil;
 
 	/**
@@ -43,13 +46,37 @@ public class PostEventListener {
 		// 1. Sync to Search Engine - ONLY if published
 		if (event.getPost().getStatus() == PostStatus.PUBLISHED) {
 			postSearchService.indexPost(event.getPost());
+			staticGenerationService.generatePostStaticHtml(event.getPost());
 		} else {
 			// If post was published but moved back to draft/archived, remove from index
 			postSearchService.deletePostIndex(event.getPost().getId());
+			if (event.getChangeType() == PostChangeType.ARCHIVED
+					|| event.getChangeType() == PostChangeType.RESTORED_TO_DRAFT) {
+				staticGenerationService.deletePostStaticHtml(event.getPost().getSlug());
+			}
+		}
+		if (event.getPreviousSlug() != null && !event.getPost().getSlug().equals(event.getPreviousSlug())) {
+			staticGenerationService.deletePostStaticHtml(event.getPreviousSlug());
 		}
 
-		// 2. Save Revision history - Always save for any status change
-		postRevisionService.saveRevision(event.getPost());
+		if (shouldSaveRevision(event.getChangeType())) {
+			postRevisionService.saveRevision(event.getPost(), event.getChangeType().name(),
+					revisionSummary(event.getChangeType()));
+		}
+	}
+
+	private boolean shouldSaveRevision(PostChangeType changeType) {
+		return changeType == PostChangeType.CREATED || changeType == PostChangeType.UPDATED
+				|| changeType == PostChangeType.RESTORED_TO_DRAFT;
+	}
+
+	private String revisionSummary(PostChangeType changeType) {
+		return switch (changeType) {
+		case CREATED -> "Initial post content";
+		case UPDATED -> "Post content or metadata updated";
+		case RESTORED_TO_DRAFT -> "Archived post restored for a new editing cycle";
+		default -> "Post snapshot saved";
+		};
 	}
 
 	/**
@@ -63,5 +90,6 @@ public class PostEventListener {
 
 		// Remove from Search Engine
 		postSearchService.deletePostIndex(event.getPostId());
+		staticGenerationService.deletePostStaticHtml(event.getSlug());
 	}
 }

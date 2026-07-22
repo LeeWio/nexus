@@ -11,6 +11,7 @@ import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.common.event.PostChangedEvent;
 import space.nebula.nexus.entity.Post;
+import space.nebula.nexus.enums.PostStatus;
 
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -59,7 +60,33 @@ class PostPublicationCacheListenerTest
 	}
 
 	@Test
-	void ignoresNonVisibilityChanges()
+	void clearsPublicCachesForPublishedPostUpdate()
+	{
+		when(cacheManager.getCache(CacheConstants.BLOG_POSTS)).thenReturn(blogCache);
+		when(cacheManager.getCache(CacheConstants.SEO)).thenReturn(seoCache);
+		Post post = new Post();
+		post.setStatus(PostStatus.PUBLISHED);
+
+		listener.onVisibilityChanged(new PostChangedEvent(this, post, PostChangeType.UPDATED));
+
+		verify(blogCache).clear();
+		verify(seoCache).clear();
+	}
+
+	@Test
+	void clearsPublicCachesForRestoreToDraft()
+	{
+		when(cacheManager.getCache(CacheConstants.BLOG_POSTS)).thenReturn(blogCache);
+		when(cacheManager.getCache(CacheConstants.SEO)).thenReturn(seoCache);
+
+		listener.onVisibilityChanged(new PostChangedEvent(this, new Post(), PostChangeType.RESTORED_TO_DRAFT));
+
+		verify(blogCache).clear();
+		verify(seoCache).clear();
+	}
+
+	@Test
+	void ignoresDraftUpdate()
 	{
 		listener.onVisibilityChanged(new PostChangedEvent(this, new Post(), PostChangeType.UPDATED));
 

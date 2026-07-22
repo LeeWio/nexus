@@ -44,6 +44,9 @@ public class Post extends BaseEntity
 	@Column(length = 500)
 	private String summary;
 
+	@Column(name = "auto_summary", length = 500)
+	private String autoSummary;
+
 	@Lob
 	@Column(nullable = false, columnDefinition = "LONGTEXT")
 	private String content;
@@ -67,6 +70,19 @@ public class Post extends BaseEntity
 
 	@Column(name = "favorites_count", nullable = false)
 	private Long favoritesCount = 0L;
+
+	@Column(name = "word_count", nullable = false)
+	private Integer wordCount = 0;
+
+	@Column(name = "reading_time_minutes", nullable = false)
+	private Integer readingTimeMinutes = 1;
+
+	@Column(name = "content_hash", length = 64)
+	private String contentHash;
+
+	@Lob
+	@Column(name = "toc", columnDefinition = "TEXT")
+	private String toc;
 
 	@Column(name = "published_at")
 	private java.time.LocalDateTime publishedAt;

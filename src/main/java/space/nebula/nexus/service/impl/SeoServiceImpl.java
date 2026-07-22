@@ -19,6 +19,7 @@ import space.nebula.nexus.repository.*;
 import space.nebula.nexus.service.ISeoService;
 
 import java.io.StringWriter;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -55,7 +56,7 @@ public class SeoServiceImpl implements ISeoService
 
 		// 2. Published Posts - Fetch up to 1000 posts for the sitemap
 		List<Post> publishedPosts = postRepository.findAllByStatus(PostStatus.PUBLISHED,
-				PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent();
+				PageRequest.of(0, 1000, Sort.by(Sort.Direction.DESC, "publishedAt"))).getContent();
 		for (Post post : publishedPosts)
 		{
 			appendSitemapEntry(sitemapBuilder, siteBaseUrl + "/posts/" + post.getSlug(), "0.8", "weekly");
@@ -105,7 +106,7 @@ public class SeoServiceImpl implements ISeoService
 
 		// Fetch 20 most recent published posts
 		List<Post> recentPosts = postRepository
-				.findAllByStatus(PostStatus.PUBLISHED, PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")))
+				.findAllByStatus(PostStatus.PUBLISHED, PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "publishedAt")))
 				.getContent();
 
 		List<SyndEntry> feedEntries = new ArrayList<>();
@@ -114,11 +115,11 @@ public class SeoServiceImpl implements ISeoService
 			SyndEntry feedEntry = new SyndEntryImpl();
 			feedEntry.setTitle(post.getTitle());
 			feedEntry.setLink(siteBaseUrl + "/posts/" + post.getSlug());
-			feedEntry.setPublishedDate(Date.from(post.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant()));
+			feedEntry.setPublishedDate(Date.from(publicationTime(post).atZone(ZoneId.systemDefault()).toInstant()));
 
 			SyndContent entryDescription = new SyndContentImpl();
 			entryDescription.setType("text/plain");
-			entryDescription.setValue(post.getSummary() != null ? post.getSummary() : "No summary available.");
+			entryDescription.setValue(firstNotBlank(post.getSummary(), post.getAutoSummary(), "No summary available."));
 			feedEntry.setDescription(entryDescription);
 
 			feedEntries.add(feedEntry);
@@ -157,10 +158,44 @@ public class SeoServiceImpl implements ISeoService
 	private void appendSitemapEntry(StringBuilder builder, String location, String priority, String frequency)
 	{
 		builder.append("  <url>\n");
-		builder.append("    <loc>").append(location).append("</loc>\n");
+		builder.append("    <loc>").append(escapeXml(location)).append("</loc>\n");
 		builder.append("    <changefreq>").append(frequency).append("</changefreq>\n");
 		builder.append("    <priority>").append(priority).append("</priority>\n");
 		builder.append("  </url>\n");
+	}
+
+	private LocalDateTime publicationTime(Post post)
+	{
+		if (post.getPublishedAt() != null)
+		{
+			return post.getPublishedAt();
+		}
+		return post.getCreatedAt() != null ? post.getCreatedAt() : LocalDateTime.now();
+	}
+
+	private String firstNotBlank(String... values)
+	{
+		for (String value : values)
+		{
+			if (value != null && !value.isBlank())
+			{
+				return value;
+			}
+		}
+		return "";
+	}
+
+	private String escapeXml(String value)
+	{
+		if (value == null)
+		{
+			return "";
+		}
+		return value.replace("&", "&amp;")
+				.replace("<", "&lt;")
+				.replace(">", "&gt;")
+				.replace("\"", "&quot;")
+				.replace("'", "&apos;");
 	}
 
 	private String getSiteBaseUrl()

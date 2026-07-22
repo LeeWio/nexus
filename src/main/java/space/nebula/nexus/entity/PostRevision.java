@@ -54,6 +54,15 @@ public class PostRevision implements Serializable
 	@Column(name = "version_number", nullable = false)
 	private Integer versionNumber;
 
+	@Column(name = "change_type", length = 50)
+	private String changeType;
+
+	@Column(name = "change_summary", length = 500)
+	private String changeSummary;
+
+	@Column(name = "content_hash", length = 64)
+	private String contentHash;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "created_by")
 	private User createdBy;

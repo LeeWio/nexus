@@ -37,6 +37,28 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	@EntityGraph(attributePaths = {"category", "author"})
 	Page<Post> findAllByStatusAndIsFeaturedTrue(PostStatus status, Pageable pageable);
 
+	/**
+	 * Returns prominent public posts using a deterministic editorial and engagement
+	 * ranking. Featured posts win first, then stronger interaction signals, then
+	 * recency.
+	 */
+	@EntityGraph(attributePaths = {"category", "author"})
+	@Query("SELECT p FROM Post p WHERE p.status = :status "
+			+ "ORDER BY CASE WHEN p.isFeatured = true THEN 1 ELSE 0 END DESC, "
+			+ "(p.favoritesCount * 6 + p.likesCount * 4 + p.views) DESC, "
+			+ "p.publishedAt DESC, p.id DESC")
+	Page<Post> findProminentPublicPosts(PostStatus status, Pageable pageable);
+
+	/**
+	 * Candidate pool for in-memory discovery grouping and score explanation.
+	 */
+	@EntityGraph(attributePaths = {"category", "author"})
+	@Query("SELECT p FROM Post p WHERE p.status = :status "
+			+ "ORDER BY CASE WHEN p.isFeatured = true THEN 1 ELSE 0 END DESC, "
+			+ "(p.favoritesCount * 6 + p.likesCount * 4 + p.views) DESC, "
+			+ "p.publishedAt DESC, p.id DESC")
+	List<Post> findDiscoveryCandidates(PostStatus status, Pageable pageable);
+
 	/** Returns lightweight post pages for background scans without collection fetch joins. */
 	@Query("SELECT p FROM Post p WHERE p.status = :status ORDER BY p.id")
 	Page<Post> findScanPageByStatus(PostStatus status, Pageable pageable);
@@ -168,6 +190,30 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 
 	@Query("SELECT SUM(p.views) FROM Post p")
 	Long sumTotalViews();
+
+	long countByStatus(PostStatus status);
+
+	@Query("SELECT p.category.id, p.category.name, p.category.slug, COUNT(p.id) "
+			+ "FROM Post p WHERE p.status = :status AND p.category IS NOT NULL "
+			+ "GROUP BY p.category.id, p.category.name, p.category.slug "
+			+ "ORDER BY COUNT(p.id) DESC, p.category.name ASC")
+	List<Object[]> countPublishedPostsByCategory(PostStatus status);
+
+	@Query("SELECT tag.id, tag.name, tag.slug, COUNT(p.id) "
+			+ "FROM Post p JOIN p.tags tag WHERE p.status = :status "
+			+ "GROUP BY tag.id, tag.name, tag.slug "
+			+ "ORDER BY COUNT(p.id) DESC, tag.name ASC")
+	List<Object[]> countPublishedPostsByTag(PostStatus status);
+
+	@Query("SELECT YEAR(p.publishedAt), MONTH(p.publishedAt), COUNT(p.id) "
+			+ "FROM Post p WHERE p.status = :status AND p.publishedAt IS NOT NULL "
+			+ "GROUP BY YEAR(p.publishedAt), MONTH(p.publishedAt) "
+			+ "ORDER BY YEAR(p.publishedAt) DESC, MONTH(p.publishedAt) DESC")
+	List<Object[]> countPublishedPostsByArchiveMonth(PostStatus status);
+
+	@Query("SELECT p.contentType, COUNT(p.id) FROM Post p WHERE p.status = :status "
+			+ "GROUP BY p.contentType ORDER BY COUNT(p.id) DESC")
+	List<Object[]> countPublishedPostsByContentType(PostStatus status);
 
 	java.util.List<Post> findTop5ByTitleContainingIgnoreCaseAndStatus(String title, PostStatus status);
 

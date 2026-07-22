@@ -9,6 +9,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.common.event.PostChangedEvent;
+import space.nebula.nexus.enums.PostStatus;
 
 /**
  * Invalidates public post and SEO caches after a visibility transition commits.
@@ -29,13 +30,23 @@ public class PostPublicationCacheListener
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onVisibilityChanged(PostChangedEvent event)
 	{
-		if (event.getChangeType() != PostChangeType.PUBLISHED
-				&& event.getChangeType() != PostChangeType.ARCHIVED)
+		if (!requiresPublicCacheInvalidation(event))
 		{
 			return;
 		}
 		clear(CacheConstants.BLOG_POSTS);
 		clear(CacheConstants.SEO);
+	}
+
+	private boolean requiresPublicCacheInvalidation(PostChangedEvent event)
+	{
+		if (event.getChangeType() == PostChangeType.PUBLISHED || event.getChangeType() == PostChangeType.ARCHIVED
+				|| event.getChangeType() == PostChangeType.RESTORED_TO_DRAFT
+				|| event.getChangeType() == PostChangeType.SCHEDULE_CANCELED)
+		{
+			return true;
+		}
+		return event.getChangeType() == PostChangeType.UPDATED && event.getPost().getStatus() == PostStatus.PUBLISHED;
 	}
 
 	private void clear(String cacheName)

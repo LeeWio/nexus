@@ -15,6 +15,9 @@ import space.nebula.nexus.repository.CategoryRepository;
 @RequiredArgsConstructor
 public class PostValidator
 {
+	private static final int MAX_TITLE_LENGTH = 200;
+	private static final int MAX_SUMMARY_LENGTH = 500;
+	private static final int MAX_CONTENT_LENGTH = 1_000_000;
 
 	private final CategoryRepository categoryRepository;
 
@@ -28,6 +31,15 @@ public class PostValidator
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post title is required"));
 		Assert.notBlank(request.content(),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post content is required"));
+		Assert.isTrue(request.title().trim().length() <= MAX_TITLE_LENGTH,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post title must not exceed 200 characters"));
+		if (request.summary() != null)
+		{
+			Assert.isTrue(request.summary().trim().length() <= MAX_SUMMARY_LENGTH,
+					() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post summary must not exceed 500 characters"));
+		}
+		Assert.isTrue(request.content().length() <= MAX_CONTENT_LENGTH,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post content must not exceed 1 MB"));
 
 		// 2. Relation validation
 		if (request.categoryId() != null)

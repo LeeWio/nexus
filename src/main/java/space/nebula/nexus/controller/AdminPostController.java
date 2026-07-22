@@ -163,6 +163,22 @@ public class AdminPostController
 		return postService.autosavePostContent(request);
 	}
 
+	@PostMapping("/{id}/preview-token")
+	@PreAuthorize("hasPermission(#id, 'Post', 'READ') or hasAnyRole('ADMIN', 'EDITOR')")
+	@Operation(summary = "Create preview token", description = "Creates a short-lived token for previewing a non-public post.")
+	public ApiResponse<String> createPreviewToken(@PathVariable Long id)
+	{
+		return postService.createPreviewToken(id);
+	}
+
+	@PostMapping("/rebuild-metadata")
+	@PreAuthorize("hasAnyRole('ADMIN', 'EDITOR')")
+	@Operation(summary = "Rebuild post metadata", description = "Recomputes summaries, table of contents, content hashes, word counts, and reading time.")
+	public ApiResponse<Integer> rebuildPostMetadata()
+	{
+		return postService.rebuildPostContentMetadata();
+	}
+
 	@GetMapping("/autosave/{identifier}")
 	@PreAuthorize("isAuthenticated()")
 	@Operation(summary = "Retrieve autosaved content", description = "Get the last autosaved version using the identifier (ID or UUID).")

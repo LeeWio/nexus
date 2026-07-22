@@ -24,6 +24,8 @@ public record PostResponse(@Schema(description = "Post ID") Long id,
 
 		@Schema(description = "Post summary") String summary,
 
+		@Schema(description = "Automatically generated fallback summary") String autoSummary,
+
 		@Schema(description = "Post full content") String content,
 
 		@Schema(description = "Format of the content (JSON, MDX)") PostContentType contentType,
@@ -53,6 +55,14 @@ public record PostResponse(@Schema(description = "Post ID") Long id,
 		@Schema(description = "Total like count") Long likesCount,
 
 		@Schema(description = "Total favorite count") Long favoritesCount,
+
+		@Schema(description = "Estimated word count extracted from the body") Integer wordCount,
+
+		@Schema(description = "Estimated reading time in minutes") Integer readingTimeMinutes,
+
+		@Schema(description = "SHA-256 hash of title and normalized content") String contentHash,
+
+		@Schema(description = "Markdown table of contents as JSON") String toc,
 
 		@Schema(description = "Whether current user liked this post") Boolean isLiked,
 

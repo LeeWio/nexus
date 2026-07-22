@@ -23,6 +23,7 @@ import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.PostRevisionRepository;
 import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostSearchService;
+import space.nebula.nexus.utils.PostContentAnalyzer;
 
 import java.util.Arrays;
 import java.util.List;
@@ -44,6 +45,13 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 	@Transactional
 	public void saveRevision(Post post)
 	{
+		saveRevision(post, "SNAPSHOT", "Post snapshot saved");
+	}
+
+	@Override
+	@Transactional
+	public void saveRevision(Post post, String changeType, String changeSummary)
+	{
 		Post lockedPost = postRepository.findByIdForUpdate(post.getId())
 				.orElseThrow(() -> new ResourceNotFoundException("Post", "id", post.getId()));
 		int nextVersion = postRevisionRepository.findMaxVersionByPostId(post.getId()).orElse(0) + 1;
@@ -55,6 +63,9 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 		revision.setContent(post.getContent());
 		revision.setContentType(post.getContentType());
 		revision.setVersionNumber(nextVersion);
+		revision.setChangeType(changeType);
+		revision.setChangeSummary(changeSummary);
+		revision.setContentHash(post.getContentHash());
 		revision.setCreatedBy(lockedPost.getAuthor());
 
 		postRevisionRepository.save(revision);
@@ -86,6 +97,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 		post.setSummary(revision.getSummary());
 		post.setContent(revision.getContent());
 		post.setContentType(revision.getContentType());
+		refreshContentMetadata(post);
 
 		// Save post
 		postRepository.save(post);
@@ -179,5 +191,16 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 				.replace(">", "&gt;")
 				.replace("\"", "&quot;")
 				.replace("'", "&#39;");
+	}
+
+	private void refreshContentMetadata(Post post)
+	{
+		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze(post.getTitle(), post.getSummary(),
+				post.getContent());
+		post.setWordCount(metadata.wordCount());
+		post.setReadingTimeMinutes(metadata.readingTimeMinutes());
+		post.setAutoSummary(metadata.autoSummary());
+		post.setToc(metadata.toc());
+		post.setContentHash(metadata.contentHash());
 	}
 }

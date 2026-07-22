@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
@@ -19,6 +20,7 @@ import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.common.event.PostDeletedEvent;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
+import space.nebula.nexus.config.BlogDiscoveryProperties;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.PostContentType;
@@ -30,6 +32,8 @@ import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.request.PostScheduleRequest;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.BlogDiscoveryResponse;
+import space.nebula.nexus.payload.response.BlogFacetResponse;
+import space.nebula.nexus.payload.response.CategoryResponse;
 import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostResponse;
@@ -43,8 +47,10 @@ import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IInteractionService;
 import space.nebula.nexus.service.IPostService;
 import space.nebula.nexus.service.ISlugService;
+import space.nebula.nexus.service.PostRankingService;
 import space.nebula.nexus.common.validator.PostValidator;
 import space.nebula.nexus.utils.RedisUtil;
+import space.nebula.nexus.utils.PostContentAnalyzer;
 import space.nebula.nexus.utils.SlugUtil;
 
 import cn.hutool.core.collection.CollUtil;
@@ -54,7 +60,11 @@ import cn.hutool.core.util.StrUtil;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -67,9 +77,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PostServiceImpl implements IPostService
 {
-	private static final int DISCOVERY_SECTION_SIZE = 6;
-	private static final int DISCOVERY_CANDIDATE_SIZE = 20;
-
 	private final PostRepository postRepository;
 	private final CategoryRepository categoryRepository;
 	private final TagRepository tagRepository;
@@ -80,7 +87,9 @@ public class PostServiceImpl implements IPostService
 	private final ApplicationEventPublisher eventPublisher;
 	private final IInteractionService interactionService;
 	private final ISlugService slugService;
+	private final PostRankingService postRankingService;
 	private final space.nebula.nexus.common.validator.PostValidator postValidator;
+	private final BlogDiscoveryProperties discoveryProperties;
 
 	private final space.nebula.nexus.repository.ConfigRepository configRepository;
 	@Override
@@ -129,6 +138,7 @@ public class PostServiceImpl implements IPostService
 		{
 			newPost.setContentType(request.contentType());
 		}
+		refreshContentMetadata(newPost);
 
 		syncCategoryAndTags(newPost, request);
 		syncParentPost(newPost, request);
@@ -175,6 +185,11 @@ public class PostServiceImpl implements IPostService
 		}
 
 		postMapper.updateEntity(existingPost, request);
+		if (request.contentType() != null)
+		{
+			existingPost.setContentType(request.contentType());
+		}
+		refreshContentMetadata(existingPost);
 
 		syncCategoryAndTags(existingPost, request);
 		syncParentPost(existingPost, request);
@@ -425,7 +440,16 @@ public class PostServiceImpl implements IPostService
 	public ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
 			Pageable pageable)
 	{
-		var spec = PostSpecification.filterPublicPosts(categoryId, tagId, keyword);
+		return searchPublicPosts(categoryId, tagId, keyword, null, null, null, pageable);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
+			Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable)
+	{
+		var spec = PostSpecification.filterPublicPosts(categoryId, tagId, keyword, featuredOnly, hasCover,
+				contentType);
 		Page<Post> publishedPosts = postRepository.findAll(spec, pageable);
 
 		return ApiResponse.success(PageResult.of(publishedPosts.map(postMapper::toResponse)));
@@ -433,16 +457,87 @@ public class PostServiceImpl implements IPostService
 
 	@Override
 	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<PostDigestResponse>> searchPublicPostDigests(Long categoryId, Long tagId,
+			String keyword, Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable)
+	{
+		var spec = PostSpecification.filterPublicPosts(categoryId, tagId, keyword, featuredOnly, hasCover,
+				contentType);
+		Page<Post> publishedPosts = postRepository.findAll(spec, pageable);
+		return ApiResponse.success(PageResult.of(publishedPosts.map(postMapper::toDigestResponse)));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<PostDigestResponse>> retrievePublicArchive(Integer year, Integer month,
+			Pageable pageable)
+	{
+		Assert.isTrue(month == null || year != null,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Archive month requires a year"));
+		Assert.isTrue(month == null || (month >= 1 && month <= 12),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Archive month must be between 1 and 12"));
+		Page<PostDigestResponse> archivePage = postRepository.findAll(archiveSpec(year, month), pageable)
+				.map(postMapper::toDigestResponse);
+		return ApiResponse.success(PageResult.of(archivePage));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.BLOG_POSTS, key = "'facets'", sync = true)
+	public ApiResponse<BlogFacetResponse> retrievePublicFacets()
+	{
+		long totalPublishedCount = postRepository.countByStatus(PostStatus.PUBLISHED);
+		List<BlogFacetResponse.CategoryFacet> categories = postRepository
+				.countPublishedPostsByCategory(PostStatus.PUBLISHED).stream()
+				.map(row -> new BlogFacetResponse.CategoryFacet(asLong(row[0]), (String) row[1], (String) row[2],
+						asLong(row[3])))
+				.toList();
+		List<BlogFacetResponse.TagFacet> tags = postRepository.countPublishedPostsByTag(PostStatus.PUBLISHED)
+				.stream()
+				.map(row -> new BlogFacetResponse.TagFacet(asLong(row[0]), (String) row[1], (String) row[2],
+						asLong(row[3])))
+				.toList();
+		List<BlogFacetResponse.ArchiveFacet> archives = postRepository
+				.countPublishedPostsByArchiveMonth(PostStatus.PUBLISHED).stream()
+				.map(row -> new BlogFacetResponse.ArchiveFacet(asInt(row[0]), asInt(row[1]), asLong(row[2])))
+				.toList();
+		List<BlogFacetResponse.ContentTypeFacet> contentTypes = postRepository
+				.countPublishedPostsByContentType(PostStatus.PUBLISHED).stream()
+				.map(row -> new BlogFacetResponse.ContentTypeFacet((PostContentType) row[0], asLong(row[1])))
+				.toList();
+		return ApiResponse.success(new BlogFacetResponse(totalPublishedCount, categories, tags, archives,
+				contentTypes));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.BLOG_POSTS,
+			key = "'featured-' + #pageable.pageNumber + '-' + #pageable.pageSize", sync = true)
+	public ApiResponse<PageResult<PostDigestResponse>> retrieveFeaturedPublicPosts(Pageable pageable)
+	{
+		Page<PostDigestResponse> page = postRepository.findProminentPublicPosts(PostStatus.PUBLISHED, pageable)
+				.map(postMapper::toDigestResponse);
+		return ApiResponse.success(PageResult.of(page));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.BLOG_POSTS, key = CacheConstants.BLOG_DISCOVERY_KEY, sync = true)
 	public ApiResponse<BlogDiscoveryResponse> retrievePublicDiscovery()
 	{
+		List<Post> discoveryCandidates = postRepository
+				.findDiscoveryCandidates(PostStatus.PUBLISHED, PageRequest.of(0, candidateSize()));
+		List<Post> scoredCandidates = discoveryCandidates.stream()
+				.sorted(Comparator.comparingDouble(postRankingService::discoveryScore).reversed().thenComparing(Post::getId,
+						Comparator.nullsLast(Comparator.reverseOrder())))
+				.toList();
+
 		Sort latestFirst = Sort.by(Sort.Order.desc("publishedAt"), Sort.Order.desc("id"));
 		List<Post> latestCandidates = postRepository.findAllByStatus(PostStatus.PUBLISHED,
-				PageRequest.of(0, DISCOVERY_CANDIDATE_SIZE, latestFirst)).getContent();
+				PageRequest.of(0, candidateSize(), latestFirst)).getContent();
 
 		Post spotlight = postRepository.findAllByStatusAndIsFeaturedTrue(PostStatus.PUBLISHED,
 				PageRequest.of(0, 1, latestFirst)).stream().findFirst()
-				.orElseGet(() -> latestCandidates.stream().findFirst().orElse(null));
+				.orElseGet(() -> scoredCandidates.stream().findFirst().orElse(null));
 
 		Set<Long> selectedPostIds = new LinkedHashSet<>();
 		if (spotlight != null)
@@ -450,18 +545,21 @@ public class PostServiceImpl implements IPostService
 			selectedPostIds.add(spotlight.getId());
 		}
 
+		List<PostDigestResponse> curated = selectDistinctDigests(scoredCandidates, selectedPostIds,
+				sectionSize());
 		List<PostDigestResponse> latest = selectDistinctDigests(latestCandidates, selectedPostIds,
-				DISCOVERY_SECTION_SIZE);
+				sectionSize());
 
 		Sort mostReadFirst = Sort.by(Sort.Order.desc("views"), Sort.Order.desc("likesCount"),
 				Sort.Order.desc("publishedAt"), Sort.Order.desc("id"));
 		List<Post> mostReadCandidates = postRepository.findAllByStatus(PostStatus.PUBLISHED,
-				PageRequest.of(0, DISCOVERY_CANDIDATE_SIZE, mostReadFirst)).getContent();
+				PageRequest.of(0, candidateSize(), mostReadFirst)).getContent();
 		List<PostDigestResponse> mostRead = selectDistinctDigests(mostReadCandidates, selectedPostIds,
-				DISCOVERY_SECTION_SIZE);
+				sectionSize());
 
 		PostDigestResponse spotlightResponse = spotlight == null ? null : postMapper.toDigestResponse(spotlight);
-		return ApiResponse.success(new BlogDiscoveryResponse(spotlightResponse, latest, mostRead));
+		return ApiResponse.success(new BlogDiscoveryResponse(spotlightResponse, curated, latest, mostRead,
+				buildCategoryGroups(scoredCandidates, selectedPostIds)));
 	}
 
 	@Override
@@ -493,6 +591,69 @@ public class PostServiceImpl implements IPostService
 		populateWikiMetadata(responseBuilder, postResponse);
 
 		return ApiResponse.success(responseBuilder.build());
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<List<PostDigestResponse>> retrieveRelatedPosts(String slug, Pageable pageable)
+	{
+		Post source = postRepository.findBySlug(slug)
+				.orElseThrow(() -> new ResourceNotFoundException("Post", "slug", slug));
+		Assert.isTrue(source.isPublished(),
+				() -> new BusinessException(BusinessCode.FORBIDDEN, "Post is not published"));
+
+		int requestedSize = pageable.isPaged() ? pageable.getPageSize() : sectionSize();
+		int candidateLimit = Math.max(requestedSize * 6, candidateSize());
+		Pageable candidatePage = PageRequest.of(0, candidateLimit);
+		List<PostDigestResponse> relatedPosts = postRepository.findAll(relatedPostsSpec(source), candidatePage)
+				.getContent().stream()
+				.sorted(Comparator.comparingDouble((Post candidate) -> postRankingService.relatedScore(source, candidate))
+						.reversed().thenComparing(Post::getPublishedAt,
+								Comparator.nullsLast(Comparator.reverseOrder()))
+						.thenComparing(Post::getId, Comparator.nullsLast(Comparator.reverseOrder())))
+				.limit(requestedSize)
+				.map(postMapper::toDigestResponse)
+				.toList();
+		return ApiResponse.success(relatedPosts);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<String> createPreviewToken(Long id)
+	{
+		Post post = findPostOrThrow(id);
+		String token = UUID.randomUUID().toString();
+		redisUtil.set(CacheConstants.POST_PREVIEW_PREFIX + token, post.getId(), 30, TimeUnit.MINUTES);
+		return ApiResponse.success("Preview token created", token);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PostResponse> retrievePostPreview(String token)
+	{
+		Assert.notBlank(token, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Preview token is required"));
+		Long postId = redisUtil.get(CacheConstants.POST_PREVIEW_PREFIX + token, Long.class)
+				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND,
+						"Preview token is invalid or expired"));
+		Post post = findPostOrThrow(postId);
+		PostResponse response = postMapper.toResponse(post);
+		PostResponse.PostResponseBuilder responseBuilder = response.toBuilder();
+		populateWikiMetadata(responseBuilder, response);
+		return ApiResponse.success(responseBuilder.build());
+	}
+
+	@Override
+	@Transactional
+	@org.springframework.cache.annotation.CacheEvict(value = { CacheConstants.BLOG_POSTS, CacheConstants.SEO }, allEntries = true)
+	public ApiResponse<Integer> rebuildPostContentMetadata()
+	{
+		List<Post> posts = postRepository.findAll();
+		for (Post post : posts)
+		{
+			refreshContentMetadata(post);
+		}
+		postRepository.saveAll(posts);
+		return ApiResponse.success("Post content metadata rebuilt", posts.size());
 	}
 
 	private void populateWikiMetadata(PostResponse.PostResponseBuilder builder, PostResponse post)
@@ -544,7 +705,7 @@ public class PostServiceImpl implements IPostService
 
 		PostResponse.SeoMetadata seo = new PostResponse.SeoMetadata(
 				post.title(),
-				post.summary(),
+				StrUtil.blankToDefault(post.summary(), post.autoSummary()),
 				post.coverImage(),
 				"article",
 				fullUrl,
@@ -590,6 +751,131 @@ public class PostServiceImpl implements IPostService
 	{
 		return candidates.stream().filter(post -> post.getId() != null && selectedPostIds.add(post.getId()))
 				.limit(limit).map(postMapper::toDigestResponse).toList();
+	}
+
+	private List<BlogDiscoveryResponse.CategoryGroup> buildCategoryGroups(List<Post> candidates, Set<Long> selectedPostIds)
+	{
+		Map<Long, List<Post>> byCategory = candidates.stream()
+				.filter(post -> post.getId() != null && !selectedPostIds.contains(post.getId()))
+				.filter(post -> post.getCategory() != null && post.getCategory().getId() != null)
+				.collect(Collectors.groupingBy(post -> post.getCategory().getId()));
+		List<BlogDiscoveryResponse.CategoryGroup> groups = new ArrayList<>();
+		for (List<Post> posts : byCategory.values())
+		{
+			List<Post> rankedPosts = posts.stream()
+					.sorted(Comparator.comparingDouble(postRankingService::discoveryScore).reversed())
+					.limit(categoryPostSize())
+					.toList();
+			if (rankedPosts.isEmpty())
+			{
+				continue;
+			}
+			double score = rankedPosts.stream().mapToDouble(postRankingService::discoveryScore).sum();
+			groups.add(new BlogDiscoveryResponse.CategoryGroup(toCategoryResponse(rankedPosts.getFirst()),
+					rankedPosts.stream().map(postMapper::toDigestResponse).toList(), score));
+		}
+		return groups.stream().sorted(Comparator.comparingDouble(BlogDiscoveryResponse.CategoryGroup::score).reversed())
+				.limit(categoryGroupSize()).toList();
+	}
+
+	private CategoryResponse toCategoryResponse(Post post)
+	{
+		var category = post.getCategory();
+		return new CategoryResponse(category.getId(), category.getName(), category.getSlug(), category.getDescription(),
+				category.getIcon(), category.getCreatedAt());
+	}
+
+	private int sectionSize()
+	{
+		return positive(discoveryProperties.getSectionSize(), 6);
+	}
+
+	private int categoryGroupSize()
+	{
+		return positive(discoveryProperties.getCategoryGroupSize(), 3);
+	}
+
+	private int categoryPostSize()
+	{
+		return positive(discoveryProperties.getCategoryPostSize(), 4);
+	}
+
+	private int candidateSize()
+	{
+		return positive(discoveryProperties.getCandidateSize(), 48);
+	}
+
+	private int positive(int configured, int fallback)
+	{
+		return configured > 0 ? configured : fallback;
+	}
+
+	private Specification<Post> relatedPostsSpec(Post source)
+	{
+		return (root, query, cb) ->
+		{
+			query.distinct(true);
+			List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+			predicates.add(cb.equal(root.get("status"), PostStatus.PUBLISHED));
+			predicates.add(cb.notEqual(root.get("id"), source.getId()));
+
+			List<jakarta.persistence.criteria.Predicate> relationPredicates = new ArrayList<>();
+			if (source.getCategory() != null && source.getCategory().getId() != null)
+			{
+				relationPredicates.add(cb.equal(root.get("category").get("id"), source.getCategory().getId()));
+			}
+			if (source.getSeries() != null && source.getSeries().getId() != null)
+			{
+				relationPredicates.add(cb.equal(root.get("series").get("id"), source.getSeries().getId()));
+			}
+			if (source.getContentType() != null)
+			{
+				relationPredicates.add(cb.equal(root.get("contentType"), source.getContentType()));
+			}
+			Set<Long> tagIds = source.getTags().stream()
+					.filter(tag -> tag.getId() != null)
+					.map(space.nebula.nexus.entity.Tag::getId)
+					.collect(Collectors.toSet());
+			if (!tagIds.isEmpty())
+			{
+				var tagJoin = root.join("tags", jakarta.persistence.criteria.JoinType.LEFT);
+				relationPredicates.add(tagJoin.get("id").in(tagIds));
+			}
+			if (!relationPredicates.isEmpty())
+			{
+				predicates.add(cb.or(relationPredicates.toArray(jakarta.persistence.criteria.Predicate[]::new)));
+			}
+			return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+		};
+	}
+
+	private Specification<Post> archiveSpec(Integer year, Integer month)
+	{
+		return (root, query, cb) ->
+		{
+			List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+			predicates.add(cb.equal(root.get("status"), PostStatus.PUBLISHED));
+			predicates.add(cb.isNotNull(root.get("publishedAt")));
+			if (year != null)
+			{
+				predicates.add(cb.equal(cb.function("year", Integer.class, root.get("publishedAt")), year));
+			}
+			if (month != null)
+			{
+				predicates.add(cb.equal(cb.function("month", Integer.class, root.get("publishedAt")), month));
+			}
+			return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+		};
+	}
+
+	private Long asLong(Object value)
+	{
+		return value instanceof Number number ? number.longValue() : 0L;
+	}
+
+	private int asInt(Object value)
+	{
+		return value instanceof Number number ? number.intValue() : 0;
 	}
 
 	private void clearAutosaveData(String identifier)
@@ -693,5 +979,16 @@ public class PostServiceImpl implements IPostService
 				post.setTags(new HashSet<>(tags));
 			}
 		}
+	}
+
+	private void refreshContentMetadata(Post post)
+	{
+		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze(post.getTitle(), post.getSummary(),
+				post.getContent());
+		post.setWordCount(metadata.wordCount());
+		post.setReadingTimeMinutes(metadata.readingTimeMinutes());
+		post.setAutoSummary(metadata.autoSummary());
+		post.setToc(metadata.toc());
+		post.setContentHash(metadata.contentHash());
 	}
 }

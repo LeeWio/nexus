@@ -16,6 +16,8 @@ public interface IPostRevisionService
 	 */
 	void saveRevision(Post post);
 
+	void saveRevision(Post post, String changeType, String changeSummary);
+
 	/**
 	 * Gets all revisions for a specific post, ordered by version descending.
 	 */

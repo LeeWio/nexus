@@ -13,8 +13,13 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.exception.BusinessException;
+import space.nebula.nexus.config.BlogDiscoveryProperties;
+import space.nebula.nexus.entity.Category;
 import space.nebula.nexus.entity.Post;
+import space.nebula.nexus.entity.PostSeries;
+import space.nebula.nexus.entity.Tag;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.mapper.PostMapper;
 import space.nebula.nexus.payload.request.PostRequest;
@@ -22,6 +27,7 @@ import space.nebula.nexus.payload.request.PostArchiveRequest;
 import space.nebula.nexus.payload.request.PostScheduleRequest;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.BlogDiscoveryResponse;
+import space.nebula.nexus.payload.response.BlogFacetResponse;
 import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.repository.CategoryRepository;
@@ -30,9 +36,11 @@ import space.nebula.nexus.repository.TagRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.IInteractionService;
 import space.nebula.nexus.security.util.SecurityUtil;
+import space.nebula.nexus.service.PostRankingService;
 import space.nebula.nexus.utils.RedisUtil;
 
 import java.util.List;
+import java.util.Collections;
 import java.util.Optional;
 import java.time.LocalDateTime;
 
@@ -40,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Spy;
 
 @ExtendWith(MockitoExtension.class)
 class PostServiceImplTest {
@@ -69,6 +78,10 @@ class PostServiceImplTest {
 	private space.nebula.nexus.common.validator.PostValidator postValidator;
 	@Mock
 	private space.nebula.nexus.repository.ConfigRepository configRepository;
+	@Spy
+	private BlogDiscoveryProperties discoveryProperties = new BlogDiscoveryProperties();
+	@Spy
+	private PostRankingService postRankingService = new PostRankingService(discoveryProperties);
 	@InjectMocks
 	private PostServiceImpl postService;
 
@@ -142,6 +155,148 @@ class PostServiceImplTest {
 		assertEquals(1L, response.data().spotlight().id());
 		assertEquals(List.of(2L, 3L), response.data().latest().stream().map(PostDigestResponse::id).toList());
 		assertEquals(List.of(4L), response.data().mostRead().stream().map(PostDigestResponse::id).toList());
+	}
+
+	@Test
+	@DisplayName("Should rank curated discovery posts by editorial and engagement score")
+	void retrievePublicDiscovery_ReturnsCuratedProminentPosts() {
+		Post featured = post(1L, "Featured");
+		featured.setIsFeatured(true);
+		Post popular = post(2L, "Popular");
+		popular.setViews(2_000L);
+		popular.setLikesCount(30L);
+		Post weak = post(3L, "Weak");
+		weak.setViews(2L);
+
+		when(postRepository.findDiscoveryCandidates(eq(PostStatus.PUBLISHED), any(Pageable.class)))
+				.thenReturn(List.of(weak, popular, featured));
+		when(postRepository.findAllByStatus(eq(PostStatus.PUBLISHED), any(Pageable.class)))
+				.thenReturn(new PageImpl<>(List.of()), new PageImpl<>(List.of()));
+		when(postRepository.findAllByStatusAndIsFeaturedTrue(eq(PostStatus.PUBLISHED), any(Pageable.class)))
+				.thenReturn(new PageImpl<>(List.of(featured)));
+		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
+			Post post = invocation.getArgument(0);
+			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null,
+					null, null, null, post.getViews(), post.getLikesCount(), post.getPublishedAt());
+		});
+
+		ApiResponse<BlogDiscoveryResponse> response = postService.retrievePublicDiscovery();
+
+		assertEquals(1L, response.data().spotlight().id());
+		assertEquals(List.of(2L, 3L), response.data().curated().stream().map(PostDigestResponse::id).toList());
+	}
+
+	@Test
+	@DisplayName("Should return prominent public posts page")
+	void retrieveFeaturedPublicPosts_ReturnsRankedPage() {
+		Post featured = post(1L, "Featured");
+		Pageable pageable = Pageable.unpaged();
+		when(postRepository.findProminentPublicPosts(PostStatus.PUBLISHED, pageable))
+				.thenReturn(new PageImpl<>(List.of(featured)));
+		when(postMapper.toDigestResponse(featured)).thenReturn(new PostDigestResponse(1L, "Featured",
+				"featured", null, null, null, null, null, 0L, 0L, null));
+
+		ApiResponse<PageResult<PostDigestResponse>> response = postService.retrieveFeaturedPublicPosts(pageable);
+
+		assertEquals(200, response.code());
+		assertEquals(List.of(1L), response.data().getList().stream().map(PostDigestResponse::id).toList());
+	}
+
+	@Test
+	@DisplayName("Should return related posts ordered by shared content signals")
+	void retrieveRelatedPosts_ReturnsRankedRelatedPosts() {
+		Category architecture = category(7L, "Architecture");
+		PostSeries series = series(9L);
+		Tag java = tag(5L, "Java");
+		Tag spring = tag(6L, "Spring");
+		Post source = post(10L, "Source");
+		source.publish();
+		source.setSlug("source");
+		source.setCategory(architecture);
+		source.setSeries(series);
+		source.setContentType(PostContentType.MDX);
+		source.setTags(new java.util.HashSet<>(List.of(java, spring)));
+
+		Post categoryOnly = post(11L, "Category only");
+		categoryOnly.publish();
+		categoryOnly.setCategory(architecture);
+		categoryOnly.setContentType(PostContentType.MDX);
+		categoryOnly.setViews(10_000L);
+
+		Post sameSeriesAndTags = post(12L, "Same series and tags");
+		sameSeriesAndTags.publish();
+		sameSeriesAndTags.setSeries(series);
+		sameSeriesAndTags.setCategory(architecture);
+		sameSeriesAndTags.setContentType(PostContentType.MDX);
+		sameSeriesAndTags.setTags(new java.util.HashSet<>(List.of(java, spring)));
+
+		when(postRepository.findBySlug("source")).thenReturn(Optional.of(source));
+		when(postRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
+				.thenReturn(new PageImpl<>(List.of(categoryOnly, sameSeriesAndTags)));
+		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
+			Post post = invocation.getArgument(0);
+			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null,
+					null, null, null, post.getViews(), post.getLikesCount(), post.getPublishedAt());
+		});
+
+		ApiResponse<List<PostDigestResponse>> response = postService.retrieveRelatedPosts("source",
+				org.springframework.data.domain.PageRequest.of(0, 2));
+
+		assertEquals(200, response.code());
+		assertEquals(List.of(12L, 11L), response.data().stream().map(PostDigestResponse::id).toList());
+	}
+
+	@Test
+	@DisplayName("Should return public archive as digest page")
+	void retrievePublicArchive_ReturnsDigestPage() {
+		Post archivedPost = post(13L, "Archived by month");
+		archivedPost.publish();
+		archivedPost.setPublishedAt(LocalDateTime.of(2026, 7, 1, 10, 0));
+		when(postRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
+				.thenReturn(new PageImpl<>(List.of(archivedPost)));
+		when(postMapper.toDigestResponse(archivedPost)).thenReturn(new PostDigestResponse(13L, "Archived by month",
+				"archived-by-month", null, null, null, null, null, 0L, 0L, archivedPost.getPublishedAt()));
+
+		ApiResponse<PageResult<PostDigestResponse>> response = postService.retrievePublicArchive(2026, 7,
+				org.springframework.data.domain.PageRequest.of(0, 10));
+
+		assertEquals(200, response.code());
+		assertEquals(List.of(13L), response.data().getList().stream().map(PostDigestResponse::id).toList());
+	}
+
+	@Test
+	@DisplayName("Should reject archive month without year")
+	void retrievePublicArchive_RejectsMonthWithoutYear() {
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> postService.retrievePublicArchive(null, 7,
+						org.springframework.data.domain.PageRequest.of(0, 10)));
+
+		assertEquals("Archive month requires a year", exception.getMessage());
+		verify(postRepository, never()).findAll(any(org.springframework.data.jpa.domain.Specification.class),
+				any(Pageable.class));
+	}
+
+	@Test
+	@DisplayName("Should return public blog facets from repository aggregations")
+	void retrievePublicFacets_ReturnsAggregatedCounts() {
+		when(postRepository.countByStatus(PostStatus.PUBLISHED)).thenReturn(3L);
+		when(postRepository.countPublishedPostsByCategory(PostStatus.PUBLISHED))
+				.thenReturn(Collections.singletonList(new Object[] { 7L, "Architecture", "architecture", 2L }));
+		when(postRepository.countPublishedPostsByTag(PostStatus.PUBLISHED))
+				.thenReturn(Collections.singletonList(new Object[] { 5L, "Java", "java", 3L }));
+		when(postRepository.countPublishedPostsByArchiveMonth(PostStatus.PUBLISHED))
+				.thenReturn(Collections.singletonList(new Object[] { 2026, 7, 3L }));
+		when(postRepository.countPublishedPostsByContentType(PostStatus.PUBLISHED))
+				.thenReturn(Collections.singletonList(new Object[] { PostContentType.MDX, 1L }));
+
+		ApiResponse<BlogFacetResponse> response = postService.retrievePublicFacets();
+
+		assertEquals(200, response.code());
+		assertEquals(3L, response.data().totalPublishedCount());
+		assertEquals("Architecture", response.data().categories().getFirst().name());
+		assertEquals("Java", response.data().tags().getFirst().name());
+		assertEquals(2026, response.data().archives().getFirst().year());
+		assertEquals(PostContentType.MDX, response.data().contentTypes().getFirst().contentType());
 	}
 
 	@Test
@@ -321,5 +476,29 @@ class PostServiceImplTest {
 		post.setId(id);
 		post.setTitle(title);
 		return post;
+	}
+
+	private Category category(Long id, String name) {
+		Category category = new Category();
+		category.setId(id);
+		category.setName(name);
+		category.setSlug(name.toLowerCase());
+		return category;
+	}
+
+	private Tag tag(Long id, String name) {
+		Tag tag = new Tag();
+		tag.setId(id);
+		tag.setName(name);
+		tag.setSlug(name.toLowerCase());
+		return tag;
+	}
+
+	private PostSeries series(Long id) {
+		PostSeries series = new PostSeries();
+		series.setId(id);
+		series.setName("Series " + id);
+		series.setSlug("series-" + id);
+		return series;
 	}
 }

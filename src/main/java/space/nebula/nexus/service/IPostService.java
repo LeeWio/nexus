@@ -2,15 +2,20 @@ package space.nebula.nexus.service;
 
 import org.springframework.data.domain.Pageable;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.payload.request.PostAutosaveRequest;
 import space.nebula.nexus.payload.request.PostArchiveRequest;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.request.PostScheduleRequest;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.BlogFacetResponse;
 import space.nebula.nexus.payload.response.PostAutosaveResponse;
+import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.payload.response.BlogDiscoveryResponse;
+
+import java.util.List;
 
 public interface IPostService
 {
@@ -90,7 +95,30 @@ public interface IPostService
 	ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
 			Pageable pageable);
 
+	ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
+			Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable);
+
+	ApiResponse<PageResult<PostDigestResponse>> searchPublicPostDigests(Long categoryId, Long tagId, String keyword,
+			Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable);
+
+	ApiResponse<PageResult<PostDigestResponse>> retrievePublicArchive(Integer year, Integer month, Pageable pageable);
+
+	ApiResponse<BlogFacetResponse> retrievePublicFacets();
+
+	/**
+	 * Returns only prominent published posts for public listing surfaces.
+	 */
+	ApiResponse<PageResult<PostDigestResponse>> retrieveFeaturedPublicPosts(Pageable pageable);
+
 	ApiResponse<PostResponse> retrievePostBySlug(String slug);
+
+	ApiResponse<List<PostDigestResponse>> retrieveRelatedPosts(String slug, Pageable pageable);
+
+	ApiResponse<String> createPreviewToken(Long id);
+
+	ApiResponse<PostResponse> retrievePostPreview(String token);
+
+	ApiResponse<Integer> rebuildPostContentMetadata();
 
 	/**
 	 * Returns a compact, curated set of posts for the public discovery page.
