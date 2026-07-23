@@ -66,9 +66,9 @@ public class WebhookDispatcher
 	@org.springframework.transaction.event.TransactionalEventListener(phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
 	public void handleCommentSubmittedEvent(CommentSubmittedEvent event)
 	{
-		dispatchToSubscribers(WebhookEvent.COMMENT_SUBMITTED, Dict.create().set("commentId", event.getComment().getId())
-				.set("author", event.getComment().getUser().getUsername())
-				.set("content", event.getComment().getContent()).set("status", event.getComment().getStatus().name()));
+		dispatchToSubscribers(WebhookEvent.COMMENT_SUBMITTED, Dict.create().set("commentId", event.getCommentId())
+				.set("author", event.getAuthorUsername())
+				.set("content", event.getContent()).set("status", event.getStatus().name()));
 	}
 
 	private void dispatchToSubscribers(WebhookEvent eventType, Dict payload)

@@ -9,6 +9,10 @@ public interface IInteractionService
 
 	ApiResponse<Void> unlikePost(Long postId);
 
+	ApiResponse<Void> likeComment(Long commentId);
+
+	ApiResponse<Void> unlikeComment(Long commentId);
+
 	ApiResponse<Void> favoritePost(Long postId);
 
 	ApiResponse<Void> unfavoritePost(Long postId);

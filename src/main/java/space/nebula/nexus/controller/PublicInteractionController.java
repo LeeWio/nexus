@@ -41,6 +41,22 @@ public class PublicInteractionController
 		return interactionService.unlikePost(postId);
 	}
 
+	@PostMapping("/comments/{commentId}/like")
+	@Operation(summary = "Like a comment", description = "Add a like to an approved comment. Requires user authentication.")
+	@PreAuthorize("isAuthenticated()")
+	public ApiResponse<Void> likeComment(@Parameter(description = "Comment ID") @PathVariable Long commentId)
+	{
+		return interactionService.likeComment(commentId);
+	}
+
+	@PostMapping("/comments/{commentId}/unlike")
+	@Operation(summary = "Unlike a comment", description = "Remove a previously added like from a comment.")
+	@PreAuthorize("isAuthenticated()")
+	public ApiResponse<Void> unlikeComment(@Parameter(description = "Comment ID") @PathVariable Long commentId)
+	{
+		return interactionService.unlikeComment(commentId);
+	}
+
 	@PostMapping("/posts/{postId}/favorite")
 	@Operation(summary = "Favorite a post", description = "Bookmark a post as a user favorite. Requires user authentication.")
 	@PreAuthorize("isAuthenticated()")

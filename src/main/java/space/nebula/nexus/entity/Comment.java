@@ -55,6 +55,30 @@ public class Comment extends BaseEntity
 	@Column(name = "user_agent")
 	private String userAgent;
 
+	@Column(name = "client_request_id", length = 80)
+	private String clientRequestId;
+
+	@Column(name = "likes_count", nullable = false)
+	private Long likesCount = 0L;
+
+	@Column(name = "reports_count", nullable = false)
+	private Long reportsCount = 0L;
+
+	@Column(name = "edited_at")
+	private java.time.LocalDateTime editedAt;
+
+	@Column(name = "edit_count", nullable = false)
+	private Integer editCount = 0;
+
+	@Column(name = "is_pinned", nullable = false)
+	private Boolean pinned = false;
+
+	@Column(name = "is_featured", nullable = false)
+	private Boolean featured = false;
+
+	@Column(name = "is_deleted_placeholder", nullable = false)
+	private Boolean deletedPlaceholder = false;
+
 	// --- Domain Logic ---
 
 	/**
@@ -71,6 +95,16 @@ public class Comment extends BaseEntity
 	public void reject()
 	{
 		this.status = CommentStatus.REJECTED;
+	}
+
+	/**
+	 * Updates comment content and marks the edit timestamp.
+	 */
+	public void editContent(String content)
+	{
+		this.content = content;
+		this.editedAt = java.time.LocalDateTime.now();
+		this.editCount = this.editCount == null ? 1 : this.editCount + 1;
 	}
 
 	/**
@@ -91,5 +125,14 @@ public class Comment extends BaseEntity
 	public boolean belongsToPost(Long postId)
 	{
 		return this.post != null && this.post.getId().equals(postId);
+	}
+
+	public void markDeletedPlaceholder()
+	{
+		this.content = "[deleted]";
+		this.deletedPlaceholder = true;
+		this.pinned = false;
+		this.featured = false;
+		this.status = CommentStatus.APPROVED;
 	}
 }

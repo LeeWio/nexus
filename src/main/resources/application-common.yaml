@@ -165,6 +165,10 @@ app:
     max-login-failures: 5
     lock-duration-minutes: 15
     default-role-code: "ROLE_USER"
+  comment:
+    moderation:
+      auto-review-report-threshold: ${COMMENT_AUTO_REVIEW_REPORT_THRESHOLD:3}
+      high-risk-report-threshold: ${COMMENT_HIGH_RISK_REPORT_THRESHOLD:2}
   jwt:
     access-token-expiration: 7200000
     refresh-token-expiration: 604800000

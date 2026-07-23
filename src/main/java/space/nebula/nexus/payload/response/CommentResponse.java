@@ -9,5 +9,7 @@ import java.time.LocalDateTime;
  */
 @Builder
 public record CommentResponse(Long id, Long parentId, String content, String username, String nickname, String avatar,
-		CommentStatus status, Long postId, String postTitle, LocalDateTime createdAt) {
+		CommentStatus status, Long postId, String postTitle, Long likesCount, Long reportsCount, Integer replyCount,
+		Boolean likedByCurrentUser, Boolean pinned, Boolean featured, Boolean deletedPlaceholder,
+		LocalDateTime createdAt, LocalDateTime editedAt) {
 }

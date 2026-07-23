@@ -17,6 +17,8 @@ public interface CommentMapper
 	@Mapping(target = "parentId", source = "parent.id")
 	@Mapping(target = "postId", source = "post.id")
 	@Mapping(target = "postTitle", source = "post.title")
+	@Mapping(target = "replyCount", ignore = true)
+	@Mapping(target = "likedByCurrentUser", ignore = true)
 	CommentResponse toResponse(Comment comment);
 
 	List<CommentResponse> toResponseList(List<Comment> comments);

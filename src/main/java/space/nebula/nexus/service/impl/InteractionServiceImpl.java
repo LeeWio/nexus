@@ -9,6 +9,7 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.repository.PostRepository;
+import space.nebula.nexus.repository.CommentRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.IInteractionService;
 import space.nebula.nexus.utils.RedisUtil;
@@ -27,6 +28,7 @@ public class InteractionServiceImpl implements IInteractionService
 
 	private final RedisUtil redisUtil;
 	private final PostRepository postRepository;
+	private final CommentRepository commentRepository;
 	private final UserRepository userRepository;
 	private final JdbcTemplate jdbcTemplate;
 	private final CacheManager cacheManager;
@@ -58,6 +60,37 @@ public class InteractionServiceImpl implements IInteractionService
 		redisUtil.setRemove(key, user.getId().toString());
 		evictCaches(post);
 		return ApiResponse.success("Post unliked", null);
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<Void> likeComment(Long commentId)
+	{
+		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		validateApprovedComment(commentId);
+		int inserted = jdbcTemplate.update(
+				"INSERT IGNORE INTO blog_comment_like(comment_id, user_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+				commentId, user.getId());
+		if (inserted > 0)
+		{
+			commentRepository.incrementLikes(commentId, 1L);
+		}
+		return ApiResponse.success("Comment liked", null);
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<Void> unlikeComment(Long commentId)
+	{
+		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		validateCommentExists(commentId);
+		int deleted = jdbcTemplate.update("DELETE FROM blog_comment_like WHERE comment_id = ? AND user_id = ?",
+				commentId, user.getId());
+		if (deleted > 0)
+		{
+			commentRepository.incrementLikes(commentId, -1L);
+		}
+		return ApiResponse.success("Comment unliked", null);
 	}
 
 	@Override
@@ -146,5 +179,21 @@ public class InteractionServiceImpl implements IInteractionService
 		Assert.isTrue(post.isPublished(), () -> new space.nebula.nexus.common.exception.BusinessException(
 				space.nebula.nexus.common.constant.BusinessCode.BAD_REQUEST, "Only published posts can be interacted with"));
 		return post;
+	}
+
+	private space.nebula.nexus.entity.Comment validateCommentExists(Long commentId)
+	{
+		return commentRepository.findById(commentId)
+				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", commentId));
+	}
+
+	private space.nebula.nexus.entity.Comment validateApprovedComment(Long commentId)
+	{
+		var comment = validateCommentExists(commentId);
+		Assert.isTrue(comment.getStatus() == space.nebula.nexus.enums.CommentStatus.APPROVED,
+				() -> new space.nebula.nexus.common.exception.BusinessException(
+						space.nebula.nexus.common.constant.BusinessCode.BAD_REQUEST,
+						"Only approved comments can be interacted with"));
+		return comment;
 	}
 }

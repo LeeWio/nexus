@@ -9,7 +9,6 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import space.nebula.nexus.common.event.CommentSubmittedEvent;
 import space.nebula.nexus.config.RabbitMQConfig;
-import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.enums.CommentStatus;
 import space.nebula.nexus.payload.request.TemplateMailMessage;
 
@@ -33,43 +32,30 @@ public class CommentEventListener {
 	@Async("asyncExecutor")
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onCommentSubmitted(CommentSubmittedEvent event) {
-		Comment comment = event.getComment();
-
 		// Target email is post author, or admin if guestbook/missing
-		String targetEmail = null;
-		String authorName = "Admin";
-		String postTitle = "Guestbook";
-
-		if (comment.getPost() != null) {
-			targetEmail = comment.getPost().getAuthor().getEmail();
-			authorName = comment.getPost().getAuthor().getNickname() != null
-					? comment.getPost().getAuthor().getNickname()
-					: comment.getPost().getAuthor().getUsername();
-			postTitle = comment.getPost().getTitle();
-		}
+		String targetEmail = event.getPostAuthorEmail();
+		String authorName = event.getPostAuthorDisplayName() != null ? event.getPostAuthorDisplayName() : "Admin";
+		String postTitle = event.getPostTitle();
 
 		if (targetEmail == null || targetEmail.isBlank()) {
 			targetEmail = "admin@nexus.com";
 		}
 
-		if (comment.getStatus() == CommentStatus.REJECTED) {
-			sendViolationAlert(comment, targetEmail, postTitle);
+		if (event.getStatus() == CommentStatus.SPAM) {
+			sendViolationAlert(event, targetEmail, postTitle);
 		} else {
-			sendNewCommentNotification(comment, targetEmail, authorName, postTitle);
+			sendNewCommentNotification(event, targetEmail, authorName, postTitle);
 		}
 	}
 
-	private void sendNewCommentNotification(Comment comment, String email, String authorName, String postTitle) {
+	private void sendNewCommentNotification(CommentSubmittedEvent event, String email, String authorName, String postTitle) {
 		String subject = "New Comment on: " + postTitle;
 
 		Map<String, Object> variables = Dict.create()
 				.set("authorName", authorName)
-				.set("commenterName",
-						comment.getUser().getNickname() != null
-								? comment.getUser().getNickname()
-								: comment.getUser().getUsername())
+				.set("commenterName", event.getAuthorDisplayName())
 				.set("postTitle", postTitle)
-				.set("commentContent", comment.getContent());
+				.set("commentContent", event.getContent());
 
 		TemplateMailMessage message = TemplateMailMessage.builder()
 				.to(email)
@@ -83,15 +69,15 @@ public class CommentEventListener {
 		log.info("Dispatched async comment notification task for: {}", email);
 	}
 
-	private void sendViolationAlert(Comment comment, String email, String postTitle) {
+	private void sendViolationAlert(CommentSubmittedEvent event, String email, String postTitle) {
 		String subject = "[ALERT] Content Violation Blocked on: " + postTitle;
 
 		Map<String, Object> variables = Dict.create()
-				.set("commenterName", comment.getUser().getUsername())
+				.set("commenterName", event.getAuthorUsername())
 				.set("postTitle", postTitle)
-				.set("commentContent", comment.getContent())
-				.set("ipAddress", comment.getIpAddress())
-				.set("userAgent", comment.getUserAgent());
+				.set("commentContent", event.getContent())
+				.set("ipAddress", event.getIpAddress())
+				.set("userAgent", event.getUserAgent());
 
 		TemplateMailMessage message = TemplateMailMessage.builder()
 				.to(email)
