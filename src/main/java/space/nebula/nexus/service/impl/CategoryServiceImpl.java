@@ -27,8 +27,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CategoryServiceImpl implements ICategoryService
-{
+public class CategoryServiceImpl implements ICategoryService {
 
 	private final CategoryRepository categoryRepository;
 	private final PostRepository postRepository;
@@ -37,8 +36,7 @@ public class CategoryServiceImpl implements ICategoryService
 
 	@Override
 	@Cacheable(value = CacheConstants.CATEGORIES, key = "'all'", sync = true)
-	public ApiResponse<List<CategoryResponse>> retrieveAllCategories()
-	{
+	public ApiResponse<List<CategoryResponse>> retrieveAllCategories() {
 		List<Category> allCategories = categoryRepository.findAll();
 		return ApiResponse.success(categoryMapper.toResponseList(allCategories));
 	}
@@ -46,48 +44,40 @@ public class CategoryServiceImpl implements ICategoryService
 	@Override
 	@Transactional
 	@LogOperation("Create Category")
-	@CacheEvict(value = { CacheConstants.CATEGORIES, CacheConstants.SEO }, allEntries = true)
-	public ApiResponse<CategoryResponse> createCategory(CategoryRequest request)
-	{
-		// Check name and slug including deleted rows for self-healing / seamless restore
-		if (request.name() != null)
-		{
+	@CacheEvict(value = {CacheConstants.CATEGORIES, CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<CategoryResponse> createCategory(CategoryRequest request) {
+		// Check name and slug including deleted rows for self-healing / seamless
+		// restore
+		if (request.name() != null) {
 			var existingByName = categoryRepository.findByNameIncludeDeleted(request.name());
-			if (existingByName.isPresent())
-			{
+			if (existingByName.isPresent()) {
 				Category category = existingByName.get();
-				if (Boolean.TRUE.equals(category.getIsDeleted()))
-				{
+				if (Boolean.TRUE.equals(category.getIsDeleted())) {
 					category.setIsDeleted(false);
 					categoryMapper.updateEntity(category, request);
 					categoryRepository.save(category);
 					log.info("Restored soft-deleted category by name: {}", category.getName());
 					return ApiResponse.success("Category created successfully", categoryMapper.toResponse(category));
-				}
-				else
-				{
-					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category name is already in use: " + request.name());
+				} else {
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY,
+							"Category name is already in use: " + request.name());
 				}
 			}
 		}
 
-		if (request.slug() != null)
-		{
+		if (request.slug() != null) {
 			var existingBySlug = categoryRepository.findBySlugIncludeDeleted(request.slug());
-			if (existingBySlug.isPresent())
-			{
+			if (existingBySlug.isPresent()) {
 				Category category = existingBySlug.get();
-				if (Boolean.TRUE.equals(category.getIsDeleted()))
-				{
+				if (Boolean.TRUE.equals(category.getIsDeleted())) {
 					category.setIsDeleted(false);
 					categoryMapper.updateEntity(category, request);
 					categoryRepository.save(category);
 					log.info("Restored soft-deleted category by slug: {}", category.getName());
 					return ApiResponse.success("Category created successfully", categoryMapper.toResponse(category));
-				}
-				else
-				{
-					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Category slug is already in use: " + request.slug());
+				} else {
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY,
+							"Category slug is already in use: " + request.slug());
 				}
 			}
 		}
@@ -103,9 +93,8 @@ public class CategoryServiceImpl implements ICategoryService
 	@Override
 	@Transactional
 	@LogOperation("Update Category")
-	@CacheEvict(value = { CacheConstants.CATEGORIES, CacheConstants.SEO }, allEntries = true)
-	public ApiResponse<CategoryResponse> updateCategory(Long id, CategoryRequest request)
-	{
+	@CacheEvict(value = {CacheConstants.CATEGORIES, CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<CategoryResponse> updateCategory(Long id, CategoryRequest request) {
 		Category existingCategory = categoryRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Category", "id", id));
 
@@ -121,31 +110,26 @@ public class CategoryServiceImpl implements ICategoryService
 	@Override
 	@Transactional
 	@LogOperation("Delete Category")
-	@CacheEvict(value = { CacheConstants.CATEGORIES, CacheConstants.SEO }, allEntries = true)
-	public ApiResponse<Void> deleteCategory(Long id)
-	{
+	@CacheEvict(value = {CacheConstants.CATEGORIES, CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<Void> deleteCategory(Long id) {
 		Assert.isTrue(categoryRepository.existsById(id), () -> new ResourceNotFoundException("Category", "id", id));
 
 		// Check if any active posts are still associated with this category
 		Assert.isFalse(postRepository.existsByCategoryId(id),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Category is still referenced by active posts"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Category is still referenced by active posts"));
 
 		categoryRepository.deleteById(id);
 		log.info("Category deleted id: {}", id);
 		return ApiResponse.success("Category deleted successfully", null);
 	}
 
-	private void validateUniqueConstraints(Category existing, CategoryRequest request)
-	{
-		if (request.name() != null && (existing == null || !existing.getName().equals(request.name())))
-		{
+	private void validateUniqueConstraints(Category existing, CategoryRequest request) {
+		if (request.name() != null && (existing == null || !existing.getName().equals(request.name()))) {
 			Assert.isFalse(categoryRepository.findByNameIncludeDeleted(request.name()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 							"Category name is already in use: " + request.name()));
 		}
-		if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug())))
-		{
+		if (request.slug() != null && (existing == null || !existing.getSlug().equals(request.slug()))) {
 			Assert.isFalse(categoryRepository.findBySlugIncludeDeleted(request.slug()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 							"Category slug is already in use: " + request.slug()));

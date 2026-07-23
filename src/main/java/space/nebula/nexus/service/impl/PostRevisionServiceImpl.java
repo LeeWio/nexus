@@ -32,8 +32,7 @@ import java.util.Objects;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PostRevisionServiceImpl implements IPostRevisionService
-{
+public class PostRevisionServiceImpl implements IPostRevisionService {
 
 	private final PostRevisionRepository postRevisionRepository;
 	private final PostRevisionMapper postRevisionMapper;
@@ -43,15 +42,13 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 
 	@Override
 	@Transactional
-	public void saveRevision(Post post)
-	{
+	public void saveRevision(Post post) {
 		saveRevision(post, "SNAPSHOT", "Post snapshot saved");
 	}
 
 	@Override
 	@Transactional
-	public void saveRevision(Post post, String changeType, String changeSummary)
-	{
+	public void saveRevision(Post post, String changeType, String changeSummary) {
 		Post lockedPost = postRepository.findByIdForUpdate(post.getId())
 				.orElseThrow(() -> new ResourceNotFoundException("Post", "id", post.getId()));
 		int nextVersion = postRevisionRepository.findMaxVersionByPostId(post.getId()).orElse(0) + 1;
@@ -74,8 +71,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<PostRevisionResponse>> getPostRevisions(Long postId)
-	{
+	public ApiResponse<List<PostRevisionResponse>> getPostRevisions(Long postId) {
 		Assert.isTrue(postRepository.existsById(postId), () -> new BusinessException(404, "Post not found"));
 		List<PostRevision> revisions = postRevisionRepository.findByPostIdOrderByVersionNumberDesc(postId);
 		return ApiResponse.success(postRevisionMapper.toResponseList(revisions));
@@ -83,14 +79,15 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 
 	@Override
 	@Transactional
-	public ApiResponse<PostResponse> revertToRevision(Long postId, Long revisionId)
-	{
-		Post post = postRepository.findById(postId).orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
+	public ApiResponse<PostResponse> revertToRevision(Long postId, Long revisionId) {
+		Post post = postRepository.findById(postId)
+				.orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
 
 		PostRevision revision = postRevisionRepository.findById(revisionId)
 				.orElseThrow(() -> new ResourceNotFoundException("PostRevision", "id", revisionId));
 
-		Assert.isTrue(revision.getPost().getId().equals(postId), () -> new BusinessException(BusinessCode.BAD_REQUEST, "Revision does not belong to this post"));
+		Assert.isTrue(revision.getPost().getId().equals(postId),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Revision does not belong to this post"));
 
 		// Revert fields
 		post.setTitle(revision.getTitle());
@@ -116,8 +113,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PostDiffResponse> compareRevisions(Long postId, Long baseRevisionId, Long targetRevisionId)
-	{
+	public ApiResponse<PostDiffResponse> compareRevisions(Long postId, Long baseRevisionId, Long targetRevisionId) {
 		PostRevision base = postRevisionRepository.findById(baseRevisionId)
 				.orElseThrow(() -> new ResourceNotFoundException("PostRevision", "id", baseRevisionId));
 		PostRevision target = postRevisionRepository.findById(targetRevisionId)
@@ -126,21 +122,18 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 		Assert.isTrue(base.getPost().getId().equals(postId) && target.getPost().getId().equals(postId),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Revisions do not belong to the specified post"));
 
-		return ApiResponse.success(new PostDiffResponse(
-				createFieldDiff(base.getTitle(), target.getTitle()),
+		return ApiResponse.success(new PostDiffResponse(createFieldDiff(base.getTitle(), target.getTitle()),
 				createFieldDiff(base.getSummary(), target.getSummary()),
 				createFieldDiff(base.getContent(), target.getContent())));
 	}
 
-	private PostDiffResponse.FieldDiff createFieldDiff(String original, String revised)
-	{
+	private PostDiffResponse.FieldDiff createFieldDiff(String original, String revised) {
 		String orgVal = original != null ? original : "";
 		String revVal = revised != null ? revised : "";
 		boolean changed = !Objects.equals(orgVal, revVal);
 
 		String diffHtml = "";
-		if (changed)
-		{
+		if (changed) {
 			List<String> originalLines = Arrays.asList(orgVal.split("\n"));
 			List<String> revisedLines = Arrays.asList(revVal.split("\n"));
 			Patch<String> patch = DiffUtils.diff(originalLines, revisedLines);
@@ -148,33 +141,30 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 			StringBuilder html = new StringBuilder("<div class=\"diff-container\">");
 			int currentLine = 0;
 
-			for (AbstractDelta<String> delta : patch.getDeltas())
-			{
+			for (AbstractDelta<String> delta : patch.getDeltas()) {
 				// Add unchanged lines before delta
-				while (currentLine < delta.getSource().getPosition())
-				{
-					html.append("<div class=\"line-unchanged\">").append(escapeHtml(originalLines.get(currentLine))).append("</div>");
+				while (currentLine < delta.getSource().getPosition()) {
+					html.append("<div class=\"line-unchanged\">").append(escapeHtml(originalLines.get(currentLine)))
+							.append("</div>");
 					currentLine++;
 				}
 
 				// Add deletions
-				for (String line : delta.getSource().getLines())
-				{
+				for (String line : delta.getSource().getLines()) {
 					html.append("<div class=\"line-deleted\">- ").append(escapeHtml(line)).append("</div>");
 					currentLine++;
 				}
 
 				// Add insertions
-				for (String line : delta.getTarget().getLines())
-				{
+				for (String line : delta.getTarget().getLines()) {
 					html.append("<div class=\"line-inserted\">+ ").append(escapeHtml(line)).append("</div>");
 				}
 			}
 
 			// Add remaining unchanged lines
-			while (currentLine < originalLines.size())
-			{
-				html.append("<div class=\"line-unchanged\">").append(escapeHtml(originalLines.get(currentLine))).append("</div>");
+			while (currentLine < originalLines.size()) {
+				html.append("<div class=\"line-unchanged\">").append(escapeHtml(originalLines.get(currentLine)))
+						.append("</div>");
 				currentLine++;
 			}
 			html.append("</div>");
@@ -185,16 +175,13 @@ public class PostRevisionServiceImpl implements IPostRevisionService
 	}
 
 	private String escapeHtml(String input) {
-		if (input == null) return "";
-		return input.replace("&", "&amp;")
-				.replace("<", "&lt;")
-				.replace(">", "&gt;")
-				.replace("\"", "&quot;")
+		if (input == null)
+			return "";
+		return input.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 				.replace("'", "&#39;");
 	}
 
-	private void refreshContentMetadata(Post post)
-	{
+	private void refreshContentMetadata(Post post) {
 		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze(post.getTitle(), post.getSummary(),
 				post.getContent());
 		post.setWordCount(metadata.wordCount());

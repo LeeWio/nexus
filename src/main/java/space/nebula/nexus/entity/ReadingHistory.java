@@ -18,10 +18,9 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "blog_reading_history",
-		uniqueConstraints = @UniqueConstraint(name = "uk_reading_history_user_post", columnNames = { "user_id", "post_id" }))
-public class ReadingHistory extends BaseEntity
-{
+@Table(name = "blog_reading_history", uniqueConstraints = @UniqueConstraint(name = "uk_reading_history_user_post", columnNames = {
+		"user_id", "post_id"}))
+public class ReadingHistory extends BaseEntity {
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
@@ -45,11 +44,12 @@ public class ReadingHistory extends BaseEntity
 	/**
 	 * Updates the resumable reading state and completion timestamp.
 	 *
-	 * @param progressPercent progress percentage from 0 through 100
-	 * @param positionAnchor frontend-defined stable reading position
+	 * @param progressPercent
+	 *            progress percentage from 0 through 100
+	 * @param positionAnchor
+	 *            frontend-defined stable reading position
 	 */
-	public void recordProgress(Integer progressPercent, String positionAnchor)
-	{
+	public void recordProgress(Integer progressPercent, String positionAnchor) {
 		this.progressPercent = progressPercent;
 		this.positionAnchor = positionAnchor;
 		this.lastReadAt = LocalDateTime.now();

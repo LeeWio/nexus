@@ -11,8 +11,7 @@ import space.nebula.nexus.service.IMarketDataService;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class MarketDataScheduledTask
-{
+public class MarketDataScheduledTask {
 
 	private final IMarketDataService marketDataService;
 
@@ -22,19 +21,14 @@ public class MarketDataScheduledTask
 	 */
 	@Scheduled(cron = "0 * * * * *")
 	@SchedulerLock(name = "marketDataPreWarm", lockAtMostFor = "PT50S")
-	public void preWarmMarketData1D()
-	{
+	public void preWarmMarketData1D() {
 		log.info("Starting scheduled pre-warming of 1D market data");
-		try
-		{
+		try {
 			int refreshedCount = marketDataService.refreshIndices(CacheConstants.MARKET_1D);
-			if (refreshedCount > 0)
-			{
+			if (refreshedCount > 0) {
 				log.info("Successfully pre-warmed 1D market data for {} indices", refreshedCount);
 			}
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			log.error("Failed to pre-warm 1D market data", e);
 		}
 	}

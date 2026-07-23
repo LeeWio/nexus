@@ -14,8 +14,7 @@ import jakarta.validation.constraints.Min;
 @Configuration
 @ConfigurationProperties(prefix = "app.thread-pool")
 @Validated
-public class ThreadPoolProperties
-{
+public class ThreadPoolProperties {
 
 	/**
 	 * Configuration for the general async executor.
@@ -34,8 +33,7 @@ public class ThreadPoolProperties
 	private OutboundConfig outbound = new OutboundConfig();
 
 	@Data
-	public static class AsyncConfig
-	{
+	public static class AsyncConfig {
 		@Min(1)
 		private int corePoolSize = 5;
 		@Min(1)
@@ -48,8 +46,7 @@ public class ThreadPoolProperties
 	}
 
 	@Data
-	public static class SchedulerConfig
-	{
+	public static class SchedulerConfig {
 		@Min(1)
 		private int poolSize = 5;
 		private String threadNamePrefix = "NexusTask-";
@@ -58,8 +55,7 @@ public class ThreadPoolProperties
 	}
 
 	@Data
-	public static class OutboundConfig
-	{
+	public static class OutboundConfig {
 		@Min(1)
 		private int maxConcurrency = 20;
 		private String threadNamePrefix = "NexusOutbound-";

@@ -28,24 +28,21 @@ import cn.hutool.core.lang.Assert;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ProjectServiceImpl implements IProjectService
-{
+public class ProjectServiceImpl implements IProjectService {
 
 	private final ProjectRepository projectRepository;
 	private final ProjectMapper projectMapper;
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<ProjectResponse>> getAdminProjects(Pageable pageable)
-	{
+	public ApiResponse<PageResult<ProjectResponse>> getAdminProjects(Pageable pageable) {
 		Page<ProjectResponse> page = projectRepository.findAll(pageable).map(projectMapper::toResponse);
 		return ApiResponse.success(PageResult.of(page));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<ProjectResponse> getProjectById(Long id)
-	{
+	public ApiResponse<ProjectResponse> getProjectById(Long id) {
 		Project project = projectRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
 		return ApiResponse.success(projectMapper.toResponse(project));
@@ -55,8 +52,7 @@ public class ProjectServiceImpl implements IProjectService
 	@Transactional
 	@CacheEvict(value = CacheConstants.PROJECTS, allEntries = true)
 	@LogOperation("Create Project")
-	public ApiResponse<ProjectResponse> createProject(ProjectRequest request)
-	{
+	public ApiResponse<ProjectResponse> createProject(ProjectRequest request) {
 		Project project = projectMapper.toEntity(request);
 		if (project.getSortOrder() == null)
 			project.setSortOrder(0);
@@ -70,8 +66,7 @@ public class ProjectServiceImpl implements IProjectService
 	@Transactional
 	@CacheEvict(value = CacheConstants.PROJECTS, allEntries = true)
 	@LogOperation("Update Project")
-	public ApiResponse<ProjectResponse> updateProject(Long id, ProjectRequest request)
-	{
+	public ApiResponse<ProjectResponse> updateProject(Long id, ProjectRequest request) {
 		Project project = projectRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
 
@@ -86,8 +81,7 @@ public class ProjectServiceImpl implements IProjectService
 	@Transactional
 	@CacheEvict(value = CacheConstants.PROJECTS, allEntries = true)
 	@LogOperation("Delete Project")
-	public ApiResponse<Void> deleteProject(Long id)
-	{
+	public ApiResponse<Void> deleteProject(Long id) {
 		Assert.isTrue(projectRepository.existsById(id), () -> new ResourceNotFoundException("Project", "id", id));
 		projectRepository.deleteById(id);
 		log.info("Project deleted id: {}", id);
@@ -97,8 +91,7 @@ public class ProjectServiceImpl implements IProjectService
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.PROJECTS, key = CacheConstants.PUBLIC_LIST_KEY)
-	public ApiResponse<List<ProjectResponse>> getPublicProjects()
-	{
+	public ApiResponse<List<ProjectResponse>> getPublicProjects() {
 		List<Project> projects = projectRepository.findByIsPublishedTrueOrderBySortOrderAscCreatedAtDesc();
 		return ApiResponse.success(projectMapper.toResponseList(projects));
 	}

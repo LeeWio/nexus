@@ -14,19 +14,18 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class InteractionSyncTask
-{
+public class InteractionSyncTask {
 
 	private final JdbcTemplate jdbcTemplate;
 
 	/**
-	 * Reconciles denormalized counters from the durable interaction relation tables.
+	 * Reconciles denormalized counters from the durable interaction relation
+	 * tables.
 	 */
 	@Scheduled(fixedRate = 120000) // Runs every 2 minutes
 	@SchedulerLock(name = "interactionSync", lockAtMostFor = "PT110S")
 	@Transactional
-	public void synchronizeSocialInteractions()
-	{
+	public void synchronizeSocialInteractions() {
 		int updated = jdbcTemplate.update("UPDATE blog_post p "
 				+ "LEFT JOIN (SELECT post_id, COUNT(*) AS total FROM blog_post_like GROUP BY post_id) l ON l.post_id = p.id "
 				+ "LEFT JOIN (SELECT post_id, COUNT(*) AS total FROM blog_post_favorite GROUP BY post_id) f ON f.post_id = p.id "

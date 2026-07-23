@@ -32,8 +32,7 @@ import space.nebula.nexus.service.ICommentService;
 @RequestMapping("/api/v1/admin/comments")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminCommentController
-{
+public class AdminCommentController {
 
 	private final ICommentService commentService;
 
@@ -44,23 +43,20 @@ public class AdminCommentController
 			@Parameter(description = "Filter by post ID") @RequestParam(required = false) Long postId,
 			@Parameter(description = "Filter by username") @RequestParam(required = false) String username,
 			@Parameter(description = "Filter by keyword in content") @RequestParam(required = false) String keyword,
-			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return commentService.searchCommentsForManagement(status, postId, username, keyword, pageable);
 	}
 
 	@GetMapping("/pending")
 	@Operation(summary = "Get pending comments", description = "Retrieve a list of comments that are currently awaiting moderator approval.")
 	public ApiResponse<PageResult<CommentResponse>> getPendingComments(
-			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return commentService.retrievePendingComments(pageable);
 	}
 
 	@GetMapping("/overview")
 	@Operation(summary = "Get comment governance overview", description = "Retrieve moderation dashboard counters and recent risk signals.")
-	public ApiResponse<CommentGovernanceOverviewResponse> getCommentGovernanceOverview()
-	{
+	public ApiResponse<CommentGovernanceOverviewResponse> getCommentGovernanceOverview() {
 		return commentService.retrieveCommentGovernanceOverview();
 	}
 
@@ -70,8 +66,7 @@ public class AdminCommentController
 			@Parameter(description = "Filter by report status") @RequestParam(required = false) CommentReportStatus status,
 			@Parameter(description = "Filter by comment ID") @RequestParam(required = false) Long commentId,
 			@Parameter(description = "Filter by reporter username") @RequestParam(required = false) String reporterUsername,
-			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return commentService.retrieveCommentReports(status, commentId, reporterUsername, pageable);
 	}
 
@@ -79,8 +74,7 @@ public class AdminCommentController
 	@Operation(summary = "Get high-risk comments", description = "Retrieve comments prioritized by open report count and risk score.")
 	public ApiResponse<PageResult<CommentRiskResponse>> getHighRiskComments(
 			@Parameter(description = "Minimum open reports required to enter the queue") @RequestParam(required = false) Long minOpenReports,
-			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
 		return commentService.retrieveHighRiskComments(minOpenReports, pageable);
 	}
 
@@ -89,53 +83,46 @@ public class AdminCommentController
 	public ApiResponse<PageResult<CommentModerationLogResponse>> getCommentModerationLogs(
 			@Parameter(description = "Filter by comment ID") @RequestParam(required = false) Long commentId,
 			@Parameter(description = "Filter by moderation action") @RequestParam(required = false) CommentModerationAction action,
-			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return commentService.retrieveCommentModerationLogs(commentId, action, pageable);
 	}
 
 	@PostMapping("/repair-counters")
 	@Operation(summary = "Repair comment counters", description = "Rebuild denormalized like and report counters from source interaction tables.")
-	public ApiResponse<Integer> repairCommentCounters()
-	{
+	public ApiResponse<Integer> repairCommentCounters() {
 		return commentService.repairCommentCounters();
 	}
 
 	@PatchMapping("/{id}/status")
 	@Operation(summary = "Moderate comment status", description = "Approve, reject, or mark a comment as spam.")
 	public ApiResponse<Void> moderateComment(@Parameter(description = "Comment ID") @PathVariable Long id,
-			@Parameter(description = "Target status for the comment") @RequestParam CommentStatus status)
-	{
+			@Parameter(description = "Target status for the comment") @RequestParam CommentStatus status) {
 		return commentService.moderateComment(id, status);
 	}
 
 	@PostMapping("/batch/status")
 	@Operation(summary = "Batch moderate comments", description = "Apply one moderation decision to multiple comments.")
-	public ApiResponse<Integer> batchModerateComments(@Valid @RequestBody BatchModerateCommentRequest request)
-	{
+	public ApiResponse<Integer> batchModerateComments(@Valid @RequestBody BatchModerateCommentRequest request) {
 		return commentService.batchModerateComments(request.ids(), request.status());
 	}
 
 	@PatchMapping("/{id}/pin")
 	@Operation(summary = "Pin comment", description = "Pin or unpin a comment in public comment ordering.")
 	public ApiResponse<Void> pinComment(@Parameter(description = "Comment ID") @PathVariable Long id,
-			@Parameter(description = "Pinned state") @RequestParam boolean pinned)
-	{
+			@Parameter(description = "Pinned state") @RequestParam boolean pinned) {
 		return commentService.pinComment(id, pinned);
 	}
 
 	@PatchMapping("/{id}/feature")
 	@Operation(summary = "Feature comment", description = "Mark or unmark a comment as featured in public comment ordering.")
 	public ApiResponse<Void> featureComment(@Parameter(description = "Comment ID") @PathVariable Long id,
-			@Parameter(description = "Featured state") @RequestParam boolean featured)
-	{
+			@Parameter(description = "Featured state") @RequestParam boolean featured) {
 		return commentService.featureComment(id, featured);
 	}
 
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete comment", description = "Archive a comment that has no active replies.")
-	public ApiResponse<Void> deleteComment(@Parameter(description = "Comment ID") @PathVariable Long id)
-	{
+	public ApiResponse<Void> deleteComment(@Parameter(description = "Comment ID") @PathVariable Long id) {
 		return commentService.deleteComment(id);
 	}
 }

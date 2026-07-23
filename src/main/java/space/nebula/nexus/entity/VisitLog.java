@@ -18,8 +18,7 @@ import java.time.LocalDateTime;
 @Table(name = "sys_visit_log")
 @SQLDelete(sql = "UPDATE sys_visit_log SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class VisitLog extends BaseEntity
-{
+public class VisitLog extends BaseEntity {
 
 	@Column(name = "ip_address", nullable = false, length = 50)
 	private String ipAddress;

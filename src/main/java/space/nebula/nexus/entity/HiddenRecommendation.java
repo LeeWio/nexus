@@ -15,11 +15,9 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "blog_recommendation_hidden",
-		uniqueConstraints = @UniqueConstraint(name = "uk_recommendation_hidden_user_post",
-				columnNames = { "user_id", "post_id" }))
-public class HiddenRecommendation extends BaseEntity
-{
+@Table(name = "blog_recommendation_hidden", uniqueConstraints = @UniqueConstraint(name = "uk_recommendation_hidden_user_post", columnNames = {
+		"user_id", "post_id"}))
+public class HiddenRecommendation extends BaseEntity {
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;

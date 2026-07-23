@@ -25,30 +25,28 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements INotificationService {
 
-    private final NotificationRepository notificationRepository;
-    private final UserRepository userRepository;
+	private final NotificationRepository notificationRepository;
+	private final UserRepository userRepository;
 	private final PostRepository postRepository;
-
-    @Override
-    @Transactional
-    public void send(User recipient, String title, String content, String type, String link) {
-        Notification notification = new Notification();
-        notification.setRecipient(recipient);
-        notification.setTitle(title);
-        notification.setContent(content);
-        notification.setType(type);
-        notification.setLink(link);
-        notificationRepository.save(notification);
-        log.debug("Notification sent to user {}: {}", recipient.getUsername(), title);
-    }
 
 	@Override
 	@Transactional
-	public int sendCategoryPublication(Long postId)
-	{
+	public void send(User recipient, String title, String content, String type, String link) {
+		Notification notification = new Notification();
+		notification.setRecipient(recipient);
+		notification.setTitle(title);
+		notification.setContent(content);
+		notification.setType(type);
+		notification.setLink(link);
+		notificationRepository.save(notification);
+		log.debug("Notification sent to user {}: {}", recipient.getUsername(), title);
+	}
+
+	@Override
+	@Transactional
+	public int sendCategoryPublication(Long postId) {
 		var post = postRepository.findPublicationNotificationPost(postId).orElse(null);
-		if (post == null || post.getStatus() != PostStatus.PUBLISHED || post.getCategory() == null)
-		{
+		if (post == null || post.getStatus() != PostStatus.PUBLISHED || post.getCategory() == null) {
 			return 0;
 		}
 		String categoryName = post.getCategory().getName();
@@ -60,66 +58,66 @@ public class NotificationServiceImpl implements INotificationService {
 		return inserted;
 	}
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<PageResult<NotificationResponse>> getMyNotifications(boolean unreadOnly, Pageable pageable) {
-        User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
-        var notifications = unreadOnly
-                ? notificationRepository.findByRecipientIdAndIsReadFalse(currentUser.getId(), pageable)
-                : notificationRepository.findByRecipientId(currentUser.getId(), pageable);
-        return ApiResponse.success(PageResult.of(notifications.map(this::toResponse)));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<NotificationResponse>> getMyNotifications(boolean unreadOnly, Pageable pageable) {
+		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		var notifications = unreadOnly
+				? notificationRepository.findByRecipientIdAndIsReadFalse(currentUser.getId(), pageable)
+				: notificationRepository.findByRecipientId(currentUser.getId(), pageable);
+		return ApiResponse.success(PageResult.of(notifications.map(this::toResponse)));
+	}
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> markAsRead(Long id) {
+	@Override
+	@Transactional
+	public ApiResponse<Void> markAsRead(Long id) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Notification notification = notificationRepository.findByIdAndRecipientId(id, currentUser.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Notification", "id", id));
+				.orElseThrow(() -> new ResourceNotFoundException("Notification", "id", id));
 
 		if (!Boolean.TRUE.equals(notification.getIsRead())) {
 			notification.setIsRead(true);
 			notification.setReadAt(LocalDateTime.now());
 			notificationRepository.save(notification);
 		}
-        return ApiResponse.success("Notification marked as read", null);
-    }
+		return ApiResponse.success("Notification marked as read", null);
+	}
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> markAllAsRead() {
-        User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
-        int updatedCount = notificationRepository.markAllAsRead(currentUser.getId());
-        log.debug("Marked {} notifications as read for user {}", updatedCount, currentUser.getUsername());
-        return ApiResponse.success("All notifications marked as read", null);
-    }
+	@Override
+	@Transactional
+	public ApiResponse<Void> markAllAsRead() {
+		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		int updatedCount = notificationRepository.markAllAsRead(currentUser.getId());
+		log.debug("Marked {} notifications as read for user {}", updatedCount, currentUser.getUsername());
+		return ApiResponse.success("All notifications marked as read", null);
+	}
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<Long> getUnreadCount() {
-        User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
-        long count = notificationRepository.countByRecipientIdAndIsReadFalse(currentUser.getId());
-        return ApiResponse.success(count);
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<Long> getUnreadCount() {
+		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		long count = notificationRepository.countByRecipientIdAndIsReadFalse(currentUser.getId());
+		return ApiResponse.success(count);
+	}
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> deleteNotification(Long id) {
-        User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
-        if (notificationRepository.deleteOwnedById(id, currentUser.getId()) == 0) {
-            throw new ResourceNotFoundException("Notification", "id", id);
-        }
-        return ApiResponse.success("Notification deleted successfully", null);
-    }
+	@Override
+	@Transactional
+	public ApiResponse<Void> deleteNotification(Long id) {
+		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		if (notificationRepository.deleteOwnedById(id, currentUser.getId()) == 0) {
+			throw new ResourceNotFoundException("Notification", "id", id);
+		}
+		return ApiResponse.success("Notification deleted successfully", null);
+	}
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> clearReadNotifications() {
-        User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
-        int deletedCount = notificationRepository.deleteReadByRecipientId(currentUser.getId());
-        log.debug("Deleted {} read notifications for user {}", deletedCount, currentUser.getUsername());
-        return ApiResponse.success("Read notifications cleared successfully", null);
-    }
+	@Override
+	@Transactional
+	public ApiResponse<Void> clearReadNotifications() {
+		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		int deletedCount = notificationRepository.deleteReadByRecipientId(currentUser.getId());
+		log.debug("Deleted {} read notifications for user {}", deletedCount, currentUser.getUsername());
+		return ApiResponse.success("Read notifications cleared successfully", null);
+	}
 
 	private NotificationResponse toResponse(Notification notification) {
 		return new NotificationResponse(notification.getId(), notification.getTitle(), notification.getContent(),

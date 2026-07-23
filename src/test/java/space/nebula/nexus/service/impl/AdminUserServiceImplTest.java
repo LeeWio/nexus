@@ -26,10 +26,14 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AdminUserServiceImplTest {
 
-	@Mock private UserRepository userRepository;
-	@Mock private RoleRepository roleRepository;
-	@Mock private UserMapper userMapper;
-	@InjectMocks private AdminUserServiceImpl service;
+	@Mock
+	private UserRepository userRepository;
+	@Mock
+	private RoleRepository roleRepository;
+	@Mock
+	private UserMapper userMapper;
+	@InjectMocks
+	private AdminUserServiceImpl service;
 
 	@Test
 	void disableUserRejectsRemovingLastActiveAdministrator() {
@@ -65,8 +69,7 @@ class AdminUserServiceImplTest {
 		when(userRepository.findByRoleCodeAndStatusForUpdate("ROLE_ADMIN", UserStatus.ACTIVE))
 				.thenReturn(List.of(admin));
 
-		assertThrows(BusinessException.class,
-				() -> service.assignRoles(1L, new AssignRoleRequest(List.of(2L))));
+		assertThrows(BusinessException.class, () -> service.assignRoles(1L, new AssignRoleRequest(List.of(2L))));
 
 		verify(userRepository, never()).save(admin);
 	}

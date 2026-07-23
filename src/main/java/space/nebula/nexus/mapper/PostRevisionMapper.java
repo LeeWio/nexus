@@ -9,8 +9,7 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 import java.util.List;
 
 @Mapper(config = CentralMapperConfig.class)
-public interface PostRevisionMapper
-{
+public interface PostRevisionMapper {
 
 	@Mapping(target = "createdBy", source = "createdBy.username")
 	@Mapping(target = "postId", source = "post.id")

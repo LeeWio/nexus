@@ -6,8 +6,7 @@ import space.nebula.nexus.payload.response.TagResponse;
 
 import java.util.List;
 
-public interface ITagService
-{
+public interface ITagService {
 	ApiResponse<List<TagResponse>> getAllTags();
 
 	ApiResponse<TagResponse> createTag(TagRequest request);

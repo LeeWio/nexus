@@ -12,8 +12,7 @@ import org.springframework.validation.annotation.Validated;
 @Configuration
 @Validated
 @ConfigurationProperties(prefix = "app.comment.moderation")
-public class CommentModerationProperties
-{
+public class CommentModerationProperties {
 	@Min(1)
 	private long autoReviewReportThreshold = 3L;
 

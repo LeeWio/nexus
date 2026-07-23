@@ -23,8 +23,7 @@ import space.nebula.nexus.entity.Post;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class InteractionServiceImpl implements IInteractionService
-{
+public class InteractionServiceImpl implements IInteractionService {
 
 	private final RedisUtil redisUtil;
 	private final PostRepository postRepository;
@@ -35,13 +34,14 @@ public class InteractionServiceImpl implements IInteractionService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> likePost(Long postId)
-	{
+	public ApiResponse<Void> likePost(Long postId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Post post = validatePublishedPost(postId);
-		int inserted = jdbcTemplate.update("INSERT IGNORE INTO blog_post_like(post_id, user_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+		int inserted = jdbcTemplate.update(
+				"INSERT IGNORE INTO blog_post_like(post_id, user_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
 				postId, user.getId());
-		if (inserted > 0) postRepository.incrementLikes(postId, 1L);
+		if (inserted > 0)
+			postRepository.incrementLikes(postId, 1L);
 		String key = CacheConstants.POST_LIKES_SET + postId;
 		redisUtil.setAdd(key, user.getId().toString());
 		evictCaches(post);
@@ -50,12 +50,13 @@ public class InteractionServiceImpl implements IInteractionService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> unlikePost(Long postId)
-	{
+	public ApiResponse<Void> unlikePost(Long postId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Post post = validatePostExists(postId);
-		int deleted = jdbcTemplate.update("DELETE FROM blog_post_like WHERE post_id = ? AND user_id = ?", postId, user.getId());
-		if (deleted > 0) postRepository.incrementLikes(postId, -1L);
+		int deleted = jdbcTemplate.update("DELETE FROM blog_post_like WHERE post_id = ? AND user_id = ?", postId,
+				user.getId());
+		if (deleted > 0)
+			postRepository.incrementLikes(postId, -1L);
 		String key = CacheConstants.POST_LIKES_SET + postId;
 		redisUtil.setRemove(key, user.getId().toString());
 		evictCaches(post);
@@ -64,15 +65,13 @@ public class InteractionServiceImpl implements IInteractionService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> likeComment(Long commentId)
-	{
+	public ApiResponse<Void> likeComment(Long commentId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		validateApprovedComment(commentId);
 		int inserted = jdbcTemplate.update(
 				"INSERT IGNORE INTO blog_comment_like(comment_id, user_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
 				commentId, user.getId());
-		if (inserted > 0)
-		{
+		if (inserted > 0) {
 			commentRepository.incrementLikes(commentId, 1L);
 		}
 		return ApiResponse.success("Comment liked", null);
@@ -80,14 +79,12 @@ public class InteractionServiceImpl implements IInteractionService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> unlikeComment(Long commentId)
-	{
+	public ApiResponse<Void> unlikeComment(Long commentId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		validateCommentExists(commentId);
 		int deleted = jdbcTemplate.update("DELETE FROM blog_comment_like WHERE comment_id = ? AND user_id = ?",
 				commentId, user.getId());
-		if (deleted > 0)
-		{
+		if (deleted > 0) {
 			commentRepository.incrementLikes(commentId, -1L);
 		}
 		return ApiResponse.success("Comment unliked", null);
@@ -95,13 +92,14 @@ public class InteractionServiceImpl implements IInteractionService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> favoritePost(Long postId)
-	{
+	public ApiResponse<Void> favoritePost(Long postId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Post post = validatePublishedPost(postId);
-		int inserted = jdbcTemplate.update("INSERT IGNORE INTO blog_post_favorite(post_id, user_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+		int inserted = jdbcTemplate.update(
+				"INSERT IGNORE INTO blog_post_favorite(post_id, user_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
 				postId, user.getId());
-		if (inserted > 0) postRepository.incrementFavorites(postId, 1L);
+		if (inserted > 0)
+			postRepository.incrementFavorites(postId, 1L);
 		String key = CacheConstants.POST_FAVORITES_SET + postId;
 		redisUtil.setAdd(key, user.getId().toString());
 		evictCaches(post);
@@ -110,12 +108,13 @@ public class InteractionServiceImpl implements IInteractionService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> unfavoritePost(Long postId)
-	{
+	public ApiResponse<Void> unfavoritePost(Long postId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Post post = validatePostExists(postId);
-		int deleted = jdbcTemplate.update("DELETE FROM blog_post_favorite WHERE post_id = ? AND user_id = ?", postId, user.getId());
-		if (deleted > 0) postRepository.incrementFavorites(postId, -1L);
+		int deleted = jdbcTemplate.update("DELETE FROM blog_post_favorite WHERE post_id = ? AND user_id = ?", postId,
+				user.getId());
+		if (deleted > 0)
+			postRepository.incrementFavorites(postId, -1L);
 		String key = CacheConstants.POST_FAVORITES_SET + postId;
 		redisUtil.setRemove(key, user.getId().toString());
 		evictCaches(post);
@@ -124,19 +123,16 @@ public class InteractionServiceImpl implements IInteractionService
 
 	@Override
 	public void populateInteractionData(space.nebula.nexus.payload.response.PostResponse.PostResponseBuilder builder,
-			Long postId)
-	{
+			Long postId) {
 		String username = SecurityUtil.getCurrentUsername();
-		if (username != null)
-		{
-			userRepository.findByUsername(username).ifPresent(user ->
-			{
+		if (username != null) {
+			userRepository.findByUsername(username).ifPresent(user -> {
 				String likeKey = CacheConstants.POST_LIKES_SET + postId;
 				String favKey = CacheConstants.POST_FAVORITES_SET + postId;
 
 				Boolean isLiked = jdbcTemplate.queryForObject(
-						"SELECT EXISTS(SELECT 1 FROM blog_post_like WHERE post_id = ? AND user_id = ?)",
-						Boolean.class, postId, user.getId());
+						"SELECT EXISTS(SELECT 1 FROM blog_post_like WHERE post_id = ? AND user_id = ?)", Boolean.class,
+						postId, user.getId());
 				Boolean isFavorited = jdbcTemplate.queryForObject(
 						"SELECT EXISTS(SELECT 1 FROM blog_post_favorite WHERE post_id = ? AND user_id = ?)",
 						Boolean.class, postId, user.getId());
@@ -144,51 +140,44 @@ public class InteractionServiceImpl implements IInteractionService
 				builder.isLiked(isLiked != null ? isLiked : false);
 				builder.isFavorited(isFavorited != null ? isFavorited : false);
 			});
-		}
-		else
-		{
+		} else {
 			builder.isLiked(false);
 			builder.isFavorited(false);
 		}
 	}
 
-	private void evictCaches(Post post)
-	{
+	private void evictCaches(Post post) {
 		// 1. Evict manual post slug cache
 		String slugKey = CacheConstants.POST_SLUG_PREFIX + post.getSlug();
 		redisUtil.delete(slugKey);
 
 		// 2. Evict Spring-managed list/discovery caches for blog posts
 		org.springframework.cache.Cache cache = cacheManager.getCache(CacheConstants.BLOG_POSTS);
-		if (cache != null)
-		{
+		if (cache != null) {
 			cache.clear();
 		}
 	}
 
-	private Post validatePostExists(Long postId)
-	{
-		return postRepository.findById(postId)
-				.orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
+	private Post validatePostExists(Long postId) {
+		return postRepository.findById(postId).orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
 	}
 
-	private Post validatePublishedPost(Long postId)
-	{
+	private Post validatePublishedPost(Long postId) {
 		var post = postRepository.findById(postId)
 				.orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
-		Assert.isTrue(post.isPublished(), () -> new space.nebula.nexus.common.exception.BusinessException(
-				space.nebula.nexus.common.constant.BusinessCode.BAD_REQUEST, "Only published posts can be interacted with"));
+		Assert.isTrue(post.isPublished(),
+				() -> new space.nebula.nexus.common.exception.BusinessException(
+						space.nebula.nexus.common.constant.BusinessCode.BAD_REQUEST,
+						"Only published posts can be interacted with"));
 		return post;
 	}
 
-	private space.nebula.nexus.entity.Comment validateCommentExists(Long commentId)
-	{
+	private space.nebula.nexus.entity.Comment validateCommentExists(Long commentId) {
 		return commentRepository.findById(commentId)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", commentId));
 	}
 
-	private space.nebula.nexus.entity.Comment validateApprovedComment(Long commentId)
-	{
+	private space.nebula.nexus.entity.Comment validateApprovedComment(Long commentId) {
 		var comment = validateCommentExists(commentId);
 		Assert.isTrue(comment.getStatus() == space.nebula.nexus.enums.CommentStatus.APPROVED,
 				() -> new space.nebula.nexus.common.exception.BusinessException(

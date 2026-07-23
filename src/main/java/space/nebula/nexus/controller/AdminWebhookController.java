@@ -23,43 +23,38 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/webhooks")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminWebhookController
-{
+public class AdminWebhookController {
 
 	private final IWebhookService webhookService;
 
 	@GetMapping
 	@Operation(summary = "List all webhooks")
-	public ApiResponse<List<WebhookResponse>> listWebhooks()
-	{
+	public ApiResponse<List<WebhookResponse>> listWebhooks() {
 		return webhookService.retrieveAllWebhooks();
 	}
 
 	@PostMapping
 	@Operation(summary = "Create a webhook")
-	public ApiResponse<WebhookResponse> createWebhook(@Valid @RequestBody WebhookRequest request)
-	{
+	public ApiResponse<WebhookResponse> createWebhook(@Valid @RequestBody WebhookRequest request) {
 		return webhookService.createWebhook(request);
 	}
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update a webhook")
-	public ApiResponse<WebhookResponse> updateWebhook(@PathVariable Long id, @Valid @RequestBody WebhookRequest request)
-	{
+	public ApiResponse<WebhookResponse> updateWebhook(@PathVariable Long id,
+			@Valid @RequestBody WebhookRequest request) {
 		return webhookService.updateWebhook(id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete a webhook")
-	public ApiResponse<Void> deleteWebhook(@PathVariable Long id)
-	{
+	public ApiResponse<Void> deleteWebhook(@PathVariable Long id) {
 		return webhookService.deleteWebhook(id);
 	}
 
 	@PostMapping("/{id}/test")
 	@Operation(summary = "Trigger a test ping to the webhook")
-	public ApiResponse<Void> testWebhook(@PathVariable Long id)
-	{
+	public ApiResponse<Void> testWebhook(@PathVariable Long id) {
 		return webhookService.triggerTestWebhook(id);
 	}
 
@@ -67,8 +62,7 @@ public class AdminWebhookController
 	@Operation(summary = "Get webhook logs", description = "Retrieve a paginated list of delivery logs for a specific webhook.")
 	public ApiResponse<PageResult<space.nebula.nexus.entity.WebhookLog>> getWebhookLogs(
 			@Parameter(description = "Webhook ID") @PathVariable Long id,
-			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return webhookService.retrieveWebhookLogs(id, pageable);
 	}
 }

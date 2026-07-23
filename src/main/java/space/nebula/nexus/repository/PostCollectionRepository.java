@@ -13,15 +13,17 @@ import java.util.Optional;
  * Manages user-owned post collections.
  */
 @Repository
-public interface PostCollectionRepository extends JpaRepository<PostCollection, Long>
-{
+public interface PostCollectionRepository extends JpaRepository<PostCollection, Long> {
 	/** Returns a collection only when it belongs to the specified user. */
 	Optional<PostCollection> findByIdAndUserIdAndIsDeletedFalse(Long id, Long userId);
 
 	/** Checks collection-name uniqueness within one user's library. */
 	boolean existsByUserIdAndNameIgnoreCaseAndIsDeletedFalse(Long userId, String name);
 
-	/** Checks collection-name uniqueness while excluding the collection being edited. */
+	/**
+	 * Checks collection-name uniqueness while excluding the collection being
+	 * edited.
+	 */
 	boolean existsByUserIdAndNameIgnoreCaseAndIdNotAndIsDeletedFalse(Long userId, String name, Long id);
 
 	/** Counts active collections owned by a user. */

@@ -13,25 +13,25 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class CacheMessageListener implements MessageListener {
 
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final CaffeineCacheManager caffeineCacheManager;
-    private final String instanceId;
+	private final RedisTemplate<String, Object> redisTemplate;
+	private final CaffeineCacheManager caffeineCacheManager;
+	private final String instanceId;
 
-    @Override
-    public void onMessage(Message message, byte[] pattern) {
-        CacheMessage cacheMessage = (CacheMessage) redisTemplate.getValueSerializer().deserialize(message.getBody());
-        if (cacheMessage == null || Objects.equals(cacheMessage.getSourceInstanceId(), instanceId)) {
-            return;
-        }
+	@Override
+	public void onMessage(Message message, byte[] pattern) {
+		CacheMessage cacheMessage = (CacheMessage) redisTemplate.getValueSerializer().deserialize(message.getBody());
+		if (cacheMessage == null || Objects.equals(cacheMessage.getSourceInstanceId(), instanceId)) {
+			return;
+		}
 
-        log.debug("Received cache invalidation message for {}:{}", cacheMessage.getCacheName(), cacheMessage.getKey());
-        var cache = caffeineCacheManager.getCache(cacheMessage.getCacheName());
-        if (cache != null) {
-            if (cacheMessage.getKey() == null) {
-                cache.clear();
-            } else {
-                cache.evict(cacheMessage.getKey());
-            }
-        }
-    }
+		log.debug("Received cache invalidation message for {}:{}", cacheMessage.getCacheName(), cacheMessage.getKey());
+		var cache = caffeineCacheManager.getCache(cacheMessage.getCacheName());
+		if (cache != null) {
+			if (cacheMessage.getKey() == null) {
+				cache.clear();
+			} else {
+				cache.evict(cacheMessage.getKey());
+			}
+		}
+	}
 }

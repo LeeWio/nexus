@@ -10,6 +10,6 @@ import java.util.Optional;
 
 @Repository
 public interface DailyAnalyticsRepository extends JpaRepository<DailyAnalytics, Long> {
-    Optional<DailyAnalytics> findByStatDate(LocalDate statDate);
-    List<DailyAnalytics> findByStatDateGreaterThanEqualOrderByStatDateAsc(LocalDate start);
+	Optional<DailyAnalytics> findByStatDate(LocalDate statDate);
+	List<DailyAnalytics> findByStatDateGreaterThanEqualOrderByStatDateAsc(LocalDate start);
 }

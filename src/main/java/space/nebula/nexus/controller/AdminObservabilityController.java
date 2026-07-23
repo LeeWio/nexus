@@ -16,15 +16,13 @@ import cn.hutool.core.lang.Dict;
 @RequestMapping("/api/v1/admin/observability")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminObservabilityController
-{
+public class AdminObservabilityController {
 
 	private final IMetricsService metricsService;
 
 	@GetMapping("/snapshot")
 	@Operation(summary = "Get system performance snapshot", description = "Returns a real-time snapshot of JVM, HTTP, Cache, and MQ performance metrics.")
-	public ApiResponse<Dict> getSystemSnapshot()
-	{
+	public ApiResponse<Dict> getSystemSnapshot() {
 		return ApiResponse.success(metricsService.getSystemPerformanceSnapshot());
 	}
 }

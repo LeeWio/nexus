@@ -8,7 +8,6 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
-import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.event.CommentModeratedEvent;
 import space.nebula.nexus.common.event.CommentSubmittedEvent;
 import space.nebula.nexus.common.exception.BusinessException;
@@ -40,8 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class CommentServiceImplTest
-{
+class CommentServiceImplTest {
 
 	@Mock
 	private CommentRepository commentRepository;
@@ -73,8 +71,7 @@ class CommentServiceImplTest
 	private Post testPost;
 
 	@BeforeEach
-	void setUp()
-	{
+	void setUp() {
 		testUser = new User();
 		testUser.setId(1L);
 		testUser.setUsername("testuser");
@@ -87,24 +84,15 @@ class CommentServiceImplTest
 		moderationProperties = new CommentModerationProperties();
 		lenient().when(idempotencyService.hashSubmission(any(), any(), any())).thenReturn("request-hash");
 		lenient().when(idempotencyService.begin(anyLong(), any(), any())).thenReturn(Optional.empty());
-		lenient().when(commentRepository.saveAndFlush(any(Comment.class))).thenAnswer(invocation ->
-		{
+		lenient().when(commentRepository.saveAndFlush(any(Comment.class))).thenAnswer(invocation -> {
 			Comment comment = invocation.getArgument(0);
 			comment.setId(100L);
 			return comment;
 		});
-		lenient().when(commentResponseAssembler.toResponseList(anyCollection())).thenAnswer(invocation ->
-		{
+		lenient().when(commentResponseAssembler.toResponseList(anyCollection())).thenAnswer(invocation -> {
 			Collection<Comment> comments = invocation.getArgument(0);
-			return comments.stream()
-					.map(comment -> CommentResponse.builder()
-							.id(comment.getId())
-							.replyCount(0)
-							.likesCount(0L)
-							.reportsCount(0L)
-							.likedByCurrentUser(false)
-							.build())
-					.toList();
+			return comments.stream().map(comment -> CommentResponse.builder().id(comment.getId()).replyCount(0)
+					.likesCount(0L).reportsCount(0L).likedByCurrentUser(false).build()).toList();
 		});
 		commentService = new CommentServiceImpl(
 				new CommentCommandService(commentRepository, postRepository, userRepository, sensitiveWordService,
@@ -116,15 +104,13 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void publishComment_Success()
-	{
+	void publishComment_Success() {
 		CommentRequest request = new CommentRequest("Hello World", 1L, null);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(sensitiveWordService.filter("Hello World")).thenReturn("Hello World");
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
 
 			var response = commentService.publishComment(request, servletRequest);
@@ -142,15 +128,13 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void publishComment_WithViolation()
-	{
+	void publishComment_WithViolation() {
 		CommentRequest request = new CommentRequest("Bad Word", 1L, null);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(sensitiveWordService.filter("Bad Word")).thenReturn("***");
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
 
 			var response = commentService.publishComment(request, servletRequest);
@@ -164,8 +148,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void publishCommentWithSameIdempotencyKeyReturnsExistingSuccess()
-	{
+	void publishCommentWithSameIdempotencyKeyReturnsExistingSuccess() {
 		CommentRequest request = new CommentRequest("Hello World", 1L, null);
 		Comment existing = new Comment();
 		existing.setId(101L);
@@ -179,8 +162,7 @@ class CommentServiceImplTest
 		when(servletRequest.getHeader("Idempotency-Key")).thenReturn("comment-key-1");
 		when(commentRepository.findByUserIdAndClientRequestId(1L, "comment-key-1")).thenReturn(Optional.of(existing));
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
 
 			var response = commentService.publishComment(request, servletRequest);
@@ -192,8 +174,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void publishCommentRejectsReusedIdempotencyKeyForDifferentContent()
-	{
+	void publishCommentRejectsReusedIdempotencyKeyForDifferentContent() {
 		CommentRequest request = new CommentRequest("Updated content", 1L, null);
 		Comment existing = new Comment();
 		existing.setId(101L);
@@ -207,8 +188,7 @@ class CommentServiceImplTest
 		when(servletRequest.getHeader("Idempotency-Key")).thenReturn("comment-key-1");
 		when(commentRepository.findByUserIdAndClientRequestId(1L, "comment-key-1")).thenReturn(Optional.of(existing));
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
 
 			BusinessException exception = assertThrows(BusinessException.class,
@@ -220,16 +200,14 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void publishCommentRejectsTooLongIdempotencyKey()
-	{
+	void publishCommentRejectsTooLongIdempotencyKey() {
 		CommentRequest request = new CommentRequest("Hello World", 1L, null);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(sensitiveWordService.filter("Hello World")).thenReturn("Hello World");
 		when(servletRequest.getHeader("Idempotency-Key")).thenReturn("x".repeat(81));
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
 
 			BusinessException exception = assertThrows(BusinessException.class,
@@ -241,8 +219,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void retrieveCommentsByPostRejectsUnpublishedPost()
-	{
+	void retrieveCommentsByPostRejectsUnpublishedPost() {
 		testPost.setStatus(PostStatus.DRAFT);
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 
@@ -254,8 +231,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void retrieveRootCommentsByPostUsesPaginatedRootQuery()
-	{
+	void retrieveRootCommentsByPostUsesPaginatedRootQuery() {
 		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 20);
 		Comment comment = new Comment();
 		org.springframework.data.domain.Page<Comment> page = new org.springframework.data.domain.PageImpl<>(
@@ -274,8 +250,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void retrieveRootCommentsByPostRejectsUnpublishedPost()
-	{
+	void retrieveRootCommentsByPostRejectsUnpublishedPost() {
 		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 20);
 		testPost.setStatus(PostStatus.ARCHIVED);
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
@@ -288,8 +263,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void retrieveRepliesUsesPaginatedReplyQuery()
-	{
+	void retrieveRepliesUsesPaginatedReplyQuery() {
 		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
 		Comment parent = new Comment();
 		parent.setId(10L);
@@ -310,8 +284,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void retrieveRepliesRejectsHiddenParent()
-	{
+	void retrieveRepliesRejectsHiddenParent() {
 		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
 		Comment parent = new Comment();
 		parent.setId(10L);
@@ -326,8 +299,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void retrieveGuestbookRootCommentsUsesPaginatedRootQuery()
-	{
+	void retrieveGuestbookRootCommentsUsesPaginatedRootQuery() {
 		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 20);
 		Comment comment = new Comment();
 		org.springframework.data.domain.Page<Comment> page = new org.springframework.data.domain.PageImpl<>(
@@ -345,8 +317,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void retrieveMyCommentsUsesCurrentUserAndOptionalStatus()
-	{
+	void retrieveMyCommentsUsesCurrentUserAndOptionalStatus() {
 		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 20);
 		Comment comment = new Comment();
 		org.springframework.data.domain.Page<Comment> page = new org.springframework.data.domain.PageImpl<>(
@@ -354,8 +325,7 @@ class CommentServiceImplTest
 
 		when(commentRepository.findAllByUserIdAndStatus(1L, CommentStatus.PENDING, pageable)).thenReturn(page);
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
 
 			var response = commentService.retrieveMyComments(CommentStatus.PENDING, pageable);
@@ -367,8 +337,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void withdrawMyCommentDeletesOwnPendingComment()
-	{
+	void withdrawMyCommentDeletesOwnPendingComment() {
 		Comment comment = new Comment();
 		comment.setId(40L);
 		comment.setUser(testUser);
@@ -376,8 +345,7 @@ class CommentServiceImplTest
 		when(commentRepository.findById(40L)).thenReturn(Optional.of(comment));
 		when(commentRepository.existsByParentId(40L)).thenReturn(false);
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
 
 			var response = commentService.withdrawMyComment(40L);
@@ -388,8 +356,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void deleteMyCommentWithRepliesCreatesPlaceholder()
-	{
+	void deleteMyCommentWithRepliesCreatesPlaceholder() {
 		Comment comment = new Comment();
 		comment.setId(40L);
 		comment.setUser(testUser);
@@ -398,8 +365,7 @@ class CommentServiceImplTest
 		when(commentRepository.findById(40L)).thenReturn(Optional.of(comment));
 		when(commentRepository.existsByParentId(40L)).thenReturn(true);
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
 
 			var response = commentService.deleteMyComment(40L);
@@ -413,8 +379,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void withdrawMyCommentRejectsOtherUserComment()
-	{
+	void withdrawMyCommentRejectsOtherUserComment() {
 		User otherUser = new User();
 		otherUser.setId(2L);
 		Comment comment = new Comment();
@@ -423,8 +388,7 @@ class CommentServiceImplTest
 		comment.setStatus(CommentStatus.PENDING);
 		when(commentRepository.findById(40L)).thenReturn(Optional.of(comment));
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
 
 			BusinessException exception = assertThrows(BusinessException.class,
@@ -436,8 +400,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void updateMyCommentEditsContentAndReturnsToPendingModeration()
-	{
+	void updateMyCommentEditsContentAndReturnsToPendingModeration() {
 		Comment comment = new Comment();
 		comment.setId(41L);
 		comment.setUser(testUser);
@@ -446,8 +409,7 @@ class CommentServiceImplTest
 		when(commentRepository.findById(41L)).thenReturn(Optional.of(comment));
 		when(sensitiveWordService.filter("new content")).thenReturn("new content");
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
 
 			var response = commentService.updateMyComment(41L, new CommentUpdateRequest("new content"));
@@ -461,8 +423,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void deleteMyCommentDeletesOwnApprovedCommentWhenNoRepliesExist()
-	{
+	void deleteMyCommentDeletesOwnApprovedCommentWhenNoRepliesExist() {
 		Comment comment = new Comment();
 		comment.setId(42L);
 		comment.setUser(testUser);
@@ -470,8 +431,7 @@ class CommentServiceImplTest
 		when(commentRepository.findById(42L)).thenReturn(Optional.of(comment));
 		when(commentRepository.existsByParentId(42L)).thenReturn(false);
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
 
 			var response = commentService.deleteMyComment(42L);
@@ -482,8 +442,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void reportCommentRecordsUniqueReport()
-	{
+	void reportCommentRecordsUniqueReport() {
 		User reporter = new User();
 		reporter.setId(2L);
 		reporter.setUsername("reporter");
@@ -495,8 +454,7 @@ class CommentServiceImplTest
 		when(jdbcTemplate.update(any(String.class), eq(43L), eq(2L), eq("spam"), eq("details"), eq("OPEN")))
 				.thenReturn(1);
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(reporter);
 
 			var response = commentService.reportComment(43L, new CommentReportRequest("spam", "details"));
@@ -507,8 +465,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void duplicateReportOnlyIncrementsCounterOnce()
-	{
+	void duplicateReportOnlyIncrementsCounterOnce() {
 		User reporter = new User();
 		reporter.setId(2L);
 		reporter.setUsername("reporter");
@@ -520,8 +477,7 @@ class CommentServiceImplTest
 		when(jdbcTemplate.update(any(String.class), eq(43L), eq(2L), eq("spam"), eq("details"), eq("OPEN")))
 				.thenReturn(1, 0);
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(reporter);
 
 			commentService.reportComment(43L, new CommentReportRequest("spam", "details"));
@@ -534,8 +490,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void reportCommentAutoFlagsApprovedCommentWhenReportThresholdIsReached()
-	{
+	void reportCommentAutoFlagsApprovedCommentWhenReportThresholdIsReached() {
 		User reporter = new User();
 		reporter.setId(2L);
 		reporter.setUsername("reporter");
@@ -548,8 +503,7 @@ class CommentServiceImplTest
 				.thenReturn(1);
 		when(governanceService.countOpenReports(44L)).thenReturn(3L);
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(reporter);
 
 			var response = commentService.reportComment(44L, new CommentReportRequest("abuse", "details"));
@@ -564,8 +518,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void reportCommentUsesConfiguredAutoReviewThreshold()
-	{
+	void reportCommentUsesConfiguredAutoReviewThreshold() {
 		moderationProperties.setAutoReviewReportThreshold(5L);
 		User reporter = new User();
 		reporter.setId(2L);
@@ -579,8 +532,7 @@ class CommentServiceImplTest
 				.thenReturn(1);
 		when(governanceService.countOpenReports(45L)).thenReturn(4L);
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(reporter);
 
 			var response = commentService.reportComment(45L, new CommentReportRequest("abuse", "details"));
@@ -593,8 +545,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void publishComment_RejectsReplyToUnapprovedParent()
-	{
+	void publishComment_RejectsReplyToUnapprovedParent() {
 		Comment parent = new Comment();
 		parent.setId(10L);
 		parent.setPost(testPost);
@@ -613,8 +564,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void moderateComment_RejectsNonTerminalStatus()
-	{
+	void moderateComment_RejectsNonTerminalStatus() {
 		BusinessException exception = assertThrows(BusinessException.class,
 				() -> commentService.moderateComment(1L, CommentStatus.PENDING));
 
@@ -623,8 +573,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void moderateCommentRejectsReplyWhenParentIsNotApproved()
-	{
+	void moderateCommentRejectsReplyWhenParentIsNotApproved() {
 		Comment parent = new Comment();
 		parent.setStatus(CommentStatus.REJECTED);
 		Comment reply = new Comment();
@@ -640,8 +589,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void moderateCommentApprovalNotifiesAuthorAndParentAuthor()
-	{
+	void moderateCommentApprovalNotifiesAuthorAndParentAuthor() {
 		User parentAuthor = new User();
 		parentAuthor.setId(2L);
 		parentAuthor.setUsername("parent-author");
@@ -674,8 +622,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void moderateCommentRejectsParentWithApprovedReplies()
-	{
+	void moderateCommentRejectsParentWithApprovedReplies() {
 		Comment parent = new Comment();
 		parent.setId(10L);
 		parent.setStatus(CommentStatus.APPROVED);
@@ -690,8 +637,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void moderateCommentCanMarkCommentAsSpam()
-	{
+	void moderateCommentCanMarkCommentAsSpam() {
 		Comment comment = new Comment();
 		comment.setId(30L);
 		comment.setUser(testUser);
@@ -708,8 +654,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void batchModerateCommentsDeduplicatesIdsAndCountsChanges()
-	{
+	void batchModerateCommentsDeduplicatesIdsAndCountsChanges() {
 		Comment first = new Comment();
 		first.setId(51L);
 		first.setUser(testUser);
@@ -735,16 +680,14 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void retrieveRootCommentsByPostCursorReturnsNextCursorWhenMoreRowsExist()
-	{
+	void retrieveRootCommentsByPostCursorReturnsNextCursorWhenMoreRowsExist() {
 		Comment first = commentWithId(100L);
 		Comment second = commentWithId(90L);
 		Comment overflow = commentWithId(80L);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
-		when(commentRepository.findAllByPostIdAndParentIsNullAndStatusOrderByIdDesc(eq(1L),
-				eq(CommentStatus.APPROVED), any(org.springframework.data.domain.Pageable.class)))
-				.thenReturn(List.of(first, second, overflow));
+		when(commentRepository.findAllByPostIdAndParentIsNullAndStatusOrderByIdDesc(eq(1L), eq(CommentStatus.APPROVED),
+				any(org.springframework.data.domain.Pageable.class))).thenReturn(List.of(first, second, overflow));
 
 		var response = commentService.retrieveRootCommentsByPostCursor(1L, null, 2);
 
@@ -755,8 +698,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void retrieveRootCommentsByPostCursorUsesCursorWhenProvided()
-	{
+	void retrieveRootCommentsByPostCursorUsesCursorWhenProvided() {
 		Comment comment = commentWithId(70L);
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(commentRepository.findAllByPostIdAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(eq(1L),
@@ -773,8 +715,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void retrieveRepliesCursorUsesAscendingCursor()
-	{
+	void retrieveRepliesCursorUsesAscendingCursor() {
 		Comment parent = new Comment();
 		parent.setId(10L);
 		parent.setPost(testPost);
@@ -795,8 +736,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void retrieveGuestbookRootCommentsCursorUsesGuestbookQuery()
-	{
+	void retrieveGuestbookRootCommentsCursorUsesGuestbookQuery() {
 		Comment first = commentWithId(12L);
 		when(commentRepository.findAllByPostIsNullAndParentIsNullAndStatusOrderByIdDesc(eq(CommentStatus.APPROVED),
 				any(org.springframework.data.domain.Pageable.class))).thenReturn(List.of(first));
@@ -822,8 +762,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void countNewRootCommentsByPostRejectsUnpublishedPost()
-	{
+	void countNewRootCommentsByPostRejectsUnpublishedPost() {
 		testPost.setStatus(PostStatus.DRAFT);
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 
@@ -848,8 +787,7 @@ class CommentServiceImplTest
 	}
 
 	@Test
-	void searchCommentsForManagement_Success()
-	{
+	void searchCommentsForManagement_Success() {
 		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.Pageable.unpaged();
 		Comment comment = new Comment();
 		org.springframework.data.domain.Page<Comment> page = new org.springframework.data.domain.PageImpl<>(
@@ -865,8 +803,7 @@ class CommentServiceImplTest
 		assertEquals(1, response.data().getList().size());
 	}
 
-	private Comment commentWithId(Long id)
-	{
+	private Comment commentWithId(Long id) {
 		Comment comment = new Comment();
 		comment.setId(id);
 		return comment;

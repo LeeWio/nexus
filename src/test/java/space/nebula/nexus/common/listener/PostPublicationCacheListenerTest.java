@@ -21,8 +21,7 @@ import static org.mockito.Mockito.when;
  * Unit tests for publication-specific cache invalidation.
  */
 @ExtendWith(MockitoExtension.class)
-class PostPublicationCacheListenerTest
-{
+class PostPublicationCacheListenerTest {
 	@Mock
 	private CacheManager cacheManager;
 
@@ -86,8 +85,7 @@ class PostPublicationCacheListenerTest
 	}
 
 	@Test
-	void ignoresDraftUpdate()
-	{
+	void ignoresDraftUpdate() {
 		listener.onVisibilityChanged(new PostChangedEvent(this, new Post(), PostChangeType.UPDATED));
 
 		verify(cacheManager, never()).getCache(CacheConstants.BLOG_POSTS);

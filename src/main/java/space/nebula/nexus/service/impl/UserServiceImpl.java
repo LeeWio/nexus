@@ -27,45 +27,45 @@ import space.nebula.nexus.service.IUserService;
 @RequiredArgsConstructor
 public class UserServiceImpl implements IUserService {
 
-    private final UserRepository userRepository;
-    private final IAuthService authService;
-    private final UserMapper userMapper;
-    private final PasswordEncoder passwordEncoder;
+	private final UserRepository userRepository;
+	private final IAuthService authService;
+	private final UserMapper userMapper;
+	private final PasswordEncoder passwordEncoder;
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<UserInfoResponse> getCurrentUserInfo() {
-        User currentUser = authService.getAuthenticatedUser().data();
-        return ApiResponse.success(userMapper.toInfoResponse(currentUser));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<UserInfoResponse> getCurrentUserInfo() {
+		User currentUser = authService.getAuthenticatedUser().data();
+		return ApiResponse.success(userMapper.toInfoResponse(currentUser));
+	}
 
-    @Override
-    @Transactional
-    @LogOperation("Update Profile")
-    public ApiResponse<Void> updateProfile(UserProfileRequest request) {
-        User currentUser = authService.getAuthenticatedUser().data();
-        
-        userMapper.updateEntity(currentUser, request);
-        userRepository.save(currentUser);
-        
-        log.info("User {} updated profile", currentUser.getUsername());
+	@Override
+	@Transactional
+	@LogOperation("Update Profile")
+	public ApiResponse<Void> updateProfile(UserProfileRequest request) {
+		User currentUser = authService.getAuthenticatedUser().data();
+
+		userMapper.updateEntity(currentUser, request);
+		userRepository.save(currentUser);
+
+		log.info("User {} updated profile", currentUser.getUsername());
 		return ApiResponse.success("Profile updated successfully.", null);
-    }
+	}
 
-    @Override
-    @Transactional
-    @LogOperation("Change Password")
-    public ApiResponse<Void> changePassword(PasswordChangeRequest request) {
-        User currentUser = authService.getAuthenticatedUser().data();
-        
-        Assert.isTrue(passwordEncoder.matches(request.currentPassword(), currentUser.getPassword()),
-            () -> new BusinessException(BusinessCode.BAD_CREDENTIALS, "Current password is incorrect"));
-            
-        currentUser.setPassword(passwordEncoder.encode(request.newPassword()));
+	@Override
+	@Transactional
+	@LogOperation("Change Password")
+	public ApiResponse<Void> changePassword(PasswordChangeRequest request) {
+		User currentUser = authService.getAuthenticatedUser().data();
+
+		Assert.isTrue(passwordEncoder.matches(request.currentPassword(), currentUser.getPassword()),
+				() -> new BusinessException(BusinessCode.BAD_CREDENTIALS, "Current password is incorrect"));
+
+		currentUser.setPassword(passwordEncoder.encode(request.newPassword()));
 		currentUser.setTokenVersion(currentUser.getTokenVersion() + 1);
-        userRepository.save(currentUser);
-        
-        log.info("User {} changed password", currentUser.getUsername());
-        return ApiResponse.success("Password changed successfully.", null);
-    }
+		userRepository.save(currentUser);
+
+		log.info("User {} changed password", currentUser.getUsername());
+		return ApiResponse.success("Password changed successfully.", null);
+	}
 }

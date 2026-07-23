@@ -12,20 +12,20 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
-public class CustomOAuth2UserService extends DefaultOAuth2UserService
-{
+public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 	private final OAuthAccountResolver accountResolver;
 
 	/**
 	 * Loads the provider profile and resolves it to a local Nexus principal.
 	 *
-	 * @param userRequest provider user request
+	 * @param userRequest
+	 *            provider user request
 	 * @return local OAuth principal
-	 * @throws OAuth2AuthenticationException when profile loading or account resolution fails
+	 * @throws OAuth2AuthenticationException
+	 *             when profile loading or account resolution fails
 	 */
 	@Override
-	public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException
-	{
+	public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
 		OAuth2User oauth2User = super.loadUser(userRequest);
 		return accountResolver.resolve(userRequest.getClientRegistration().getRegistrationId(), oauth2User);
 	}

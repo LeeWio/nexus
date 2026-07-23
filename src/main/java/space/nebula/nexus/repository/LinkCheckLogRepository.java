@@ -10,6 +10,6 @@ import java.util.Optional;
 
 @Repository
 public interface LinkCheckLogRepository extends JpaRepository<LinkCheckLog, Long> {
-    Optional<LinkCheckLog> findByUrlAndSourceTypeAndSourceId(String url, String sourceType, Long sourceId);
-    Page<LinkCheckLog> findByIsBrokenTrue(Pageable pageable);
+	Optional<LinkCheckLog> findByUrlAndSourceTypeAndSourceId(String url, String sourceType, Long sourceId);
+	Page<LinkCheckLog> findByIsBrokenTrue(Pageable pageable);
 }

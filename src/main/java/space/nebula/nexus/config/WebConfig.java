@@ -12,8 +12,7 @@ import java.nio.file.Paths;
 
 @Configuration
 @RequiredArgsConstructor
-public class WebConfig implements WebMvcConfigurer
-{
+public class WebConfig implements WebMvcConfigurer {
 
 	private final StorageProperties storageProperties;
 
@@ -22,8 +21,7 @@ public class WebConfig implements WebMvcConfigurer
 	private final TraceInterceptor traceInterceptor;
 
 	@Override
-	public void addInterceptors(InterceptorRegistry registry)
-	{
+	public void addInterceptors(InterceptorRegistry registry) {
 		registry.addInterceptor(traceInterceptor).addPathPatterns("/**").order(-1); // Highest priority
 
 		registry.addInterceptor(analyticsInterceptor).addPathPatterns("/api/v1/public/**")
@@ -31,8 +29,7 @@ public class WebConfig implements WebMvcConfigurer
 	}
 
 	@Override
-	public void addResourceHandlers(ResourceHandlerRegistry registry)
-	{
+	public void addResourceHandlers(ResourceHandlerRegistry registry) {
 		String location = storageProperties.getLocal().getLocation();
 		String baseUrl = storageProperties.getLocal().getBaseUrl();
 
@@ -40,10 +37,10 @@ public class WebConfig implements WebMvcConfigurer
 
 		registry.addResourceHandler(baseUrl + "**").addResourceLocations(path);
 
-		// Explicitly register Swagger UI and Webjars resources to ensure they are served correctly
-		registry.addResourceHandler("/swagger-ui/**")
-				.addResourceLocations("classpath:/META-INF/resources/webjars/swagger-ui/", "classpath:/META-INF/resources/");
-		registry.addResourceHandler("/webjars/**")
-				.addResourceLocations("classpath:/META-INF/resources/webjars/");
+		// Explicitly register Swagger UI and Webjars resources to ensure they are
+		// served correctly
+		registry.addResourceHandler("/swagger-ui/**").addResourceLocations(
+				"classpath:/META-INF/resources/webjars/swagger-ui/", "classpath:/META-INF/resources/");
+		registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");
 	}
 }

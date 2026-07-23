@@ -8,8 +8,7 @@ import space.nebula.nexus.payload.response.CommentResponse;
 import java.util.List;
 
 @Mapper(componentModel = "spring")
-public interface CommentMapper
-{
+public interface CommentMapper {
 
 	@Mapping(target = "username", source = "user.username")
 	@Mapping(target = "nickname", source = "user.nickname")

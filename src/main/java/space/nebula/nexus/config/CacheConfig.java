@@ -20,8 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 @Configuration
 @RequiredArgsConstructor
-public class CacheConfig
-{
+public class CacheConfig {
 
 	private static final String CACHE_TOPIC = "nexus:cache:invalidation";
 	private final String instanceId = cn.hutool.core.util.IdUtil.fastSimpleUUID();
@@ -30,8 +29,7 @@ public class CacheConfig
 	 * Local L1 Cache Manager (Caffeine).
 	 */
 	@Bean
-	public CaffeineCacheManager caffeineCacheManager()
-	{
+	public CaffeineCacheManager caffeineCacheManager() {
 		CaffeineCacheManager cacheManager = new CaffeineCacheManager();
 		Caffeine<Object, Object> caffeineBuilder = Caffeine.newBuilder().initialCapacity(100).maximumSize(500)
 				.expireAfterWrite(10, TimeUnit.MINUTES).recordStats();
@@ -46,8 +44,7 @@ public class CacheConfig
 	@Bean
 	@Primary
 	public CacheManager multiLevelCacheManager(CaffeineCacheManager caffeineCacheManager,
-			RedisCacheManager redisCacheManager, RedisTemplate<String, Object> redisTemplate)
-	{
+			RedisCacheManager redisCacheManager, RedisTemplate<String, Object> redisTemplate) {
 		return new MultiLevelCacheManager(caffeineCacheManager, redisCacheManager, redisTemplate, instanceId,
 				CACHE_TOPIC);
 	}
@@ -58,8 +55,7 @@ public class CacheConfig
 	@Bean
 	@ConditionalOnProperty(name = "app.cache.invalidation-listener-enabled", havingValue = "true", matchIfMissing = true)
 	public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory factory,
-			CacheMessageListener listener)
-	{
+			CacheMessageListener listener) {
 		RedisMessageListenerContainer container = new RedisMessageListenerContainer();
 		container.setConnectionFactory(factory);
 		container.addMessageListener(listener, new ChannelTopic(CACHE_TOPIC));
@@ -68,8 +64,7 @@ public class CacheConfig
 
 	@Bean
 	public CacheMessageListener cacheMessageListener(RedisTemplate<String, Object> redisTemplate,
-			CaffeineCacheManager caffeineCacheManager)
-	{
+			CaffeineCacheManager caffeineCacheManager) {
 		return new CacheMessageListener(redisTemplate, caffeineCacheManager, instanceId);
 	}
 }

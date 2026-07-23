@@ -13,14 +13,12 @@ import lombok.RequiredArgsConstructor;
  */
 @Configuration
 @RequiredArgsConstructor
-public class MethodSecurityConfig
-{
+public class MethodSecurityConfig {
 
 	private final NexusPermissionEvaluator permissionEvaluator;
 
 	@Bean
-	MethodSecurityExpressionHandler methodSecurityExpressionHandler()
-	{
+	MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
 		DefaultMethodSecurityExpressionHandler expressionHandler = new DefaultMethodSecurityExpressionHandler();
 		expressionHandler.setPermissionEvaluator(permissionEvaluator);
 		return expressionHandler;

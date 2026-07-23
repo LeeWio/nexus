@@ -27,42 +27,34 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @ConditionalOnProperty(name = "app.search.type", havingValue = "database")
-public class DatabasePostSearchServiceImpl extends AbstractPostSearchService
-{
+public class DatabasePostSearchServiceImpl extends AbstractPostSearchService {
 
 	public DatabasePostSearchServiceImpl(PostRepository postRepository, CategoryRepository categoryRepository,
-			TagRepository tagRepository, ProjectRepository projectRepository, MomentRepository momentRepository)
-	{
+			TagRepository tagRepository, ProjectRepository projectRepository, MomentRepository momentRepository) {
 		super(postRepository, categoryRepository, tagRepository, projectRepository, momentRepository);
 	}
 
 	@Override
-	public void indexPost(Post post)
-	{
+	public void indexPost(Post post) {
 		log.debug("Database search mode enabled, skipping indexing for post: {}", post.getId());
 	}
 
 	@Override
-	public void deletePostIndex(Long postId)
-	{
+	public void deletePostIndex(Long postId) {
 		log.debug("Database search mode enabled, skipping index deletion for post: {}", postId);
 	}
 
 	@Override
-	public void rebuildIndex()
-	{
+	public void rebuildIndex() {
 		log.debug("Database search mode enabled, skipping index rebuild.");
 	}
 
 	@Override
-	public ApiResponse<PageResult<PostDocument>> searchPosts(String keyword, Pageable pageable)
-	{
-		Specification<Post> spec = (root, query, cb) ->
-		{
+	public ApiResponse<PageResult<PostDocument>> searchPosts(String keyword, Pageable pageable) {
+		Specification<Post> spec = (root, query, cb) -> {
 			Specification<Post> statusSpec = (r, q, c) -> c.equal(r.get("status"), PostStatus.PUBLISHED);
 
-			if (StrUtil.isBlank(keyword))
-			{
+			if (StrUtil.isBlank(keyword)) {
 				return statusSpec.toPredicate(root, query, cb);
 			}
 
@@ -80,10 +72,8 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService
 	}
 
 	@Override
-	public ApiResponse<List<String>> getSearchSuggestions(String keyword)
-	{
-		if (StrUtil.isBlank(keyword))
-		{
+	public ApiResponse<List<String>> getSearchSuggestions(String keyword) {
+		if (StrUtil.isBlank(keyword)) {
 			return ApiResponse.success(List.of());
 		}
 		List<String> suggestions = postRepository
@@ -93,8 +83,7 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService
 	}
 
 	@Override
-	protected List<QuickSearchResponse.SearchResultItem> searchQuickPosts(String keyword)
-	{
+	protected List<QuickSearchResponse.SearchResultItem> searchQuickPosts(String keyword) {
 		return postRepository.findTop5ByTitleContainingIgnoreCaseAndStatus(keyword, PostStatus.PUBLISHED).stream()
 				.map(p -> new QuickSearchResponse.SearchResultItem(p.getId().toString(), p.getTitle(),
 						"/posts/" + p.getSlug()))
@@ -102,35 +91,25 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService
 	}
 
 	@Override
-	protected void searchPostsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups)
-	{
-		Specification<Post> postSpec = (root, query, cb) ->
-		{
+	protected void searchPostsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups) {
+		Specification<Post> postSpec = (root, query, cb) -> {
 			String pattern = "%" + keyword.toLowerCase() + "%";
-			return cb.and(cb.equal(root.get("status"), PostStatus.PUBLISHED), cb.or(
-					cb.like(cb.lower(root.get("title")), pattern),
-					cb.like(cb.lower(root.get("summary")), pattern),
-					cb.like(cb.lower(root.get("content")), pattern)));
+			return cb.and(cb.equal(root.get("status"), PostStatus.PUBLISHED),
+					cb.or(cb.like(cb.lower(root.get("title")), pattern),
+							cb.like(cb.lower(root.get("summary")), pattern),
+							cb.like(cb.lower(root.get("content")), pattern)));
 		};
 
 		List<UnifiedSearchResponse.SearchResultItem> items = postRepository
 				.findAll(postSpec, org.springframework.data.domain.PageRequest.of(0, 5)).stream()
-				.map(this::mapToDocument)
-				.map(doc -> highlightDocument(doc, keyword))
-				.map(p -> UnifiedSearchResponse.SearchResultItem.builder()
-						.id("post:" + p.getId())
-						.title(p.getTitle())
+				.map(this::mapToDocument).map(doc -> highlightDocument(doc, keyword))
+				.map(p -> UnifiedSearchResponse.SearchResultItem.builder().id("post:" + p.getId()).title(p.getTitle())
 						.subtitle(p.getPublishedAt() != null ? p.getPublishedAt().toLocalDate().toString() : "")
-						.description(p.getSummary())
-						.url("/post/" + p.getSlug())
-						.icon("book-text")
-						.iconColor("#3b82f6")
-						.type("POST")
-						.build())
+						.description(p.getSummary()).url("/post/" + p.getSlug()).icon("book-text").iconColor("#3b82f6")
+						.type("POST").build())
 				.collect(Collectors.toList());
 
-		if (!items.isEmpty())
-		{
+		if (!items.isEmpty()) {
 			groups.add(UnifiedSearchResponse.SearchGroup.builder().type("POST").label("Articles").priority(10)
 					.items(items).build());
 		}
@@ -138,12 +117,11 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService
 
 	/**
 	 * Local Java-based Regex highlighter that emulates Elasticsearch highlighting.
-	 * Preserves the original casing of the matched characters and extracts content fallback windows.
+	 * Preserves the original casing of the matched characters and extracts content
+	 * fallback windows.
 	 */
-	private PostDocument highlightDocument(PostDocument doc, String keyword)
-	{
-		if (StrUtil.isBlank(keyword))
-		{
+	private PostDocument highlightDocument(PostDocument doc, String keyword) {
+		if (StrUtil.isBlank(keyword)) {
 			return doc;
 		}
 
@@ -151,43 +129,37 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService
 		java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(?i)(" + escapedKeyword + ")");
 
 		// 1. Highlight Title
-		if (StrUtil.isNotBlank(doc.getTitle()))
-		{
+		if (StrUtil.isNotBlank(doc.getTitle())) {
 			java.util.regex.Matcher m = pattern.matcher(doc.getTitle());
-			if (m.find())
-			{
+			if (m.find()) {
 				doc.setTitle(m.replaceAll("<mark class=\"search-highlight\">$1</mark>"));
 			}
 		}
 
 		// 2. Highlight Summary & fallback to Content snippet
 		boolean summaryHasKeyword = false;
-		if (StrUtil.isNotBlank(doc.getSummary()))
-		{
+		if (StrUtil.isNotBlank(doc.getSummary())) {
 			java.util.regex.Matcher m = pattern.matcher(doc.getSummary());
-			if (m.find())
-			{
+			if (m.find()) {
 				doc.setSummary(m.replaceAll("<mark class=\"search-highlight\">$1</mark>"));
 				summaryHasKeyword = true;
 			}
 		}
 
-		if (!summaryHasKeyword && StrUtil.isNotBlank(doc.getContent()))
-		{
+		if (!summaryHasKeyword && StrUtil.isNotBlank(doc.getContent())) {
 			java.util.regex.Matcher m = pattern.matcher(doc.getContent());
-			if (m.find())
-			{
+			if (m.find()) {
 				int matchIndex = m.start();
 				int start = Math.max(0, matchIndex - 45);
 				int end = Math.min(doc.getContent().length(), matchIndex + keyword.length() + 45);
-				
+
 				String snippet = doc.getContent().substring(start, end);
 				String prefix = start > 0 ? "... " : "";
 				String suffix = end < doc.getContent().length() ? " ..." : "";
-				
+
 				java.util.regex.Matcher snippetMatcher = pattern.matcher(snippet);
 				String highlightedSnippet = snippetMatcher.replaceAll("<mark class=\"search-highlight\">$1</mark>");
-				
+
 				doc.setSummary(prefix + highlightedSnippet + suffix);
 			}
 		}

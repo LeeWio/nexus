@@ -19,8 +19,7 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OperationLogBufferTask
-{
+public class OperationLogBufferTask {
 
 	private final RedisUtil redisUtil;
 	private final OperationLogRepository operationLogRepository;
@@ -31,8 +30,7 @@ public class OperationLogBufferTask
 	@Scheduled(fixedRate = 60000)
 	@SchedulerLock(name = "operationLogFlush", lockAtMostFor = "PT50S")
 	@Transactional
-	public void flushOperationLogs()
-	{
+	public void flushOperationLogs() {
 		Long size = redisUtil.listSize(CacheConstants.OPERATION_LOG_BUFFER_KEY);
 		if (size == null || size == 0)
 			return;
@@ -43,8 +41,7 @@ public class OperationLogBufferTask
 		List<OperationLog> logsToPersist = redisUtil.listPopLeft(CacheConstants.OPERATION_LOG_BUFFER_KEY, size,
 				OperationLog.class);
 
-		if (!logsToPersist.isEmpty())
-		{
+		if (!logsToPersist.isEmpty()) {
 			operationLogRepository.saveAll(logsToPersist);
 			log.info("Successfully persisted {} operation logs to database.", logsToPersist.size());
 		}

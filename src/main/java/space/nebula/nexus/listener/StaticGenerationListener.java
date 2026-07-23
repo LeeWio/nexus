@@ -13,16 +13,16 @@ import space.nebula.nexus.service.impl.StaticGenerationServiceImpl;
 @RequiredArgsConstructor
 public class StaticGenerationListener {
 
-    private final StaticGenerationServiceImpl staticGenerationService;
+	private final StaticGenerationServiceImpl staticGenerationService;
 
-    @RabbitListener(queues = RabbitMQConfig.STATIC_GEN_QUEUE)
-    public void handleStaticGeneration(StaticGenerationMessage message) {
-        log.debug("Received static generation message: {}", message);
-        
-        if (message.getAction() == StaticGenerationMessage.Action.GENERATE) {
-            staticGenerationService.executeGenerate(message.getPostId());
-        } else if (message.getAction() == StaticGenerationMessage.Action.DELETE) {
-            staticGenerationService.executeDelete(message.getSlug());
-        }
-    }
+	@RabbitListener(queues = RabbitMQConfig.STATIC_GEN_QUEUE)
+	public void handleStaticGeneration(StaticGenerationMessage message) {
+		log.debug("Received static generation message: {}", message);
+
+		if (message.getAction() == StaticGenerationMessage.Action.GENERATE) {
+			staticGenerationService.executeGenerate(message.getPostId());
+		} else if (message.getAction() == StaticGenerationMessage.Action.DELETE) {
+			staticGenerationService.executeDelete(message.getSlug());
+		}
+	}
 }

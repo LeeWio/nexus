@@ -15,8 +15,10 @@ import space.nebula.nexus.common.exception.BusinessException;
 /**
  * Validates URLs before the server makes an outbound HTTP request.
  *
- * <p>Loopback, link-local, site-local, multicast and unspecified addresses are
- * rejected to prevent server-side request forgery into trusted networks.</p>
+ * <p>
+ * Loopback, link-local, site-local, multicast and unspecified addresses are
+ * rejected to prevent server-side request forgery into trusted networks.
+ * </p>
  */
 @Component
 public class OutboundUrlValidator {
@@ -26,9 +28,11 @@ public class OutboundUrlValidator {
 	/**
 	 * Validates an HTTP URL and every address currently returned by DNS.
 	 *
-	 * @param url outbound URL
+	 * @param url
+	 *            outbound URL
 	 * @return the parsed and normalized URI
-	 * @throws BusinessException if the URL can access a non-public destination
+	 * @throws BusinessException
+	 *             if the URL can access a non-public destination
 	 */
 	public URI validate(String url) {
 		try {

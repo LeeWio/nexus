@@ -8,8 +8,7 @@ import lombok.Getter;
  * such as post updates or new comment submissions.
  */
 @Getter
-public enum WebhookEvent
-{
+public enum WebhookEvent {
 	/**
 	 * Triggered when a blog post is published for the first time or updated after
 	 * publication. This event may include the full post payload in the webhook
@@ -37,8 +36,7 @@ public enum WebhookEvent
 
 	private final String description;
 
-	WebhookEvent(String description)
-	{
+	WebhookEvent(String description) {
 		this.description = description;
 	}
 }

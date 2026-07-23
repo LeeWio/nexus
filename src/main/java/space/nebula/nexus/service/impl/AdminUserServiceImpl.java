@@ -27,8 +27,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AdminUserServiceImpl implements IAdminUserService
-{
+public class AdminUserServiceImpl implements IAdminUserService {
 	private static final String ADMIN_ROLE_CODE = "ROLE_ADMIN";
 
 	private final UserRepository userRepository;
@@ -37,16 +36,14 @@ public class AdminUserServiceImpl implements IAdminUserService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<UserResponse>> getAllUsers()
-	{
+	public ApiResponse<List<UserResponse>> getAllUsers() {
 		var users = userRepository.findAll();
 		return ApiResponse.success(userMapper.toResponseList(users));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<UserResponse> getUserById(Long id)
-	{
+	public ApiResponse<UserResponse> getUserById(Long id) {
 		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 		return ApiResponse.success(userMapper.toResponse(user));
 	}
@@ -54,8 +51,7 @@ public class AdminUserServiceImpl implements IAdminUserService
 	@Override
 	@Transactional
 	@LogOperation("Disable User")
-	public ApiResponse<Void> disableUser(Long id)
-	{
+	public ApiResponse<Void> disableUser(Long id) {
 		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
 		Assert.isFalse(user.getStatus() == UserStatus.INACTIVE,
@@ -71,8 +67,7 @@ public class AdminUserServiceImpl implements IAdminUserService
 	@Override
 	@Transactional
 	@LogOperation("Enable User")
-	public ApiResponse<Void> enableUser(Long id)
-	{
+	public ApiResponse<Void> enableUser(Long id) {
 		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
 		Assert.isFalse(user.getStatus() == UserStatus.ACTIVE,
@@ -87,10 +82,8 @@ public class AdminUserServiceImpl implements IAdminUserService
 	@Override
 	@Transactional
 	@LogOperation("Delete User")
-	public ApiResponse<Void> deleteUser(Long id)
-	{
-		var user = userRepository.findById(id)
-				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
+	public ApiResponse<Void> deleteUser(Long id) {
+		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 		protectLastActiveAdministrator(user, false);
 		userRepository.delete(user);
 		log.info("Admin deleted user id: {}", id);
@@ -100,20 +93,16 @@ public class AdminUserServiceImpl implements IAdminUserService
 	@Override
 	@Transactional
 	@LogOperation("Audit User Registration")
-	public ApiResponse<Void> auditUser(Long id, boolean approved)
-	{
+	public ApiResponse<Void> auditUser(Long id, boolean approved) {
 		var user = userRepository.findById(id).orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
 		Assert.isTrue(user.getStatus() == UserStatus.PENDING,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only pending registrations can be reviewed"));
 
-		if (approved)
-		{
+		if (approved) {
 			user.setStatus(UserStatus.ACTIVE);
 			log.info("Admin approved registration for user: {}", user.getUsername());
-		}
-		else
-		{
+		} else {
 			user.setStatus(UserStatus.INACTIVE);
 			log.info("Admin rejected registration for user: {}", user.getUsername());
 		}
@@ -125,8 +114,7 @@ public class AdminUserServiceImpl implements IAdminUserService
 	@Override
 	@Transactional
 	@LogOperation("Assign Roles to User")
-	public ApiResponse<Void> assignRoles(Long userId, AssignRoleRequest request)
-	{
+	public ApiResponse<Void> assignRoles(Long userId, AssignRoleRequest request) {
 		var user = userRepository.findById(userId)
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
@@ -144,20 +132,17 @@ public class AdminUserServiceImpl implements IAdminUserService
 		return ApiResponse.success("User roles updated successfully", null);
 	}
 
-	private void protectLastActiveAdministrator(space.nebula.nexus.entity.User target, boolean retainsAdminRole)
-	{
+	private void protectLastActiveAdministrator(space.nebula.nexus.entity.User target, boolean retainsAdminRole) {
 		boolean removesActiveAdmin = target.getStatus() == UserStatus.ACTIVE
 				&& target.getRoles().stream().anyMatch(role -> ADMIN_ROLE_CODE.equals(role.getCode()))
 				&& !retainsAdminRole;
-		if (!removesActiveAdmin)
-		{
+		if (!removesActiveAdmin) {
 			return;
 		}
 
-		List<space.nebula.nexus.entity.User> activeAdmins =
-				userRepository.findByRoleCodeAndStatusForUpdate(ADMIN_ROLE_CODE, UserStatus.ACTIVE);
+		List<space.nebula.nexus.entity.User> activeAdmins = userRepository
+				.findByRoleCodeAndStatusForUpdate(ADMIN_ROLE_CODE, UserStatus.ACTIVE);
 		Assert.isTrue(activeAdmins.stream().anyMatch(user -> !user.getId().equals(target.getId())),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"At least one active administrator must remain"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "At least one active administrator must remain"));
 	}
 }

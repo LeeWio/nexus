@@ -22,10 +22,14 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AdminRoleServiceImplTest {
 
-	@Mock private RoleRepository roleRepository;
-	@Mock private MenuRepository menuRepository;
-	@Mock private RoleMapper roleMapper;
-	@InjectMocks private AdminRoleServiceImpl service;
+	@Mock
+	private RoleRepository roleRepository;
+	@Mock
+	private MenuRepository menuRepository;
+	@Mock
+	private RoleMapper roleMapper;
+	@InjectMocks
+	private AdminRoleServiceImpl service;
 
 	@Test
 	void deleteRoleRejectsSystemRole() {

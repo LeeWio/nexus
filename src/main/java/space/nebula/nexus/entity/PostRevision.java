@@ -24,10 +24,9 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "blog_post_revision", uniqueConstraints =
-		@UniqueConstraint(name = "uk_revision_post_version", columnNames = { "post_id", "version_number" }))
-public class PostRevision implements Serializable
-{
+@Table(name = "blog_post_revision", uniqueConstraints = @UniqueConstraint(name = "uk_revision_post_version", columnNames = {
+		"post_id", "version_number"}))
+public class PostRevision implements Serializable {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

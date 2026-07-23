@@ -18,8 +18,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class CommentIdempotencyServiceTest
-{
+class CommentIdempotencyServiceTest {
 
 	@Mock
 	private JdbcTemplate jdbcTemplate;
@@ -29,14 +28,12 @@ class CommentIdempotencyServiceTest
 	private CommentIdempotencyService service;
 
 	@BeforeEach
-	void setUp()
-	{
+	void setUp() {
 		service = new CommentIdempotencyService(jdbcTemplate);
 	}
 
 	@Test
-	void hashSubmissionIsStableForSameSemanticRequest()
-	{
+	void hashSubmissionIsStableForSameSemanticRequest() {
 		assertEquals(service.hashSubmission(1L, 2L, "hello"), service.hashSubmission(1L, 2L, "hello"));
 		assertNotEquals(service.hashSubmission(1L, 2L, "hello"), service.hashSubmission(1L, 2L, "changed"));
 	}

@@ -2,8 +2,7 @@ package space.nebula.nexus.service;
 
 import space.nebula.nexus.entity.Post;
 
-public interface IStaticGenerationService
-{
+public interface IStaticGenerationService {
 
 	/**
 	 * Generates a static HTML file for the given post and uploads it to storage.

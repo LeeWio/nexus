@@ -22,23 +22,20 @@ import java.util.concurrent.TimeUnit;
 @RestController
 @RequestMapping("/api/v1/public/friend-links")
 @RequiredArgsConstructor
-public class PublicFriendLinkController
-{
+public class PublicFriendLinkController {
 
 	private final IFriendLinkService friendLinkService;
 
 	@GetMapping
 	@Operation(summary = "Retrieve all friend links", description = "Fetch a list of all approved external links for the blogroll.")
-	public ApiResponse<List<FriendLinkResponse>> retrieveFriendLinks()
-	{
+	public ApiResponse<List<FriendLinkResponse>> retrieveFriendLinks() {
 		return friendLinkService.retrievePublicFriendLinks();
 	}
 
 	@PostMapping("/apply")
 	@Operation(summary = "Apply for link exchange", description = "Submit a request to add your site to our blogroll. Requires review.")
 	@RateLimit(count = 5, time = 1, unit = TimeUnit.HOURS, message = "Too many link applications. Please try again later.")
-	public ApiResponse<Void> applyForFriendLink(@Valid @RequestBody FriendLinkApplicationRequest request)
-	{
+	public ApiResponse<Void> applyForFriendLink(@Valid @RequestBody FriendLinkApplicationRequest request) {
 		return friendLinkService.applyForFriendLink(request);
 	}
 }

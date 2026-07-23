@@ -19,30 +19,24 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class OperationLogServiceImpl implements IOperationLogService
-{
+public class OperationLogServiceImpl implements IOperationLogService {
 
 	private final OperationLogRepository operationLogRepository;
 
 	@Override
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<OperationLog>> getOperationLogs(String username, String operation, Integer status,
-			Pageable pageable)
-	{
-		Specification<OperationLog> spec = (root, query, criteriaBuilder) ->
-		{
+			Pageable pageable) {
+		Specification<OperationLog> spec = (root, query, criteriaBuilder) -> {
 			List<Predicate> predicates = new ArrayList<>();
 
-			if (username != null && !username.isBlank())
-			{
+			if (username != null && !username.isBlank()) {
 				predicates.add(criteriaBuilder.like(root.get("username"), "%" + username + "%"));
 			}
-			if (operation != null && !operation.isBlank())
-			{
+			if (operation != null && !operation.isBlank()) {
 				predicates.add(criteriaBuilder.like(root.get("description"), "%" + operation + "%"));
 			}
-			if (status != null)
-			{
+			if (status != null) {
 				predicates.add(criteriaBuilder.equal(root.get("status"), status));
 			}
 
@@ -55,8 +49,7 @@ public class OperationLogServiceImpl implements IOperationLogService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> clearLogs()
-	{
+	public ApiResponse<Void> clearLogs() {
 		operationLogRepository.deleteAllInBatch();
 		log.info("Admin cleared all operation logs.");
 		return ApiResponse.success("Operation logs cleared successfully", null);

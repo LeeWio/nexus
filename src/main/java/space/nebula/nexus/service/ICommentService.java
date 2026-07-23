@@ -21,8 +21,7 @@ import space.nebula.nexus.payload.response.PageResult;
 
 import java.util.List;
 
-public interface ICommentService
-{
+public interface ICommentService {
 
 	/**
 	 * Publishes a new comment. Performs auto-moderation.
@@ -75,8 +74,7 @@ public interface ICommentService
 	 */
 	ApiResponse<Long> countNewRootCommentsByPost(Long postId, Long afterId);
 
-	ApiResponse<CursorPageResponse<CommentResponse>> retrieveNewRootCommentsByPost(Long postId, Long afterId,
-			int size);
+	ApiResponse<CursorPageResponse<CommentResponse>> retrieveNewRootCommentsByPost(Long postId, Long afterId, int size);
 
 	ApiResponse<PageResult<CommentResponse>> retrieveHotRootCommentsByPost(Long postId, Pageable pageable);
 
@@ -92,7 +90,8 @@ public interface ICommentService
 	ApiResponse<PageResult<CommentResponse>> retrieveHotGuestbookRootComments(Pageable pageable);
 
 	/**
-	 * Retrieves comments authored by the current user with optional status filtering.
+	 * Retrieves comments authored by the current user with optional status
+	 * filtering.
 	 */
 	ApiResponse<PageResult<CommentResponse>> retrieveMyComments(CommentStatus status, Pageable pageable);
 
@@ -107,7 +106,8 @@ public interface ICommentService
 	ApiResponse<Void> updateMyComment(Long id, CommentUpdateRequest request);
 
 	/**
-	 * Deletes a comment authored by the current user when the thread can stay consistent.
+	 * Deletes a comment authored by the current user when the thread can stay
+	 * consistent.
 	 */
 	ApiResponse<Void> deleteMyComment(Long id);
 
@@ -154,8 +154,10 @@ public interface ICommentService
 	/**
 	 * Moderates a comment by updating its status.
 	 *
-	 * @param id comment identifier
-	 * @param status approved or rejected moderation outcome
+	 * @param id
+	 *            comment identifier
+	 * @param status
+	 *            approved or rejected moderation outcome
 	 * @return successful response after the moderation decision is persisted
 	 */
 	ApiResponse<Void> moderateComment(Long id, CommentStatus status);
@@ -172,7 +174,8 @@ public interface ICommentService
 	/**
 	 * Soft-deletes a comment that has no active replies.
 	 *
-	 * @param id comment identifier
+	 * @param id
+	 *            comment identifier
 	 * @return successful response after the comment is archived
 	 */
 	ApiResponse<Void> deleteComment(Long id);

@@ -10,18 +10,18 @@ import space.nebula.nexus.payload.response.UserInfoResponse;
  */
 public interface IUserService {
 
-    /**
-     * Get current user info.
-     */
-    ApiResponse<UserInfoResponse> getCurrentUserInfo();
+	/**
+	 * Get current user info.
+	 */
+	ApiResponse<UserInfoResponse> getCurrentUserInfo();
 
-    /**
-     * Update current user profile.
-     */
-    ApiResponse<Void> updateProfile(UserProfileRequest request);
+	/**
+	 * Update current user profile.
+	 */
+	ApiResponse<Void> updateProfile(UserProfileRequest request);
 
-    /**
-     * Change current user password.
-     */
-    ApiResponse<Void> changePassword(PasswordChangeRequest request);
+	/**
+	 * Change current user password.
+	 */
+	ApiResponse<Void> changePassword(PasswordChangeRequest request);
 }

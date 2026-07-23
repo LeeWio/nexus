@@ -15,31 +15,31 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerTest {
 
-    @Mock
-    private MessageUtil messageUtil;
+	@Mock
+	private MessageUtil messageUtil;
 
-    @InjectMocks
-    private GlobalExceptionHandler exceptionHandler;
+	@InjectMocks
+	private GlobalExceptionHandler exceptionHandler;
 
-    @Test
-    void handleBusinessException_Localized() {
-        BusinessException ex = new BusinessException(404, "Resource not found");
-        when(messageUtil.get("404", (Object[]) null)).thenReturn("Localized Not Found");
+	@Test
+	void handleBusinessException_Localized() {
+		BusinessException ex = new BusinessException(404, "Resource not found");
+		when(messageUtil.get("404", (Object[]) null)).thenReturn("Localized Not Found");
 
-        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBusinessException(ex);
+		ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBusinessException(ex);
 
-        assertEquals(404, response.getBody().code());
-        assertEquals("Localized Not Found", response.getBody().message());
-    }
+		assertEquals(404, response.getBody().code());
+		assertEquals("Localized Not Found", response.getBody().message());
+	}
 
-    @Test
-    void handleBusinessException_Fallback() {
-        BusinessException ex = new BusinessException(40010, "Post is already published");
-        when(messageUtil.get("40010", (Object[]) null)).thenReturn(""); // Simulate no translation
+	@Test
+	void handleBusinessException_Fallback() {
+		BusinessException ex = new BusinessException(40010, "Post is already published");
+		when(messageUtil.get("40010", (Object[]) null)).thenReturn(""); // Simulate no translation
 
-        ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBusinessException(ex);
+		ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleBusinessException(ex);
 
-        assertEquals(40010, response.getBody().code());
-        assertEquals("Post is already published", response.getBody().message());
-    }
+		assertEquals(40010, response.getBody().code());
+		assertEquals("Post is already published", response.getBody().message());
+	}
 }

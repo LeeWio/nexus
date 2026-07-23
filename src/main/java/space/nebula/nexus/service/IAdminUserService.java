@@ -6,8 +6,7 @@ import space.nebula.nexus.payload.response.UserResponse;
 
 import java.util.List;
 
-public interface IAdminUserService
-{
+public interface IAdminUserService {
 
 	ApiResponse<List<UserResponse>> getAllUsers();
 

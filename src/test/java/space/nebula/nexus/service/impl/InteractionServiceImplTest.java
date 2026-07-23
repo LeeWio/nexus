@@ -26,8 +26,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class InteractionServiceImplTest
-{
+class InteractionServiceImplTest {
 
 	@Mock
 	private RedisUtil redisUtil;
@@ -47,8 +46,7 @@ class InteractionServiceImplTest
 	private Comment comment;
 
 	@BeforeEach
-	void setUp()
-	{
+	void setUp() {
 		interactionService = new InteractionServiceImpl(redisUtil, postRepository, commentRepository, userRepository,
 				jdbcTemplate, cacheManager);
 		user = new User();
@@ -80,14 +78,12 @@ class InteractionServiceImplTest
 	}
 
 	@Test
-	void concurrentDuplicateLikeOnlyIncrementsCounterOnce()
-	{
+	void concurrentDuplicateLikeOnlyIncrementsCounterOnce() {
 		AtomicInteger inserted = new AtomicInteger();
-		when(jdbcTemplate.update(anyString(), eq(10L), eq(1L))).thenAnswer(invocation ->
-				inserted.compareAndSet(0, 1) ? 1 : 0);
+		when(jdbcTemplate.update(anyString(), eq(10L), eq(1L)))
+				.thenAnswer(invocation -> inserted.compareAndSet(0, 1) ? 1 : 0);
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(user);
 
 			interactionService.likeComment(10L);

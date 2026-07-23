@@ -23,8 +23,7 @@ import space.nebula.nexus.enums.CommentStatus;
 @Table(name = "blog_comment")
 @SQLDelete(sql = "UPDATE blog_comment SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class Comment extends BaseEntity
-{
+public class Comment extends BaseEntity {
 
 	@Lob
 	@Column(nullable = false, columnDefinition = "TEXT")
@@ -84,24 +83,21 @@ public class Comment extends BaseEntity
 	/**
 	 * Approves the comment for public visibility.
 	 */
-	public void approve()
-	{
+	public void approve() {
 		this.status = CommentStatus.APPROVED;
 	}
 
 	/**
 	 * Rejects the comment.
 	 */
-	public void reject()
-	{
+	public void reject() {
 		this.status = CommentStatus.REJECTED;
 	}
 
 	/**
 	 * Updates comment content and marks the edit timestamp.
 	 */
-	public void editContent(String content)
-	{
+	public void editContent(String content) {
 		this.content = content;
 		this.editedAt = java.time.LocalDateTime.now();
 		this.editCount = this.editCount == null ? 1 : this.editCount + 1;
@@ -110,10 +106,8 @@ public class Comment extends BaseEntity
 	/**
 	 * Sets the hierarchical path based on the parent comment.
 	 */
-	public void updatePath(Comment parent)
-	{
-		if (this.getId() == null)
-		{
+	public void updatePath(Comment parent) {
+		if (this.getId() == null) {
 			throw new IllegalStateException("ID must be set before path generation");
 		}
 		this.path = (parent == null) ? "/" + this.getId() + "/" : parent.getPath() + this.getId() + "/";
@@ -122,13 +116,11 @@ public class Comment extends BaseEntity
 	/**
 	 * Checks if the comment is for a specific post.
 	 */
-	public boolean belongsToPost(Long postId)
-	{
+	public boolean belongsToPost(Long postId) {
 		return this.post != null && this.post.getId().equals(postId);
 	}
 
-	public void markDeletedPlaceholder()
-	{
+	public void markDeletedPlaceholder() {
 		this.content = "[deleted]";
 		this.deletedPlaceholder = true;
 		this.pinned = false;

@@ -28,80 +28,79 @@ import java.util.Locale;
 @Service
 @RequiredArgsConstructor
 public class NewsletterServiceImpl implements INewsletterService {
-	private static final String SUBSCRIPTION_RESPONSE =
-			"Subscription instructions have been sent if the address is eligible.";
+	private static final String SUBSCRIPTION_RESPONSE = "Subscription instructions have been sent if the address is eligible.";
 
-    private final SubscriberRepository subscriberRepository;
-    private final RabbitTemplate rabbitTemplate;
-    private final IAnalyticsService analyticsService;
+	private final SubscriberRepository subscriberRepository;
+	private final RabbitTemplate rabbitTemplate;
+	private final IAnalyticsService analyticsService;
 	private final NewsletterProperties newsletterProperties;
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> subscribe(String email) {
-        Assert.notBlank(email, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Email is required"));
+	@Override
+	@Transactional
+	public ApiResponse<Void> subscribe(String email) {
+		Assert.notBlank(email, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Email is required"));
 		String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
 		var existing = subscriberRepository.findByEmail(normalizedEmail);
-        if (existing.isPresent()) {
+		if (existing.isPresent()) {
 			if (existing.get().getStatus() == SubscriberStatus.ACTIVE) {
 				return ApiResponse.success(SUBSCRIPTION_RESPONSE, null);
-            }
+			}
 			preparePendingSubscription(existing.get());
-            subscriberRepository.save(existing.get());
-            sendVerificationEmail(existing.get());
-        } else {
-            Subscriber subscriber = new Subscriber();
+			subscriberRepository.save(existing.get());
+			sendVerificationEmail(existing.get());
+		} else {
+			Subscriber subscriber = new Subscriber();
 			subscriber.setEmail(normalizedEmail);
 			preparePendingSubscription(subscriber);
-            subscriberRepository.save(subscriber);
-            sendVerificationEmail(subscriber);
-        }
+			subscriberRepository.save(subscriber);
+			sendVerificationEmail(subscriber);
+		}
 
 		return ApiResponse.success(SUBSCRIPTION_RESPONSE, null);
-    }
+	}
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> verify(String token) {
-        var subscriber = subscriberRepository.findByVerificationToken(token)
-                .orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST, "Verification token is invalid or expired"));
-        
-		Assert.isTrue(subscriber.getStatus() == SubscriberStatus.PENDING
-				&& subscriber.getVerificationExpiresAt() != null
-				&& subscriber.getVerificationExpiresAt().isAfter(LocalDateTime.now()),
+	@Override
+	@Transactional
+	public ApiResponse<Void> verify(String token) {
+		var subscriber = subscriberRepository.findByVerificationToken(token).orElseThrow(
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Verification token is invalid or expired"));
+
+		Assert.isTrue(
+				subscriber.getStatus() == SubscriberStatus.PENDING && subscriber.getVerificationExpiresAt() != null
+						&& subscriber.getVerificationExpiresAt().isAfter(LocalDateTime.now()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Verification token is invalid or expired"));
 		subscriber.setStatus(SubscriberStatus.ACTIVE);
-        subscriber.setVerificationToken(null);
+		subscriber.setVerificationToken(null);
 		subscriber.setVerificationExpiresAt(null);
-        subscriberRepository.save(subscriber);
-        
-        log.info("New subscriber activated: {}", subscriber.getEmail());
-        return ApiResponse.success("Subscription verified successfully.", null);
-    }
+		subscriberRepository.save(subscriber);
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> unsubscribe(String token) {
-        var subscriber = subscriberRepository.findByUnsubscribeToken(token)
-                .orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST, "Unsubscribe token is invalid or expired"));
-        
+		log.info("New subscriber activated: {}", subscriber.getEmail());
+		return ApiResponse.success("Subscription verified successfully.", null);
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<Void> unsubscribe(String token) {
+		var subscriber = subscriberRepository.findByUnsubscribeToken(token).orElseThrow(
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Unsubscribe token is invalid or expired"));
+
 		subscriber.setStatus(SubscriberStatus.UNSUBSCRIBED);
 		subscriber.setVerificationToken(null);
 		subscriber.setVerificationExpiresAt(null);
-        subscriberRepository.save(subscriber);
-        
-        log.info("Subscriber opted out: {}", subscriber.getEmail());
-        return ApiResponse.success("Unsubscribed successfully.", null);
-    }
+		subscriberRepository.save(subscriber);
 
-    @Override
-    public void sendWeeklyNewsletter() {
-        log.info("Generating weekly newsletter...");
-        var trendingResponse = analyticsService.getTrendingPosts(5);
-        if (trendingResponse.data() == null || trendingResponse.data().isEmpty()) {
-            log.info("No trending content found. Skipping newsletter for this week.");
-            return;
-        }
+		log.info("Subscriber opted out: {}", subscriber.getEmail());
+		return ApiResponse.success("Unsubscribed successfully.", null);
+	}
+
+	@Override
+	public void sendWeeklyNewsletter() {
+		log.info("Generating weekly newsletter...");
+		var trendingResponse = analyticsService.getTrendingPosts(5);
+		if (trendingResponse.data() == null || trendingResponse.data().isEmpty()) {
+			log.info("No trending content found. Skipping newsletter for this week.");
+			return;
+		}
 
 		int pageNumber = 0;
 		long delivered = 0;
@@ -110,19 +109,13 @@ public class NewsletterServiceImpl implements INewsletterService {
 			page = subscriberRepository.findAllByStatus(SubscriberStatus.ACTIVE,
 					PageRequest.of(pageNumber++, newsletterProperties.getBatchSize()));
 			for (Subscriber sub : page.getContent()) {
-            Map<String, Object> variables = Map.of(
-                "posts", trendingResponse.data(),
-				"baseUrl", newsletterProperties.getBaseUrl(),
-				"unsubscribeUrl", newsletterProperties.getBaseUrl() + "/api/v1/public/newsletter/unsubscribe?token=" + sub.getUnsubscribeToken()
-            );
+				Map<String, Object> variables = Map.of("posts", trendingResponse.data(), "baseUrl",
+						newsletterProperties.getBaseUrl(), "unsubscribeUrl", newsletterProperties.getBaseUrl()
+								+ "/api/v1/public/newsletter/unsubscribe?token=" + sub.getUnsubscribeToken());
 
-            TemplateMailMessage mail = TemplateMailMessage.builder()
-                .to(sub.getEmail())
-                .subject("Nexus Weekly: Hot Articles You Might Like")
-                .templateName("weekly-newsletter")
-                .variables(variables)
-                .type(TemplateMailMessage.MailType.TEMPLATE)
-                .build();
+				TemplateMailMessage mail = TemplateMailMessage.builder().to(sub.getEmail())
+						.subject("Nexus Weekly: Hot Articles You Might Like").templateName("weekly-newsletter")
+						.variables(variables).type(TemplateMailMessage.MailType.TEMPLATE).build();
 
 				try {
 					rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mail);
@@ -133,27 +126,21 @@ public class NewsletterServiceImpl implements INewsletterService {
 			}
 		} while (page.hasNext());
 		log.info("Newsletter broadcast queued for {} subscribers", delivered);
-    }
+	}
 
-    private void sendVerificationEmail(Subscriber subscriber) {
-		String verifyUrl = newsletterProperties.getBaseUrl() + "/api/v1/public/newsletter/verify?token=" + subscriber.getVerificationToken();
-        
-        Map<String, Object> variables = Map.of(
-            "verifyUrl", verifyUrl,
-            "email", subscriber.getEmail(),
-			"baseUrl", newsletterProperties.getBaseUrl()
-        );
+	private void sendVerificationEmail(Subscriber subscriber) {
+		String verifyUrl = newsletterProperties.getBaseUrl() + "/api/v1/public/newsletter/verify?token="
+				+ subscriber.getVerificationToken();
 
-        TemplateMailMessage mail = TemplateMailMessage.builder()
-            .to(subscriber.getEmail())
-            .subject("Verify your Nexus subscription")
-            .templateName("newsletter-verify")
-            .variables(variables)
-            .type(TemplateMailMessage.MailType.TEMPLATE)
-            .build();
+		Map<String, Object> variables = Map.of("verifyUrl", verifyUrl, "email", subscriber.getEmail(), "baseUrl",
+				newsletterProperties.getBaseUrl());
 
-        rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mail);
-    }
+		TemplateMailMessage mail = TemplateMailMessage.builder().to(subscriber.getEmail())
+				.subject("Verify your Nexus subscription").templateName("newsletter-verify").variables(variables)
+				.type(TemplateMailMessage.MailType.TEMPLATE).build();
+
+		rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mail);
+	}
 
 	private void preparePendingSubscription(Subscriber subscriber) {
 		subscriber.setStatus(SubscriberStatus.PENDING);

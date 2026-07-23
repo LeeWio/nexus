@@ -29,11 +29,16 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class FriendLinkServiceImplTest {
 
-	@Mock private FriendLinkRepository friendLinkRepository;
-	@Mock private FriendLinkMapper friendLinkMapper;
-	@Mock private RabbitTemplate rabbitTemplate;
-	@Mock private FriendLinkProperties friendLinkProperties;
-	@InjectMocks private FriendLinkServiceImpl service;
+	@Mock
+	private FriendLinkRepository friendLinkRepository;
+	@Mock
+	private FriendLinkMapper friendLinkMapper;
+	@Mock
+	private RabbitTemplate rabbitTemplate;
+	@Mock
+	private FriendLinkProperties friendLinkProperties;
+	@InjectMocks
+	private FriendLinkServiceImpl service;
 
 	@BeforeEach
 	void setUp() {
@@ -43,31 +48,29 @@ class FriendLinkServiceImplTest {
 
 	@Test
 	void applicationNormalizesUrlAndSurvivesNotificationFailure() {
-		FriendLinkApplicationRequest request = new FriendLinkApplicationRequest(
-				" Example ", "HTTPS://Example.COM/", null, " Site ", "Owner@Example.COM");
+		FriendLinkApplicationRequest request = new FriendLinkApplicationRequest(" Example ", "HTTPS://Example.COM/",
+				null, " Site ", "Owner@Example.COM");
 		when(friendLinkRepository.findByUrl("https://example.com")).thenReturn(Optional.empty());
 		when(friendLinkRepository.save(any(FriendLink.class))).thenAnswer(invocation -> {
 			FriendLink link = invocation.getArgument(0);
 			link.setId(1L);
 			return link;
 		});
-		doThrow(new RuntimeException("broker unavailable")).when(rabbitTemplate)
-				.convertAndSend(any(String.class), any(String.class), any(Object.class));
+		doThrow(new RuntimeException("broker unavailable")).when(rabbitTemplate).convertAndSend(any(String.class),
+				any(String.class), any(Object.class));
 
 		var response = service.applyForFriendLink(request);
 
 		assertEquals(200, response.code());
-		verify(friendLinkRepository).save(org.mockito.ArgumentMatchers.argThat(link ->
-				"https://example.com".equals(link.getUrl())
-						&& link.getStatus() == FriendLinkStatus.APPLYING
-						&& !link.getIsPublished()
-						&& "owner@example.com".equals(link.getEmail())));
+		verify(friendLinkRepository).save(org.mockito.ArgumentMatchers.argThat(
+				link -> "https://example.com".equals(link.getUrl()) && link.getStatus() == FriendLinkStatus.APPLYING
+						&& !link.getIsPublished() && "owner@example.com".equals(link.getEmail())));
 	}
 
 	@Test
 	void applicationRejectsDangerousUrlScheme() {
-		FriendLinkApplicationRequest request = new FriendLinkApplicationRequest(
-				"Unsafe", "javascript:alert(1)", null, null, "owner@example.com");
+		FriendLinkApplicationRequest request = new FriendLinkApplicationRequest("Unsafe", "javascript:alert(1)", null,
+				null, "owner@example.com");
 
 		assertThrows(BusinessException.class, () -> service.applyForFriendLink(request));
 
@@ -82,8 +85,7 @@ class FriendLinkServiceImplTest {
 		link.setIsPublished(false);
 		when(friendLinkRepository.findById(1L)).thenReturn(Optional.of(link));
 
-		assertThrows(BusinessException.class,
-				() -> service.moderateFriendLink(1L, FriendLinkStatus.APPLYING));
+		assertThrows(BusinessException.class, () -> service.moderateFriendLink(1L, FriendLinkStatus.APPLYING));
 
 		assertFalse(link.getIsPublished());
 		verify(friendLinkRepository, never()).save(link);

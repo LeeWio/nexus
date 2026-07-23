@@ -14,34 +14,27 @@ import java.io.InputStream;
 
 @Slf4j
 @Component
-public class FileUtil
-{
+public class FileUtil {
 
 	private final Tika tika = new Tika();
 
 	/**
 	 * Detects the real MIME type of a file based on its content (Magic Number).
 	 */
-	public String detectMimeType(InputStream inputStream) throws IOException
-	{
+	public String detectMimeType(InputStream inputStream) throws IOException {
 		return tika.detect(inputStream);
 	}
 
 	/**
 	 * Gets dimensions of an image.
 	 */
-	public ImageDimensions getImageDimensions(byte[] imageBytes)
-	{
-		try (ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes))
-		{
+	public ImageDimensions getImageDimensions(byte[] imageBytes) {
+		try (ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes)) {
 			BufferedImage image = ImageIO.read(bais);
-			if (image != null)
-			{
+			if (image != null) {
 				return new ImageDimensions(image.getWidth(), image.getHeight());
 			}
-		}
-		catch (IOException e)
-		{
+		} catch (IOException e) {
 			log.warn("Could not read image dimensions", e);
 		}
 		return null;
@@ -53,19 +46,16 @@ public class FileUtil
 	/**
 	 * Checks if a MIME type represents a processable image.
 	 */
-	public boolean isImage(String mimeType)
-	{
+	public boolean isImage(String mimeType) {
 		return mimeType != null && mimeType.startsWith("image/");
 	}
 
 	/**
 	 * Generates a thumbnail for an image.
 	 */
-	public byte[] generateThumbnail(byte[] imageBytes, int width, int height) throws IOException
-	{
+	public byte[] generateThumbnail(byte[] imageBytes, int width, int height) throws IOException {
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes);
-				ByteArrayOutputStream outputStream = new ByteArrayOutputStream())
-		{
+				ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 			Thumbnails.of(bais).size(width, height).outputFormat("jpg").outputQuality(0.8).toOutputStream(outputStream);
 			return outputStream.toByteArray();
 		}
@@ -74,11 +64,9 @@ public class FileUtil
 	/**
 	 * Compresses an image while maintaining reasonable quality.
 	 */
-	public byte[] compressImage(byte[] imageBytes) throws IOException
-	{
+	public byte[] compressImage(byte[] imageBytes) throws IOException {
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes);
-				ByteArrayOutputStream outputStream = new ByteArrayOutputStream())
-		{
+				ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 			Thumbnails.of(bais).scale(1.0).outputQuality(0.7).toOutputStream(outputStream);
 			return outputStream.toByteArray();
 		}
@@ -87,24 +75,17 @@ public class FileUtil
 	/**
 	 * Converts an image to WebP format.
 	 */
-	public byte[] convertToWebP(byte[] imageBytes) throws IOException
-	{
+	public byte[] convertToWebP(byte[] imageBytes) throws IOException {
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes);
-				ByteArrayOutputStream outputStream = new ByteArrayOutputStream())
-		{
+				ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 			BufferedImage image = ImageIO.read(bais);
-			if (image == null)
-			{
+			if (image == null) {
 				throw new IOException("Failed to read image data for WebP conversion");
 			}
-			
+
 			// Using thumbnailator to output as webp
-			Thumbnails.of(image)
-					.scale(1.0)
-					.outputFormat("webp")
-					.outputQuality(0.8)
-					.toOutputStream(outputStream);
-			
+			Thumbnails.of(image).scale(1.0).outputFormat("webp").outputQuality(0.8).toOutputStream(outputStream);
+
 			return outputStream.toByteArray();
 		}
 	}

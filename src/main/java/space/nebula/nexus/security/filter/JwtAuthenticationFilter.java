@@ -28,8 +28,7 @@ import java.io.IOException;
 
 @Slf4j
 @Component
-public class JwtAuthenticationFilter extends OncePerRequestFilter
-{
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	public static final String SECURITY_ERROR_CODE = "NEXUS_SECURITY_ERROR_CODE";
 
@@ -48,28 +47,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter
 
 	@Override
 	protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
-			@NonNull FilterChain filterChain) throws ServletException, IOException
-	{
+			@NonNull FilterChain filterChain) throws ServletException, IOException {
 
 		final String authHeader = request.getHeader(jwtProperties.getHeader());
 		final String jwt;
 		final String username;
 
 		// 1. Check if the Authorization header is present and correctly formatted
-		if (!StringUtils.hasText(authHeader) || !authHeader.startsWith(jwtProperties.getPrefix()))
-		{
+		if (!StringUtils.hasText(authHeader) || !authHeader.startsWith(jwtProperties.getPrefix())) {
 			filterChain.doFilter(request, response);
 			return;
 		}
 
-		try
-		{
+		try {
 			// 2. Extract the token
 			jwt = authHeader.substring(jwtProperties.getPrefix().length());
 
 			// 3. Check Blacklist (Redis)
-				if (!jwtUtils.isAccessToken(jwt) || revokedTokenStore.isRevoked(jwt))
-			{
+			if (!jwtUtils.isAccessToken(jwt) || revokedTokenStore.isRevoked(jwt)) {
 				log.warn("Rejected blacklisted JWT token");
 				request.setAttribute(SECURITY_ERROR_CODE, BusinessCode.INVALID_TOKEN);
 				filterChain.doFilter(request, response);
@@ -81,14 +76,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter
 
 			// 5. If the username is valid and the user is not already authenticated in the
 			// SecurityContext
-			if (username != null && SecurityContextHolder.getContext().getAuthentication() == null)
-			{
+			if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 				// Load the user details from the database
 				UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
 
 				// 5. Validate the token
-				if (jwtUtils.isTokenValid(jwt, userDetails))
-				{
+				if (jwtUtils.isTokenValid(jwt, userDetails)) {
 					// Create an Authentication token
 					UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
 							null, // We don't need credentials after successful authentication
@@ -103,19 +96,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter
 					log.debug("Successfully authenticated user '{}' with JWT.", username);
 				}
 			}
-		}
-		catch (ExpiredJwtException e)
-		{
+		} catch (ExpiredJwtException e) {
 			log.warn("JWT token is expired: {}", e.getMessage());
 			request.setAttribute(SECURITY_ERROR_CODE, BusinessCode.INVALID_TOKEN);
-		}
-		catch (SignatureException | MalformedJwtException | UnsupportedJwtException e)
-		{
+		} catch (SignatureException | MalformedJwtException | UnsupportedJwtException e) {
 			log.warn("JWT token is invalid: {}", e.getMessage());
 			request.setAttribute(SECURITY_ERROR_CODE, BusinessCode.INVALID_TOKEN);
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			log.error("Authentication internal error: {}", e.getMessage());
 			request.setAttribute(SECURITY_ERROR_CODE, BusinessCode.UNAUTHORIZED);
 		}

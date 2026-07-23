@@ -7,11 +7,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Builder
-public record WebhookResponse(
-		Long id,
-		String name,
-		String url,
-		List<WebhookEvent> events,
-		Boolean isActive,
-		LocalDateTime createdAt
-) {}
+public record WebhookResponse(Long id, String name, String url, List<WebhookEvent> events, Boolean isActive,
+		LocalDateTime createdAt) {
+}

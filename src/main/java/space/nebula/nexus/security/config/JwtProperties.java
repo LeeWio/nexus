@@ -9,8 +9,7 @@ import org.springframework.context.annotation.Configuration;
 @Setter
 @Configuration
 @ConfigurationProperties(prefix = "app.jwt")
-public class JwtProperties
-{
+public class JwtProperties {
 
 	/**
 	 * The secret key used to sign the JWT. Should be a long, random string (at

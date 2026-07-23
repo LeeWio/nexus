@@ -20,8 +20,7 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
-public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler
-{
+public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
 	private final JwtUtils jwtUtils;
 	private final UserRepository userRepository;
@@ -31,12 +30,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
 	@Override
 	public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-			Authentication authentication) throws IOException, ServletException
-	{
+			Authentication authentication) throws IOException, ServletException {
 		OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
 		Object localUserId = oAuth2User.getAttributes().get(OAuthAccountResolver.LOCAL_USER_ID_ATTRIBUTE);
-		if (localUserId == null)
-		{
+		if (localUserId == null) {
 			throw new ServletException("OAuth login did not resolve a local user account");
 		}
 
@@ -47,8 +44,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
 		String targetUrl = UriComponentsBuilder.fromUriString(redirectUri).queryParam("token", token).build()
 				.toUriString();
-		if (request.getSession(false) != null)
-		{
+		if (request.getSession(false) != null) {
 			request.getSession(false).invalidate();
 		}
 

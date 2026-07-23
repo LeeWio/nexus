@@ -3,7 +3,6 @@ package space.nebula.nexus.config;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
@@ -16,15 +15,14 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * Configuration for Thread Pools to ensure resource isolation.
- * Optimized for Java 21 Virtual Threads.
+ * Configuration for Thread Pools to ensure resource isolation. Optimized for
+ * Java 21 Virtual Threads.
  */
 @Slf4j
 @Configuration
 @EnableAsync
 @RequiredArgsConstructor
-public class ThreadPoolConfig
-{
+public class ThreadPoolConfig {
 
 	private final ThreadPoolProperties properties;
 
@@ -32,14 +30,12 @@ public class ThreadPoolConfig
 	private boolean virtualThreadsEnabled;
 
 	/**
-	 * Custom executor for general asynchronous tasks.
-	 * If virtual threads are enabled, use a virtual-thread-per-task executor.
+	 * Custom executor for general asynchronous tasks. If virtual threads are
+	 * enabled, use a virtual-thread-per-task executor.
 	 */
 	@Bean(name = "asyncExecutor")
-	Executor asyncExecutor()
-	{
-		if (virtualThreadsEnabled)
-		{
+	Executor asyncExecutor() {
+		if (virtualThreadsEnabled) {
 			log.info("Virtual Threads enabled: Using Virtual Thread Per Task Executor for 'asyncExecutor'");
 			SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor();
 			executor.setThreadNamePrefix(properties.getAsync().getThreadNamePrefix());
@@ -67,8 +63,7 @@ public class ThreadPoolConfig
 	 * connection pools and remote services even when virtual threads are enabled.
 	 */
 	@Bean(name = "outboundExecutor")
-	Executor outboundExecutor()
-	{
+	Executor outboundExecutor() {
 		SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor();
 		executor.setThreadNamePrefix(properties.getOutbound().getThreadNamePrefix());
 		executor.setVirtualThreads(virtualThreadsEnabled);
@@ -78,14 +73,13 @@ public class ThreadPoolConfig
 	}
 
 	/**
-	 * Custom scheduler for background scheduled tasks.
-	 * Note: ThreadPoolTaskScheduler currently doesn't natively support virtual threads in a simple way
-	 * like SimpleAsyncTaskExecutor, but for scheduled tasks, platform threads are usually fine
-	 * as they are mostly low-concurrency.
+	 * Custom scheduler for background scheduled tasks. Note:
+	 * ThreadPoolTaskScheduler currently doesn't natively support virtual threads in
+	 * a simple way like SimpleAsyncTaskExecutor, but for scheduled tasks, platform
+	 * threads are usually fine as they are mostly low-concurrency.
 	 */
 	@Bean(name = "taskScheduler")
-	ThreadPoolTaskScheduler taskScheduler()
-	{
+	ThreadPoolTaskScheduler taskScheduler() {
 		ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
 		scheduler.setPoolSize(properties.getScheduler().getPoolSize());
 		scheduler.setThreadNamePrefix(properties.getScheduler().getThreadNamePrefix());

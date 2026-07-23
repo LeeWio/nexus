@@ -6,11 +6,9 @@ import space.nebula.nexus.service.IGitHubService;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-class GitHubSyncTaskTest
-{
+class GitHubSyncTaskTest {
 	@Test
-	void syncGitHubMetricsDelegatesSynchronizationToService()
-	{
+	void syncGitHubMetricsDelegatesSynchronizationToService() {
 		IGitHubService githubService = mock(IGitHubService.class);
 		GitHubSyncTask task = new GitHubSyncTask(githubService);
 

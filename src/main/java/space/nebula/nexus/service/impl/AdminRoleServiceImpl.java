@@ -29,8 +29,7 @@ import java.util.Set;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AdminRoleServiceImpl implements IAdminRoleService
-{
+public class AdminRoleServiceImpl implements IAdminRoleService {
 	private static final Set<String> SYSTEM_ROLE_CODES = Set.of("ROLE_ADMIN", "ROLE_USER");
 
 	private final RoleRepository roleRepository;
@@ -39,18 +38,17 @@ public class AdminRoleServiceImpl implements IAdminRoleService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<RoleResponse>> getAllRoles()
-	{
+	public ApiResponse<List<RoleResponse>> getAllRoles() {
 		return ApiResponse.success(roleMapper.toResponseList(roleRepository.findAll()));
 	}
 
 	@Override
 	@Transactional
 	@LogOperation("Create Role")
-	public ApiResponse<RoleResponse> createRole(RoleRequest request)
-	{
+	public ApiResponse<RoleResponse> createRole(RoleRequest request) {
 		Assert.isFalse(roleRepository.findByCode(request.code()).isPresent(),
-				() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Role code is already in use: " + request.code()));
+				() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
+						"Role code is already in use: " + request.code()));
 
 		var role = new Role();
 		role.setName(request.name());
@@ -65,15 +63,14 @@ public class AdminRoleServiceImpl implements IAdminRoleService
 	@Override
 	@Transactional
 	@LogOperation("Update Role")
-	public ApiResponse<RoleResponse> updateRole(Long id, RoleRequest request)
-	{
+	public ApiResponse<RoleResponse> updateRole(Long id, RoleRequest request) {
 		var role = roleRepository.findById(id)
 				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
-		Assert.isFalse(SYSTEM_ROLE_CODES.contains(role.getCode()) && ObjectUtil.notEqual(role.getCode(), request.code()),
+		Assert.isFalse(
+				SYSTEM_ROLE_CODES.contains(role.getCode()) && ObjectUtil.notEqual(role.getCode(), request.code()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "System role codes cannot be modified"));
 
-		if (ObjectUtil.notEqual(role.getCode(), request.code()))
-		{
+		if (ObjectUtil.notEqual(role.getCode(), request.code())) {
 			Assert.isFalse(roleRepository.findByCode(request.code()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 							"Role code is already in use: " + request.code()));
@@ -91,8 +88,7 @@ public class AdminRoleServiceImpl implements IAdminRoleService
 	@Override
 	@Transactional
 	@LogOperation("Delete Role")
-	public ApiResponse<Void> deleteRole(Long id)
-	{
+	public ApiResponse<Void> deleteRole(Long id) {
 		var role = roleRepository.findById(id)
 				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
 		Assert.isFalse(SYSTEM_ROLE_CODES.contains(role.getCode()),
@@ -106,8 +102,7 @@ public class AdminRoleServiceImpl implements IAdminRoleService
 	@Override
 	@Transactional
 	@LogOperation("Assign Menus to Role")
-	public ApiResponse<Void> assignMenus(Long roleId, AssignMenuRequest request)
-	{
+	public ApiResponse<Void> assignMenus(Long roleId, AssignMenuRequest request) {
 		var role = roleRepository.findById(roleId)
 				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
 
@@ -124,14 +119,11 @@ public class AdminRoleServiceImpl implements IAdminRoleService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<Long>> getRoleMenuIds(Long roleId)
-	{
+	public ApiResponse<List<Long>> getRoleMenuIds(Long roleId) {
 		var role = roleRepository.findById(roleId)
 				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Role not found"));
 
-		List<Long> menuIds = role.getMenus().stream()
-				.map(space.nebula.nexus.entity.Menu::getId)
-				.toList();
+		List<Long> menuIds = role.getMenus().stream().map(space.nebula.nexus.entity.Menu::getId).toList();
 
 		return ApiResponse.success(menuIds);
 	}

@@ -48,13 +48,13 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Transactional implementation of the authenticated user's personal content library.
+ * Transactional implementation of the authenticated user's personal content
+ * library.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PersonalLibraryServiceImpl implements IPersonalLibraryService
-{
+public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	private static final long MAX_COLLECTIONS_PER_USER = 50;
 	private static final long MAX_POSTS_PER_COLLECTION = 1000;
 	private static final int OVERVIEW_SECTION_SIZE = 6;
@@ -79,8 +79,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PersonalLibraryOverviewResponse> getOverview()
-	{
+	public ApiResponse<PersonalLibraryOverviewResponse> getOverview() {
 		User user = currentUser();
 		Pageable sectionCandidates = PageRequest.of(0, OVERVIEW_CANDIDATE_SIZE);
 
@@ -101,13 +100,13 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 		List<Long> preferredCategoryIds = preferredCategoryIds(user.getId(), followedCategoryIds);
 		List<RecommendedPostResponse> recommendations = buildRecommendations(user.getId(), preferredCategoryIds,
 				Set.copyOf(followedCategoryIds));
-		return ApiResponse.success(new PersonalLibraryOverviewResponse(continueReading, recentFavorites, recommendations));
+		return ApiResponse
+				.success(new PersonalLibraryOverviewResponse(continueReading, recentFavorites, recommendations));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<PostDigestResponse>> getFollowingFeed(Pageable pageable)
-	{
+	public ApiResponse<PageResult<PostDigestResponse>> getFollowingFeed(Pageable pageable) {
 		User user = currentUser();
 		var feed = postRepository.findFollowedCategoryFeed(user.getId(), PostStatus.PUBLISHED, pageable)
 				.map(postMapper::toDigestResponse);
@@ -116,24 +115,22 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<ContentPreferenceResponse> getContentPreferences()
-	{
+	public ApiResponse<ContentPreferenceResponse> getContentPreferences() {
 		User user = currentUser();
 		var categories = categoryFollowRepository.findAllByUserId(user.getId()).stream()
 				.map(follow -> follow.getCategory()).toList();
 		long hiddenPostCount = hiddenRecommendationRepository.countByUserIdAndIsDeletedFalse(user.getId());
-		return ApiResponse.success(new ContentPreferenceResponse(categoryMapper.toResponseList(categories), hiddenPostCount));
+		return ApiResponse
+				.success(new ContentPreferenceResponse(categoryMapper.toResponseList(categories), hiddenPostCount));
 	}
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> followCategory(Long categoryId)
-	{
+	public ApiResponse<Void> followCategory(Long categoryId) {
 		User user = currentUser();
 		categoryRepository.findById(categoryId)
 				.orElseThrow(() -> new ResourceNotFoundException("Category", "id", categoryId));
-		if (categoryFollowRepository.existsByUserIdAndCategoryIdAndIsDeletedFalse(user.getId(), categoryId))
-		{
+		if (categoryFollowRepository.existsByUserIdAndCategoryIdAndIsDeletedFalse(user.getId(), categoryId)) {
 			return ApiResponse.success("Category is already followed", null);
 		}
 		Assert.isTrue(categoryFollowRepository.countByUserIdAndIsDeletedFalse(user.getId()) < MAX_FOLLOWED_CATEGORIES,
@@ -144,8 +141,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> unfollowCategory(Long categoryId)
-	{
+	public ApiResponse<Void> unfollowCategory(Long categoryId) {
 		User user = currentUser();
 		int deleted = categoryFollowRepository.deleteOwnedFollow(user.getId(), categoryId);
 		return ApiResponse.success(deleted > 0 ? "Category unfollowed" : "Category was not followed", null);
@@ -153,8 +149,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> hideRecommendation(Long postId)
-	{
+	public ApiResponse<Void> hideRecommendation(Long postId) {
 		User user = currentUser();
 		findPublishedPost(postId);
 		int inserted = hiddenRecommendationRepository.insertIgnore(user.getId(), postId);
@@ -163,8 +158,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> restoreRecommendation(Long postId)
-	{
+	public ApiResponse<Void> restoreRecommendation(Long postId) {
 		User user = currentUser();
 		int deleted = hiddenRecommendationRepository.deleteOwnedHiddenPost(user.getId(), postId);
 		return ApiResponse.success(deleted > 0 ? "Recommendation restored" : "Recommendation was not hidden", null);
@@ -172,8 +166,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> clearHiddenRecommendations()
-	{
+	public ApiResponse<Void> clearHiddenRecommendations() {
 		User user = currentUser();
 		int deleted = hiddenRecommendationRepository.deleteAllOwnedHiddenPosts(user.getId());
 		log.info("Cleared {} hidden recommendations for user {}", deleted, user.getUsername());
@@ -182,8 +175,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<FavoritePostResponse>> getFavorites(Pageable pageable)
-	{
+	public ApiResponse<PageResult<FavoritePostResponse>> getFavorites(Pageable pageable) {
 		User user = currentUser();
 		var favorites = favoriteRepository.findVisibleFavorites(user.getId(), PostStatus.PUBLISHED, pageable)
 				.map(favorite -> new FavoritePostResponse(postMapper.toDigestResponse(favorite.getPost()),
@@ -193,8 +185,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<ReadingHistoryResponse>> getReadingHistory(Pageable pageable)
-	{
+	public ApiResponse<PageResult<ReadingHistoryResponse>> getReadingHistory(Pageable pageable) {
 		User user = currentUser();
 		var history = readingHistoryRepository.findVisibleHistory(user.getId(), PostStatus.PUBLISHED, pageable)
 				.map(this::toReadingHistoryResponse);
@@ -203,12 +194,10 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional
-	public ApiResponse<ReadingHistoryResponse> recordReadingProgress(Long postId, ReadingProgressRequest request)
-	{
+	public ApiResponse<ReadingHistoryResponse> recordReadingProgress(Long postId, ReadingProgressRequest request) {
 		User user = currentUser();
 		Post post = findPublishedPost(postId);
-		ReadingHistory history = readingHistoryRepository
-				.findByUserIdAndPostIdAndIsDeletedFalse(user.getId(), postId)
+		ReadingHistory history = readingHistoryRepository.findByUserIdAndPostIdAndIsDeletedFalse(user.getId(), postId)
 				.orElseGet(() -> newReadingHistory(user, post));
 		history.recordProgress(request.progressPercent(), normalizeOptional(request.positionAnchor()));
 		ReadingHistory saved = readingHistoryRepository.save(history);
@@ -217,19 +206,16 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> deleteReadingHistory(Long postId)
-	{
+	public ApiResponse<Void> deleteReadingHistory(Long postId) {
 		User user = currentUser();
 		int deleted = readingHistoryRepository.deleteOwnedEntry(user.getId(), postId);
-		Assert.isTrue(deleted > 0,
-				() -> new ResourceNotFoundException("ReadingHistory", "postId", postId));
+		Assert.isTrue(deleted > 0, () -> new ResourceNotFoundException("ReadingHistory", "postId", postId));
 		return ApiResponse.success("Reading history entry removed", null);
 	}
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> clearReadingHistory()
-	{
+	public ApiResponse<Void> clearReadingHistory() {
 		User user = currentUser();
 		int deleted = readingHistoryRepository.deleteAllOwnedEntries(user.getId());
 		log.info("Cleared {} reading history entries for user {}", deleted, user.getUsername());
@@ -238,23 +224,19 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<List<PostCollectionResponse>> getCollections()
-	{
+	public ApiResponse<List<PostCollectionResponse>> getCollections() {
 		return ApiResponse.success(collectionRepository.findSummariesByUserId(currentUser().getId()));
 	}
 
 	@Override
 	@Transactional
-	public ApiResponse<PostCollectionResponse> createCollection(PostCollectionRequest request)
-	{
+	public ApiResponse<PostCollectionResponse> createCollection(PostCollectionRequest request) {
 		User user = currentUser();
 		String name = normalizeName(request.name());
 		Assert.isTrue(collectionRepository.countByUserIdAndIsDeletedFalse(user.getId()) < MAX_COLLECTIONS_PER_USER,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"You can create up to 50 collections"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "You can create up to 50 collections"));
 		Assert.isFalse(collectionRepository.existsByUserIdAndNameIgnoreCaseAndIsDeletedFalse(user.getId(), name),
-				() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-						"A collection with this name already exists"));
+				() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "A collection with this name already exists"));
 
 		PostCollection collection = new PostCollection();
 		collection.setUser(user);
@@ -265,15 +247,14 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional
-	public ApiResponse<PostCollectionResponse> updateCollection(Long collectionId, PostCollectionRequest request)
-	{
+	public ApiResponse<PostCollectionResponse> updateCollection(Long collectionId, PostCollectionRequest request) {
 		User user = currentUser();
 		PostCollection collection = findOwnedCollection(collectionId, user.getId());
 		String name = normalizeName(request.name());
-		Assert.isFalse(collectionRepository.existsByUserIdAndNameIgnoreCaseAndIdNotAndIsDeletedFalse(
-				user.getId(), name, collectionId),
-				() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
-						"A collection with this name already exists"));
+		Assert.isFalse(
+				collectionRepository.existsByUserIdAndNameIgnoreCaseAndIdNotAndIsDeletedFalse(user.getId(), name,
+						collectionId),
+				() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "A collection with this name already exists"));
 		applyCollectionRequest(collection, name, request.description());
 		PostCollection saved = collectionRepository.save(collection);
 		long itemCount = collectionItemRepository.countByCollectionIdAndIsDeletedFalse(collectionId);
@@ -282,8 +263,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> deleteCollection(Long collectionId)
-	{
+	public ApiResponse<Void> deleteCollection(Long collectionId) {
 		User user = currentUser();
 		PostCollection collection = findOwnedCollection(collectionId, user.getId());
 		collectionItemRepository.deleteAllItems(collectionId);
@@ -293,30 +273,26 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<CollectionPostResponse>> getCollectionPosts(Long collectionId, Pageable pageable)
-	{
+	public ApiResponse<PageResult<CollectionPostResponse>> getCollectionPosts(Long collectionId, Pageable pageable) {
 		User user = currentUser();
 		findOwnedCollection(collectionId, user.getId());
-		var items = collectionItemRepository.findVisibleItems(collectionId, PostStatus.PUBLISHED, pageable)
-				.map(item -> new CollectionPostResponse(postMapper.toDigestResponse(item.getPost()), item.getCreatedAt()));
+		var items = collectionItemRepository.findVisibleItems(collectionId, PostStatus.PUBLISHED, pageable).map(
+				item -> new CollectionPostResponse(postMapper.toDigestResponse(item.getPost()), item.getCreatedAt()));
 		return ApiResponse.success(PageResult.of(items));
 	}
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> addPostToCollection(Long collectionId, Long postId)
-	{
+	public ApiResponse<Void> addPostToCollection(Long collectionId, Long postId) {
 		User user = currentUser();
 		PostCollection collection = findOwnedCollection(collectionId, user.getId());
 		Post post = findPublishedPost(postId);
-		if (collectionItemRepository.existsByCollectionIdAndPostIdAndIsDeletedFalse(collectionId, postId))
-		{
+		if (collectionItemRepository.existsByCollectionIdAndPostIdAndIsDeletedFalse(collectionId, postId)) {
 			return ApiResponse.success("Post is already in this collection", null);
 		}
-		Assert.isTrue(collectionItemRepository.countByCollectionIdAndIsDeletedFalse(collectionId)
-				< MAX_POSTS_PER_COLLECTION,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"A collection can contain up to 1,000 posts"));
+		Assert.isTrue(
+				collectionItemRepository.countByCollectionIdAndIsDeletedFalse(collectionId) < MAX_POSTS_PER_COLLECTION,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "A collection can contain up to 1,000 posts"));
 		PostCollectionItem item = new PostCollectionItem();
 		item.setCollection(collection);
 		item.setPost(post);
@@ -326,75 +302,64 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> removePostFromCollection(Long collectionId, Long postId)
-	{
+	public ApiResponse<Void> removePostFromCollection(Long collectionId, Long postId) {
 		User user = currentUser();
 		findOwnedCollection(collectionId, user.getId());
 		int deleted = collectionItemRepository.deleteItem(collectionId, postId);
-		Assert.isTrue(deleted > 0,
-				() -> new ResourceNotFoundException("CollectionPost", "postId", postId));
+		Assert.isTrue(deleted > 0, () -> new ResourceNotFoundException("CollectionPost", "postId", postId));
 		return ApiResponse.success("Post removed from collection", null);
 	}
 
-	private User currentUser()
-	{
+	private User currentUser() {
 		return SecurityUtil.getCurrentUserOrThrow(userRepository);
 	}
 
-	private Post findPublishedPost(Long postId)
-	{
+	private Post findPublishedPost(Long postId) {
 		Post post = postRepository.findById(postId)
 				.orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
-		Assert.isTrue(post.isPublished(),
-				() -> new BusinessException(BusinessCode.POST_NOT_PUBLISHED));
+		Assert.isTrue(post.isPublished(), () -> new BusinessException(BusinessCode.POST_NOT_PUBLISHED));
 		return post;
 	}
 
-	private PostCollection findOwnedCollection(Long collectionId, Long userId)
-	{
+	private PostCollection findOwnedCollection(Long collectionId, Long userId) {
 		return collectionRepository.findByIdAndUserIdAndIsDeletedFalse(collectionId, userId)
 				.orElseThrow(() -> new ResourceNotFoundException("PostCollection", "id", collectionId));
 	}
 
-	private ReadingHistory newReadingHistory(User user, Post post)
-	{
+	private ReadingHistory newReadingHistory(User user, Post post) {
 		ReadingHistory history = new ReadingHistory();
 		history.setUser(user);
 		history.setPost(post);
 		return history;
 	}
 
-	private ReadingHistoryResponse toReadingHistoryResponse(ReadingHistory history)
-	{
+	private ReadingHistoryResponse toReadingHistoryResponse(ReadingHistory history) {
 		return new ReadingHistoryResponse(postMapper.toDigestResponse(history.getPost()), history.getProgressPercent(),
 				history.getPositionAnchor(), history.getLastReadAt(), history.getCompletedAt());
 	}
 
-	private List<Long> preferredCategoryIds(Long userId, List<Long> followedCategoryIds)
-	{
+	private List<Long> preferredCategoryIds(Long userId, List<Long> followedCategoryIds) {
 		Pageable preferenceLimit = PageRequest.of(0, PREFERENCE_CATEGORY_SIZE);
 		Set<Long> categoryIds = new LinkedHashSet<>();
 		categoryIds.addAll(followedCategoryIds);
 		categoryIds.addAll(favoriteRepository.findPreferredCategoryIds(userId, PostStatus.PUBLISHED, preferenceLimit));
-		categoryIds.addAll(readingHistoryRepository.findPreferredCategoryIds(userId, PostStatus.PUBLISHED, preferenceLimit));
+		categoryIds.addAll(
+				readingHistoryRepository.findPreferredCategoryIds(userId, PostStatus.PUBLISHED, preferenceLimit));
 		return categoryIds.stream().limit(PREFERENCE_CATEGORY_SIZE).toList();
 	}
 
 	private List<RecommendedPostResponse> buildRecommendations(Long userId, List<Long> preferredCategoryIds,
-			Set<Long> followedCategoryIds)
-	{
+			Set<Long> followedCategoryIds) {
 		Pageable candidateLimit = PageRequest.of(0, OVERVIEW_CANDIDATE_SIZE);
 		List<RecommendedPostResponse> recommendations = new ArrayList<>(OVERVIEW_SECTION_SIZE);
 		Set<Long> selectedIds = new LinkedHashSet<>();
 
-		if (!preferredCategoryIds.isEmpty())
-		{
-			postRepository.findPersonalizedRecommendations(userId, preferredCategoryIds, PostStatus.PUBLISHED,
-					candidateLimit)
+		if (!preferredCategoryIds.isEmpty()) {
+			postRepository
+					.findPersonalizedRecommendations(userId, preferredCategoryIds, PostStatus.PUBLISHED, candidateLimit)
 					.forEach(post -> addRecommendation(recommendations, selectedIds, post, followedCategoryIds, true));
 		}
-		if (recommendations.size() < OVERVIEW_SECTION_SIZE)
-		{
+		if (recommendations.size() < OVERVIEW_SECTION_SIZE) {
 			postRepository.findPopularUnseenPosts(userId, PostStatus.PUBLISHED, candidateLimit)
 					.forEach(post -> addRecommendation(recommendations, selectedIds, post, followedCategoryIds, false));
 		}
@@ -402,16 +367,12 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 	}
 
 	private void addRecommendation(List<RecommendedPostResponse> recommendations, Set<Long> selectedIds, Post post,
-			Set<Long> followedCategoryIds, boolean categoryBased)
-	{
-		if (recommendations.size() >= OVERVIEW_SECTION_SIZE || post.getId() == null || !selectedIds.add(post.getId()))
-		{
+			Set<Long> followedCategoryIds, boolean categoryBased) {
+		if (recommendations.size() >= OVERVIEW_SECTION_SIZE || post.getId() == null || !selectedIds.add(post.getId())) {
 			return;
 		}
-		if (categoryBased && post.getCategory() != null)
-		{
-			if (followedCategoryIds.contains(post.getCategory().getId()))
-			{
+		if (categoryBased && post.getCategory() != null) {
+			if (followedCategoryIds.contains(post.getCategory().getId())) {
 				recommendations.add(new RecommendedPostResponse(postMapper.toDigestResponse(post),
 						FOLLOWED_CATEGORY_REASON, "Because you follow " + post.getCategory().getName() + "."));
 				return;
@@ -424,27 +385,22 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService
 				"Popular across the community."));
 	}
 
-	private PostCollectionResponse toCollectionResponse(PostCollection collection, Long itemCount)
-	{
-		return new PostCollectionResponse(collection.getId(), collection.getName(), collection.getDescription(), itemCount,
-				collection.getCreatedAt(), collection.getUpdatedAt());
+	private PostCollectionResponse toCollectionResponse(PostCollection collection, Long itemCount) {
+		return new PostCollectionResponse(collection.getId(), collection.getName(), collection.getDescription(),
+				itemCount, collection.getCreatedAt(), collection.getUpdatedAt());
 	}
 
-	private void applyCollectionRequest(PostCollection collection, String name, String description)
-	{
+	private void applyCollectionRequest(PostCollection collection, String name, String description) {
 		collection.setName(name);
 		collection.setDescription(normalizeOptional(description));
 	}
 
-	private String normalizeName(String name)
-	{
+	private String normalizeName(String name) {
 		return name.trim().replaceAll("\\s+", " ");
 	}
 
-	private String normalizeOptional(String value)
-	{
-		if (value == null || value.isBlank())
-		{
+	private String normalizeOptional(String value) {
+		if (value == null || value.isBlank()) {
 			return null;
 		}
 		return value.trim();

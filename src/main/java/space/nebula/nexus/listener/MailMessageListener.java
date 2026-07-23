@@ -14,29 +14,25 @@ import space.nebula.nexus.utils.MailUtil;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class MailMessageListener
-{
+public class MailMessageListener {
 
 	private final MailUtil mailUtil;
 
 	@RabbitListener(queues = RabbitMQConfig.MAIL_QUEUE)
-	public void processMailMessage(TemplateMailMessage message)
-	{
+	public void processMailMessage(TemplateMailMessage message) {
 		log.info("Received request to send async email to: {}, type: {}", message.getTo(), message.getType());
-		try
-		{
+		try {
 			switch (message.getType()) {
-			case SIMPLE -> mailUtil.sendSimpleMail(message.getTo(), message.getSubject(), message.getContent());
-			case HTML -> mailUtil.sendHtmlMail(message.getTo(), message.getSubject(), message.getContent());
-			case TEMPLATE -> mailUtil.sendTemplateMail(message.getTo(), message.getSubject(), message.getTemplateName(),
-					message.getVariables());
+				case SIMPLE -> mailUtil.sendSimpleMail(message.getTo(), message.getSubject(), message.getContent());
+				case HTML -> mailUtil.sendHtmlMail(message.getTo(), message.getSubject(), message.getContent());
+				case TEMPLATE -> mailUtil.sendTemplateMail(message.getTo(), message.getSubject(),
+						message.getTemplateName(), message.getVariables());
 			}
 			log.info("Async email successfully sent to: {}", message.getTo());
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			log.error("Failed to send async email to: {}. Reason: {}", message.getTo(), e.getMessage(), e);
-			// Rethrow exception to trigger RabbitMQ listener retry mechanism and eventual DLQ routing
+			// Rethrow exception to trigger RabbitMQ listener retry mechanism and eventual
+			// DLQ routing
 			throw new RuntimeException("Async email delivery failed", e);
 		}
 	}

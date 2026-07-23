@@ -16,38 +16,33 @@ import space.nebula.nexus.service.IAnalyticsService;
 @RequestMapping(space.nebula.nexus.common.constant.ApiConstants.ADMIN + "/analytics")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-public class AdminAnalyticsController
-{
+public class AdminAnalyticsController {
 
 	private final IAnalyticsService analyticsService;
 
 	@Operation(summary = "Retrieve today's traffic overview")
 	@GetMapping("/overview")
-	public ApiResponse<AnalyticsOverviewResponse> retrieveOverview()
-	{
+	public ApiResponse<AnalyticsOverviewResponse> retrieveOverview() {
 		return analyticsService.retrieveOverviewStats();
 	}
 
 	@Operation(summary = "Retrieve top pages statistics", description = "Get a list of top visited pages with views, mocked average time, bounce rate and trend.")
 	@GetMapping("/top-pages")
-	public ApiResponse<java.util.List<space.nebula.nexus.payload.response.TopPageResponse>> getTopPages()
-	{
+	public ApiResponse<java.util.List<space.nebula.nexus.payload.response.TopPageResponse>> getTopPages() {
 		return analyticsService.getTopPages();
 	}
 
 	@Operation(summary = "Retrieve traffic statistics", description = "Get traffic breakdown by device type and referer source.")
 	@GetMapping("/traffic")
 	public ApiResponse<space.nebula.nexus.payload.response.TrafficStatsResponse> getTrafficStats(
-			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "30") int days)
-	{
+			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "30") int days) {
 		return analyticsService.getTrafficStats(days);
 	}
 
 	@Operation(summary = "Retrieve trending posts", description = "Get a list of currently popular posts based on recent traffic.")
 	@GetMapping("/trending")
 	public ApiResponse<java.util.List<space.nebula.nexus.payload.response.PostResponse>> getTrending(
-			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int limit)
-	{
+			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int limit) {
 		return analyticsService.getTrendingPosts(limit);
 	}
 }

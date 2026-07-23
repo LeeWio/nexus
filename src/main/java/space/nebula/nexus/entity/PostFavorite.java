@@ -14,14 +14,14 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * Read model for the durable favorite relationship maintained by the interaction service.
+ * Read model for the durable favorite relationship maintained by the
+ * interaction service.
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "blog_post_favorite")
-public class PostFavorite
-{
+public class PostFavorite {
 	@EmbeddedId
 	private PostFavoriteId id;
 

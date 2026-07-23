@@ -12,15 +12,15 @@ import space.nebula.nexus.service.ILinkHealthService;
 @RequiredArgsConstructor
 public class LinkHealthCheckTask {
 
-    private final ILinkHealthService linkHealthService;
+	private final ILinkHealthService linkHealthService;
 
-    /**
-     * Runs once a week on Sunday at 3 AM.
-     */
-    @Scheduled(cron = "0 0 3 * * SUN")
-    @SchedulerLock(name = "linkHealthCheck", lockAtMostFor = "PT2H", lockAtLeastFor = "PT1M")
-    public void runWeeklyLinkCheck() {
-        log.info("Executing scheduled weekly external link health check...");
-        linkHealthService.runFullScan();
-    }
+	/**
+	 * Runs once a week on Sunday at 3 AM.
+	 */
+	@Scheduled(cron = "0 0 3 * * SUN")
+	@SchedulerLock(name = "linkHealthCheck", lockAtMostFor = "PT2H", lockAtLeastFor = "PT1M")
+	public void runWeeklyLinkCheck() {
+		log.info("Executing scheduled weekly external link health check...");
+		linkHealthService.runFullScan();
+	}
 }

@@ -98,15 +98,9 @@ public record PostResponse(@Schema(description = "Post ID") Long id,
 	/**
 	 * SEO Metadata for social sharing and search engines.
 	 */
-	public record SeoMetadata(
-			String ogTitle,
-			String ogDescription,
-			String ogImage,
-			String ogType,
-			String ogUrl,
-			String twitterCard,
-			String canonicalUrl
-	) implements Serializable {}
+	public record SeoMetadata(String ogTitle, String ogDescription, String ogImage, String ogType, String ogUrl,
+			String twitterCard, String canonicalUrl) implements Serializable {
+	}
 
 	/**
 	 * Compact representation of a post for breadcrumbs.

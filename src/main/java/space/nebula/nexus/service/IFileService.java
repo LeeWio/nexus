@@ -6,8 +6,7 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.FileResponse;
 import space.nebula.nexus.payload.response.PageResult;
 
-public interface IFileService
-{
+public interface IFileService {
 	ApiResponse<FileResponse> uploadFile(MultipartFile file);
 
 	ApiResponse<Void> deleteFile(String fileName);

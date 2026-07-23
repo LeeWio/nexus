@@ -5,6 +5,5 @@ import org.springframework.stereotype.Repository;
 import space.nebula.nexus.entity.CommentModerationLog;
 
 @Repository
-public interface CommentModerationLogRepository extends JpaRepository<CommentModerationLog, Long>
-{
+public interface CommentModerationLogRepository extends JpaRepository<CommentModerationLog, Long> {
 }

@@ -27,8 +27,7 @@ import space.nebula.nexus.service.IPostSearchService;
 @RestController
 @RequestMapping("/api/v1/public/search")
 @RequiredArgsConstructor
-public class PublicSearchController
-{
+public class PublicSearchController {
 
 	private final IPostSearchService postSearchService;
 
@@ -38,8 +37,7 @@ public class PublicSearchController
 	public ApiResponse<PageResult<PostDocument>> searchPosts(
 			@Parameter(description = "Keywords to search for in title, summary, and content") @RequestParam(required = false) String keyword,
 
-			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return postSearchService.searchPosts(keyword, pageable);
 	}
 
@@ -47,8 +45,7 @@ public class PublicSearchController
 	@Operation(summary = "Quick search (Command+K) - Legacy", description = "Lightweight unified search across posts, categories, and tags.")
 	@RateLimit(count = 20, time = 1, message = "Too many quick search requests.")
 	public ApiResponse<QuickSearchResponse> quickSearch(
-			@Parameter(description = "Search keyword") @RequestParam String keyword)
-	{
+			@Parameter(description = "Search keyword") @RequestParam String keyword) {
 		return postSearchService.quickSearch(keyword);
 	}
 
@@ -56,8 +53,7 @@ public class PublicSearchController
 	@Operation(summary = "Unified search (Professional Cmd+K)", description = "Rich grouped search across all content with Next.js routing and metadata.")
 	@RateLimit(count = 20, time = 1)
 	public ApiResponse<UnifiedSearchResponse> unifiedSearch(
-			@Parameter(description = "Search keyword") @RequestParam(required = false) String keyword)
-	{
+			@Parameter(description = "Search keyword") @RequestParam(required = false) String keyword) {
 		return postSearchService.unifiedSearch(keyword);
 	}
 
@@ -65,8 +61,7 @@ public class PublicSearchController
 	@Operation(summary = "Get search suggestions", description = "Provides autocomplete suggestions as the user types.")
 	@RateLimit(count = 30, time = 1)
 	public ApiResponse<java.util.List<String>> getSuggestions(
-			@Parameter(description = "Search prefix") @RequestParam String keyword)
-	{
+			@Parameter(description = "Search prefix") @RequestParam String keyword) {
 		return postSearchService.getSearchSuggestions(keyword);
 	}
 }

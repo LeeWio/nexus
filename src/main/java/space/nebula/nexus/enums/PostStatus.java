@@ -7,8 +7,7 @@ import lombok.Getter;
  * management workflow.
  */
 @Getter
-public enum PostStatus
-{
+public enum PostStatus {
 	/**
 	 * The post is saved as a draft and not yet submitted for review.
 	 */
@@ -44,8 +43,7 @@ public enum PostStatus
 
 	private final String description;
 
-	PostStatus(String description)
-	{
+	PostStatus(String description) {
 		this.description = description;
 	}
 }

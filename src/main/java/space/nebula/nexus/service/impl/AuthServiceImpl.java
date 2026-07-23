@@ -37,7 +37,6 @@ import space.nebula.nexus.utils.RedisUtil;
 
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.lang.Dict;
-import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,8 +54,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AuthServiceImpl implements IAuthService
-{
+public class AuthServiceImpl implements IAuthService {
 
 	private final UserRepository userRepository;
 	private final RoleRepository roleRepository;
@@ -75,8 +73,7 @@ public class AuthServiceImpl implements IAuthService
 	@Override
 	@Transactional
 	@LogOperation("User Registration")
-	public ApiResponse<Void> registerAccount(RegisterRequest request)
-	{
+	public ApiResponse<Void> registerAccount(RegisterRequest request) {
 		userValidator.validateRegistration(request);
 
 		var newUser = createNewUser(request);
@@ -86,26 +83,17 @@ public class AuthServiceImpl implements IAuthService
 		log.info("User account registered successfully, pending audit: {}", newUser.getUsername());
 
 		// Prepare email variables using modern Java Map.of
-		Map<String, Object> emailVars = Map.of(
-				"username", newUser.getUsername(),
-				"message", "Your account is awaiting administrator approval."
-		);
+		Map<String, Object> emailVars = Map.of("username", newUser.getUsername(), "message",
+				"Your account is awaiting administrator approval.");
 
 		// Async Welcome/Pending Email
-		TemplateMailMessage welcomeMail = TemplateMailMessage.builder()
-				.to(newUser.getEmail())
-				.subject("Nexus Registration Received")
-				.templateName("otp-login")
-				.variables(emailVars)
-				.type(TemplateMailMessage.MailType.TEMPLATE)
-				.build();
+		TemplateMailMessage welcomeMail = TemplateMailMessage.builder().to(newUser.getEmail())
+				.subject("Nexus Registration Received").templateName("otp-login").variables(emailVars)
+				.type(TemplateMailMessage.MailType.TEMPLATE).build();
 
-		try
-		{
+		try {
 			rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, welcomeMail);
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			log.error("Failed to dispatch registration email for: {}", newUser.getEmail());
 		}
 
@@ -114,14 +102,12 @@ public class AuthServiceImpl implements IAuthService
 
 	@Override
 	@LogOperation("User Login")
-	public ApiResponse<AuthResponse> authenticate(LoginRequest request)
-	{
+	public ApiResponse<AuthResponse> authenticate(LoginRequest request) {
 		var username = request.username();
 
 		loginSecurityService.validateLoginLock(username);
 
-		try
-		{
+		try {
 			var authInput = new UsernamePasswordAuthenticationToken(username, request.password());
 			var authentication = authenticationManager.authenticate(authInput);
 
@@ -132,18 +118,12 @@ public class AuthServiceImpl implements IAuthService
 			log.info("User authenticated successfully: {}", securityUser.getUsername());
 
 			return ApiResponse.success("Login successful", createAuthResponse(securityUser));
-		}
-		catch (BadCredentialsException e)
-		{
+		} catch (BadCredentialsException e) {
 			loginSecurityService.recordLoginFailure(username);
 			throw new BusinessException(BusinessCode.BAD_CREDENTIALS);
-		}
-		catch (BusinessException e)
-		{
+		} catch (BusinessException e) {
 			throw e;
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			log.error("Unexpected authentication error for user: {}", username, e);
 			throw new BusinessException(BusinessCode.ERROR, "Authentication service is temporarily unavailable");
 		}
@@ -151,31 +131,27 @@ public class AuthServiceImpl implements IAuthService
 
 	@Override
 	@LogOperation("Send Login OTP")
-	public ApiResponse<Void> sendOtp(String email)
-	{
-			userRepository.findByEmail(email).orElseThrow(
-					() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "No account is linked to this email"));
+	public ApiResponse<Void> sendOtp(String email) {
+		userRepository.findByEmail(email).orElseThrow(
+				() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "No account is linked to this email"));
 
 		var otp = RandomUtil.randomNumbers(6);
 		var otpKey = CacheConstants.OTP_CODE + email;
-			Assert.isTrue(redisUtil.set(otpKey, otp, 5, TimeUnit.MINUTES),
-					() -> new BusinessException(BusinessCode.ERROR, "Failed to store the OTP code"));
+		Assert.isTrue(redisUtil.set(otpKey, otp, 5, TimeUnit.MINUTES),
+				() -> new BusinessException(BusinessCode.ERROR, "Failed to store the OTP code"));
 
 		Map<String, Object> variables = Dict.create().set("otp", otp).set("expireMin", 5);
 
 		TemplateMailMessage mailMessage = TemplateMailMessage.builder().to(email).subject("Nexus Login OTP")
 				.templateName("otp-login").variables(variables).type(TemplateMailMessage.MailType.TEMPLATE).build();
 
-		try
-		{
+		try {
 			rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mailMessage);
 			log.info("OTP task dispatched to MQ for {}", email);
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			redisUtil.delete(otpKey);
 			log.error("Failed to dispatch OTP email task to MQ for: {}", email, e);
-				throw new BusinessException(BusinessCode.ERROR, "Failed to dispatch the email task");
+			throw new BusinessException(BusinessCode.ERROR, "Failed to dispatch the email task");
 		}
 
 		return ApiResponse.success("OTP code sent successfully. Please check your inbox.", null);
@@ -184,20 +160,19 @@ public class AuthServiceImpl implements IAuthService
 	@Override
 	@Transactional
 	@LogOperation("OTP Login")
-	public ApiResponse<AuthResponse> loginWithOtp(OtpLoginRequest request)
-	{
+	public ApiResponse<AuthResponse> loginWithOtp(OtpLoginRequest request) {
 		var email = request.email();
 		var code = request.code();
 		var otpKey = CacheConstants.OTP_CODE + email;
 
-			Assert.isTrue(redisUtil.consumeIfEquals(otpKey, code),
-					() -> new BusinessException(BusinessCode.INVALID_TOKEN, "Verification code is invalid or expired"));
+		Assert.isTrue(redisUtil.consumeIfEquals(otpKey, code),
+				() -> new BusinessException(BusinessCode.INVALID_TOKEN, "Verification code is invalid or expired"));
 
 		var user = userRepository.findByEmail(email)
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 
-			Assert.isTrue(user.getStatus() == UserStatus.ACTIVE,
-					() -> new BusinessException(BusinessCode.ACCOUNT_DISABLED, "Account is not active"));
+		Assert.isTrue(user.getStatus() == UserStatus.ACTIVE,
+				() -> new BusinessException(BusinessCode.ACCOUNT_DISABLED, "Account is not active"));
 
 		var securityUser = new SecurityUser(user);
 		var authentication = new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
@@ -209,19 +184,16 @@ public class AuthServiceImpl implements IAuthService
 	}
 
 	@Override
-	public ApiResponse<User> getAuthenticatedUser()
-	{
+	public ApiResponse<User> getAuthenticatedUser() {
 		var username = SecurityContextHolder.getContext().getAuthentication().getName();
-		return userRepository.findByUsername(username).map(ApiResponse::success)
-				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "Authenticated user could not be resolved"));
+		return userRepository.findByUsername(username).map(ApiResponse::success).orElseThrow(
+				() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "Authenticated user could not be resolved"));
 	}
 
 	@Override
-	public ApiResponse<Void> logout(HttpServletRequest request)
-	{
+	public ApiResponse<Void> logout(HttpServletRequest request) {
 		final String authHeader = request.getHeader(jwtProperties.getHeader());
-		if (StrUtil.isNotBlank(authHeader) && authHeader.startsWith(jwtProperties.getPrefix()))
-		{
+		if (StrUtil.isNotBlank(authHeader) && authHeader.startsWith(jwtProperties.getPrefix())) {
 			String token = authHeader.substring(jwtProperties.getPrefix().length());
 			// Blacklist token in Redis until it naturally expires
 			long remainingTime = jwtUtils.getAccessTokenExpiration();
@@ -233,12 +205,12 @@ public class AuthServiceImpl implements IAuthService
 	}
 
 	@Override
-	public ApiResponse<AuthResponse> refreshToken(String refreshToken)
-	{
-		Assert.notBlank(refreshToken, () -> new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is required"));
+	public ApiResponse<AuthResponse> refreshToken(String refreshToken) {
+		Assert.notBlank(refreshToken,
+				() -> new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is required"));
 
-			Assert.isTrue(jwtUtils.isRefreshToken(refreshToken),
-					() -> new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is required"));
+		Assert.isTrue(jwtUtils.isRefreshToken(refreshToken),
+				() -> new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is required"));
 		String username = jwtUtils.extractUsername(refreshToken);
 		var user = userRepository.findByUsername(username)
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
@@ -248,33 +220,25 @@ public class AuthServiceImpl implements IAuthService
 
 		SecurityUser securityUser = new SecurityUser(user);
 		if (jwtUtils.isTokenValid(refreshToken, securityUser)
-				&& refreshTokenStore.consume(jwtUtils.extractTokenId(refreshToken), username))
-		{
+				&& refreshTokenStore.consume(jwtUtils.extractTokenId(refreshToken), username)) {
 			return ApiResponse.success("Token refreshed successfully", createAuthResponse(securityUser));
 		}
 
 		throw new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is invalid or expired");
 	}
 
-	private AuthResponse createAuthResponse(SecurityUser securityUser)
-	{
+	private AuthResponse createAuthResponse(SecurityUser securityUser) {
 		var accessToken = jwtUtils.generateAccessToken(securityUser);
 		var refreshToken = jwtUtils.generateRefreshToken(securityUser);
 		refreshTokenStore.issue(jwtUtils.extractTokenId(refreshToken), securityUser.getUsername(),
 				java.time.Duration.ofMillis(jwtUtils.getRefreshTokenExpiration()));
 		var roles = securityUser.getAuthorities().stream().map(ga -> ga.getAuthority()).collect(Collectors.toSet());
 
-		return AuthResponse.builder()
-				.accessToken(accessToken)
-				.refreshToken(refreshToken)
-				.username(securityUser.getUsername())
-				.email(securityUser.getUser().getEmail())
-				.roles(roles)
-				.build();
+		return AuthResponse.builder().accessToken(accessToken).refreshToken(refreshToken)
+				.username(securityUser.getUsername()).email(securityUser.getUser().getEmail()).roles(roles).build();
 	}
 
-	private User createNewUser(RegisterRequest request)
-	{
+	private User createNewUser(RegisterRequest request) {
 		var user = new User();
 		user.setUsername(request.username());
 		user.setEmail(request.email());
@@ -283,18 +247,16 @@ public class AuthServiceImpl implements IAuthService
 		return user;
 	}
 
-	private void assignDefaultRole(User user)
-	{
+	private void assignDefaultRole(User user) {
 		String defaultRoleCode = authProperties.getDefaultRoleCode();
-		Role defaultRole = roleRepository.findByCode(defaultRoleCode).orElseGet(() ->
-			{
-				log.warn("Default '{}' role missing; initializing fallback", defaultRoleCode);
-				var newRole = new Role();
-				newRole.setName("Standard User");
-				newRole.setCode(defaultRoleCode);
-				newRole.setDescription("Default role for registered members");
-				return roleRepository.save(newRole);
-			});
+		Role defaultRole = roleRepository.findByCode(defaultRoleCode).orElseGet(() -> {
+			log.warn("Default '{}' role missing; initializing fallback", defaultRoleCode);
+			var newRole = new Role();
+			newRole.setName("Standard User");
+			newRole.setCode(defaultRoleCode);
+			newRole.setDescription("Default role for registered members");
+			return roleRepository.save(newRole);
+		});
 		user.setRoles(Collections.singleton(defaultRole));
 	}
 }

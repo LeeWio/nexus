@@ -2,8 +2,7 @@ package space.nebula.nexus.service;
 
 import space.nebula.nexus.common.ApiResponse;
 
-public interface IInteractionService
-{
+public interface IInteractionService {
 
 	ApiResponse<Void> likePost(Long postId);
 

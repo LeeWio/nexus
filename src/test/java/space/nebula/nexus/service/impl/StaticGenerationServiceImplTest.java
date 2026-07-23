@@ -24,61 +24,55 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class StaticGenerationServiceImplTest {
 
-    @Mock
-    private TemplateEngine templateEngine;
-    @Mock
-    private StorageProvider storageProvider;
-    @Mock
-    private PostRepository postRepository;
-    @Mock
-    private RabbitTemplate rabbitTemplate;
+	@Mock
+	private TemplateEngine templateEngine;
+	@Mock
+	private StorageProvider storageProvider;
+	@Mock
+	private PostRepository postRepository;
+	@Mock
+	private RabbitTemplate rabbitTemplate;
 
-    @InjectMocks
-    private StaticGenerationServiceImpl staticGenerationService;
+	@InjectMocks
+	private StaticGenerationServiceImpl staticGenerationService;
 
-    @Test
-    void generatePostStaticHtml_DispatchesMessage() {
-        Post post = new Post();
-        post.setId(1L);
-        post.setSlug("test-post");
+	@Test
+	void generatePostStaticHtml_DispatchesMessage() {
+		Post post = new Post();
+		post.setId(1L);
+		post.setSlug("test-post");
 
-        staticGenerationService.generatePostStaticHtml(post);
+		staticGenerationService.generatePostStaticHtml(post);
 
-        verify(rabbitTemplate).convertAndSend(
-                eq(RabbitMQConfig.STATIC_GEN_EXCHANGE),
-                eq(RabbitMQConfig.STATIC_GEN_ROUTING_KEY),
-                any(StaticGenerationMessage.class)
-        );
-    }
+		verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.STATIC_GEN_EXCHANGE),
+				eq(RabbitMQConfig.STATIC_GEN_ROUTING_KEY), any(StaticGenerationMessage.class));
+	}
 
-    @Test
-    void deletePostStaticHtml_DispatchesMessage() {
-        staticGenerationService.deletePostStaticHtml("test-post");
+	@Test
+	void deletePostStaticHtml_DispatchesMessage() {
+		staticGenerationService.deletePostStaticHtml("test-post");
 
-        verify(rabbitTemplate).convertAndSend(
-                eq(RabbitMQConfig.STATIC_GEN_EXCHANGE),
-                eq(RabbitMQConfig.STATIC_GEN_ROUTING_KEY),
-                any(StaticGenerationMessage.class)
-        );
-    }
+		verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.STATIC_GEN_EXCHANGE),
+				eq(RabbitMQConfig.STATIC_GEN_ROUTING_KEY), any(StaticGenerationMessage.class));
+	}
 
-    @Test
-    void executeGenerate_Success() {
-        Post post = new Post();
-        post.setId(1L);
-        post.setSlug("test-post");
+	@Test
+	void executeGenerate_Success() {
+		Post post = new Post();
+		post.setId(1L);
+		post.setSlug("test-post");
 
-        when(postRepository.findById(1L)).thenReturn(Optional.of(post));
-        when(templateEngine.process(eq("post-static"), any(Context.class))).thenReturn("<html></html>");
+		when(postRepository.findById(1L)).thenReturn(Optional.of(post));
+		when(templateEngine.process(eq("post-static"), any(Context.class))).thenReturn("<html></html>");
 
-        staticGenerationService.executeGenerate(1L);
+		staticGenerationService.executeGenerate(1L);
 
-        verify(storageProvider).store(any(InputStream.class), eq("static/posts/test-post.html"));
-    }
+		verify(storageProvider).store(any(InputStream.class), eq("static/posts/test-post.html"));
+	}
 
-    @Test
-    void executeDelete_Success() {
-        staticGenerationService.executeDelete("test-post");
-        verify(storageProvider).delete(eq("static/posts/test-post.html"));
-    }
+	@Test
+	void executeDelete_Success() {
+		staticGenerationService.executeDelete("test-post");
+		verify(storageProvider).delete(eq("static/posts/test-post.html"));
+	}
 }

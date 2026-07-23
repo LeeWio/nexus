@@ -11,8 +11,7 @@ import space.nebula.nexus.service.IPostService;
  */
 @Component
 @RequiredArgsConstructor
-public class PostTask
-{
+public class PostTask {
 
 	private static final int PUBLICATION_BATCH_SIZE = 100;
 
@@ -24,8 +23,7 @@ public class PostTask
 	 */
 	@Scheduled(cron = "0 * * * * ?")
 	@SchedulerLock(name = "scheduledPostPublish", lockAtMostFor = "PT50S")
-	public void publishScheduledPosts()
-	{
+	public void publishScheduledPosts() {
 		java.time.LocalDateTime now = java.time.LocalDateTime.now();
 		postService.publishDueScheduledPosts(now, PUBLICATION_BATCH_SIZE);
 	}

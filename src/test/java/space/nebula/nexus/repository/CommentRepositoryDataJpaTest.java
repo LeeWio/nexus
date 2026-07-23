@@ -18,8 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @DataJpaTest
 @ActiveProfiles("test")
-class CommentRepositoryDataJpaTest
-{
+class CommentRepositoryDataJpaTest {
 
 	@Autowired
 	private CommentRepository commentRepository;
@@ -29,8 +28,7 @@ class CommentRepositoryDataJpaTest
 	private UserRepository userRepository;
 
 	@Test
-	void hotRootCommentsPrioritizePinnedFeaturedAndLikes()
-	{
+	void hotRootCommentsPrioritizePinnedFeaturedAndLikes() {
 		User user = user();
 		Post post = post(user);
 		Comment plain = comment(post, user, 10L, false, false);
@@ -49,8 +47,7 @@ class CommentRepositoryDataJpaTest
 	}
 
 	@Test
-	void newRootCommentsUseForwardAnchor()
-	{
+	void newRootCommentsUseForwardAnchor() {
 		User user = user();
 		Post post = post(user);
 		Comment first = comment(post, user, 0L, false, false);
@@ -58,15 +55,14 @@ class CommentRepositoryDataJpaTest
 		commentRepository.save(first);
 		commentRepository.save(second);
 
-		var comments = commentRepository.findNewRootCommentsByPost(post.getId(), CommentStatus.APPROVED,
-				first.getId(), PageRequest.of(0, 10));
+		var comments = commentRepository.findNewRootCommentsByPost(post.getId(), CommentStatus.APPROVED, first.getId(),
+				PageRequest.of(0, 10));
 
 		assertEquals(1, comments.size());
 		assertEquals(second.getId(), comments.getFirst().getId());
 	}
 
-	private User user()
-	{
+	private User user() {
 		User user = new User();
 		user.setUsername("repo-user-" + System.nanoTime());
 		user.setPassword("password");
@@ -75,8 +71,7 @@ class CommentRepositoryDataJpaTest
 		return userRepository.save(user);
 	}
 
-	private Post post(User author)
-	{
+	private Post post(User author) {
 		Post post = new Post();
 		post.setTitle("Repository Test Post " + System.nanoTime());
 		post.setSlug("repository-test-post-" + System.nanoTime());
@@ -88,8 +83,7 @@ class CommentRepositoryDataJpaTest
 		return postRepository.save(post);
 	}
 
-	private Comment comment(Post post, User user, Long likes, boolean pinned, boolean featured)
-	{
+	private Comment comment(Post post, User user, Long likes, boolean pinned, boolean featured) {
 		Comment comment = new Comment();
 		comment.setContent("comment");
 		comment.setPost(post);

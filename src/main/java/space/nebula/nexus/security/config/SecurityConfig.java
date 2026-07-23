@@ -34,8 +34,7 @@ import java.util.List;
 @EnableWebSecurity
 @EnableMethodSecurity // Enables @PreAuthorize, @Secured, etc.
 @RequiredArgsConstructor
-public class SecurityConfig
-{
+public class SecurityConfig {
 
 	private final CustomAuthenticationEntryPoint authenticationEntryPoint;
 	private final CustomAccessDeniedHandler accessDeniedHandler;
@@ -50,8 +49,7 @@ public class SecurityConfig
 	 * Configure BCrypt as our password encoder.
 	 */
 	@Bean
-	public static PasswordEncoder passwordEncoder()
-	{
+	public static PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
 	}
 
@@ -61,8 +59,7 @@ public class SecurityConfig
 	 */
 	@Bean
 	public AuthenticationManager authenticationManager(UserDetailsService userDetailsService,
-			PasswordEncoder passwordEncoder)
-	{
+			PasswordEncoder passwordEncoder) {
 		DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider(userDetailsService);
 		authenticationProvider.setPasswordEncoder(passwordEncoder);
 		return new ProviderManager(authenticationProvider);
@@ -72,8 +69,7 @@ public class SecurityConfig
 	 * The core SecurityFilterChain that handles HTTP security rules.
 	 */
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception
-	{
+	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http
 				// 1. Explicit CORS configuration
 				.cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -112,11 +108,11 @@ public class SecurityConfig
 						.anyRequest().authenticated())
 
 				// 7. Configure OAuth2 Login
-				.oauth2Login(
-						oauth2 -> oauth2.userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService)
+				.oauth2Login(oauth2 -> oauth2
+						.userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService)
 								.oidcUserService(customOidcUserService))
-								.successHandler(oauth2AuthenticationSuccessHandler)
-								.failureHandler(oauth2AuthenticationFailureHandler))
+						.successHandler(oauth2AuthenticationSuccessHandler)
+						.failureHandler(oauth2AuthenticationFailureHandler))
 
 				// 8. Add our custom JWT filter before the standard
 				// UsernamePasswordAuthenticationFilter
@@ -129,13 +125,12 @@ public class SecurityConfig
 	 * Standardized CORS configuration for a secure production environment.
 	 */
 	@Bean
-	public CorsConfigurationSource corsConfigurationSource()
-	{
+	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
 		configuration.setAllowedOrigins(webSecurityProperties.getAllowedOrigins());
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Trace-Id", "X-Requested-With",
-				"Idempotency-Key"));
+		configuration.setAllowedHeaders(
+				List.of("Authorization", "Content-Type", "X-Trace-Id", "X-Requested-With", "Idempotency-Key"));
 		configuration.setExposedHeaders(List.of("Authorization"));
 		configuration.setAllowCredentials(true);
 		configuration.setMaxAge(3600L); // Cache preflight for 1 hour

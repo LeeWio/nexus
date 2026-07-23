@@ -38,8 +38,7 @@ import java.util.Objects;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CommentCommandService
-{
+public class CommentCommandService {
 
 	private final CommentRepository commentRepository;
 	private final PostRepository postRepository;
@@ -54,8 +53,7 @@ public class CommentCommandService
 
 	@Transactional
 	@LogOperation("Publish Comment")
-	public ApiResponse<Void> publishComment(CommentRequest request, HttpServletRequest servletRequest)
-	{
+	public ApiResponse<Void> publishComment(CommentRequest request, HttpServletRequest servletRequest) {
 		Post targetPost = resolveTargetPost(request.postId());
 		String filteredContent = sensitiveWordService.filter(request.content());
 		boolean hasViolation = request.content() != null && !request.content().equals(filteredContent);
@@ -65,15 +63,12 @@ public class CommentCommandService
 		String clientRequestId = normalizeClientRequestId(servletRequest);
 		String requestHash = idempotencyService.hashSubmission(request.postId(), request.parentId(), filteredContent);
 		var replayedResponse = idempotencyService.begin(author.getId(), clientRequestId, requestHash);
-		if (replayedResponse.isPresent())
-		{
+		if (replayedResponse.isPresent()) {
 			return replayedResponse.get();
 		}
-		if (clientRequestId != null)
-		{
+		if (clientRequestId != null) {
 			var existingComment = commentRepository.findByUserIdAndClientRequestId(author.getId(), clientRequestId);
-			if (existingComment.isPresent())
-			{
+			if (existingComment.isPresent()) {
 				Assert.isTrue(isSameSubmission(existingComment.get(), targetPost, parentComment, filteredContent),
 						() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 								"Idempotency-Key was already used for a different comment"));
@@ -81,8 +76,7 @@ public class CommentCommandService
 			}
 		}
 
-		try
-		{
+		try {
 			var comment = new Comment();
 			comment.setContent(filteredContent);
 			comment.setPost(targetPost);
@@ -92,8 +86,7 @@ public class CommentCommandService
 			comment.setUserAgent(servletRequest.getHeader("User-Agent"));
 			comment.setClientRequestId(clientRequestId);
 			comment.setStatus(hasViolation ? CommentStatus.SPAM : CommentStatus.PENDING);
-			if (hasViolation)
-			{
+			if (hasViolation) {
 				log.warn("Comment by {} automatically marked as spam due to policy violation", author.getUsername());
 			}
 
@@ -108,24 +101,20 @@ public class CommentCommandService
 					: ApiResponse.success("Comment submitted successfully. It is awaiting moderation.", null);
 			idempotencyService.complete(author.getId(), clientRequestId, requestHash, response, comment.getId());
 			return response;
-		}
-		catch (DataIntegrityViolationException ex)
-		{
+		} catch (DataIntegrityViolationException ex) {
 			return recoverIdempotentSubmission(author.getId(), clientRequestId, requestHash, ex);
 		}
 	}
 
 	@Transactional
 	@LogOperation("Withdraw My Comment")
-	public ApiResponse<Void> withdrawMyComment(Long id)
-	{
+	public ApiResponse<Void> withdrawMyComment(Long id) {
 		return deleteMyComment(id);
 	}
 
 	@Transactional
 	@LogOperation("Update My Comment")
-	public ApiResponse<Void> updateMyComment(Long id, CommentUpdateRequest request)
-	{
+	public ApiResponse<Void> updateMyComment(Long id, CommentUpdateRequest request) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Comment comment = findOwnedComment(id, currentUser);
 		String filteredContent = sensitiveWordService.filter(request.content());
@@ -137,8 +126,7 @@ public class CommentCommandService
 		log.info("User {} edited comment {} and reset status to {}", currentUser.getUsername(), id,
 				comment.getStatus());
 
-		if (hasViolation)
-		{
+		if (hasViolation) {
 			return ApiResponse.success("Comment updated and flagged for moderation.", null);
 		}
 		return ApiResponse.success("Comment updated and submitted for moderation.", null);
@@ -146,12 +134,10 @@ public class CommentCommandService
 
 	@Transactional
 	@LogOperation("Delete My Comment")
-	public ApiResponse<Void> deleteMyComment(Long id)
-	{
+	public ApiResponse<Void> deleteMyComment(Long id) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Comment comment = findOwnedComment(id, currentUser);
-		if (commentRepository.existsByParentId(id))
-		{
+		if (commentRepository.existsByParentId(id)) {
 			comment.markDeletedPlaceholder();
 			commentRepository.save(comment);
 			log.info("User {} converted comment {} to deleted placeholder", currentUser.getUsername(), id);
@@ -165,8 +151,7 @@ public class CommentCommandService
 
 	@Transactional
 	@LogOperation("Report Comment")
-	public ApiResponse<Void> reportComment(Long id, CommentReportRequest request)
-	{
+	public ApiResponse<Void> reportComment(Long id, CommentReportRequest request) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Comment comment = commentRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
@@ -178,8 +163,7 @@ public class CommentCommandService
 		int inserted = jdbcTemplate.update(
 				"INSERT IGNORE INTO blog_comment_report(comment_id, reporter_id, reason, description, status, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
 				id, currentUser.getId(), request.reason(), request.description(), CommentReportStatus.OPEN.name());
-		if (inserted > 0)
-		{
+		if (inserted > 0) {
 			commentRepository.incrementReports(id, 1L);
 			autoFlagReportedComment(comment);
 		}
@@ -187,11 +171,9 @@ public class CommentCommandService
 		return ApiResponse.success("Comment report received.", null);
 	}
 
-	private void autoFlagReportedComment(Comment comment)
-	{
-		if (comment.getStatus() != CommentStatus.APPROVED
-				|| governanceService.countOpenReports(comment.getId()) < moderationProperties.getAutoReviewReportThreshold())
-		{
+	private void autoFlagReportedComment(Comment comment) {
+		if (comment.getStatus() != CommentStatus.APPROVED || governanceService
+				.countOpenReports(comment.getId()) < moderationProperties.getAutoReviewReportThreshold()) {
 			return;
 		}
 		CommentStatus previousStatus = comment.getStatus();
@@ -202,10 +184,8 @@ public class CommentCommandService
 				"Comment moved back to moderation after repeated reports.", null);
 	}
 
-	private Post resolveTargetPost(Long postId)
-	{
-		if (postId == null)
-		{
+	private Post resolveTargetPost(Long postId) {
+		if (postId == null) {
 			return null;
 		}
 		Post targetPost = postRepository.findById(postId)
@@ -215,17 +195,14 @@ public class CommentCommandService
 		return targetPost;
 	}
 
-	private Comment resolveParentComment(Long parentId, Post targetPost)
-	{
-		if (parentId == null)
-		{
+	private Comment resolveParentComment(Long parentId, Post targetPost) {
+		if (parentId == null) {
 			return null;
 		}
 		Comment parentComment = commentRepository.findById(parentId)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", parentId));
-		boolean contextMatch = (targetPost == null && parentComment.getPost() == null)
-				|| (targetPost != null && parentComment.getPost() != null
-						&& parentComment.getPost().getId().equals(targetPost.getId()));
+		boolean contextMatch = (targetPost == null && parentComment.getPost() == null) || (targetPost != null
+				&& parentComment.getPost() != null && parentComment.getPost().getId().equals(targetPost.getId()));
 		Assert.isTrue(contextMatch,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Comment context does not match the parent"));
 		Assert.isTrue(parentComment.getStatus() == CommentStatus.APPROVED,
@@ -234,25 +211,20 @@ public class CommentCommandService
 		return parentComment;
 	}
 
-	private String normalizeClientRequestId(HttpServletRequest servletRequest)
-	{
+	private String normalizeClientRequestId(HttpServletRequest servletRequest) {
 		String value = servletRequest.getHeader("Idempotency-Key");
-		if (value == null || value.isBlank())
-		{
+		if (value == null || value.isBlank()) {
 			return null;
 		}
 		String normalized = value.trim();
 		Assert.isTrue(normalized.length() <= 80,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Idempotency-Key must not exceed 80 characters"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Idempotency-Key must not exceed 80 characters"));
 		return normalized;
 	}
 
 	private ApiResponse<Void> recoverIdempotentSubmission(Long userId, String clientRequestId, String requestHash,
-			DataIntegrityViolationException ex)
-	{
-		if (clientRequestId == null)
-		{
+			DataIntegrityViolationException ex) {
+		if (clientRequestId == null) {
 			throw ex;
 		}
 		return idempotencyService.findCompletedCommentId(userId, clientRequestId, requestHash)
@@ -261,8 +233,7 @@ public class CommentCommandService
 	}
 
 	private boolean isSameSubmission(Comment existingComment, Post targetPost, Comment parentComment,
-			String filteredContent)
-	{
+			String filteredContent) {
 		Long existingPostId = existingComment.getPost() == null ? null : existingComment.getPost().getId();
 		Long targetPostId = targetPost == null ? null : targetPost.getId();
 		Long existingParentId = existingComment.getParent() == null ? null : existingComment.getParent().getId();
@@ -271,8 +242,7 @@ public class CommentCommandService
 				&& Objects.equals(existingComment.getContent(), filteredContent);
 	}
 
-	private CommentSubmittedEvent buildSubmittedEvent(Comment comment)
-	{
+	private CommentSubmittedEvent buildSubmittedEvent(Comment comment) {
 		User author = comment.getUser();
 		Post post = comment.getPost();
 		String authorDisplayName = author.getNickname() != null ? author.getNickname() : author.getUsername();
@@ -280,14 +250,13 @@ public class CommentCommandService
 		String postAuthorDisplayName = null;
 		String postTitle = "Guestbook";
 
-		if (post != null)
-		{
+		if (post != null) {
 			User postAuthor = post.getAuthor();
 			postTitle = post.getTitle();
-			if (postAuthor != null)
-			{
+			if (postAuthor != null) {
 				postAuthorEmail = postAuthor.getEmail();
-				postAuthorDisplayName = postAuthor.getNickname() != null ? postAuthor.getNickname()
+				postAuthorDisplayName = postAuthor.getNickname() != null
+						? postAuthor.getNickname()
 						: postAuthor.getUsername();
 			}
 		}
@@ -297,8 +266,7 @@ public class CommentCommandService
 				comment.getIpAddress(), comment.getUserAgent());
 	}
 
-	private Comment findOwnedComment(Long id, User currentUser)
-	{
+	private Comment findOwnedComment(Long id, User currentUser) {
 		Comment comment = commentRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
 		Assert.isTrue(comment.getUser().getId().equals(currentUser.getId()),

@@ -7,8 +7,6 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -23,14 +21,12 @@ import java.util.UUID;
 
 @Slf4j
 @Component
-public class JwtUtils
-{
+public class JwtUtils {
 
 	private final JwtProperties jwtProperties;
 	private final SecretKey key;
 
-	public JwtUtils(JwtProperties jwtProperties)
-	{
+	public JwtUtils(JwtProperties jwtProperties) {
 		this.jwtProperties = jwtProperties;
 		byte[] keyBytes = jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8);
 		this.key = Keys.hmacShaKeyFor(keyBytes);
@@ -39,16 +35,14 @@ public class JwtUtils
 	/**
 	 * Extracts the username (subject) from the token.
 	 */
-	public String extractUsername(String token)
-	{
+	public String extractUsername(String token) {
 		return extractClaim(token, Claims::getSubject);
 	}
 
 	/**
 	 * Extracts an arbitrary claim from the token.
 	 */
-	public <T> T extractClaim(String token, Function<Claims, T> claimsResolver)
-	{
+	public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
 		final Claims claims = extractAllClaims(token);
 		return claimsResolver.apply(claims);
 	}
@@ -56,21 +50,18 @@ public class JwtUtils
 	/**
 	 * Generates an access token for the given user.
 	 */
-	public String generateAccessToken(UserDetails userDetails)
-	{
+	public String generateAccessToken(UserDetails userDetails) {
 		return buildToken(userDetails, jwtProperties.getAccessTokenExpiration(), "access");
 	}
 
 	/**
 	 * Generates a refresh token for the given user.
 	 */
-	public String generateRefreshToken(UserDetails userDetails)
-	{
+	public String generateRefreshToken(UserDetails userDetails) {
 		return buildToken(userDetails, jwtProperties.getRefreshTokenExpiration(), "refresh");
 	}
 
-	public long getAccessTokenExpiration()
-	{
+	public long getAccessTokenExpiration() {
 		return jwtProperties.getAccessTokenExpiration();
 	}
 
@@ -90,8 +81,7 @@ public class JwtUtils
 		return "refresh".equals(extractClaim(token, claims -> claims.get("token_type", String.class)));
 	}
 
-	private String buildToken(UserDetails userDetails, long expiration, String tokenType)
-	{
+	private String buildToken(UserDetails userDetails, long expiration, String tokenType) {
 		return Jwts.builder().id(UUID.randomUUID().toString()).subject(userDetails.getUsername())
 				.claim("token_type", tokenType).claim("token_version", tokenVersion(userDetails))
 				.issuedAt(new Date(System.currentTimeMillis()))
@@ -101,61 +91,43 @@ public class JwtUtils
 	/**
 	 * Validates the token against the user details and checks expiration.
 	 */
-	public boolean isTokenValid(String token, UserDetails userDetails)
-	{
+	public boolean isTokenValid(String token, UserDetails userDetails) {
 		final String username = extractUsername(token);
 		Number versionClaim = extractClaim(token, claims -> claims.get("token_version", Number.class));
-		return username.equals(userDetails.getUsername())
-				&& versionClaim != null && versionClaim.intValue() == tokenVersion(userDetails)
-				&& userDetails.isEnabled() && userDetails.isAccountNonLocked()
-				&& userDetails.isAccountNonExpired() && userDetails.isCredentialsNonExpired()
-				&& !isTokenExpired(token);
+		return username.equals(userDetails.getUsername()) && versionClaim != null
+				&& versionClaim.intValue() == tokenVersion(userDetails) && userDetails.isEnabled()
+				&& userDetails.isAccountNonLocked() && userDetails.isAccountNonExpired()
+				&& userDetails.isCredentialsNonExpired() && !isTokenExpired(token);
 	}
 
 	private int tokenVersion(UserDetails userDetails) {
-		return userDetails instanceof SecurityUser securityUser
-				? securityUser.getUser().getTokenVersion()
-				: 0;
+		return userDetails instanceof SecurityUser securityUser ? securityUser.getUser().getTokenVersion() : 0;
 	}
 
-	private boolean isTokenExpired(String token)
-	{
+	private boolean isTokenExpired(String token) {
 		return extractExpiration(token).before(new Date());
 	}
 
-	private Date extractExpiration(String token)
-	{
+	private Date extractExpiration(String token) {
 		return extractClaim(token, Claims::getExpiration);
 	}
 
-	private Claims extractAllClaims(String token)
-	{
-		try
-		{
+	private Claims extractAllClaims(String token) {
+		try {
 			return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
-		}
-		catch (SignatureException e)
-		{
+		} catch (SignatureException e) {
 			log.error("Invalid JWT signature: {}", e.getMessage());
 			throw e;
-		}
-		catch (MalformedJwtException e)
-		{
+		} catch (MalformedJwtException e) {
 			log.error("Invalid JWT token: {}", e.getMessage());
 			throw e;
-		}
-		catch (ExpiredJwtException e)
-		{
+		} catch (ExpiredJwtException e) {
 			log.error("JWT token is expired: {}", e.getMessage());
 			throw e;
-		}
-		catch (UnsupportedJwtException e)
-		{
+		} catch (UnsupportedJwtException e) {
 			log.error("JWT token is unsupported: {}", e.getMessage());
 			throw e;
-		}
-		catch (IllegalArgumentException e)
-		{
+		} catch (IllegalArgumentException e) {
 			log.error("JWT claims string is empty: {}", e.getMessage());
 			throw e;
 		}

@@ -1,6 +1,5 @@
 package space.nebula.nexus.service.impl;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -27,47 +26,47 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AnalyticsServiceImplTest {
 
-    @Mock
-    private VisitLogRepository visitLogRepository;
-    @Mock
-    private DailyAnalyticsRepository dailyAnalyticsRepository;
-    @Mock
-    private CommentRepository commentRepository;
-    @Mock
-    private PostRepository postRepository;
-    @Mock
-    private PostMapper postMapper;
+	@Mock
+	private VisitLogRepository visitLogRepository;
+	@Mock
+	private DailyAnalyticsRepository dailyAnalyticsRepository;
+	@Mock
+	private CommentRepository commentRepository;
+	@Mock
+	private PostRepository postRepository;
+	@Mock
+	private PostMapper postMapper;
 
-    @InjectMocks
-    private AnalyticsServiceImpl analyticsService;
+	@InjectMocks
+	private AnalyticsServiceImpl analyticsService;
 
-    @Test
-    void aggregateDailyData_Success() {
-        LocalDate date = LocalDate.now().minusDays(1);
-        
-        when(visitLogRepository.countPv(any(), any())).thenReturn(100L);
-        when(visitLogRepository.countUv(any(), any())).thenReturn(50L);
-        when(commentRepository.countByCreatedAtBetween(any(), any())).thenReturn(5L);
-        when(visitLogRepository.findDailyTrendRaw(any())).thenReturn(Collections.emptyList());
-        when(dailyAnalyticsRepository.findByStatDate(date)).thenReturn(Optional.empty());
+	@Test
+	void aggregateDailyData_Success() {
+		LocalDate date = LocalDate.now().minusDays(1);
 
-        analyticsService.aggregateDailyData(date);
+		when(visitLogRepository.countPv(any(), any())).thenReturn(100L);
+		when(visitLogRepository.countUv(any(), any())).thenReturn(50L);
+		when(commentRepository.countByCreatedAtBetween(any(), any())).thenReturn(5L);
+		when(visitLogRepository.findDailyTrendRaw(any())).thenReturn(Collections.emptyList());
+		when(dailyAnalyticsRepository.findByStatDate(date)).thenReturn(Optional.empty());
 
-        verify(dailyAnalyticsRepository).save(any(DailyAnalytics.class));
-    }
+		analyticsService.aggregateDailyData(date);
 
-    @Test
-    void getTrendingPosts_Success() {
-        String slug = "test-post";
-        Map<String, Object> mockData = Map.of("url", "/api/v1/public/blog/posts/" + slug, "count", 10L);
-        
-        when(visitLogRepository.findTopContentRaw(any())).thenReturn(List.of(mockData));
-        when(postRepository.findAllBySlugIn(anyList())).thenReturn(List.of(new Post()));
-        when(postMapper.toResponseList(any())).thenReturn(List.of());
+		verify(dailyAnalyticsRepository).save(any(DailyAnalytics.class));
+	}
 
-        var response = analyticsService.getTrendingPosts(5);
+	@Test
+	void getTrendingPosts_Success() {
+		String slug = "test-post";
+		Map<String, Object> mockData = Map.of("url", "/api/v1/public/blog/posts/" + slug, "count", 10L);
 
-        assertNotNull(response);
-        assertEquals(200, response.code());
-    }
+		when(visitLogRepository.findTopContentRaw(any())).thenReturn(List.of(mockData));
+		when(postRepository.findAllBySlugIn(anyList())).thenReturn(List.of(new Post()));
+		when(postMapper.toResponseList(any())).thenReturn(List.of());
+
+		var response = analyticsService.getTrendingPosts(5);
+
+		assertNotNull(response);
+		assertEquals(200, response.code());
+	}
 }

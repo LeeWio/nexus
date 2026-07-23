@@ -10,11 +10,11 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StaticGenerationMessage implements Serializable {
-    public enum Action {
-        GENERATE, DELETE
-    }
+	public enum Action {
+		GENERATE, DELETE
+	}
 
-    private Long postId;
-    private String slug;
-    private Action action;
+	private Long postId;
+	private String slug;
+	private Action action;
 }

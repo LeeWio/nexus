@@ -59,7 +59,8 @@ class KanbanServiceImplTest {
 		destinationFirst.setColumn(destinationColumn);
 
 		when(taskRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(task));
-		when(columnRepository.findAllByIdForUpdate(anyCollection())).thenReturn(List.of(sourceColumn, destinationColumn));
+		when(columnRepository.findAllByIdForUpdate(anyCollection()))
+				.thenReturn(List.of(sourceColumn, destinationColumn));
 		when(taskRepository.findByColumnIdOrderByOrderIndexAscIdAsc(1L)).thenReturn(List.of(sourceFirst, task));
 		when(taskRepository.findByColumnIdOrderByOrderIndexAscIdAsc(2L)).thenReturn(List.of(destinationFirst));
 

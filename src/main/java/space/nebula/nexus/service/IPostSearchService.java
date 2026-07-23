@@ -8,8 +8,7 @@ import space.nebula.nexus.entity.document.PostDocument;
 import space.nebula.nexus.payload.response.QuickSearchResponse;
 import space.nebula.nexus.payload.response.UnifiedSearchResponse;
 
-public interface IPostSearchService
-{
+public interface IPostSearchService {
 
 	/**
 	 * Index a post into Elasticsearch

@@ -13,24 +13,23 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.IOException;
 
 /**
- * Redirects OAuth2 failures to the frontend with a stable, user-facing error code.
+ * Redirects OAuth2 failures to the frontend with a stable, user-facing error
+ * code.
  */
 @Component
-public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler
-{
+public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 	@Value("${app.oauth2.redirect-uri:http://localhost:3000/oauth2/redirect}")
 	private String redirectUri;
 
 	@Override
 	public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
-			AuthenticationException exception) throws IOException, ServletException
-	{
+			AuthenticationException exception) throws IOException, ServletException {
 		String errorCode = exception instanceof OAuth2AuthenticationException oauthException
-				? oauthException.getError().getErrorCode() : "oauth_login_failed";
+				? oauthException.getError().getErrorCode()
+				: "oauth_login_failed";
 		String targetUrl = UriComponentsBuilder.fromUriString(redirectUri).queryParam("error", errorCode).build()
 				.toUriString();
-		if (request.getSession(false) != null)
-		{
+		if (request.getSession(false) != null) {
 			request.getSession(false).invalidate();
 		}
 		getRedirectStrategy().sendRedirect(request, response, targetUrl);

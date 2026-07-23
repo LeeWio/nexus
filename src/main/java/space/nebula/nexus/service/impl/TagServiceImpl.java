@@ -28,8 +28,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class TagServiceImpl implements ITagService
-{
+public class TagServiceImpl implements ITagService {
 
 	private final TagRepository tagRepository;
 	private final PostRepository postRepository;
@@ -38,56 +37,47 @@ public class TagServiceImpl implements ITagService
 
 	@Override
 	@Cacheable(value = CacheConstants.TAGS, key = "'all'", sync = true)
-	public ApiResponse<List<TagResponse>> getAllTags()
-	{
+	public ApiResponse<List<TagResponse>> getAllTags() {
 		return ApiResponse.success(tagMapper.toResponseList(tagRepository.findAll()));
 	}
 
 	@Override
 	@Transactional
 	@LogOperation("Create Tag")
-	@CacheEvict(value = { CacheConstants.TAGS, CacheConstants.SEO }, allEntries = true)
-	public ApiResponse<TagResponse> createTag(TagRequest request)
-	{
-		// Check name and slug including deleted rows for self-healing / seamless restore
-		if (StrUtil.isNotBlank(request.name()))
-		{
+	@CacheEvict(value = {CacheConstants.TAGS, CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<TagResponse> createTag(TagRequest request) {
+		// Check name and slug including deleted rows for self-healing / seamless
+		// restore
+		if (StrUtil.isNotBlank(request.name())) {
 			var existingByName = tagRepository.findByNameIncludeDeleted(request.name());
-			if (existingByName.isPresent())
-			{
+			if (existingByName.isPresent()) {
 				Tag tag = existingByName.get();
-				if (Boolean.TRUE.equals(tag.getIsDeleted()))
-				{
+				if (Boolean.TRUE.equals(tag.getIsDeleted())) {
 					tag.setIsDeleted(false);
 					tagMapper.updateEntity(tag, request);
 					tagRepository.save(tag);
 					log.info("Restored soft-deleted tag by name: {}", tag.getName());
 					return ApiResponse.success("Tag created successfully", tagMapper.toResponse(tag));
-				}
-				else
-				{
-					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag name is already in use: " + request.name());
+				} else {
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY,
+							"Tag name is already in use: " + request.name());
 				}
 			}
 		}
 
-		if (StrUtil.isNotBlank(request.slug()))
-		{
+		if (StrUtil.isNotBlank(request.slug())) {
 			var existingBySlug = tagRepository.findBySlugIncludeDeleted(request.slug());
-			if (existingBySlug.isPresent())
-			{
+			if (existingBySlug.isPresent()) {
 				Tag tag = existingBySlug.get();
-				if (Boolean.TRUE.equals(tag.getIsDeleted()))
-				{
+				if (Boolean.TRUE.equals(tag.getIsDeleted())) {
 					tag.setIsDeleted(false);
 					tagMapper.updateEntity(tag, request);
 					tagRepository.save(tag);
 					log.info("Restored soft-deleted tag by slug: {}", tag.getName());
 					return ApiResponse.success("Tag created successfully", tagMapper.toResponse(tag));
-				}
-				else
-				{
-					throw new BusinessException(BusinessCode.DUPLICATE_KEY, "Tag slug is already in use: " + request.slug());
+				} else {
+					throw new BusinessException(BusinessCode.DUPLICATE_KEY,
+							"Tag slug is already in use: " + request.slug());
 				}
 			}
 		}
@@ -103,9 +93,8 @@ public class TagServiceImpl implements ITagService
 	@Override
 	@Transactional
 	@LogOperation("Update Tag")
-	@CacheEvict(value = { CacheConstants.TAGS, CacheConstants.SEO }, allEntries = true)
-	public ApiResponse<TagResponse> updateTag(Long id, TagRequest request)
-	{
+	@CacheEvict(value = {CacheConstants.TAGS, CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<TagResponse> updateTag(Long id, TagRequest request) {
 		Tag existingTag = tagRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Tag", "id", id));
 
 		validateUniqueConstraints(existingTag, request);
@@ -120,33 +109,28 @@ public class TagServiceImpl implements ITagService
 	@Override
 	@Transactional
 	@LogOperation("Delete Tag")
-	@CacheEvict(value = { CacheConstants.TAGS, CacheConstants.SEO }, allEntries = true)
-	public ApiResponse<Void> deleteTag(Long id)
-	{
+	@CacheEvict(value = {CacheConstants.TAGS, CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<Void> deleteTag(Long id) {
 		Assert.isTrue(tagRepository.existsById(id), () -> new ResourceNotFoundException("Tag", "id", id));
 
 		// Check if any active posts are still associated with this tag
 		Assert.isFalse(postRepository.existsByTagsId(id),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Tag is still referenced by active posts"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Tag is still referenced by active posts"));
 
 		tagRepository.deleteById(id);
 		log.info("Tag deleted id: {}", id);
 		return ApiResponse.success("Tag deleted successfully", null);
 	}
 
-	private void validateUniqueConstraints(Tag existing, TagRequest request)
-	{
+	private void validateUniqueConstraints(Tag existing, TagRequest request) {
 		if (StrUtil.isNotBlank(request.name())
-				&& (existing == null || !StrUtil.equals(existing.getName(), request.name())))
-		{
+				&& (existing == null || !StrUtil.equals(existing.getName(), request.name()))) {
 			Assert.isFalse(tagRepository.findByNameIncludeDeleted(request.name()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 							"Tag name is already in use: " + request.name()));
 		}
 		if (StrUtil.isNotBlank(request.slug())
-				&& (existing == null || !StrUtil.equals(existing.getSlug(), request.slug())))
-		{
+				&& (existing == null || !StrUtil.equals(existing.getSlug(), request.slug()))) {
 			Assert.isFalse(tagRepository.findBySlugIncludeDeleted(request.slug()).isPresent(),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 							"Tag slug is already in use: " + request.slug()));

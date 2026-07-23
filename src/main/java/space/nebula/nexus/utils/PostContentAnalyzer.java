@@ -12,8 +12,7 @@ import java.util.regex.Pattern;
  * Extracts deterministic metadata from post content for discovery, SEO, and
  * reading UX.
  */
-public final class PostContentAnalyzer
-{
+public final class PostContentAnalyzer {
 	private static final int SUMMARY_LIMIT = 160;
 	private static final int TOC_LIMIT = 30;
 	private static final int WORDS_PER_MINUTE = 300;
@@ -24,12 +23,10 @@ public final class PostContentAnalyzer
 	private static final Pattern MARKDOWN_DECORATION = Pattern.compile("[`*_~>#\\-!\\[\\]()]+");
 	private static final Pattern LATIN_WORD = Pattern.compile("[\\p{IsAlphabetic}\\p{IsDigit}]+");
 
-	private PostContentAnalyzer()
-	{
+	private PostContentAnalyzer() {
 	}
 
-	public static Metadata analyze(String title, String summary, String content)
-	{
+	public static Metadata analyze(String title, String summary, String content) {
 		String normalizedContent = StrUtil.blankToDefault(content, "");
 		String plainText = toPlainText(normalizedContent);
 		int wordCount = countWords(plainText);
@@ -40,10 +37,8 @@ public final class PostContentAnalyzer
 		return new Metadata(wordCount, readingTimeMinutes, autoSummary, toc, contentHash);
 	}
 
-	public static String toPlainText(String content)
-	{
-		if (StrUtil.isBlank(content))
-		{
+	public static String toPlainText(String content) {
+		if (StrUtil.isBlank(content)) {
 			return "";
 		}
 		String text = HTML_TAG.matcher(content).replaceAll(" ");
@@ -53,93 +48,73 @@ public final class PostContentAnalyzer
 		return text.replaceAll("\\s+", " ").trim();
 	}
 
-	private static int countWords(String plainText)
-	{
-		if (StrUtil.isBlank(plainText))
-		{
+	private static int countWords(String plainText) {
+		if (StrUtil.isBlank(plainText)) {
 			return 0;
 		}
 		int cjkCharacters = 0;
 		StringBuilder latinBuffer = new StringBuilder();
-		for (int i = 0; i < plainText.length(); i++)
-		{
+		for (int i = 0; i < plainText.length(); i++) {
 			char ch = plainText.charAt(i);
 			Character.UnicodeScript script = Character.UnicodeScript.of(ch);
 			if (script == Character.UnicodeScript.HAN || script == Character.UnicodeScript.HIRAGANA
-					|| script == Character.UnicodeScript.KATAKANA || script == Character.UnicodeScript.HANGUL)
-			{
+					|| script == Character.UnicodeScript.KATAKANA || script == Character.UnicodeScript.HANGUL) {
 				cjkCharacters++;
 				latinBuffer.append(' ');
-			}
-			else
-			{
+			} else {
 				latinBuffer.append(ch);
 			}
 		}
 		int latinWords = 0;
 		var matcher = LATIN_WORD.matcher(latinBuffer);
-		while (matcher.find())
-		{
+		while (matcher.find()) {
 			latinWords++;
 		}
 		return cjkCharacters + latinWords;
 	}
 
-	private static String createSummary(String plainText)
-	{
-		if (StrUtil.isBlank(plainText))
-		{
+	private static String createSummary(String plainText) {
+		if (StrUtil.isBlank(plainText)) {
 			return null;
 		}
-		if (plainText.length() <= SUMMARY_LIMIT)
-		{
+		if (plainText.length() <= SUMMARY_LIMIT) {
 			return plainText;
 		}
 		return plainText.substring(0, SUMMARY_LIMIT).trim();
 	}
 
-	private static String cleanSummary(String summary)
-	{
-		if (StrUtil.isBlank(summary))
-		{
+	private static String cleanSummary(String summary) {
+		if (StrUtil.isBlank(summary)) {
 			return null;
 		}
 		String cleaned = toPlainText(summary);
 		return cleaned.length() <= 500 ? cleaned : cleaned.substring(0, 500).trim();
 	}
 
-	private static String buildToc(String content)
-	{
-		if (StrUtil.isBlank(content))
-		{
+	private static String buildToc(String content) {
+		if (StrUtil.isBlank(content)) {
 			return "[]";
 		}
 		List<String> items = new ArrayList<>();
 		boolean inFence = false;
-		for (String line : content.split("\\R"))
-		{
-			if (MARKDOWN_FENCE.matcher(line).matches())
-			{
+		for (String line : content.split("\\R")) {
+			if (MARKDOWN_FENCE.matcher(line).matches()) {
 				inFence = !inFence;
 				continue;
 			}
-			if (inFence)
-			{
+			if (inFence) {
 				continue;
 			}
 			var matcher = MARKDOWN_HEADING.matcher(line);
-			if (matcher.matches())
-			{
+			if (matcher.matches()) {
 				int level = matcher.group(1).length();
 				String text = toPlainText(matcher.group(2));
-				if (StrUtil.isBlank(text))
-				{
+				if (StrUtil.isBlank(text)) {
 					continue;
 				}
 				items.add("{\"level\":" + level + ",\"text\":\"" + escapeJson(text) + "\",\"anchor\":\""
 						+ escapeJson(toAnchor(text)) + "\"}");
-				if (items.size() >= TOC_LIMIT)
-				{
+				if (items.size() >= TOC_LIMIT) {
 					break;
 				}
 			}
@@ -147,25 +122,21 @@ public final class PostContentAnalyzer
 		return "[" + String.join(",", items) + "]";
 	}
 
-	private static String toAnchor(String text)
-	{
+	private static String toAnchor(String text) {
 		String normalized = Normalizer.normalize(text.toLowerCase(), Normalizer.Form.NFKD);
-		String anchor = normalized.replaceAll("[^\\p{IsAlphabetic}\\p{IsDigit}\\p{IsHan}]+", "-")
-				.replaceAll("^-+|-+$", "");
+		String anchor = normalized.replaceAll("[^\\p{IsAlphabetic}\\p{IsDigit}\\p{IsHan}]+", "-").replaceAll("^-+|-+$",
+				"");
 		return StrUtil.blankToDefault(anchor, "section");
 	}
 
-	private static String normalizeForHash(String value)
-	{
+	private static String normalizeForHash(String value) {
 		return value == null ? "" : value.replace("\r\n", "\n").trim();
 	}
 
-	private static String escapeJson(String value)
-	{
+	private static String escapeJson(String value) {
 		return value.replace("\\", "\\\\").replace("\"", "\\\"");
 	}
 
-	public record Metadata(int wordCount, int readingTimeMinutes, String autoSummary, String toc, String contentHash)
-	{
+	public record Metadata(int wordCount, int readingTimeMinutes, String autoSummary, String toc, String contentHash) {
 	}
 }

@@ -11,18 +11,15 @@ import space.nebula.nexus.utils.SlugUtil;
 import java.util.function.Predicate;
 
 @Service
-public class SlugServiceImpl implements ISlugService
-{
+public class SlugServiceImpl implements ISlugService {
 
 	@Override
-	public String toSlug(String input)
-	{
+	public String toSlug(String input) {
 		return SlugUtil.toSlug(input);
 	}
 
 	@Override
-	public String generateUniqueSlug(String requestedSlug, String fallbackTitle, Predicate<String> existsChecker)
-	{
+	public String generateUniqueSlug(String requestedSlug, String fallbackTitle, Predicate<String> existsChecker) {
 		String slug = StrUtil.isBlank(requestedSlug) ? toSlug(fallbackTitle) : toSlug(requestedSlug);
 
 		Assert.isFalse(existsChecker.test(slug),

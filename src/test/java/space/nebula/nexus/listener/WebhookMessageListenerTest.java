@@ -23,68 +23,68 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class WebhookMessageListenerTest {
 
-    @Mock
-    private WebhookRepository webhookRepository;
-    @Mock
-    private WebhookLogRepository webhookLogRepository;
-    @Mock
-    private OutboundUrlValidator outboundUrlValidator;
-    @Mock
-    private WebhookDeliveryClient deliveryClient;
+	@Mock
+	private WebhookRepository webhookRepository;
+	@Mock
+	private WebhookLogRepository webhookLogRepository;
+	@Mock
+	private OutboundUrlValidator outboundUrlValidator;
+	@Mock
+	private WebhookDeliveryClient deliveryClient;
 
-    @InjectMocks
-    private WebhookMessageListener webhookMessageListener;
+	@InjectMocks
+	private WebhookMessageListener webhookMessageListener;
 
-    private Webhook testWebhook;
+	private Webhook testWebhook;
 
-    @BeforeEach
-    void setUp() {
-        testWebhook = new Webhook();
-        testWebhook.setId(1L);
-        testWebhook.setUrl("http://example.com/webhook");
-        testWebhook.setSecret("test-secret");
-        testWebhook.setIsActive(true);
-    }
+	@BeforeEach
+	void setUp() {
+		testWebhook = new Webhook();
+		testWebhook.setId(1L);
+		testWebhook.setUrl("http://example.com/webhook");
+		testWebhook.setSecret("test-secret");
+		testWebhook.setIsActive(true);
+	}
 
-    @Test
-    void handleWebhookDispatch_Success() {
-        WebhookMessage message = new WebhookMessage(1L, "POST_PUBLISHED", Dict.create().set("postId", 123));
-        
-        when(webhookRepository.findById(1L)).thenReturn(Optional.of(testWebhook));
-        when(deliveryClient.post(anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(new WebhookDeliveryClient.DeliveryResult(200, "ok", true));
-        
-        webhookMessageListener.handleWebhookDispatch(message);
-        
-        verify(webhookLogRepository).save(any(WebhookLog.class));
-    }
+	@Test
+	void handleWebhookDispatch_Success() {
+		WebhookMessage message = new WebhookMessage(1L, "POST_PUBLISHED", Dict.create().set("postId", 123));
 
-    @Test
-    void handleWebhookDispatch_Inactive_Skip() {
-        testWebhook.setIsActive(false);
-        WebhookMessage message = new WebhookMessage(1L, "POST_PUBLISHED", Dict.create().set("postId", 123));
-        
-        when(webhookRepository.findById(1L)).thenReturn(Optional.of(testWebhook));
-        
-        webhookMessageListener.handleWebhookDispatch(message);
-        
-        verify(webhookLogRepository, never()).save(any(WebhookLog.class));
-    }
+		when(webhookRepository.findById(1L)).thenReturn(Optional.of(testWebhook));
+		when(deliveryClient.post(anyString(), anyString(), anyString(), anyString()))
+				.thenReturn(new WebhookDeliveryClient.DeliveryResult(200, "ok", true));
 
-    @Test
-    void handleWebhookDispatch_AlreadySuccessful_Skip() {
-        WebhookMessage message = new WebhookMessage(1L, "delivery-1", "POST_PUBLISHED",
-                Dict.create().set("postId", 123));
-        WebhookLog existingLog = new WebhookLog();
-        existingLog.setDeliveryId("delivery-1");
-        existingLog.setIsSuccess(true);
+		webhookMessageListener.handleWebhookDispatch(message);
 
-        when(webhookRepository.findById(1L)).thenReturn(Optional.of(testWebhook));
-        when(webhookLogRepository.findByDeliveryId("delivery-1")).thenReturn(Optional.of(existingLog));
+		verify(webhookLogRepository).save(any(WebhookLog.class));
+	}
 
-        webhookMessageListener.handleWebhookDispatch(message);
+	@Test
+	void handleWebhookDispatch_Inactive_Skip() {
+		testWebhook.setIsActive(false);
+		WebhookMessage message = new WebhookMessage(1L, "POST_PUBLISHED", Dict.create().set("postId", 123));
 
-        verifyNoInteractions(outboundUrlValidator, deliveryClient);
-        verify(webhookLogRepository, never()).save(any(WebhookLog.class));
-    }
+		when(webhookRepository.findById(1L)).thenReturn(Optional.of(testWebhook));
+
+		webhookMessageListener.handleWebhookDispatch(message);
+
+		verify(webhookLogRepository, never()).save(any(WebhookLog.class));
+	}
+
+	@Test
+	void handleWebhookDispatch_AlreadySuccessful_Skip() {
+		WebhookMessage message = new WebhookMessage(1L, "delivery-1", "POST_PUBLISHED",
+				Dict.create().set("postId", 123));
+		WebhookLog existingLog = new WebhookLog();
+		existingLog.setDeliveryId("delivery-1");
+		existingLog.setIsSuccess(true);
+
+		when(webhookRepository.findById(1L)).thenReturn(Optional.of(testWebhook));
+		when(webhookLogRepository.findByDeliveryId("delivery-1")).thenReturn(Optional.of(existingLog));
+
+		webhookMessageListener.handleWebhookDispatch(message);
+
+		verifyNoInteractions(outboundUrlValidator, deliveryClient);
+		verify(webhookLogRepository, never()).save(any(WebhookLog.class));
+	}
 }

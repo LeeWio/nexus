@@ -34,8 +34,7 @@ public class LocalStorageProvider implements StorageProvider {
 	@Override
 	public String store(InputStream inputStream, String filename) {
 		try {
-			Assert.isFalse(filename.contains(".."),
-					() -> new BusinessException("File path is invalid: " + filename));
+			Assert.isFalse(filename.contains(".."), () -> new BusinessException("File path is invalid: " + filename));
 
 			Path destinationFile = this.rootLocation.resolve(Paths.get(filename)).normalize().toAbsolutePath();
 
@@ -71,8 +70,7 @@ public class LocalStorageProvider implements StorageProvider {
 	}
 
 	private Path resolveWithinRoot(String filename) throws IOException {
-		Assert.isFalse(filename.contains(".."),
-				() -> new BusinessException("File path is invalid"));
+		Assert.isFalse(filename.contains(".."), () -> new BusinessException("File path is invalid"));
 		Path resolved = rootLocation.resolve(filename).normalize().toAbsolutePath();
 		Path canonicalRoot = rootLocation.toFile().getCanonicalFile().toPath();
 		Path canonicalTarget = resolved.toFile().getCanonicalFile().toPath();

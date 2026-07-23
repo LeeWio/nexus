@@ -18,8 +18,7 @@ import space.nebula.nexus.enums.CommentStatus;
 @Setter
 @Entity
 @Table(name = "blog_comment_moderation_log")
-public class CommentModerationLog extends BaseEntity
-{
+public class CommentModerationLog extends BaseEntity {
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "comment_id", nullable = false)

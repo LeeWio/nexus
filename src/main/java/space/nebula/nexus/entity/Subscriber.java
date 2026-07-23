@@ -13,19 +13,19 @@ import java.time.LocalDateTime;
 @Table(name = "blog_subscriber")
 public class Subscriber extends BaseEntity {
 
-    @Column(nullable = false, unique = true, length = 100)
-    private String email;
+	@Column(nullable = false, unique = true, length = 100)
+	private String email;
 
 	@Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private SubscriberStatus status = SubscriberStatus.PENDING;
+	@Column(nullable = false, length = 20)
+	private SubscriberStatus status = SubscriberStatus.PENDING;
 
-    @Column(name = "verification_token", length = 100)
-    private String verificationToken;
+	@Column(name = "verification_token", length = 100)
+	private String verificationToken;
 
 	@Column(name = "verification_expires_at")
 	private LocalDateTime verificationExpiresAt;
 
-    @Column(name = "unsubscribe_token", length = 100)
-    private String unsubscribeToken;
+	@Column(name = "unsubscribe_token", length = 100)
+	private String unsubscribeToken;
 }

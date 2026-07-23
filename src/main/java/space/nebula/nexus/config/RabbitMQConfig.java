@@ -12,8 +12,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class RabbitMQConfig
-{
+public class RabbitMQConfig {
 
 	public static final String CANAL_EXCHANGE = "canal.exchange";
 	public static final String CANAL_ROUTING_KEY = "canal.routing.key";
@@ -38,50 +37,42 @@ public class RabbitMQConfig
 	public static final String DLQ_QUEUE = "nexus.dlq";
 
 	@Bean
-	MessageConverter jsonMessageConverter()
-	{
+	MessageConverter jsonMessageConverter() {
 		return new JacksonJsonMessageConverter();
 	}
 
 	@Bean
-	DirectExchange deadLetterExchange()
-	{
+	DirectExchange deadLetterExchange() {
 		return new DirectExchange(DLX_EXCHANGE);
 	}
 
 	@Bean
-	Queue deadLetterQueue()
-	{
+	Queue deadLetterQueue() {
 		return new Queue(DLQ_QUEUE, true);
 	}
 
 	@Bean
-	Binding deadLetterBinding(Queue deadLetterQueue, DirectExchange deadLetterExchange)
-	{
+	Binding deadLetterBinding(Queue deadLetterQueue, DirectExchange deadLetterExchange) {
 		return BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(DLQ_ROUTING_KEY);
 	}
 
 	@Bean
-	DirectExchange canalExchange()
-	{
+	DirectExchange canalExchange() {
 		return new DirectExchange(CANAL_EXCHANGE);
 	}
 
 	@Bean
-	Queue canalQueue()
-	{
+	Queue canalQueue() {
 		return new Queue(CANAL_QUEUE, true);
 	}
 
 	@Bean
-	Binding canalBinding(Queue canalQueue, DirectExchange canalExchange)
-	{
+	Binding canalBinding(Queue canalQueue, DirectExchange canalExchange) {
 		return BindingBuilder.bind(canalQueue).to(canalExchange).with(CANAL_ROUTING_KEY);
 	}
 
 	@Bean
-	FanoutExchange cacheBroadcastExchange()
-	{
+	FanoutExchange cacheBroadcastExchange() {
 		return new FanoutExchange(CACHE_BROADCAST_EXCHANGE);
 	}
 
@@ -90,74 +81,59 @@ public class RabbitMQConfig
 	 * Using auto-delete so it cleans up when the instance goes down.
 	 */
 	@Bean
-	Queue l1CacheInvalidationQueue()
-	{
+	Queue l1CacheInvalidationQueue() {
 		return new Queue("nexus.l1.invalidation." + cn.hutool.core.util.IdUtil.fastSimpleUUID(), false, false, true);
 	}
 
 	@Bean
-	Binding l1CacheBinding(Queue l1CacheInvalidationQueue, FanoutExchange cacheBroadcastExchange)
-	{
+	Binding l1CacheBinding(Queue l1CacheInvalidationQueue, FanoutExchange cacheBroadcastExchange) {
 		return BindingBuilder.bind(l1CacheInvalidationQueue).to(cacheBroadcastExchange);
 	}
 
 	@Bean
-	DirectExchange mailExchange()
-	{
+	DirectExchange mailExchange() {
 		return new DirectExchange(MAIL_EXCHANGE);
 	}
 
 	@Bean
-	Queue mailQueue()
-	{
-		return QueueBuilder.durable(MAIL_QUEUE)
-				.deadLetterExchange(DLX_EXCHANGE)
-				.deadLetterRoutingKey(DLQ_ROUTING_KEY)
+	Queue mailQueue() {
+		return QueueBuilder.durable(MAIL_QUEUE).deadLetterExchange(DLX_EXCHANGE).deadLetterRoutingKey(DLQ_ROUTING_KEY)
 				.build();
 	}
 
 	@Bean
-	Binding mailBinding(Queue mailQueue, DirectExchange mailExchange)
-	{
+	Binding mailBinding(Queue mailQueue, DirectExchange mailExchange) {
 		return BindingBuilder.bind(mailQueue).to(mailExchange).with(MAIL_ROUTING_KEY);
 	}
 
 	@Bean
-	DirectExchange webhookExchange()
-	{
+	DirectExchange webhookExchange() {
 		return new DirectExchange(WEBHOOK_EXCHANGE);
 	}
 
 	@Bean
-	Queue webhookQueue()
-	{
-		return QueueBuilder.durable(WEBHOOK_QUEUE)
-				.deadLetterExchange(DLX_EXCHANGE)
-				.deadLetterRoutingKey(DLQ_ROUTING_KEY)
-				.build();
+	Queue webhookQueue() {
+		return QueueBuilder.durable(WEBHOOK_QUEUE).deadLetterExchange(DLX_EXCHANGE)
+				.deadLetterRoutingKey(DLQ_ROUTING_KEY).build();
 	}
 
 	@Bean
-	Binding webhookBinding(Queue webhookQueue, DirectExchange webhookExchange)
-	{
+	Binding webhookBinding(Queue webhookQueue, DirectExchange webhookExchange) {
 		return BindingBuilder.bind(webhookQueue).to(webhookExchange).with(WEBHOOK_ROUTING_KEY);
 	}
 
 	@Bean
-	DirectExchange staticGenExchange()
-	{
+	DirectExchange staticGenExchange() {
 		return new DirectExchange(STATIC_GEN_EXCHANGE);
 	}
 
 	@Bean
-	Queue staticGenQueue()
-	{
+	Queue staticGenQueue() {
 		return new Queue(STATIC_GEN_QUEUE, true);
 	}
 
 	@Bean
-	Binding staticGenBinding(Queue staticGenQueue, DirectExchange staticGenExchange)
-	{
+	Binding staticGenBinding(Queue staticGenQueue, DirectExchange staticGenExchange) {
 		return BindingBuilder.bind(staticGenQueue).to(staticGenExchange).with(STATIC_GEN_ROUTING_KEY);
 	}
 }

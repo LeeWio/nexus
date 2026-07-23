@@ -48,8 +48,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class PersonalLibraryServiceImplTest
-{
+class PersonalLibraryServiceImplTest {
 	@Mock
 	private UserRepository userRepository;
 	@Mock
@@ -79,25 +78,22 @@ class PersonalLibraryServiceImplTest
 	private User currentUser;
 
 	@BeforeEach
-	void setUp()
-	{
+	void setUp() {
 		currentUser = new User();
 		currentUser.setId(42L);
 		currentUser.setUsername("reader");
-		SecurityContextHolder.getContext().setAuthentication(
-				new UsernamePasswordAuthenticationToken("reader", "password", List.of()));
+		SecurityContextHolder.getContext()
+				.setAuthentication(new UsernamePasswordAuthenticationToken("reader", "password", List.of()));
 		when(userRepository.findByUsername("reader")).thenReturn(Optional.of(currentUser));
 	}
 
 	@AfterEach
-	void tearDown()
-	{
+	void tearDown() {
 		SecurityContextHolder.clearContext();
 	}
 
 	@Test
-	void followedCategoryFeedUsesPublishedPostsOnly()
-	{
+	void followedCategoryFeedUsesPublishedPostsOnly() {
 		var pageable = PageRequest.of(0, 20);
 		Post post = publishedPost(9L, category(3L, "Architecture"));
 		when(postRepository.findFollowedCategoryFeed(42L, PostStatus.PUBLISHED, pageable))
@@ -111,8 +107,7 @@ class PersonalLibraryServiceImplTest
 	}
 
 	@Test
-	void overviewCombinesDistinctPersonalSectionsAndExplainableRecommendations()
-	{
+	void overviewCombinesDistinctPersonalSectionsAndExplainableRecommendations() {
 		var candidatePage = PageRequest.of(0, 18);
 		var preferencePage = PageRequest.of(0, 5);
 		Category architecture = category(3L, "Architecture");
@@ -150,18 +145,15 @@ class PersonalLibraryServiceImplTest
 		assertEquals(List.of(3L, 4L),
 				response.data().recommendations().stream().map(entry -> entry.post().id()).toList());
 		assertEquals("FOLLOWED_CATEGORY", response.data().recommendations().getFirst().reasonCode());
-		assertEquals("Because you follow Architecture.",
-				response.data().recommendations().getFirst().reason());
+		assertEquals("Because you follow Architecture.", response.data().recommendations().getFirst().reason());
 		assertEquals("COMMUNITY_POPULAR", response.data().recommendations().getLast().reasonCode());
 	}
 
 	@Test
-	void followingCategoryIsIdempotent()
-	{
+	void followingCategoryIsIdempotent() {
 		Category architecture = category(3L, "Architecture");
 		when(categoryRepository.findById(3L)).thenReturn(Optional.of(architecture));
-		when(categoryFollowRepository.existsByUserIdAndCategoryIdAndIsDeletedFalse(42L, 3L))
-				.thenReturn(false, true);
+		when(categoryFollowRepository.existsByUserIdAndCategoryIdAndIsDeletedFalse(42L, 3L)).thenReturn(false, true);
 		when(categoryFollowRepository.countByUserIdAndIsDeletedFalse(42L)).thenReturn(2L);
 		when(categoryFollowRepository.insertIgnore(42L, 3L)).thenReturn(1);
 
@@ -188,8 +180,7 @@ class PersonalLibraryServiceImplTest
 	}
 
 	@Test
-	void favoritesAreReturnedInRepositoryOrder()
-	{
+	void favoritesAreReturnedInRepositoryOrder() {
 		Post post = publishedPost(9L);
 		PostFavorite favorite = new PostFavorite();
 		favorite.setPost(post);
@@ -206,12 +197,10 @@ class PersonalLibraryServiceImplTest
 	}
 
 	@Test
-	void readingProgressCreatesAResumableCompletedEntry()
-	{
+	void readingProgressCreatesAResumableCompletedEntry() {
 		Post post = publishedPost(9L);
 		when(postRepository.findById(9L)).thenReturn(Optional.of(post));
-		when(readingHistoryRepository.findByUserIdAndPostIdAndIsDeletedFalse(42L, 9L))
-				.thenReturn(Optional.empty());
+		when(readingHistoryRepository.findByUserIdAndPostIdAndIsDeletedFalse(42L, 9L)).thenReturn(Optional.empty());
 		when(readingHistoryRepository.save(any(ReadingHistory.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 		when(postMapper.toDigestResponse(post)).thenReturn(digest(9L));
@@ -226,14 +215,11 @@ class PersonalLibraryServiceImplTest
 	}
 
 	@Test
-	void duplicateCollectionMembershipIsIdempotent()
-	{
+	void duplicateCollectionMembershipIsIdempotent() {
 		PostCollection collection = ownedCollection(7L);
-		when(collectionRepository.findByIdAndUserIdAndIsDeletedFalse(7L, 42L))
-				.thenReturn(Optional.of(collection));
+		when(collectionRepository.findByIdAndUserIdAndIsDeletedFalse(7L, 42L)).thenReturn(Optional.of(collection));
 		when(postRepository.findById(9L)).thenReturn(Optional.of(publishedPost(9L)));
-		when(collectionItemRepository.existsByCollectionIdAndPostIdAndIsDeletedFalse(7L, 9L))
-				.thenReturn(true);
+		when(collectionItemRepository.existsByCollectionIdAndPostIdAndIsDeletedFalse(7L, 9L)).thenReturn(true);
 
 		var response = personalLibraryService.addPostToCollection(7L, 9L);
 
@@ -272,39 +258,34 @@ class PersonalLibraryServiceImplTest
 		assertEquals("Architecture references", response.data().description());
 	}
 
-	private Post publishedPost(Long id)
-	{
+	private Post publishedPost(Long id) {
 		Post post = new Post();
 		post.setId(id);
 		post.setStatus(PostStatus.PUBLISHED);
 		return post;
 	}
 
-	private Post publishedPost(Long id, Category category)
-	{
+	private Post publishedPost(Long id, Category category) {
 		Post post = publishedPost(id);
 		post.setCategory(category);
 		return post;
 	}
 
-	private Category category(Long id, String name)
-	{
+	private Category category(Long id, String name) {
 		Category category = new Category();
 		category.setId(id);
 		category.setName(name);
 		return category;
 	}
 
-	private PostFavorite favorite(Post post)
-	{
+	private PostFavorite favorite(Post post) {
 		PostFavorite favorite = new PostFavorite();
 		favorite.setPost(post);
 		favorite.setCreatedAt(LocalDateTime.now());
 		return favorite;
 	}
 
-	private PostCollection ownedCollection(Long id)
-	{
+	private PostCollection ownedCollection(Long id) {
 		PostCollection collection = new PostCollection();
 		collection.setId(id);
 		collection.setUser(currentUser);
@@ -312,9 +293,7 @@ class PersonalLibraryServiceImplTest
 		return collection;
 	}
 
-	private PostDigestResponse digest(Long id)
-	{
-		return new PostDigestResponse(id, "Post", "post-" + id, null, null, "Author", null, null, 0L, 0L,
-				null);
+	private PostDigestResponse digest(Long id) {
+		return new PostDigestResponse(id, "Post", "post-" + id, null, null, "Author", null, null, 0L, 0L, null);
 	}
 }

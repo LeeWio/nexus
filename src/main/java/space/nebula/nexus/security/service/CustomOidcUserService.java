@@ -13,16 +13,14 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
-public class CustomOidcUserService extends OidcUserService
-{
+public class CustomOidcUserService extends OidcUserService {
 	private final OAuthAccountResolver accountResolver;
 
 	@Override
-	public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException
-	{
+	public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {
 		OidcUser oidcUser = super.loadUser(userRequest);
-		OAuth2User localPrincipal = accountResolver.resolve(
-				userRequest.getClientRegistration().getRegistrationId(), oidcUser);
+		OAuth2User localPrincipal = accountResolver.resolve(userRequest.getClientRegistration().getRegistrationId(),
+				oidcUser);
 		return new LocalOidcUser(oidcUser, localPrincipal);
 	}
 }

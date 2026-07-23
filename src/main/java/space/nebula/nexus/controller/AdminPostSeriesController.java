@@ -23,44 +23,38 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/series")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminPostSeriesController
-{
+public class AdminPostSeriesController {
 
 	private final IPostSeriesService seriesService;
 
 	@GetMapping
 	@Operation(summary = "Retrieve all series", description = "Fetch a complete list of all post series for administrative management.")
-	public ApiResponse<List<SeriesResponse>> retrieveAllSeries()
-	{
+	public ApiResponse<List<SeriesResponse>> retrieveAllSeries() {
 		return seriesService.retrieveAllSeriesForAdmin();
 	}
 
 	@GetMapping("/{id}")
 	@Operation(summary = "Retrieve series by ID", description = "Fetch detailed information for a specific post series.")
-	public ApiResponse<SeriesResponse> retrieveSeries(@Parameter(description = "Series ID") @PathVariable Long id)
-	{
+	public ApiResponse<SeriesResponse> retrieveSeries(@Parameter(description = "Series ID") @PathVariable Long id) {
 		return seriesService.retrieveSeriesById(id);
 	}
 
 	@PostMapping
 	@Operation(summary = "Create post series", description = "Add a new series to organize related blog posts.")
-	public ApiResponse<SeriesResponse> createSeries(@Valid @RequestBody SeriesRequest request)
-	{
+	public ApiResponse<SeriesResponse> createSeries(@Valid @RequestBody SeriesRequest request) {
 		return seriesService.createSeries(request);
 	}
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update post series", description = "Modify an existing series' metadata, name, or slug.")
 	public ApiResponse<SeriesResponse> updateSeries(@Parameter(description = "Series ID") @PathVariable Long id,
-			@Valid @RequestBody SeriesRequest request)
-	{
+			@Valid @RequestBody SeriesRequest request) {
 		return seriesService.updateSeries(id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete post series", description = "Permanently remove a post series. Associated posts will be unlinked.")
-	public ApiResponse<Void> deleteSeries(@Parameter(description = "Series ID") @PathVariable Long id)
-	{
+	public ApiResponse<Void> deleteSeries(@Parameter(description = "Series ID") @PathVariable Long id) {
 		return seriesService.deleteSeries(id);
 	}
 }

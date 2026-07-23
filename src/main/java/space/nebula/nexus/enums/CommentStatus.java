@@ -3,8 +3,7 @@ package space.nebula.nexus.enums;
 /**
  * Status for blog comments.
  */
-public enum CommentStatus
-{
+public enum CommentStatus {
 	/**
 	 * The comment is awaiting moderation and has not yet been reviewed.
 	 */

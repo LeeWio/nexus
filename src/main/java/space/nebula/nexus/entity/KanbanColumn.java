@@ -16,8 +16,7 @@ import java.util.List;
 @Setter
 @Entity
 @Table(name = "kanban_column")
-public class KanbanColumn extends BaseEntity
-{
+public class KanbanColumn extends BaseEntity {
 
 	@Column(nullable = false, length = 100)
 	private String name;

@@ -12,10 +12,7 @@ import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
  */
 @Configuration
 @EnableJpaAuditing
-@EnableJpaRepositories(basePackages = "space.nebula.nexus.repository",
-		excludeFilters = @ComponentScan.Filter(type = FilterType.REGEX,
-				pattern = "space\\.nebula\\.nexus\\.repository\\.search\\..*"))
+@EnableJpaRepositories(basePackages = "space.nebula.nexus.repository", excludeFilters = @ComponentScan.Filter(type = FilterType.REGEX, pattern = "space\\.nebula\\.nexus\\.repository\\.search\\..*"))
 @EnableSchedulerLock(defaultLockAtMostFor = "PT30M")
-public class JpaConfig
-{
+public class JpaConfig {
 }

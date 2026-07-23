@@ -13,18 +13,15 @@ import space.nebula.nexus.repository.UserRepository;
  * Utility class for Spring Security related operations.
  */
 @UtilityClass
-public class SecurityUtil
-{
+public class SecurityUtil {
 
 	/**
 	 * Get the username of the currently authenticated user.
 	 */
-	public String getCurrentUsername()
-	{
+	public String getCurrentUsername() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (ObjectUtil.isNull(authentication) || !authentication.isAuthenticated()
-				|| ObjectUtil.equal("anonymousUser", authentication.getPrincipal()))
-		{
+				|| ObjectUtil.equal("anonymousUser", authentication.getPrincipal())) {
 			return null;
 		}
 		return authentication.getName();
@@ -33,11 +30,10 @@ public class SecurityUtil
 	/**
 	 * Get the currently authenticated user entity.
 	 * 
-	 * @throws BusinessException if user is not authenticated or not found in
-	 *                           database.
+	 * @throws BusinessException
+	 *             if user is not authenticated or not found in database.
 	 */
-	public User getCurrentUserOrThrow(UserRepository userRepository)
-	{
+	public User getCurrentUserOrThrow(UserRepository userRepository) {
 		String username = getCurrentUsername();
 		Assert.notNull(username, () -> new BusinessException(401, "Authentication required"));
 		return userRepository.findByUsername(username)
@@ -47,8 +43,7 @@ public class SecurityUtil
 	/**
 	 * Check if current user has a specific role.
 	 */
-	public boolean hasRole(String role)
-	{
+	public boolean hasRole(String role) {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (ObjectUtil.isNull(authentication))
 			return false;

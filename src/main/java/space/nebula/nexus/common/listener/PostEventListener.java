@@ -72,10 +72,10 @@ public class PostEventListener {
 
 	private String revisionSummary(PostChangeType changeType) {
 		return switch (changeType) {
-		case CREATED -> "Initial post content";
-		case UPDATED -> "Post content or metadata updated";
-		case RESTORED_TO_DRAFT -> "Archived post restored for a new editing cycle";
-		default -> "Post snapshot saved";
+			case CREATED -> "Initial post content";
+			case UPDATED -> "Post content or metadata updated";
+			case RESTORED_TO_DRAFT -> "Archived post restored for a new editing cycle";
+			default -> "Post snapshot saved";
 		};
 	}
 

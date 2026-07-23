@@ -13,11 +13,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-class CommentEventListenerTest
-{
+class CommentEventListenerTest {
 	@Test
-	void submittedCommentUsesScalarEventPayloadForNotification()
-	{
+	void submittedCommentUsesScalarEventPayloadForNotification() {
 		RabbitTemplate rabbitTemplate = mock(RabbitTemplate.class);
 		CommentEventListener listener = new CommentEventListener(rabbitTemplate);
 		var event = new CommentSubmittedEvent(this, 100L, "reader", "Reader", "Hello", CommentStatus.PENDING,
@@ -36,12 +34,11 @@ class CommentEventListenerTest
 	}
 
 	@Test
-	void spamCommentDispatchesViolationAlertToFallbackAdmin()
-	{
+	void spamCommentDispatchesViolationAlertToFallbackAdmin() {
 		RabbitTemplate rabbitTemplate = mock(RabbitTemplate.class);
 		CommentEventListener listener = new CommentEventListener(rabbitTemplate);
-		var event = new CommentSubmittedEvent(this, 100L, "spammer", "Spammer", "***", CommentStatus.SPAM,
-				"Guestbook", null, null, "127.0.0.1", "JUnit");
+		var event = new CommentSubmittedEvent(this, 100L, "spammer", "Spammer", "***", CommentStatus.SPAM, "Guestbook",
+				null, null, "127.0.0.1", "JUnit");
 
 		listener.onCommentSubmitted(event);
 

@@ -12,33 +12,39 @@ import java.util.Optional;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
-    Page<Notification> findByRecipientId(Long userId, Pageable pageable);
-    Page<Notification> findByRecipientIdAndIsReadFalse(Long userId, Pageable pageable);
-    Optional<Notification> findByIdAndRecipientId(Long id, Long userId);
-    long countByRecipientIdAndIsReadFalse(Long userId);
+	Page<Notification> findByRecipientId(Long userId, Pageable pageable);
+	Page<Notification> findByRecipientIdAndIsReadFalse(Long userId, Pageable pageable);
+	Optional<Notification> findByIdAndRecipientId(Long id, Long userId);
+	long countByRecipientIdAndIsReadFalse(Long userId);
 
-    @Modifying
-    @Query("UPDATE Notification n SET n.isRead = true, n.readAt = CURRENT_TIMESTAMP "
-            + "WHERE n.recipient.id = :userId AND n.isRead = false")
-    int markAllAsRead(Long userId);
+	@Modifying
+	@Query("UPDATE Notification n SET n.isRead = true, n.readAt = CURRENT_TIMESTAMP "
+			+ "WHERE n.recipient.id = :userId AND n.isRead = false")
+	int markAllAsRead(Long userId);
 
-    @Modifying
-    @Query("DELETE FROM Notification n WHERE n.id = :id AND n.recipient.id = :userId")
-    int deleteOwnedById(Long id, Long userId);
+	@Modifying
+	@Query("DELETE FROM Notification n WHERE n.id = :id AND n.recipient.id = :userId")
+	int deleteOwnedById(Long id, Long userId);
 
-    @Modifying
-    @Query("DELETE FROM Notification n WHERE n.recipient.id = :userId AND n.isRead = true")
-    int deleteReadByRecipientId(Long userId);
+	@Modifying
+	@Query("DELETE FROM Notification n WHERE n.recipient.id = :userId AND n.isRead = true")
+	int deleteReadByRecipientId(Long userId);
 
 	/**
 	 * Creates one idempotent notification for every active follower of a category.
 	 *
-	 * @param categoryId category identifier
-	 * @param authorId post author identifier excluded from recipients
-	 * @param postId published post identifier used for deduplication
-	 * @param title notification title
-	 * @param content notification content
-	 * @param link application link to the post
+	 * @param categoryId
+	 *            category identifier
+	 * @param authorId
+	 *            post author identifier excluded from recipients
+	 * @param postId
+	 *            published post identifier used for deduplication
+	 * @param title
+	 *            notification title
+	 * @param content
+	 *            notification content
+	 * @param link
+	 *            application link to the post
 	 * @return number of notifications inserted
 	 */
 	@Modifying

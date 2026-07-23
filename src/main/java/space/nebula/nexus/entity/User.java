@@ -27,8 +27,7 @@ import java.util.Set;
 @Table(name = "sys_user")
 @SQLDelete(sql = "UPDATE sys_user SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class User extends BaseEntity
-{
+public class User extends BaseEntity {
 
 	@Column(unique = true, nullable = false, length = 50)
 	private String username;
@@ -70,7 +69,7 @@ public class User extends BaseEntity
 	@Column(nullable = false, length = 20)
 	private UserStatus status = UserStatus.ACTIVE;
 
-	@ManyToMany(fetch = FetchType.LAZY, cascade = { CascadeType.PERSIST, CascadeType.MERGE })
+	@ManyToMany(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
 	@JoinTable(name = "sys_user_role", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
 	private Set<Role> roles = new HashSet<>();
 }

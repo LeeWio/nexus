@@ -6,11 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class PostContentAnalyzerTest
-{
+class PostContentAnalyzerTest {
 	@Test
-	void analyzeExtractsReadingMetadataAndToc()
-	{
+	void analyzeExtractsReadingMetadataAndToc() {
 		String content = """
 				# Intro
 				这里是一段中文内容 about Spring Boot.
@@ -30,8 +28,7 @@ class PostContentAnalyzerTest
 	}
 
 	@Test
-	void analyzeUsesManualSummaryAsAutoSummarySource()
-	{
+	void analyzeUsesManualSummaryAsAutoSummarySource() {
 		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze("Title", " Manual **summary** ",
 				"Long body");
 

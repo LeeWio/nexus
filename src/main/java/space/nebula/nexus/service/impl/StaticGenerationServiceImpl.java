@@ -2,7 +2,6 @@ package space.nebula.nexus.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -16,8 +15,7 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class StaticGenerationServiceImpl implements IStaticGenerationService
-{
+public class StaticGenerationServiceImpl implements IStaticGenerationService {
 
 	private final TemplateEngine templateEngine;
 	private final StorageProvider storageProvider;
@@ -26,23 +24,20 @@ public class StaticGenerationServiceImpl implements IStaticGenerationService
 	private final space.nebula.nexus.config.RabbitMQConfig rabbitMQConfig;
 
 	@Override
-	public void generatePostStaticHtml(Post post)
-	{
+	public void generatePostStaticHtml(Post post) {
 		log.info("Dispatching static HTML generation for post: {}", post.getSlug());
 		dispatch(new space.nebula.nexus.payload.event.StaticGenerationMessage(post.getId(), post.getSlug(),
 				space.nebula.nexus.payload.event.StaticGenerationMessage.Action.GENERATE));
 	}
 
 	@Override
-	public void deletePostStaticHtml(String slug)
-	{
+	public void deletePostStaticHtml(String slug) {
 		log.info("Dispatching static HTML deletion for post: {}", slug);
 		dispatch(new space.nebula.nexus.payload.event.StaticGenerationMessage(null, slug,
 				space.nebula.nexus.payload.event.StaticGenerationMessage.Action.DELETE));
 	}
 
-	private void dispatch(space.nebula.nexus.payload.event.StaticGenerationMessage message)
-	{
+	private void dispatch(space.nebula.nexus.payload.event.StaticGenerationMessage message) {
 		rabbitTemplate.convertAndSend(space.nebula.nexus.config.RabbitMQConfig.STATIC_GEN_EXCHANGE,
 				space.nebula.nexus.config.RabbitMQConfig.STATIC_GEN_ROUTING_KEY, message);
 	}
@@ -50,18 +45,15 @@ public class StaticGenerationServiceImpl implements IStaticGenerationService
 	/**
 	 * Actual execution logic, called by RabbitMQ listener.
 	 */
-	public void executeGenerate(Long postId)
-	{
+	public void executeGenerate(Long postId) {
 		Post post = postRepository.findById(postId).orElse(null);
-		if (post == null)
-		{
+		if (post == null) {
 			log.warn("Cannot generate static HTML: Post {} not found", postId);
 			return;
 		}
 
 		log.info("Executing static HTML generation for post: {}", post.getSlug());
-		try
-		{
+		try {
 			Context context = new Context();
 			context.setVariable("post", post);
 
@@ -72,9 +64,7 @@ public class StaticGenerationServiceImpl implements IStaticGenerationService
 			storageProvider.store(new ByteArrayInputStream(htmlBytes), fileName);
 
 			log.info("Successfully generated and uploaded static HTML: {}", fileName);
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			log.error("Failed to generate static HTML for post: {}", post.getSlug(), e);
 		}
 	}
@@ -82,22 +72,19 @@ public class StaticGenerationServiceImpl implements IStaticGenerationService
 	/**
 	 * Actual execution logic, called by RabbitMQ listener.
 	 */
-	public void executeDelete(String slug)
-	{
+	public void executeDelete(String slug) {
 		String fileName = "static/posts/" + slug + ".html";
 		storageProvider.delete(fileName);
 		log.info("Executed static HTML deletion for post: {}", slug);
 	}
 
 	@Override
-	public void regenerateAllPosts()
-	{
+	public void regenerateAllPosts() {
 		log.info("Starting site-wide static HTML regeneration...");
 		var publishedPosts = postRepository.findAllByStatus(space.nebula.nexus.enums.PostStatus.PUBLISHED,
 				org.springframework.data.domain.Pageable.unpaged());
 
 		publishedPosts.getContent().forEach(this::generatePostStaticHtml);
-		log.info("Site-wide static HTML regeneration task dispatched for {} posts.",
-				publishedPosts.getTotalElements());
+		log.info("Site-wide static HTML regeneration task dispatched for {} posts.", publishedPosts.getTotalElements());
 	}
 }

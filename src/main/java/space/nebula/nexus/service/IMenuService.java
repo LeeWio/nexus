@@ -7,8 +7,7 @@ import space.nebula.nexus.payload.response.MenuResponse;
 
 import java.util.List;
 
-public interface IMenuService
-{
+public interface IMenuService {
 
 	/**
 	 * Retrieves the entire menu tree for administration.

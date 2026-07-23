@@ -8,8 +8,7 @@ import space.nebula.nexus.enums.CommentStatus;
  * Event published when a new comment is submitted.
  */
 @Getter
-public class CommentSubmittedEvent extends ApplicationEvent
-{
+public class CommentSubmittedEvent extends ApplicationEvent {
 
 	private final Long commentId;
 	private final String authorUsername;
@@ -23,9 +22,8 @@ public class CommentSubmittedEvent extends ApplicationEvent
 	private final String userAgent;
 
 	public CommentSubmittedEvent(Object source, Long commentId, String authorUsername, String authorDisplayName,
-			String content, CommentStatus status, String postTitle, String postAuthorEmail, String postAuthorDisplayName,
-			String ipAddress, String userAgent)
-	{
+			String content, CommentStatus status, String postTitle, String postAuthorEmail,
+			String postAuthorDisplayName, String ipAddress, String userAgent) {
 		super(source);
 		this.commentId = commentId;
 		this.authorUsername = authorUsername;

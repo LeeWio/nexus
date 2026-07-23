@@ -7,10 +7,11 @@ import java.time.LocalDateTime;
 /**
  * Favorite post entry in the current user's library.
  *
- * @param post compact post information
- * @param favoritedAt time at which the post was favorited
+ * @param post
+ *            compact post information
+ * @param favoritedAt
+ *            time at which the post was favorited
  */
 @Schema(description = "Favorite post entry")
-public record FavoritePostResponse(PostDigestResponse post, LocalDateTime favoritedAt)
-{
+public record FavoritePostResponse(PostDigestResponse post, LocalDateTime favoritedAt) {
 }

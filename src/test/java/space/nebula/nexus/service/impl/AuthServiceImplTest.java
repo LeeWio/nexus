@@ -194,7 +194,8 @@ class AuthServiceImplTest {
 		ApiResponse<Void> response = authService.sendOtp("test@example.com");
 
 		assertEquals(200, response.code());
-		verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.MAIL_EXCHANGE), eq(RabbitMQConfig.MAIL_ROUTING_KEY), any(Object.class));
+		verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.MAIL_EXCHANGE), eq(RabbitMQConfig.MAIL_ROUTING_KEY),
+				any(Object.class));
 		verify(redisUtil, never()).delete(anyString());
 	}
 
@@ -241,10 +242,11 @@ class AuthServiceImplTest {
 		String otpKey = CacheConstants.OTP_CODE + "test@example.com";
 		when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
 		when(redisUtil.set(eq(otpKey), any(String.class), eq(5L), eq(TimeUnit.MINUTES))).thenReturn(true);
-		doThrow(new RuntimeException("RabbitMQ connection failed"))
-				.when(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.MAIL_EXCHANGE), eq(RabbitMQConfig.MAIL_ROUTING_KEY), any(Object.class));
+		doThrow(new RuntimeException("RabbitMQ connection failed")).when(rabbitTemplate).convertAndSend(
+				eq(RabbitMQConfig.MAIL_EXCHANGE), eq(RabbitMQConfig.MAIL_ROUTING_KEY), any(Object.class));
 
-		BusinessException exception = assertThrows(BusinessException.class, () -> authService.sendOtp("test@example.com"));
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> authService.sendOtp("test@example.com"));
 
 		assertEquals(BusinessCode.ERROR.getCode(), exception.getCode());
 		verify(redisUtil).delete(otpKey);

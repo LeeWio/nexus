@@ -11,13 +11,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class CategoryPublicationNotificationListenerTest
-{
+class CategoryPublicationNotificationListenerTest {
 	@Test
-	void explicitPublicationNotifiesFollowers()
-	{
+	void explicitPublicationNotifiesFollowers() {
 		INotificationService notificationService = mock(INotificationService.class);
-		CategoryPublicationNotificationListener listener = new CategoryPublicationNotificationListener(notificationService);
+		CategoryPublicationNotificationListener listener = new CategoryPublicationNotificationListener(
+				notificationService);
 		Post post = post(7L);
 		when(notificationService.sendCategoryPublication(7L)).thenReturn(12);
 
@@ -27,18 +26,17 @@ class CategoryPublicationNotificationListenerTest
 	}
 
 	@Test
-	void ordinaryUpdateDoesNotNotifyFollowers()
-	{
+	void ordinaryUpdateDoesNotNotifyFollowers() {
 		INotificationService notificationService = mock(INotificationService.class);
-		CategoryPublicationNotificationListener listener = new CategoryPublicationNotificationListener(notificationService);
+		CategoryPublicationNotificationListener listener = new CategoryPublicationNotificationListener(
+				notificationService);
 
 		listener.onPostPublished(new PostChangedEvent(this, post(7L), PostChangeType.UPDATED));
 
 		verify(notificationService, never()).sendCategoryPublication(7L);
 	}
 
-	private Post post(Long id)
-	{
+	private Post post(Long id) {
 		Post post = new Post();
 		post.setId(id);
 		post.setSlug("post-" + id);

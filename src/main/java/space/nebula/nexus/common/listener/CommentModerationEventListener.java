@@ -18,40 +18,35 @@ import space.nebula.nexus.service.INotificationService;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class CommentModerationEventListener
-{
+public class CommentModerationEventListener {
 	private final UserRepository userRepository;
 	private final INotificationService notificationService;
 
 	/**
-	 * Delivers moderation and reply notifications without coupling them to the moderation transaction.
+	 * Delivers moderation and reply notifications without coupling them to the
+	 * moderation transaction.
 	 *
-	 * @param event committed comment moderation event
+	 * @param event
+	 *            committed comment moderation event
 	 */
 	@Async("asyncExecutor")
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-	public void onCommentModerated(CommentModeratedEvent event)
-	{
+	public void onCommentModerated(CommentModeratedEvent event) {
 		userRepository.findById(event.getAuthorId()).ifPresent(author -> notifyAuthor(author, event));
 
 		if (event.getStatus() == CommentStatus.APPROVED && event.getReplyRecipientId() != null
-				&& !event.getReplyRecipientId().equals(event.getAuthorId()))
-		{
-			userRepository.findById(event.getReplyRecipientId()).ifPresent(recipient -> notificationService.send(recipient,
-					"New reply to your comment", event.getAuthorUsername() + " replied to your comment.",
-					"COMMENT_REPLY", event.getLink()));
+				&& !event.getReplyRecipientId().equals(event.getAuthorId())) {
+			userRepository.findById(event.getReplyRecipientId())
+					.ifPresent(recipient -> notificationService.send(recipient, "New reply to your comment",
+							event.getAuthorUsername() + " replied to your comment.", "COMMENT_REPLY", event.getLink()));
 		}
 	}
 
-	private void notifyAuthor(User author, CommentModeratedEvent event)
-	{
-		if (event.getStatus() == CommentStatus.APPROVED)
-		{
+	private void notifyAuthor(User author, CommentModeratedEvent event) {
+		if (event.getStatus() == CommentStatus.APPROVED) {
 			notificationService.send(author, "Comment approved", "Your comment is now visible to other readers.",
 					"COMMENT_APPROVED", event.getLink());
-		}
-		else
-		{
+		} else {
 			notificationService.send(author, "Comment not approved",
 					"Your comment did not meet the publication requirements.", "COMMENT_REJECTED", null);
 		}

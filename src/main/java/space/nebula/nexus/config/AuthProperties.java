@@ -11,18 +11,18 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "app.auth")
 public class AuthProperties {
 
-    /**
-     * Maximum number of login failures before account lock.
-     */
-    private int maxLoginFailures = 5;
+	/**
+	 * Maximum number of login failures before account lock.
+	 */
+	private int maxLoginFailures = 5;
 
-    /**
-     * Duration of account lock in minutes.
-     */
-    private long lockDurationMinutes = 15;
+	/**
+	 * Duration of account lock in minutes.
+	 */
+	private long lockDurationMinutes = 15;
 
-    /**
-     * Default role code for new users.
-     */
-    private String defaultRoleCode = "ROLE_USER";
+	/**
+	 * Default role code for new users.
+	 */
+	private String defaultRoleCode = "ROLE_USER";
 }

@@ -30,7 +30,6 @@ import space.nebula.nexus.utils.FileUtil;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -45,8 +44,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class FileServiceImpl implements IFileService
-{
+public class FileServiceImpl implements IFileService {
 
 	private final StorageProvider storageProvider;
 	private final FileRepository fileRepository;
@@ -58,31 +56,25 @@ public class FileServiceImpl implements IFileService
 	@Override
 	@Transactional
 	@LogOperation("Upload File")
-	public ApiResponse<FileResponse> uploadFile(MultipartFile file)
-	{
+	public ApiResponse<FileResponse> uploadFile(MultipartFile file) {
 		Assert.isFalse(file.isEmpty(),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Cannot process empty file payload"));
 
-		if (file.getSize() > storageProperties.getMaxFileSize())
-		{
-			throw new BusinessException(BusinessCode.FILE_SIZE_LIMIT,
-					formatFileSize(file.getSize()),
+		if (file.getSize() > storageProperties.getMaxFileSize()) {
+			throw new BusinessException(BusinessCode.FILE_SIZE_LIMIT, formatFileSize(file.getSize()),
 					formatFileSize(storageProperties.getMaxFileSize()));
 		}
 
 		List<String> newlyStoredFiles = new ArrayList<>();
-		try
-		{
+		try {
 			// 1. Content-based Deduplication (SHA-256) - Streaming approach
 			String fileHash;
-			try (var is = file.getInputStream())
-			{
+			try (var is = file.getInputStream()) {
 				fileHash = SecureUtil.sha256(is);
 			}
 
 			var existingFile = fileRepository.findByFileHash(fileHash);
-			if (existingFile.isPresent())
-			{
+			if (existingFile.isPresent()) {
 				FileMetadata metadata = existingFile.get();
 				metadata.setReferenceCount(metadata.getReferenceCount() + 1);
 				fileRepository.save(metadata);
@@ -95,23 +87,19 @@ public class FileServiceImpl implements IFileService
 
 			// 2. Deep MIME detection for security - Streaming approach
 			String detectedMimeType;
-			try (var is = file.getInputStream())
-			{
+			try (var is = file.getInputStream()) {
 				detectedMimeType = fileUtil.detectMimeType(is);
 			}
 			log.debug("Deep MIME verification: detected {} for file {}", detectedMimeType, originalFilename);
 
 			// SVG XML-XSS script injection defense
-			if ("image/svg+xml".equals(detectedMimeType) || ".svg".equalsIgnoreCase(extension))
-			{
+			if ("image/svg+xml".equals(detectedMimeType) || ".svg".equalsIgnoreCase(extension)) {
 				checkSvgScriptSecurity(file.getBytes());
 			}
 
-			if (!storageProperties.getAllowedMimeTypes().contains(detectedMimeType))
-			{
+			if (!storageProperties.getAllowedMimeTypes().contains(detectedMimeType)) {
 				log.warn("Security rejection: Unsupported MIME type {}", detectedMimeType);
-				throw new BusinessException(BusinessCode.FILE_TYPE_NOT_SUPPORTED,
-						detectedMimeType,
+				throw new BusinessException(BusinessCode.FILE_TYPE_NOT_SUPPORTED, detectedMimeType,
 						String.join(", ", storageProperties.getAllowedMimeTypes()));
 			}
 
@@ -121,17 +109,13 @@ public class FileServiceImpl implements IFileService
 			long finalSize = file.getSize();
 
 			// 3. specialized processing for images
-			if (fileUtil.isImage(detectedMimeType))
-			{
+			if (fileUtil.isImage(detectedMimeType)) {
 				byte[] fileBytes = file.getBytes();
 
 				// Strip private EXIF metadata from JPEG and PNG images
-				if ("image/jpeg".equals(detectedMimeType))
-				{
+				if ("image/jpeg".equals(detectedMimeType)) {
 					fileBytes = stripImageMetadata(fileBytes, "jpeg");
-				}
-				else if ("image/png".equals(detectedMimeType))
-				{
+				} else if ("image/png".equals(detectedMimeType)) {
 					fileBytes = stripImageMetadata(fileBytes, "png");
 				}
 
@@ -140,11 +124,12 @@ public class FileServiceImpl implements IFileService
 					try {
 						byte[] webpBytes = fileUtil.convertToWebP(fileBytes);
 						if (webpBytes.length < fileBytes.length) {
-							log.info("Converted image to WebP, size reduced from {} to {} bytes", fileBytes.length, webpBytes.length);
+							log.info("Converted image to WebP, size reduced from {} to {} bytes", fileBytes.length,
+									webpBytes.length);
 							fileBytes = webpBytes;
 							detectedMimeType = "image/webp";
 							uniqueName = IdUtil.fastSimpleUUID() + ".webp";
-							
+
 							// Re-calculate hash for deduplication based on converted content
 							fileHash = SecureUtil.sha256(new ByteArrayInputStream(fileBytes));
 							var existingWebp = fileRepository.findByFileHash(fileHash);
@@ -152,7 +137,8 @@ public class FileServiceImpl implements IFileService
 								FileMetadata metadata = existingWebp.get();
 								metadata.setReferenceCount(metadata.getReferenceCount() + 1);
 								fileRepository.save(metadata);
-								return ApiResponse.success("WebP version reused via deduplication", fileMapper.toResponse(metadata));
+								return ApiResponse.success("WebP version reused via deduplication",
+										fileMapper.toResponse(metadata));
 							}
 						}
 					} catch (Throwable t) {
@@ -161,36 +147,29 @@ public class FileServiceImpl implements IFileService
 				}
 
 				var dimensions = fileUtil.getImageDimensions(fileBytes);
-				if (ObjectUtil.isNotNull(dimensions))
-				{
+				if (ObjectUtil.isNotNull(dimensions)) {
 					width = dimensions.width();
 					height = dimensions.height();
 				}
 
-				try
-				{
+				try {
 					var thumbnailBytes = fileUtil.convertToWebP(fileUtil.generateThumbnail(fileBytes, 300, 300));
 					var thumbnailName = "thumb_" + uniqueName.substring(0, uniqueName.lastIndexOf('.')) + ".webp";
 					storageProvider.store(new ByteArrayInputStream(thumbnailBytes), thumbnailName);
 					newlyStoredFiles.add(thumbnailName);
 					thumbnailUrl = storageProvider.getUrl(thumbnailName);
 					log.info("Generated WebP thumbnail: {}", thumbnailName);
-				}
-				catch (Throwable t)
-				{
+				} catch (Throwable t) {
 					log.warn("Non-critical failure in thumbnail generation: {}", t.getMessage());
 				}
-				
+
 				// Final storage with potentially converted bytes
 				storageProvider.store(new ByteArrayInputStream(fileBytes), uniqueName);
 				newlyStoredFiles.add(uniqueName);
 				finalSize = (long) fileBytes.length;
-			}
-			else 
-			{
+			} else {
 				// 4. Non-image Asset Persistence
-				try (var is = file.getInputStream())
-				{
+				try (var is = file.getInputStream()) {
 					storageProvider.store(is, uniqueName);
 					newlyStoredFiles.add(uniqueName);
 				}
@@ -198,12 +177,9 @@ public class FileServiceImpl implements IFileService
 			}
 
 			User uploader = null;
-			try
-			{
+			try {
 				uploader = SecurityUtil.getCurrentUserOrThrow(userRepository);
-			}
-			catch (Exception e)
-			{
+			} catch (Exception e) {
 				log.debug("File uploaded by anonymous/system process");
 			}
 
@@ -227,15 +203,11 @@ public class FileServiceImpl implements IFileService
 
 			return ApiResponse.success("File uploaded successfully", fileMapper.toResponse(savedFile));
 
-		}
-		catch (IOException e)
-		{
+		} catch (IOException e) {
 			cleanupNewlyStoredFiles(newlyStoredFiles);
 			log.error("Fatal I/O error during file processing: {}", file.getOriginalFilename(), e);
 			throw new BusinessException(BusinessCode.ERROR, "System failed to process the file");
-		}
-		catch (RuntimeException e)
-		{
+		} catch (RuntimeException e) {
 			cleanupNewlyStoredFiles(newlyStoredFiles);
 			throw e;
 		}
@@ -243,16 +215,13 @@ public class FileServiceImpl implements IFileService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<FileResponse>> searchFiles(String keyword, org.springframework.data.domain.Pageable pageable)
-	{
+	public ApiResponse<PageResult<FileResponse>> searchFiles(String keyword,
+			org.springframework.data.domain.Pageable pageable) {
 		org.springframework.data.domain.Page<FileMetadata> page;
-		if (StrUtil.isNotBlank(keyword))
-		{
+		if (StrUtil.isNotBlank(keyword)) {
 			page = fileRepository.findByOriginalNameContainingIgnoreCaseOrFileNameContainingIgnoreCase(keyword, keyword,
 					pageable);
-		}
-		else
-		{
+		} else {
 			page = fileRepository.findAll(pageable);
 		}
 		return ApiResponse.success(PageResult.of(page.map(fileMapper::toResponse)));
@@ -261,8 +230,7 @@ public class FileServiceImpl implements IFileService
 	@Override
 	@Transactional
 	@LogOperation("Delete File")
-	public ApiResponse<Void> deleteFile(String fileName)
-	{
+	public ApiResponse<Void> deleteFile(String fileName) {
 		var sanitizedName = StringUtils.cleanPath(fileName);
 		Assert.isFalse(sanitizedName.contains(".."),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Invalid file path"));
@@ -273,8 +241,7 @@ public class FileServiceImpl implements IFileService
 		// 1. Decrement reference count
 		metadata.setReferenceCount(metadata.getReferenceCount() - 1);
 
-		if (metadata.getReferenceCount() > 0)
-		{
+		if (metadata.getReferenceCount() > 0) {
 			fileRepository.save(metadata);
 			log.info("File reference decremented for: {}. Current count: {}", sanitizedName,
 					metadata.getReferenceCount());
@@ -282,11 +249,11 @@ public class FileServiceImpl implements IFileService
 		}
 
 		// 2. Delete metadata transactionally, then purge physical objects only after
-		// commit so a database rollback never leaves a live row pointing to a missing file.
+		// commit so a database rollback never leaves a live row pointing to a missing
+		// file.
 		List<String> filesToDelete = new ArrayList<>();
 		filesToDelete.add(sanitizedName);
-		if (StrUtil.isNotBlank(metadata.getThumbnailUrl()))
-		{
+		if (StrUtil.isNotBlank(metadata.getThumbnailUrl())) {
 			var thumbnailName = extractFileNameFromUrl(metadata.getThumbnailUrl());
 			filesToDelete.add(thumbnailName);
 		}
@@ -298,25 +265,18 @@ public class FileServiceImpl implements IFileService
 		return ApiResponse.success("File permanently deleted", null);
 	}
 
-	private void cleanupNewlyStoredFiles(List<String> fileNames)
-	{
-		for (String fileName : fileNames)
-		{
-			try
-			{
+	private void cleanupNewlyStoredFiles(List<String> fileNames) {
+		for (String fileName : fileNames) {
+			try {
 				storageProvider.delete(fileName);
-			}
-			catch (RuntimeException cleanupError)
-			{
+			} catch (RuntimeException cleanupError) {
 				log.error("Failed to clean up newly stored file {} after upload failure", fileName, cleanupError);
 			}
 		}
 	}
 
-	private void registerStorageDeletionAfterCommit(List<String> fileNames)
-	{
-		if (!TransactionSynchronizationManager.isSynchronizationActive())
-		{
+	private void registerStorageDeletionAfterCommit(List<String> fileNames) {
+		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
 			// Supports direct service invocation in maintenance tools while normal web
 			// requests still use the transaction-aware path below.
 			cleanupNewlyStoredFiles(fileNames);
@@ -324,16 +284,11 @@ public class FileServiceImpl implements IFileService
 		}
 		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 			@Override
-			public void afterCommit()
-			{
-				for (String fileName : fileNames)
-				{
-					try
-					{
+			public void afterCommit() {
+				for (String fileName : fileNames) {
+					try {
 						storageProvider.delete(fileName);
-					}
-					catch (RuntimeException e)
-					{
+					} catch (RuntimeException e) {
 						log.error("Failed to delete committed storage object {}", fileName, e);
 					}
 				}
@@ -341,74 +296,58 @@ public class FileServiceImpl implements IFileService
 		});
 	}
 
-	private String extractFileExtension(String filename)
-	{
+	private String extractFileExtension(String filename) {
 		int dotIndex = filename.lastIndexOf('.');
 		return (dotIndex > 0) ? filename.substring(dotIndex) : "";
 	}
 
-	private String extractFileNameFromUrl(String url)
-	{
+	private String extractFileNameFromUrl(String url) {
 		return url.substring(url.lastIndexOf('/') + 1);
 	}
 
-	private String formatFileSize(long size)
-	{
-		if (size <= 0) return "0 B";
-		final String[] units = new String[] { "B", "KB", "MB", "GB", "TB" };
+	private String formatFileSize(long size) {
+		if (size <= 0)
+			return "0 B";
+		final String[] units = new String[]{"B", "KB", "MB", "GB", "TB"};
 		int digitGroups = (int) (Math.log10(size) / Math.log10(1024));
-		return new java.text.DecimalFormat("#,##0.#").format(size / Math.pow(1024, digitGroups)) + " " + units[digitGroups];
+		return new java.text.DecimalFormat("#,##0.#").format(size / Math.pow(1024, digitGroups)) + " "
+				+ units[digitGroups];
 	}
 
-	private void checkSvgScriptSecurity(byte[] fileBytes)
-	{
-		try
-		{
+	private void checkSvgScriptSecurity(byte[] fileBytes) {
+		try {
 			String content = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
 			String lowerContent = content.toLowerCase();
 
-			// Scan for malicious tags, javascript schemes, or XML External Entity (XXE) vectors
-			if (lowerContent.contains("<script") 
-					|| lowerContent.contains("javascript:") 
-					|| lowerContent.contains("onload=")
-					|| lowerContent.contains("onerror=")
-					|| lowerContent.contains("<!entity") 
-					|| lowerContent.contains("<!doctype"))
-			{
+			// Scan for malicious tags, javascript schemes, or XML External Entity (XXE)
+			// vectors
+			if (lowerContent.contains("<script") || lowerContent.contains("javascript:")
+					|| lowerContent.contains("onload=") || lowerContent.contains("onerror=")
+					|| lowerContent.contains("<!entity") || lowerContent.contains("<!doctype")) {
 				log.warn("Security violation: Malicious scripts or XML entities detected in uploaded SVG file.");
-				throw new BusinessException(BusinessCode.BAD_REQUEST, 
+				throw new BusinessException(BusinessCode.BAD_REQUEST,
 						"SVG file is rejected due to security risk (potential XSS/XXE scripts detected).");
 			}
-		}
-		catch (BusinessException ex)
-		{
+		} catch (BusinessException ex) {
 			throw ex;
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			log.warn("Failed to parse SVG file for security scan: {}", e.getMessage());
 		}
 	}
 
-	private byte[] stripImageMetadata(byte[] fileBytes, String format)
-	{
+	private byte[] stripImageMetadata(byte[] fileBytes, String format) {
 		try (java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(fileBytes);
-			 java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream())
-		{
+				java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
 			java.awt.image.BufferedImage image = javax.imageio.ImageIO.read(bais);
-			if (image != null)
-			{
+			if (image != null) {
 				// Reading and writing via ImageIO naturally drops all EXIF/app segments!
 				boolean success = javax.imageio.ImageIO.write(image, format, baos);
-				if (success)
-				{
+				if (success) {
 					log.info("Successfully stripped EXIF/metadata from uploaded {} image.", format);
 					return baos.toByteArray();
 				}
 			}
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			log.warn("Failed to strip image metadata, falling back to original: {}", e.getMessage());
 		}
 		return fileBytes;

@@ -10,12 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class CommentMetricsServiceTest
-{
+class CommentMetricsServiceTest {
 
 	@Test
-	void incrementsCommentMetricsWithStableTags()
-	{
+	void incrementsCommentMetricsWithStableTags() {
 		SimpleMeterRegistry registry = new SimpleMeterRegistry();
 		@SuppressWarnings("unchecked")
 		ObjectProvider<io.micrometer.core.instrument.MeterRegistry> provider = mock(ObjectProvider.class);
@@ -28,13 +26,12 @@ class CommentMetricsServiceTest
 
 		assertEquals(1.0, registry.counter("nexus.comment.publish", "status", "APPROVED").count());
 		assertEquals(1.0, registry.counter("nexus.comment.report", "accepted", "true").count());
-		assertEquals(1.0, registry.counter("nexus.comment.moderation", "action", "STATUS_CHANGED", "status", "SPAM")
-			.count());
+		assertEquals(1.0,
+				registry.counter("nexus.comment.moderation", "action", "STATUS_CHANGED", "status", "SPAM").count());
 	}
 
 	@Test
-	void ignoresMetricsWhenRegistryIsUnavailable()
-	{
+	void ignoresMetricsWhenRegistryIsUnavailable() {
 		@SuppressWarnings("unchecked")
 		ObjectProvider<io.micrometer.core.instrument.MeterRegistry> provider = mock(ObjectProvider.class);
 		when(provider.getIfAvailable()).thenReturn(null);

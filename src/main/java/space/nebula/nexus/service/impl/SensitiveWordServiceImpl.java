@@ -16,43 +16,31 @@ import java.nio.charset.StandardCharsets;
  */
 @Slf4j
 @Service
-public class SensitiveWordServiceImpl implements SensitiveWordService
-{
+public class SensitiveWordServiceImpl implements SensitiveWordService {
 
 	private final WordTree wordTree = new WordTree();
 
 	@PostConstruct
-	public void init()
-	{
+	public void init() {
 		log.info("Initializing sensitive word dictionary...");
-		try
-		{
+		try {
 			ClassPathResource resource = new ClassPathResource("dict/sensitive_words.txt");
-			if (resource.exists())
-			{
+			if (resource.exists()) {
 				try (BufferedReader reader = new BufferedReader(
-						new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8)))
-				{
-					reader.lines()
-							.filter(line -> !line.isBlank())
-							.map(String::trim)
-							.map(this::normalizeText)
+						new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
+					reader.lines().filter(line -> !line.isBlank()).map(String::trim).map(this::normalizeText)
 							.forEach(wordTree::addWord);
 				}
 			}
 			log.info("Sensitive word dictionary initialized successfully.");
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			log.error("Failed to load sensitive words dictionary", e);
 		}
 	}
 
 	@Override
-	public boolean containsSensitiveWord(String text)
-	{
-		if (text == null || text.isBlank())
-		{
+	public boolean containsSensitiveWord(String text) {
+		if (text == null || text.isBlank()) {
 			return false;
 		}
 		String normalized = normalizeText(text);
@@ -60,24 +48,20 @@ public class SensitiveWordServiceImpl implements SensitiveWordService
 	}
 
 	@Override
-	public String filter(String text)
-	{
-		if (text == null || text.isBlank())
-		{
+	public String filter(String text) {
+		if (text == null || text.isBlank()) {
 			return text;
 		}
 
 		String normalized = normalizeText(text);
 		java.util.List<String> matchedWords = wordTree.matchAll(normalized, -1, true, true);
-		
-		if (matchedWords.isEmpty())
-		{
+
+		if (matchedWords.isEmpty()) {
 			return text;
 		}
 
 		String result = text;
-		for (String match : matchedWords)
-		{
+		for (String match : matchedWords) {
 			String fuzzyRegex = buildFuzzyRegex(match);
 			result = result.replaceAll(fuzzyRegex, "***");
 		}
@@ -85,26 +69,21 @@ public class SensitiveWordServiceImpl implements SensitiveWordService
 		return result;
 	}
 
-	private String normalizeText(String text)
-	{
-		if (text == null)
-		{
+	private String normalizeText(String text) {
+		if (text == null) {
 			return "";
 		}
-		// Convert to lowercase and strip all punctuation, spacing, and symbols (currency, math, modifier)
-		return text.toLowerCase()
-				.replaceAll("[\\s\\p{Punct}\\p{Sc}\\p{Sm}\\p{So}\\p{Sk}]+", "");
+		// Convert to lowercase and strip all punctuation, spacing, and symbols
+		// (currency, math, modifier)
+		return text.toLowerCase().replaceAll("[\\s\\p{Punct}\\p{Sc}\\p{Sm}\\p{So}\\p{Sk}]+", "");
 	}
 
-	private String buildFuzzyRegex(String word)
-	{
+	private String buildFuzzyRegex(String word) {
 		StringBuilder regex = new StringBuilder("(?i)");
 		String noisePattern = "[\\s\\p{Punct}\\p{Sc}\\p{Sm}\\p{So}\\p{Sk}]*";
-		
-		for (int i = 0; i < word.length(); i++)
-		{
-			if (i > 0)
-			{
+
+		for (int i = 0; i < word.length(); i++) {
+			if (i > 0) {
 				regex.append(noisePattern);
 			}
 			regex.append(java.util.regex.Pattern.quote(String.valueOf(word.charAt(i))));

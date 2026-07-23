@@ -14,8 +14,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "sys_file")
-public class FileMetadata extends BaseEntity
-{
+public class FileMetadata extends BaseEntity {
 	@Version
 	@Column(nullable = false)
 	private Long version = 0L;

@@ -64,8 +64,10 @@ public class GlobalExceptionHandler {
 
 		String message = e.getMessage();
 
-		// Determine if the message in the exception is the generic default enum message.
-		// If it is custom (e.g. hand-written details), we keep it and do not overwrite it.
+		// Determine if the message in the exception is the generic default enum
+		// message.
+		// If it is custom (e.g. hand-written details), we keep it and do not overwrite
+		// it.
 		boolean isDefaultMessage = false;
 		for (BusinessCode bc : BusinessCode.values()) {
 			if (bc.getCode() == code && StrUtil.equals(bc.getMessage(), message)) {
@@ -165,11 +167,11 @@ public class GlobalExceptionHandler {
 	 * Handle JPA OptimisticLockingFailureException (e.g., @Version conflict).
 	 */
 	@ExceptionHandler(org.springframework.dao.OptimisticLockingFailureException.class)
-	public ResponseEntity<ApiResponse<Void>> handleOptimisticLockingFailureException(org.springframework.dao.OptimisticLockingFailureException e) {
+	public ResponseEntity<ApiResponse<Void>> handleOptimisticLockingFailureException(
+			org.springframework.dao.OptimisticLockingFailureException e) {
 		log.warn("[TraceId: {}] Optimistic lock conflict: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
-		return ResponseEntity.status(HttpStatus.CONFLICT)
-				.body(ApiResponse.error(BusinessCode.BAD_REQUEST.getCode(),
-						"Resource has changed. Refresh and try again."));
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(
+				ApiResponse.error(BusinessCode.BAD_REQUEST.getCode(), "Resource has changed. Refresh and try again."));
 	}
 
 	/**
@@ -209,6 +211,7 @@ public class GlobalExceptionHandler {
 			message = "Unexpected server error. Reference ID: " + traceId;
 		}
 
-		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(BusinessCode.ERROR, message));
+		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+				.body(ApiResponse.error(BusinessCode.ERROR, message));
 	}
 }

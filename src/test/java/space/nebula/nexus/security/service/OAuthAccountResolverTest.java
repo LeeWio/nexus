@@ -25,8 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class OAuthAccountResolverTest
-{
+class OAuthAccountResolverTest {
 	@Mock
 	private UserRepository userRepository;
 
@@ -39,16 +38,14 @@ class OAuthAccountResolverTest
 	private OAuthAccountResolver resolver;
 
 	@BeforeEach
-	void setUp()
-	{
+	void setUp() {
 		resolver = new OAuthAccountResolver(userRepository, roleRepository, passwordEncoder);
 	}
 
 	@Test
-	void googleLoginCreatesLocalAccount()
-	{
-		OAuth2User oauth2User = oauthUser(Map.of("sub", "google-123", "email", "reader@example.com",
-				"email_verified", true, "name", "Reader", "picture", "https://example.com/avatar.png"));
+	void googleLoginCreatesLocalAccount() {
+		OAuth2User oauth2User = oauthUser(Map.of("sub", "google-123", "email", "reader@example.com", "email_verified",
+				true, "name", "Reader", "picture", "https://example.com/avatar.png"));
 		Role role = new Role();
 		role.setCode("ROLE_USER");
 		when(userRepository.findByGoogleId("google-123")).thenReturn(Optional.empty());
@@ -68,8 +65,7 @@ class OAuthAccountResolverTest
 	}
 
 	@Test
-	void githubLoginLinksExistingAccountByEmail()
-	{
+	void githubLoginLinksExistingAccountByEmail() {
 		OAuth2User oauth2User = oauthUser(Map.of("id", 99, "login", "octocat", "email", "reader@example.com",
 				"avatar_url", "https://example.com/avatar.png"));
 		User existing = new User();
@@ -87,8 +83,7 @@ class OAuthAccountResolverTest
 	}
 
 	@Test
-	void oauthLoginRejectsUnavailableAccount()
-	{
+	void oauthLoginRejectsUnavailableAccount() {
 		OAuth2User oauth2User = oauthUser(
 				Map.of("sub", "google-123", "email", "reader@example.com", "email_verified", true));
 		User existing = new User();
@@ -101,8 +96,7 @@ class OAuthAccountResolverTest
 		assertEquals("oauth_account_unavailable", exception.getError().getErrorCode());
 	}
 
-	private OAuth2User oauthUser(Map<String, Object> attributes)
-	{
+	private OAuth2User oauthUser(Map<String, Object> attributes) {
 		OAuth2User oauth2User = mock(OAuth2User.class);
 		when(oauth2User.getAttributes()).thenReturn(attributes);
 		return oauth2User;

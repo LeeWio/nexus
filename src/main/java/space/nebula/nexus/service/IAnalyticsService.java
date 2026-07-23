@@ -3,8 +3,7 @@ package space.nebula.nexus.service;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.AnalyticsOverviewResponse;
 
-public interface IAnalyticsService
-{
+public interface IAnalyticsService {
 
 	ApiResponse<AnalyticsOverviewResponse> retrieveOverviewStats();
 
@@ -28,8 +27,8 @@ public interface IAnalyticsService
 	 */
 	ApiResponse<java.util.List<space.nebula.nexus.payload.response.PostResponse>> getTrendingPosts(int limit);
 	/**
-	 * Purges old visit logs that have already been aggregated.
-	 * Typically keeps logs for the last 90 days.
+	 * Purges old visit logs that have already been aggregated. Typically keeps logs
+	 * for the last 90 days.
 	 */
 	void purgeOldLogs(int daysToKeep);
 }

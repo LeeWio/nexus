@@ -32,8 +32,8 @@ public class ScheduledTaskMetricsAspect {
 			return pjp.proceed();
 		} catch (Throwable failure) {
 			outcome = "error";
-			meterRegistry.counter("nexus.scheduled.task.failures", "method", methodName,
-					"exception", failure.getClass().getSimpleName()).increment();
+			meterRegistry.counter("nexus.scheduled.task.failures", "method", methodName, "exception",
+					failure.getClass().getSimpleName()).increment();
 			throw failure;
 		} finally {
 			sample.stop(Timer.builder("nexus.scheduled.task").description("Duration of scheduled tasks")

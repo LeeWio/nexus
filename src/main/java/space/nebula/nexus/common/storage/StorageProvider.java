@@ -23,14 +23,15 @@ public interface StorageProvider {
 	String getUrl(String filename);
 
 	/**
-	 * Get a signed/temporary URL for a file (useful for private buckets).
-	 * Defaults to getUrl if not specialized.
+	 * Get a signed/temporary URL for a file (useful for private buckets). Defaults
+	 * to getUrl if not specialized.
 	 * 
-	 * @param filename file identifier
-	 * @param expireSeconds duration of validity
+	 * @param filename
+	 *            file identifier
+	 * @param expireSeconds
+	 *            duration of validity
 	 */
-	default String getSignedUrl(String filename, long expireSeconds)
-	{
+	default String getSignedUrl(String filename, long expireSeconds) {
 		return getUrl(filename);
 	}
 }

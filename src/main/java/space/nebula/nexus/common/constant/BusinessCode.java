@@ -11,8 +11,8 @@ public enum BusinessCode {
 	SUCCESS(200, "Operation successful"), ERROR(500, "Internal server error"),
 
 	// Auth & Security (401xx)
-	UNAUTHORIZED(401, "Authentication required"), INVALID_TOKEN(40101, "Token is invalid or expired"), BAD_CREDENTIALS(40102,
-			"Invalid username or password"), ACCOUNT_LOCKED(40103, "Account is locked"), ACCOUNT_DISABLED(40104,
+	UNAUTHORIZED(401, "Authentication required"), INVALID_TOKEN(40101, "Token is invalid or expired"), BAD_CREDENTIALS(
+			40102, "Invalid username or password"), ACCOUNT_LOCKED(40103, "Account is locked"), ACCOUNT_DISABLED(40104,
 					"Account is disabled"), FORBIDDEN(403, "Access denied"),
 
 	// Resource Errors (404xx)
@@ -20,12 +20,9 @@ public enum BusinessCode {
 			"Post not found"), CATEGORY_NOT_FOUND(40403, "Category not found"),
 
 	// Request & Validation (400xx)
-	BAD_REQUEST(400, "Invalid request"),
-	VALIDATION_FAILED(40001, "Validation failed"),
-	DUPLICATE_KEY(40002, "Resource already exists"),
-	FILE_TOO_LARGE(413, "File exceeds the maximum size"),
-	FILE_SIZE_LIMIT(41301, "File exceeds the maximum allowed size"),
-	FILE_TYPE_NOT_SUPPORTED(40003, "Unsupported file type"),
+	BAD_REQUEST(400, "Invalid request"), VALIDATION_FAILED(40001, "Validation failed"), DUPLICATE_KEY(40002,
+			"Resource already exists"), FILE_TOO_LARGE(413, "File exceeds the maximum size"), FILE_SIZE_LIMIT(41301,
+					"File exceeds the maximum allowed size"), FILE_TYPE_NOT_SUPPORTED(40003, "Unsupported file type"),
 
 	// Infrastructure / Integration
 	MAIL_SEND_FAILED(503, "Email delivery failed"),

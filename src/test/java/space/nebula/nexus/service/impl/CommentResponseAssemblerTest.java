@@ -28,8 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class CommentResponseAssemblerTest
-{
+class CommentResponseAssemblerTest {
 
 	@Mock
 	private CommentMapper commentMapper;
@@ -39,8 +38,7 @@ class CommentResponseAssemblerTest
 	private UserRepository userRepository;
 
 	@Test
-	void toResponseListBatchLoadsReplyCountsAndLikedState()
-	{
+	void toResponseListBatchLoadsReplyCountsAndLikedState() {
 		Comment first = comment(10L, 5L);
 		Comment second = comment(11L, 0L);
 		User user = new User();
@@ -53,8 +51,7 @@ class CommentResponseAssemblerTest
 		when(userRepository.findByUsername("reader")).thenReturn(Optional.of(user));
 		when(commentRepository.findLikedCommentIds(7L, List.of(10L, 11L))).thenReturn(List.of(11L));
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(SecurityUtil::getCurrentUsername).thenReturn("reader");
 
 			CommentResponseAssembler assembler = new CommentResponseAssembler(commentMapper, commentRepository,
@@ -70,16 +67,13 @@ class CommentResponseAssemblerTest
 	}
 
 	@Test
-	void toResponseListSkipsLikedLookupWhenAnonymous()
-	{
+	void toResponseListSkipsLikedLookupWhenAnonymous() {
 		Comment comment = comment(10L, 2L);
 
 		when(commentMapper.toResponse(comment)).thenReturn(mapped(10L, 2L));
-		when(commentRepository.countRepliesByParentIds(List.of(10L), CommentStatus.APPROVED))
-				.thenReturn(List.of());
+		when(commentRepository.countRepliesByParentIds(List.of(10L), CommentStatus.APPROVED)).thenReturn(List.of());
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(SecurityUtil::getCurrentUsername).thenReturn(null);
 
 			CommentResponseAssembler assembler = new CommentResponseAssembler(commentMapper, commentRepository,
@@ -93,36 +87,26 @@ class CommentResponseAssemblerTest
 		}
 	}
 
-	private Comment comment(Long id, Long likesCount)
-	{
+	private Comment comment(Long id, Long likesCount) {
 		Comment comment = new Comment();
 		comment.setId(id);
 		comment.setLikesCount(likesCount);
 		return comment;
 	}
 
-	private CommentResponse mapped(Long id, Long likesCount)
-	{
-		return CommentResponse.builder()
-				.id(id)
-				.likesCount(likesCount)
-				.reportsCount(0L)
-				.build();
+	private CommentResponse mapped(Long id, Long likesCount) {
+		return CommentResponse.builder().id(id).likesCount(likesCount).reportsCount(0L).build();
 	}
 
-	private CommentRepository.CommentReplyCountView replyCount(Long parentId, Long replyCount)
-	{
-		return new CommentRepository.CommentReplyCountView()
-		{
+	private CommentRepository.CommentReplyCountView replyCount(Long parentId, Long replyCount) {
+		return new CommentRepository.CommentReplyCountView() {
 			@Override
-			public Long getParentId()
-			{
+			public Long getParentId() {
 				return parentId;
 			}
 
 			@Override
-			public Long getReplyCount()
-			{
+			public Long getReplyCount() {
 				return replyCount;
 			}
 		};

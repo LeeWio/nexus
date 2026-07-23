@@ -28,11 +28,16 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class NewsletterServiceImplTest {
 
-	@Mock private SubscriberRepository subscriberRepository;
-	@Mock private RabbitTemplate rabbitTemplate;
-	@Mock private IAnalyticsService analyticsService;
-	@Mock private NewsletterProperties newsletterProperties;
-	@InjectMocks private NewsletterServiceImpl service;
+	@Mock
+	private SubscriberRepository subscriberRepository;
+	@Mock
+	private RabbitTemplate rabbitTemplate;
+	@Mock
+	private IAnalyticsService analyticsService;
+	@Mock
+	private NewsletterProperties newsletterProperties;
+	@InjectMocks
+	private NewsletterServiceImpl service;
 
 	@BeforeEach
 	void setUp() {

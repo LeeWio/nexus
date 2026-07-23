@@ -7,18 +7,18 @@ import space.nebula.nexus.payload.response.PageResult;
 
 public interface ILinkHealthService {
 
-    /**
-     * Scans all public posts and friend links for dead links.
-     */
-    void runFullScan();
+	/**
+	 * Scans all public posts and friend links for dead links.
+	 */
+	void runFullScan();
 
-    /**
-     * Returns a paginated list of broken links.
-     */
-    ApiResponse<PageResult<LinkCheckLog>> getBrokenLinks(Pageable pageable);
+	/**
+	 * Returns a paginated list of broken links.
+	 */
+	ApiResponse<PageResult<LinkCheckLog>> getBrokenLinks(Pageable pageable);
 
-    /**
-     * Clears old health check logs.
-     */
-    ApiResponse<Void> clearLogs();
+	/**
+	 * Clears old health check logs.
+	 */
+	ApiResponse<Void> clearLogs();
 }

@@ -18,22 +18,18 @@ import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
-public class CommentResponseAssembler
-{
+public class CommentResponseAssembler {
 
 	private final CommentMapper commentMapper;
 	private final CommentRepository commentRepository;
 	private final UserRepository userRepository;
 
-	public CommentResponse toResponse(Comment comment)
-	{
+	public CommentResponse toResponse(Comment comment) {
 		return toResponseList(List.of(comment)).getFirst();
 	}
 
-	public List<CommentResponse> toResponseList(Collection<Comment> comments)
-	{
-		if (comments.isEmpty())
-		{
+	public List<CommentResponse> toResponseList(Collection<Comment> comments) {
+		if (comments.isEmpty()) {
 			return List.of();
 		}
 
@@ -41,24 +37,18 @@ public class CommentResponseAssembler
 		Map<Long, Long> replyCounts = loadReplyCounts(commentIds);
 		Set<Long> likedCommentIds = loadLikedCommentIds(commentIds);
 
-		return comments.stream()
-				.map(comment -> enrich(comment, replyCounts, likedCommentIds))
-				.toList();
+		return comments.stream().map(comment -> enrich(comment, replyCounts, likedCommentIds)).toList();
 	}
 
-	private Map<Long, Long> loadReplyCounts(List<Long> commentIds)
-	{
-		return commentRepository.countRepliesByParentIds(commentIds, CommentStatus.APPROVED)
-				.stream()
+	private Map<Long, Long> loadReplyCounts(List<Long> commentIds) {
+		return commentRepository.countRepliesByParentIds(commentIds, CommentStatus.APPROVED).stream()
 				.collect(Collectors.toMap(CommentRepository.CommentReplyCountView::getParentId,
 						CommentRepository.CommentReplyCountView::getReplyCount));
 	}
 
-	private Set<Long> loadLikedCommentIds(List<Long> commentIds)
-	{
+	private Set<Long> loadLikedCommentIds(List<Long> commentIds) {
 		String username = SecurityUtil.getCurrentUsername();
-		if (username == null)
-		{
+		if (username == null) {
 			return Set.of();
 		}
 
@@ -67,28 +57,17 @@ public class CommentResponseAssembler
 				.orElseGet(Set::of);
 	}
 
-	private CommentResponse enrich(Comment comment, Map<Long, Long> replyCounts, Set<Long> likedCommentIds)
-	{
+	private CommentResponse enrich(Comment comment, Map<Long, Long> replyCounts, Set<Long> likedCommentIds) {
 		CommentResponse response = commentMapper.toResponse(comment);
-		return CommentResponse.builder()
-				.id(response.id())
-				.parentId(response.parentId())
-				.content(response.content())
-				.username(response.username())
-				.nickname(response.nickname())
-				.avatar(response.avatar())
-				.status(response.status())
-				.postId(response.postId())
-				.postTitle(response.postTitle())
+		return CommentResponse.builder().id(response.id()).parentId(response.parentId()).content(response.content())
+				.username(response.username()).nickname(response.nickname()).avatar(response.avatar())
+				.status(response.status()).postId(response.postId()).postTitle(response.postTitle())
 				.likesCount(response.likesCount() == null ? 0L : response.likesCount())
 				.reportsCount(response.reportsCount() == null ? 0L : response.reportsCount())
 				.replyCount(Math.toIntExact(replyCounts.getOrDefault(comment.getId(), 0L)))
 				.likedByCurrentUser(likedCommentIds.contains(comment.getId()))
-				.pinned(Boolean.TRUE.equals(response.pinned()))
-				.featured(Boolean.TRUE.equals(response.featured()))
-				.deletedPlaceholder(Boolean.TRUE.equals(response.deletedPlaceholder()))
-				.createdAt(response.createdAt())
-				.editedAt(response.editedAt())
-				.build();
+				.pinned(Boolean.TRUE.equals(response.pinned())).featured(Boolean.TRUE.equals(response.featured()))
+				.deletedPlaceholder(Boolean.TRUE.equals(response.deletedPlaceholder())).createdAt(response.createdAt())
+				.editedAt(response.editedAt()).build();
 	}
 }

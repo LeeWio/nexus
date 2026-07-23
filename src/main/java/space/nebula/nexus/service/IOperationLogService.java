@@ -5,8 +5,7 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.entity.OperationLog;
 import space.nebula.nexus.payload.response.PageResult;
 
-public interface IOperationLogService
-{
+public interface IOperationLogService {
 
 	/**
 	 * Retrieves operation logs with filtering and pagination.

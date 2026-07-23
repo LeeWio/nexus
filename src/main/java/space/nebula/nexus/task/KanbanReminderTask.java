@@ -22,8 +22,7 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class KanbanReminderTask
-{
+public class KanbanReminderTask {
 
 	private final KanbanItemRepository itemRepository;
 	private final RabbitTemplate rabbitTemplate;
@@ -38,13 +37,11 @@ public class KanbanReminderTask
 	@Scheduled(cron = "0 * * * * *")
 	@SchedulerLock(name = "kanbanReminder", lockAtMostFor = "PT50S")
 	@Transactional
-	public void checkReminders()
-	{
+	public void checkReminders() {
 		LocalDateTime now = LocalDateTime.now();
 		List<KanbanItem> dueItems = itemRepository.findByReminderAtBefore(now);
 
-		for (KanbanItem item : dueItems)
-		{
+		for (KanbanItem item : dueItems) {
 			sendReminderEmail(item);
 
 			// Clear reminder to avoid duplicate notifications
@@ -53,15 +50,14 @@ public class KanbanReminderTask
 		}
 	}
 
-	private void sendReminderEmail(KanbanItem item)
-	{
+	private void sendReminderEmail(KanbanItem item) {
 		String subject = "Kanban Task Reminder: " + item.getTitle();
 
 		// CSS class for priority badge
 		String priorityClass = switch (item.getPriority()) {
-		case HIGH -> "priority-high";
-		case MEDIUM -> "priority-medium";
-		case LOW -> "priority-low";
+			case HIGH -> "priority-high";
+			case MEDIUM -> "priority-medium";
+			case LOW -> "priority-low";
 		};
 
 		Map<String, Object> variables = Dict.create().set("taskTitle", item.getTitle())

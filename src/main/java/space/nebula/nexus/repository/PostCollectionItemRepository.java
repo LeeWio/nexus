@@ -14,8 +14,7 @@ import space.nebula.nexus.enums.PostStatus;
  * Manages posts contained in personal collections.
  */
 @Repository
-public interface PostCollectionItemRepository extends JpaRepository<PostCollectionItem, Long>
-{
+public interface PostCollectionItemRepository extends JpaRepository<PostCollectionItem, Long> {
 	/** Checks whether a post is already present in a collection. */
 	boolean existsByCollectionIdAndPostIdAndIsDeletedFalse(Long collectionId, Long postId);
 
@@ -23,7 +22,7 @@ public interface PostCollectionItemRepository extends JpaRepository<PostCollecti
 	long countByCollectionIdAndIsDeletedFalse(Long collectionId);
 
 	/** Returns visible posts in reverse addition order. */
-	@EntityGraph(attributePaths = { "post", "post.category", "post.author" })
+	@EntityGraph(attributePaths = {"post", "post.category", "post.author"})
 	@Query("SELECT item FROM PostCollectionItem item WHERE item.collection.id = :collectionId "
 			+ "AND item.isDeleted = false AND item.post.status = :status ORDER BY item.createdAt DESC")
 	Page<PostCollectionItem> findVisibleItems(Long collectionId, PostStatus status, Pageable pageable);

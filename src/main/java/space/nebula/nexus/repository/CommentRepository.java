@@ -132,8 +132,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	@Query("update Comment c set c.reportsCount = c.reportsCount + :delta where c.id = :id")
 	void incrementReports(Long id, Long delta);
 
-	interface CommentReplyCountView
-	{
+	interface CommentReplyCountView {
 		Long getParentId();
 
 		Long getReplyCount();

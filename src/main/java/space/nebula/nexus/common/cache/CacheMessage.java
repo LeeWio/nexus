@@ -10,7 +10,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CacheMessage implements Serializable {
-    private String cacheName;
-    private Object key;
-    private String sourceInstanceId; // To avoid self-invalidation
+	private String cacheName;
+	private Object key;
+	private String sourceInstanceId; // To avoid self-invalidation
 }

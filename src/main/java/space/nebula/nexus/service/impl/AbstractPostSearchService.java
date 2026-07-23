@@ -27,8 +27,7 @@ import java.util.stream.Collectors;
  * code duplication across Database and Elasticsearch implementations.
  */
 @RequiredArgsConstructor
-public abstract class AbstractPostSearchService implements IPostSearchService
-{
+public abstract class AbstractPostSearchService implements IPostSearchService {
 
 	protected final PostRepository postRepository;
 	protected final CategoryRepository categoryRepository;
@@ -37,10 +36,8 @@ public abstract class AbstractPostSearchService implements IPostSearchService
 	protected final MomentRepository momentRepository;
 
 	@Override
-	public ApiResponse<QuickSearchResponse> quickSearch(String keyword)
-	{
-		if (keyword == null || keyword.isBlank())
-		{
+	public ApiResponse<QuickSearchResponse> quickSearch(String keyword) {
+		if (keyword == null || keyword.isBlank()) {
 			return ApiResponse.success(new QuickSearchResponse(List.of(), List.of(), List.of()));
 		}
 
@@ -60,13 +57,11 @@ public abstract class AbstractPostSearchService implements IPostSearchService
 	}
 
 	@Override
-	public ApiResponse<UnifiedSearchResponse> unifiedSearch(String keyword)
-	{
+	public ApiResponse<UnifiedSearchResponse> unifiedSearch(String keyword) {
 		long startTime = System.currentTimeMillis();
 		List<UnifiedSearchResponse.SearchGroup> groups = new ArrayList<>();
 
-		if (keyword == null || keyword.isBlank())
-		{
+		if (keyword == null || keyword.isBlank()) {
 			addRecentPostsGroup(groups);
 			groups.add(createActionGroup());
 			return ApiResponse.success(UnifiedSearchResponse.builder().groups(groups).totalHits(0)
@@ -90,8 +85,7 @@ public abstract class AbstractPostSearchService implements IPostSearchService
 
 	protected abstract void searchPostsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups);
 
-	protected void addRecentPostsGroup(List<UnifiedSearchResponse.SearchGroup> groups)
-	{
+	protected void addRecentPostsGroup(List<UnifiedSearchResponse.SearchGroup> groups) {
 		var recentPosts = postRepository.findAllByStatus(PostStatus.PUBLISHED,
 				PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "publishedAt")));
 
@@ -101,15 +95,13 @@ public abstract class AbstractPostSearchService implements IPostSearchService
 						.type("POST").build())
 				.collect(Collectors.toList());
 
-		if (!items.isEmpty())
-		{
+		if (!items.isEmpty()) {
 			groups.add(UnifiedSearchResponse.SearchGroup.builder().type("POST").label("Recent Articles").priority(1)
 					.items(items).build());
 		}
 	}
 
-	protected void searchProjectsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups)
-	{
+	protected void searchProjectsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups) {
 		List<UnifiedSearchResponse.SearchResultItem> items = projectRepository
 				.findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCaseAndIsPublishedTrue(keyword, keyword)
 				.stream().limit(3)
@@ -118,15 +110,13 @@ public abstract class AbstractPostSearchService implements IPostSearchService
 						.icon("layout").iconColor("#8b5cf6").type("PROJECT").build())
 				.collect(Collectors.toList());
 
-		if (!items.isEmpty())
-		{
+		if (!items.isEmpty()) {
 			groups.add(UnifiedSearchResponse.SearchGroup.builder().type("PROJECT").label("Projects").priority(20)
 					.items(items).build());
 		}
 	}
 
-	protected void searchCategoriesProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups)
-	{
+	protected void searchCategoriesProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups) {
 		List<UnifiedSearchResponse.SearchResultItem> items = categoryRepository.findByNameContainingIgnoreCase(keyword)
 				.stream().limit(3)
 				.map(c -> UnifiedSearchResponse.SearchResultItem.builder().id("category:" + c.getId())
@@ -134,15 +124,13 @@ public abstract class AbstractPostSearchService implements IPostSearchService
 						.iconColor("#10b981").type("CATEGORY").build())
 				.collect(Collectors.toList());
 
-		if (!items.isEmpty())
-		{
+		if (!items.isEmpty()) {
 			groups.add(UnifiedSearchResponse.SearchGroup.builder().type("CATEGORY").label("Categories").priority(30)
 					.items(items).build());
 		}
 	}
 
-	protected void searchTagsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups)
-	{
+	protected void searchTagsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups) {
 		List<UnifiedSearchResponse.SearchResultItem> items = tagRepository.findByNameContainingIgnoreCase(keyword)
 				.stream().limit(3)
 				.map(t -> UnifiedSearchResponse.SearchResultItem.builder().id("tag:" + t.getId()).title(t.getName())
@@ -150,15 +138,13 @@ public abstract class AbstractPostSearchService implements IPostSearchService
 						.build())
 				.collect(Collectors.toList());
 
-		if (!items.isEmpty())
-		{
+		if (!items.isEmpty()) {
 			groups.add(UnifiedSearchResponse.SearchGroup.builder().type("TAG").label("Tags").priority(40).items(items)
 					.build());
 		}
 	}
 
-	protected void searchMomentsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups)
-	{
+	protected void searchMomentsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups) {
 		List<UnifiedSearchResponse.SearchResultItem> items = momentRepository
 				.findByContentContainingIgnoreCaseAndIsPublishedTrue(keyword).stream().limit(3)
 				.map(m -> UnifiedSearchResponse.SearchResultItem.builder().id("moment:" + m.getId())
@@ -166,15 +152,13 @@ public abstract class AbstractPostSearchService implements IPostSearchService
 						.icon("message-square").iconColor("#6366f1").type("MOMENT").build())
 				.collect(Collectors.toList());
 
-		if (!items.isEmpty())
-		{
+		if (!items.isEmpty()) {
 			groups.add(UnifiedSearchResponse.SearchGroup.builder().type("MOMENT").label("Moments").priority(50)
 					.items(items).build());
 		}
 	}
 
-	protected UnifiedSearchResponse.SearchGroup createActionGroup()
-	{
+	protected UnifiedSearchResponse.SearchGroup createActionGroup() {
 		List<UnifiedSearchResponse.SearchResultItem> actions = List.of(
 				UnifiedSearchResponse.SearchResultItem.builder().id("action:home").title("Go to Home")
 						.subtitle("Navigation").url("/").icon("home").iconColor("#64748b").type("ACTION")
@@ -187,21 +171,18 @@ public abstract class AbstractPostSearchService implements IPostSearchService
 				.items(actions).build();
 	}
 
-	protected String formatSubtitle(Post p)
-	{
+	protected String formatSubtitle(Post p) {
 		String date = p.getPublishedAt() != null ? p.getPublishedAt().toLocalDate().toString() : "Draft";
 		return String.format("%s • %d views", date, p.getViews());
 	}
 
-	protected String truncateContent(String content)
-	{
+	protected String truncateContent(String content) {
 		if (content == null)
 			return "";
 		return content.length() > 50 ? content.substring(0, 47) + "..." : content;
 	}
 
-	protected PostDocument mapToDocument(Post post)
-	{
+	protected PostDocument mapToDocument(Post post) {
 		List<String> tagNames = post.getTags() != null
 				? post.getTags().stream().map(Tag::getName).collect(Collectors.toList())
 				: List.of();

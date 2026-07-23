@@ -7,6 +7,5 @@ import org.springframework.data.elasticsearch.repository.config.EnableElasticsea
 @Configuration
 @ConditionalOnProperty(name = "app.search.type", havingValue = "elasticsearch", matchIfMissing = true)
 @EnableElasticsearchRepositories(basePackages = "space.nebula.nexus.repository.search")
-public class SearchConfig
-{
+public class SearchConfig {
 }

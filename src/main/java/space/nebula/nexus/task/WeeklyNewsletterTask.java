@@ -12,15 +12,15 @@ import space.nebula.nexus.service.INewsletterService;
 @RequiredArgsConstructor
 public class WeeklyNewsletterTask {
 
-    private final INewsletterService newsletterService;
+	private final INewsletterService newsletterService;
 
-    /**
-     * Runs every Saturday at 10 AM.
-     */
-    @Scheduled(cron = "0 0 10 * * SAT")
-    @SchedulerLock(name = "weeklyNewsletter", lockAtMostFor = "PT2H", lockAtLeastFor = "PT1M")
-    public void runWeeklyNewsletter() {
-        log.info("Executing scheduled weekly newsletter broadcasting...");
-        newsletterService.sendWeeklyNewsletter();
-    }
+	/**
+	 * Runs every Saturday at 10 AM.
+	 */
+	@Scheduled(cron = "0 0 10 * * SAT")
+	@SchedulerLock(name = "weeklyNewsletter", lockAtMostFor = "PT2H", lockAtLeastFor = "PT1M")
+	public void runWeeklyNewsletter() {
+		log.info("Executing scheduled weekly newsletter broadcasting...");
+		newsletterService.sendWeeklyNewsletter();
+	}
 }

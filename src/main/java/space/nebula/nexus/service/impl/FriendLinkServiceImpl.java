@@ -42,8 +42,7 @@ import java.util.Locale;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class FriendLinkServiceImpl implements IFriendLinkService
-{
+public class FriendLinkServiceImpl implements IFriendLinkService {
 
 	private final FriendLinkRepository friendLinkRepository;
 	private final FriendLinkMapper friendLinkMapper;
@@ -52,16 +51,14 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<FriendLinkResponse>> retrieveAdminFriendLinks(Pageable pageable)
-	{
+	public ApiResponse<PageResult<FriendLinkResponse>> retrieveAdminFriendLinks(Pageable pageable) {
 		var friendLinkPage = friendLinkRepository.findAll(pageable).map(friendLinkMapper::toResponse);
 		return ApiResponse.success(PageResult.of(friendLinkPage));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<FriendLinkResponse> retrieveFriendLinkById(Long id)
-	{
+	public ApiResponse<FriendLinkResponse> retrieveFriendLinkById(Long id) {
 		var friendLink = findFriendLinkOrThrow(id);
 		return ApiResponse.success(friendLinkMapper.toResponse(friendLink));
 	}
@@ -70,8 +67,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	@Transactional
 	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
 	@LogOperation("Create Friend Link")
-	public ApiResponse<FriendLinkResponse> createFriendLink(FriendLinkRequest request)
-	{
+	public ApiResponse<FriendLinkResponse> createFriendLink(FriendLinkRequest request) {
 		String normalizedUrl = normalizeHttpUrl(request.url(), "Site URL");
 		validateUrlUniqueness(normalizedUrl, null);
 
@@ -90,8 +86,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	@Transactional
 	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
 	@LogOperation("Update Friend Link")
-	public ApiResponse<FriendLinkResponse> updateFriendLink(Long id, FriendLinkRequest request)
-	{
+	public ApiResponse<FriendLinkResponse> updateFriendLink(Long id, FriendLinkRequest request) {
 		var existingLink = findFriendLinkOrThrow(id);
 		String normalizedUrl = normalizeHttpUrl(request.url(), "Site URL");
 		validateUrlUniqueness(normalizedUrl, id);
@@ -109,8 +104,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	@Transactional
 	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
 	@LogOperation("Delete Friend Link")
-	public ApiResponse<Void> deleteFriendLink(Long id)
-	{
+	public ApiResponse<Void> deleteFriendLink(Long id) {
 		Assert.isTrue(friendLinkRepository.existsById(id), () -> new ResourceNotFoundException("FriendLink", "id", id));
 		friendLinkRepository.deleteById(id);
 		log.info("Friend link deleted ID: {}", id);
@@ -120,8 +114,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.FRIEND_LINKS, key = CacheConstants.PUBLIC_LIST_KEY)
-	public ApiResponse<List<FriendLinkResponse>> retrievePublicFriendLinks()
-	{
+	public ApiResponse<List<FriendLinkResponse>> retrievePublicFriendLinks() {
 		var activeLinks = friendLinkRepository
 				.findByStatusAndIsPublishedTrueOrderBySortOrderAscCreatedAtDesc(FriendLinkStatus.APPROVED);
 		return ApiResponse.success(friendLinkMapper.toResponseList(activeLinks));
@@ -130,8 +123,7 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	@Override
 	@Transactional
 	@LogOperation("Apply for Friend Link")
-	public ApiResponse<Void> applyForFriendLink(FriendLinkApplicationRequest request)
-	{
+	public ApiResponse<Void> applyForFriendLink(FriendLinkApplicationRequest request) {
 		String normalizedUrl = normalizeHttpUrl(request.url(), "Site URL");
 		validateUrlUniqueness(normalizedUrl, null);
 
@@ -157,15 +149,13 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 	@Transactional
 	@CacheEvict(value = CacheConstants.FRIEND_LINKS, allEntries = true)
 	@LogOperation("Moderate Friend Link")
-	public ApiResponse<Void> moderateFriendLink(Long id, FriendLinkStatus status)
-	{
+	public ApiResponse<Void> moderateFriendLink(Long id, FriendLinkStatus status) {
 		var link = findFriendLinkOrThrow(id);
-			Assert.isTrue(link.getStatus() == FriendLinkStatus.APPLYING,
-					() -> new BusinessException(BusinessCode.BAD_REQUEST,
-							"Only pending applications can be moderated"));
-			Assert.isTrue(status == FriendLinkStatus.APPROVED || status == FriendLinkStatus.REJECTED,
-					() -> new BusinessException(BusinessCode.BAD_REQUEST,
-							"Moderation result must be APPROVED or REJECTED"));
+		Assert.isTrue(link.getStatus() == FriendLinkStatus.APPLYING,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only pending applications can be moderated"));
+		Assert.isTrue(status == FriendLinkStatus.APPROVED || status == FriendLinkStatus.REJECTED,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Moderation result must be APPROVED or REJECTED"));
 		link.setStatus(status);
 		link.setIsPublished(status == FriendLinkStatus.APPROVED);
 		friendLinkRepository.save(link);
@@ -173,25 +163,20 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 		return ApiResponse.success("Friend link status updated.", null);
 	}
 
-	private FriendLink findFriendLinkOrThrow(Long id)
-	{
+	private FriendLink findFriendLinkOrThrow(Long id) {
 		return friendLinkRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("FriendLink", "id", id));
 	}
 
-	private void validateUrlUniqueness(String url, Long excludeId)
-	{
-		friendLinkRepository.findByUrl(url).ifPresent(link ->
-		{
-				Assert.isFalse(excludeId == null || !link.getId().equals(excludeId),
-						() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Friend link URL is already in use"));
+	private void validateUrlUniqueness(String url, Long excludeId) {
+		friendLinkRepository.findByUrl(url).ifPresent(link -> {
+			Assert.isFalse(excludeId == null || !link.getId().equals(excludeId),
+					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Friend link URL is already in use"));
 		});
 	}
 
-	private void sendApplicationNotification(FriendLink link)
-	{
-		if (StrUtil.isBlank(friendLinkProperties.getModerationEmail()))
-		{
+	private void sendApplicationNotification(FriendLink link) {
+		if (StrUtil.isBlank(friendLinkProperties.getModerationEmail())) {
 			log.warn("Friend-link moderation email is not configured; application {} remains queued", link.getId());
 			return;
 		}
@@ -202,42 +187,36 @@ public class FriendLinkServiceImpl implements IFriendLinkService
 						+ "Please log in to moderate this application.",
 				link.getName(), link.getUrl(), link.getDescription(), link.getEmail());
 
-		TemplateMailMessage message = TemplateMailMessage.builder().to(friendLinkProperties.getModerationEmail()).subject(subject)
-				.content(content).type(TemplateMailMessage.MailType.SIMPLE).build();
+		TemplateMailMessage message = TemplateMailMessage.builder().to(friendLinkProperties.getModerationEmail())
+				.subject(subject).content(content).type(TemplateMailMessage.MailType.SIMPLE).build();
 
-		try
-		{
+		try {
 			rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
-		}
-		catch (RuntimeException e)
-		{
+		} catch (RuntimeException e) {
 			log.error("Failed to enqueue moderation notification for friend-link application {}", link.getId(), e);
 		}
 	}
 
-	private String normalizeOptionalHttpUrl(String value, String fieldName)
-	{
+	private String normalizeOptionalHttpUrl(String value, String fieldName) {
 		return StrUtil.isBlank(value) ? null : normalizeHttpUrl(value, fieldName);
 	}
 
-	private String normalizeHttpUrl(String value, String fieldName)
-	{
-		try
-		{
+	private String normalizeHttpUrl(String value, String fieldName) {
+		try {
 			URI uri = new URI(value.trim());
 			String scheme = uri.getScheme() == null ? null : uri.getScheme().toLowerCase(Locale.ROOT);
-			Assert.isTrue(("http".equals(scheme) || "https".equals(scheme)) && uri.getHost() != null
-					&& uri.getUserInfo() == null,
-						() -> new BusinessException(BusinessCode.BAD_REQUEST,
-								fieldName + " must be an absolute HTTP or HTTPS URL without embedded credentials"));
-			URI normalized = new URI(scheme, null, uri.getHost().toLowerCase(Locale.ROOT), uri.getPort(),
-					uri.getPath(), uri.getQuery(), null).normalize();
+			Assert.isTrue(
+					("http".equals(scheme) || "https".equals(scheme)) && uri.getHost() != null
+							&& uri.getUserInfo() == null,
+					() -> new BusinessException(BusinessCode.BAD_REQUEST,
+							fieldName + " must be an absolute HTTP or HTTPS URL without embedded credentials"));
+			URI normalized = new URI(scheme, null, uri.getHost().toLowerCase(Locale.ROOT), uri.getPort(), uri.getPath(),
+					uri.getQuery(), null).normalize();
 			String result = normalized.toASCIIString();
 			return result.endsWith("/") && "/".equals(normalized.getPath())
-					? result.substring(0, result.length() - 1) : result;
-		}
-		catch (URISyntaxException | IllegalArgumentException e)
-		{
+					? result.substring(0, result.length() - 1)
+					: result;
+		} catch (URISyntaxException | IllegalArgumentException e) {
 			throw new BusinessException(BusinessCode.BAD_REQUEST, fieldName + " is invalid");
 		}
 	}

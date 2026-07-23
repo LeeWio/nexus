@@ -8,7 +8,7 @@ import space.nebula.nexus.entity.WebhookLog;
 
 @Repository
 public interface WebhookLogRepository extends JpaRepository<WebhookLog, Long> {
-    Page<WebhookLog> findByWebhookId(Long webhookId, Pageable pageable);
+	Page<WebhookLog> findByWebhookId(Long webhookId, Pageable pageable);
 
-    java.util.Optional<WebhookLog> findByDeliveryId(String deliveryId);
+	java.util.Optional<WebhookLog> findByDeliveryId(String deliveryId);
 }

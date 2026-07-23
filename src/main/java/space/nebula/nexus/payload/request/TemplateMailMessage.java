@@ -9,8 +9,8 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- * Payload for sending emails via RabbitMQ.
- * Supports simple, HTML, and template-based emails.
+ * Payload for sending emails via RabbitMQ. Supports simple, HTML, and
+ * template-based emails.
  */
 @Data
 @Builder

@@ -1,7 +1,6 @@
 package space.nebula.nexus.enums;
 
-public enum KanbanPriority
-{
+public enum KanbanPriority {
 	/**
 	 * Indicates a task with low priority; can be deferred without significant
 	 * impact.

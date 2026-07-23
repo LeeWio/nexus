@@ -22,20 +22,16 @@ public class S3StorageProvider implements StorageProvider {
 	private final StorageProperties.S3Config config;
 
 	private S3Client getClient() {
-		return S3Client.builder()
-				.region(Region.of(config.getRegion()))
-				.credentialsProvider(StaticCredentialsProvider.create(
-						AwsBasicCredentials.create(config.getAccessKeyId(), config.getAccessKeySecret())))
-				.endpointOverride(URI.create(config.getEndpoint()))
-				.build();
+		return S3Client.builder().region(Region.of(config.getRegion()))
+				.credentialsProvider(StaticCredentialsProvider
+						.create(AwsBasicCredentials.create(config.getAccessKeyId(), config.getAccessKeySecret())))
+				.endpointOverride(URI.create(config.getEndpoint())).build();
 	}
 
 	@Override
 	public String store(InputStream inputStream, String filename) {
 		try (S3Client client = getClient()) {
-			PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-					.bucket(config.getBucketName())
-					.key(filename)
+			PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket(config.getBucketName()).key(filename)
 					.build();
 
 			client.putObject(putObjectRequest, RequestBody.fromInputStream(inputStream, inputStream.available()));
@@ -49,10 +45,8 @@ public class S3StorageProvider implements StorageProvider {
 	@Override
 	public void delete(String filename) {
 		try (S3Client client = getClient()) {
-			DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
-					.bucket(config.getBucketName())
-					.key(filename)
-					.build();
+			DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder().bucket(config.getBucketName())
+					.key(filename).build();
 			client.deleteObject(deleteObjectRequest);
 		} catch (Exception e) {
 			log.error("Failed to delete file from S3: {}", filename, e);

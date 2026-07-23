@@ -13,12 +13,12 @@ import java.util.List;
  * Stores explicit user category preferences.
  */
 @Repository
-public interface CategoryFollowRepository extends JpaRepository<CategoryFollow, Long>
-{
+public interface CategoryFollowRepository extends JpaRepository<CategoryFollow, Long> {
 	/**
 	 * Returns followed categories in most-recently-followed order.
 	 *
-	 * @param userId user identifier
+	 * @param userId
+	 *            user identifier
 	 * @return category follow records
 	 */
 	@EntityGraph(attributePaths = "category")
@@ -29,7 +29,8 @@ public interface CategoryFollowRepository extends JpaRepository<CategoryFollow, 
 	/**
 	 * Returns followed category identifiers in most-recently-followed order.
 	 *
-	 * @param userId user identifier
+	 * @param userId
+	 *            user identifier
 	 * @return followed category identifiers
 	 */
 	@Query("SELECT follow.category.id FROM CategoryFollow follow WHERE follow.user.id = :userId "
@@ -39,7 +40,8 @@ public interface CategoryFollowRepository extends JpaRepository<CategoryFollow, 
 	/**
 	 * Counts active category follows owned by a user.
 	 *
-	 * @param userId user identifier
+	 * @param userId
+	 *            user identifier
 	 * @return active follow count
 	 */
 	long countByUserIdAndIsDeletedFalse(Long userId);
@@ -47,8 +49,10 @@ public interface CategoryFollowRepository extends JpaRepository<CategoryFollow, 
 	/**
 	 * Checks whether a user already follows a category.
 	 *
-	 * @param userId user identifier
-	 * @param categoryId category identifier
+	 * @param userId
+	 *            user identifier
+	 * @param categoryId
+	 *            category identifier
 	 * @return {@code true} when the active follow exists
 	 */
 	boolean existsByUserIdAndCategoryIdAndIsDeletedFalse(Long userId, Long categoryId);
@@ -56,8 +60,10 @@ public interface CategoryFollowRepository extends JpaRepository<CategoryFollow, 
 	/**
 	 * Creates a follow unless it already exists.
 	 *
-	 * @param userId user identifier
-	 * @param categoryId category identifier
+	 * @param userId
+	 *            user identifier
+	 * @param categoryId
+	 *            category identifier
 	 * @return number of inserted rows
 	 */
 	@Modifying
@@ -69,8 +75,10 @@ public interface CategoryFollowRepository extends JpaRepository<CategoryFollow, 
 	/**
 	 * Physically removes a category follow.
 	 *
-	 * @param userId user identifier
-	 * @param categoryId category identifier
+	 * @param userId
+	 *            user identifier
+	 * @param categoryId
+	 *            category identifier
 	 * @return number of removed rows
 	 */
 	@Modifying

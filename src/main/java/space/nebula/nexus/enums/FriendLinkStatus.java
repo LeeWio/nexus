@@ -1,7 +1,6 @@
 package space.nebula.nexus.enums;
 
-public enum FriendLinkStatus
-{
+public enum FriendLinkStatus {
 	/**
 	 * The friend link request has been submitted and is awaiting review.
 	 */

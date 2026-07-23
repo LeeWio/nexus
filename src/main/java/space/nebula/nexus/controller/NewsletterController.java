@@ -21,26 +21,27 @@ import java.util.concurrent.TimeUnit;
 @Validated
 public class NewsletterController {
 
-    private final INewsletterService newsletterService;
+	private final INewsletterService newsletterService;
 
 	@PostMapping("/subscribe")
-	@RateLimit(count = 3, time = 1, unit = TimeUnit.HOURS,
-			message = "Too many subscription requests. Please try again later.")
-    @Operation(summary = "Subscribe to newsletter", description = "Request to join the blog's newsletter mailing list.")
-    public ApiResponse<Void> subscribe(
+	@RateLimit(count = 3, time = 1, unit = TimeUnit.HOURS, message = "Too many subscription requests. Please try again later.")
+	@Operation(summary = "Subscribe to newsletter", description = "Request to join the blog's newsletter mailing list.")
+	public ApiResponse<Void> subscribe(
 			@Email(message = "Email address is invalid") @NotBlank(message = "Email is required") @RequestParam String email) {
-        return newsletterService.subscribe(email);
-    }
+		return newsletterService.subscribe(email);
+	}
 
-    @GetMapping("/verify")
-    @Operation(summary = "Verify subscription", description = "Verify and activate the newsletter subscription using a token.")
-    public ApiResponse<Void> verify(@Parameter(description = "Verification token from email") @RequestParam String token) {
-        return newsletterService.verify(token);
-    }
+	@GetMapping("/verify")
+	@Operation(summary = "Verify subscription", description = "Verify and activate the newsletter subscription using a token.")
+	public ApiResponse<Void> verify(
+			@Parameter(description = "Verification token from email") @RequestParam String token) {
+		return newsletterService.verify(token);
+	}
 
-    @GetMapping("/unsubscribe")
-    @Operation(summary = "Unsubscribe", description = "Opt-out from the newsletter mailing list.")
-    public ApiResponse<Void> unsubscribe(@Parameter(description = "Unsubscribe token from email footer") @RequestParam String token) {
-        return newsletterService.unsubscribe(token);
-    }
+	@GetMapping("/unsubscribe")
+	@Operation(summary = "Unsubscribe", description = "Opt-out from the newsletter mailing list.")
+	public ApiResponse<Void> unsubscribe(
+			@Parameter(description = "Unsubscribe token from email footer") @RequestParam String token) {
+		return newsletterService.unsubscribe(token);
+	}
 }

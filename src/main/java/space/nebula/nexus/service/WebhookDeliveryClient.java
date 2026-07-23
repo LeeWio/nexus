@@ -16,15 +16,20 @@ public class WebhookDeliveryClient {
 	private final MeterRegistry meterRegistry;
 
 	/** Result of one delivery attempt. */
-	public record DeliveryResult(int statusCode, String responseBody, boolean success) {}
+	public record DeliveryResult(int statusCode, String responseBody, boolean success) {
+	}
 
 	/**
 	 * Sends a signed webhook payload without following redirects.
 	 *
-	 * @param url validated destination URL
-	 * @param event event name
-	 * @param signature HMAC signature
-	 * @param jsonPayload serialized payload
+	 * @param url
+	 *            validated destination URL
+	 * @param event
+	 *            event name
+	 * @param signature
+	 *            HMAC signature
+	 * @param jsonPayload
+	 *            serialized payload
 	 * @return delivery result
 	 */
 	public DeliveryResult post(String url, String event, String signature, String jsonPayload) {

@@ -28,16 +28,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/public/blog")
 @RequiredArgsConstructor
-public class PublicBlogController
-{
+public class PublicBlogController {
 
 	private final IPostService postService;
 
 	@GetMapping("/discovery")
-	@Operation(summary = "Retrieve blog discovery content",
-			description = "Returns compact spotlight, latest, and most-read content groups for the public blog experience.")
-	public ApiResponse<BlogDiscoveryResponse> retrieveDiscovery()
-	{
+	@Operation(summary = "Retrieve blog discovery content", description = "Returns compact spotlight, latest, and most-read content groups for the public blog experience.")
+	public ApiResponse<BlogDiscoveryResponse> retrieveDiscovery() {
 		return postService.retrievePublicDiscovery();
 	}
 
@@ -56,18 +53,14 @@ public class PublicBlogController
 
 			@Parameter(description = "Filter by content format") @RequestParam(required = false) PostContentType contentType,
 
-			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10, sort = "publishedAt",
-					direction = Sort.Direction.DESC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10, sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return postService.searchPublicPosts(categoryId, tagId, keyword, featuredOnly, hasCover, contentType, pageable);
 	}
 
 	@GetMapping("/posts/featured")
-	@Operation(summary = "Retrieve prominent published posts",
-			description = "Returns only the posts selected by editorial and engagement ranking for listing surfaces.")
+	@Operation(summary = "Retrieve prominent published posts", description = "Returns only the posts selected by editorial and engagement ranking for listing surfaces.")
 	public ApiResponse<PageResult<PostDigestResponse>> retrieveFeaturedPosts(
-			@Parameter(description = "Pagination parameters") @PageableDefault(size = 12) Pageable pageable)
-	{
+			@Parameter(description = "Pagination parameters") @PageableDefault(size = 12) Pageable pageable) {
 		return postService.retrieveFeaturedPublicPosts(pageable);
 	}
 
@@ -80,40 +73,31 @@ public class PublicBlogController
 			@Parameter(description = "Only return editorially featured posts") @RequestParam(required = false) Boolean featuredOnly,
 			@Parameter(description = "Only return posts with a cover image") @RequestParam(required = false) Boolean hasCover,
 			@Parameter(description = "Filter by content format") @RequestParam(required = false) PostContentType contentType,
-			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10, sort = "publishedAt",
-					direction = Sort.Direction.DESC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10, sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return postService.searchPublicPostDigests(categoryId, tagId, keyword, featuredOnly, hasCover, contentType,
 				pageable);
 	}
 
 	@GetMapping("/archive")
-	@Operation(summary = "Retrieve archived published posts",
-			description = "Browse published post digests by publication year and optional month.")
+	@Operation(summary = "Retrieve archived published posts", description = "Browse published post digests by publication year and optional month.")
 	public ApiResponse<PageResult<PostDigestResponse>> retrieveArchive(
 			@Parameter(description = "Publication year") @RequestParam(required = false) Integer year,
 			@Parameter(description = "Publication month from 1 to 12") @RequestParam(required = false) Integer month,
-			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10, sort = "publishedAt",
-					direction = Sort.Direction.DESC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10, sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return postService.retrievePublicArchive(year, month, pageable);
 	}
 
 	@GetMapping("/facets")
-	@Operation(summary = "Retrieve blog facets",
-			description = "Returns counts by category, tag, archive month, and content format.")
-	public ApiResponse<BlogFacetResponse> retrieveFacets()
-	{
+	@Operation(summary = "Retrieve blog facets", description = "Returns counts by category, tag, archive month, and content format.")
+	public ApiResponse<BlogFacetResponse> retrieveFacets() {
 		return postService.retrievePublicFacets();
 	}
 
 	@GetMapping("/posts/{slug}/related")
-	@Operation(summary = "Retrieve related posts",
-			description = "Returns posts related by series, category, tags, and public ranking signals.")
+	@Operation(summary = "Retrieve related posts", description = "Returns posts related by series, category, tags, and public ranking signals.")
 	public ApiResponse<List<PostDigestResponse>> retrieveRelatedPosts(
 			@Parameter(description = "The unique URL slug of the source post") @PathVariable String slug,
-			@Parameter(description = "Pagination parameters") @PageableDefault(size = 6) Pageable pageable)
-	{
+			@Parameter(description = "Pagination parameters") @PageableDefault(size = 6) Pageable pageable) {
 		return postService.retrieveRelatedPosts(slug, pageable);
 	}
 
@@ -121,17 +105,15 @@ public class PublicBlogController
 	@Operation(summary = "Retrieve post by slug", description = "Fetch the full content of a published post using its unique URL slug.")
 	@ApiResponses({
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Post found"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Post not found") })
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Post not found")})
 	public ApiResponse<PostResponse> retrievePost(
-			@Parameter(description = "The unique URL slug of the post", example = "my-awesome-post") @PathVariable String slug)
-	{
+			@Parameter(description = "The unique URL slug of the post", example = "my-awesome-post") @PathVariable String slug) {
 		return postService.retrievePostBySlug(slug);
 	}
 
 	@GetMapping("/preview/{token}")
 	@Operation(summary = "Preview a post by token", description = "Fetch a short-lived preview of a draft, rejected, scheduled, or published post.")
-	public ApiResponse<PostResponse> retrievePreview(@PathVariable String token)
-	{
+	public ApiResponse<PostResponse> retrievePreview(@PathVariable String token) {
 		return postService.retrievePostPreview(token);
 	}
 }

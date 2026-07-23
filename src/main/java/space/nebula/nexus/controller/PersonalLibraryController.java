@@ -36,8 +36,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/user/library")
 @RequiredArgsConstructor
-public class PersonalLibraryController
-{
+public class PersonalLibraryController {
 	private final IPersonalLibraryService personalLibraryService;
 
 	/**
@@ -46,25 +45,21 @@ public class PersonalLibraryController
 	 * @return aggregated personal content sections
 	 */
 	@GetMapping("/overview")
-	@Operation(summary = "Get personal library overview",
-			description = "Returns continue-reading sessions, recent favorites, and explainable recommendations.")
-	public ApiResponse<PersonalLibraryOverviewResponse> getOverview()
-	{
+	@Operation(summary = "Get personal library overview", description = "Returns continue-reading sessions, recent favorites, and explainable recommendations.")
+	public ApiResponse<PersonalLibraryOverviewResponse> getOverview() {
 		return personalLibraryService.getOverview();
 	}
 
 	/**
 	 * Returns the current user's followed-category content feed.
 	 *
-	 * @param pageable pagination settings
+	 * @param pageable
+	 *            pagination settings
 	 * @return followed-category post page
 	 */
 	@GetMapping("/following")
-	@Operation(summary = "Get followed-category content feed",
-			description = "Returns recently published posts from categories explicitly followed by the current user.")
-	public ApiResponse<PageResult<PostDigestResponse>> getFollowingFeed(
-			@PageableDefault(size = 20) Pageable pageable)
-	{
+	@Operation(summary = "Get followed-category content feed", description = "Returns recently published posts from categories explicitly followed by the current user.")
+	public ApiResponse<PageResult<PostDigestResponse>> getFollowingFeed(@PageableDefault(size = 20) Pageable pageable) {
 		return personalLibraryService.getFollowingFeed(pageable);
 	}
 
@@ -75,60 +70,59 @@ public class PersonalLibraryController
 	 */
 	@GetMapping("/preferences")
 	@Operation(summary = "Get content preferences")
-	public ApiResponse<ContentPreferenceResponse> getContentPreferences()
-	{
+	public ApiResponse<ContentPreferenceResponse> getContentPreferences() {
 		return personalLibraryService.getContentPreferences();
 	}
 
 	/**
 	 * Follows a category for future recommendations.
 	 *
-	 * @param categoryId category identifier
+	 * @param categoryId
+	 *            category identifier
 	 * @return operation result
 	 */
 	@PutMapping("/preferences/categories/{categoryId}")
 	@Operation(summary = "Follow a recommendation category")
-	public ApiResponse<Void> followCategory(@PathVariable Long categoryId)
-	{
+	public ApiResponse<Void> followCategory(@PathVariable Long categoryId) {
 		return personalLibraryService.followCategory(categoryId);
 	}
 
 	/**
 	 * Stops following a recommendation category.
 	 *
-	 * @param categoryId category identifier
+	 * @param categoryId
+	 *            category identifier
 	 * @return operation result
 	 */
 	@DeleteMapping("/preferences/categories/{categoryId}")
 	@Operation(summary = "Unfollow a recommendation category")
-	public ApiResponse<Void> unfollowCategory(@PathVariable Long categoryId)
-	{
+	public ApiResponse<Void> unfollowCategory(@PathVariable Long categoryId) {
 		return personalLibraryService.unfollowCategory(categoryId);
 	}
 
 	/**
 	 * Hides a post from future recommendations.
 	 *
-	 * @param postId post identifier
+	 * @param postId
+	 *            post identifier
 	 * @return operation result
 	 */
 	@PutMapping("/preferences/hidden-posts/{postId}")
 	@Operation(summary = "Hide a post from recommendations")
-	public ApiResponse<Void> hideRecommendation(@PathVariable Long postId)
-	{
+	public ApiResponse<Void> hideRecommendation(@PathVariable Long postId) {
 		return personalLibraryService.hideRecommendation(postId);
 	}
 
 	/**
 	 * Restores one hidden recommendation.
 	 *
-	 * @param postId post identifier
+	 * @param postId
+	 *            post identifier
 	 * @return operation result
 	 */
 	@DeleteMapping("/preferences/hidden-posts/{postId}")
 	@Operation(summary = "Restore a hidden recommendation")
-	public ApiResponse<Void> restoreRecommendation(@PathVariable Long postId)
-	{
+	public ApiResponse<Void> restoreRecommendation(@PathVariable Long postId) {
 		return personalLibraryService.restoreRecommendation(postId);
 	}
 
@@ -139,16 +133,14 @@ public class PersonalLibraryController
 	 */
 	@DeleteMapping("/preferences/hidden-posts")
 	@Operation(summary = "Clear hidden recommendation feedback")
-	public ApiResponse<Void> clearHiddenRecommendations()
-	{
+	public ApiResponse<Void> clearHiddenRecommendations() {
 		return personalLibraryService.clearHiddenRecommendations();
 	}
 
 	/** Returns the current user's favorite posts. */
 	@GetMapping("/favorites")
 	@Operation(summary = "Get favorite posts")
-	public ApiResponse<PageResult<FavoritePostResponse>> getFavorites(@PageableDefault(size = 20) Pageable pageable)
-	{
+	public ApiResponse<PageResult<FavoritePostResponse>> getFavorites(@PageableDefault(size = 20) Pageable pageable) {
 		return personalLibraryService.getFavorites(pageable);
 	}
 
@@ -156,8 +148,7 @@ public class PersonalLibraryController
 	@GetMapping("/history")
 	@Operation(summary = "Get reading history")
 	public ApiResponse<PageResult<ReadingHistoryResponse>> getReadingHistory(
-			@PageableDefault(size = 20) Pageable pageable)
-	{
+			@PageableDefault(size = 20) Pageable pageable) {
 		return personalLibraryService.getReadingHistory(pageable);
 	}
 
@@ -165,40 +156,35 @@ public class PersonalLibraryController
 	@PutMapping("/posts/{postId}/progress")
 	@Operation(summary = "Save reading progress")
 	public ApiResponse<ReadingHistoryResponse> recordReadingProgress(@PathVariable Long postId,
-			@Valid @RequestBody ReadingProgressRequest request)
-	{
+			@Valid @RequestBody ReadingProgressRequest request) {
 		return personalLibraryService.recordReadingProgress(postId, request);
 	}
 
 	/** Removes one post from reading history. */
 	@DeleteMapping("/history/{postId}")
 	@Operation(summary = "Remove reading history entry")
-	public ApiResponse<Void> deleteReadingHistory(@PathVariable Long postId)
-	{
+	public ApiResponse<Void> deleteReadingHistory(@PathVariable Long postId) {
 		return personalLibraryService.deleteReadingHistory(postId);
 	}
 
 	/** Clears all reading history owned by the current user. */
 	@DeleteMapping("/history")
 	@Operation(summary = "Clear reading history")
-	public ApiResponse<Void> clearReadingHistory()
-	{
+	public ApiResponse<Void> clearReadingHistory() {
 		return personalLibraryService.clearReadingHistory();
 	}
 
 	/** Returns personal collection summaries. */
 	@GetMapping("/collections")
 	@Operation(summary = "Get personal collections")
-	public ApiResponse<List<PostCollectionResponse>> getCollections()
-	{
+	public ApiResponse<List<PostCollectionResponse>> getCollections() {
 		return personalLibraryService.getCollections();
 	}
 
 	/** Creates a personal collection. */
 	@PostMapping("/collections")
 	@Operation(summary = "Create personal collection")
-	public ApiResponse<PostCollectionResponse> createCollection(@Valid @RequestBody PostCollectionRequest request)
-	{
+	public ApiResponse<PostCollectionResponse> createCollection(@Valid @RequestBody PostCollectionRequest request) {
 		return personalLibraryService.createCollection(request);
 	}
 
@@ -206,16 +192,14 @@ public class PersonalLibraryController
 	@PutMapping("/collections/{collectionId}")
 	@Operation(summary = "Update personal collection")
 	public ApiResponse<PostCollectionResponse> updateCollection(@PathVariable Long collectionId,
-			@Valid @RequestBody PostCollectionRequest request)
-	{
+			@Valid @RequestBody PostCollectionRequest request) {
 		return personalLibraryService.updateCollection(collectionId, request);
 	}
 
 	/** Deletes a personal collection. */
 	@DeleteMapping("/collections/{collectionId}")
 	@Operation(summary = "Delete personal collection")
-	public ApiResponse<Void> deleteCollection(@PathVariable Long collectionId)
-	{
+	public ApiResponse<Void> deleteCollection(@PathVariable Long collectionId) {
 		return personalLibraryService.deleteCollection(collectionId);
 	}
 
@@ -223,24 +207,21 @@ public class PersonalLibraryController
 	@GetMapping("/collections/{collectionId}/posts")
 	@Operation(summary = "Get posts in personal collection")
 	public ApiResponse<PageResult<CollectionPostResponse>> getCollectionPosts(@PathVariable Long collectionId,
-			@PageableDefault(size = 20) Pageable pageable)
-	{
+			@PageableDefault(size = 20) Pageable pageable) {
 		return personalLibraryService.getCollectionPosts(collectionId, pageable);
 	}
 
 	/** Adds a published post to a personal collection. */
 	@PostMapping("/collections/{collectionId}/posts/{postId}")
 	@Operation(summary = "Add post to personal collection")
-	public ApiResponse<Void> addPostToCollection(@PathVariable Long collectionId, @PathVariable Long postId)
-	{
+	public ApiResponse<Void> addPostToCollection(@PathVariable Long collectionId, @PathVariable Long postId) {
 		return personalLibraryService.addPostToCollection(collectionId, postId);
 	}
 
 	/** Removes a post from a personal collection. */
 	@DeleteMapping("/collections/{collectionId}/posts/{postId}")
 	@Operation(summary = "Remove post from personal collection")
-	public ApiResponse<Void> removePostFromCollection(@PathVariable Long collectionId, @PathVariable Long postId)
-	{
+	public ApiResponse<Void> removePostFromCollection(@PathVariable Long collectionId, @PathVariable Long postId) {
 		return personalLibraryService.removePostFromCollection(collectionId, postId);
 	}
 }

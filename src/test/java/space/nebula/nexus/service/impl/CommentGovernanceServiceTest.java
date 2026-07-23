@@ -31,8 +31,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class CommentGovernanceServiceTest
-{
+class CommentGovernanceServiceTest {
 
 	@Mock
 	private CommentModerationLogRepository moderationLogRepository;
@@ -45,16 +44,14 @@ class CommentGovernanceServiceTest
 	private CommentModerationProperties moderationProperties;
 
 	@BeforeEach
-	void setUp()
-	{
+	void setUp() {
 		moderationProperties = new CommentModerationProperties();
 		governanceService = new CommentGovernanceService(moderationLogRepository, jdbcTemplate, moderationProperties);
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void retrieveCommentGovernanceOverviewReturnsOperationalCounters() throws Exception
-	{
+	void retrieveCommentGovernanceOverviewReturnsOperationalCounters() throws Exception {
 		ResultSet commentStatusRow = mock(ResultSet.class);
 		ResultSet reportStatusRow = mock(ResultSet.class);
 		ResultSet actionRow = mock(ResultSet.class);
@@ -68,27 +65,26 @@ class CommentGovernanceServiceTest
 				any(Object[].class))).thenReturn(3L);
 		when(jdbcTemplate.queryForObject(contains("blog_comment_moderation_log WHERE is_deleted = FALSE AND action"),
 				eq(Long.class), any(Object[].class))).thenReturn(1L);
-		when(jdbcTemplate.queryForObject(contains("SELECT MIN(created_at)"), eq(Timestamp.class),
-				any(Object[].class))).thenReturn(Timestamp.valueOf(LocalDateTime.of(2026, 7, 23, 8, 0)));
-		doAnswer(invocation ->
-		{
+		when(jdbcTemplate.queryForObject(contains("SELECT MIN(created_at)"), eq(Timestamp.class), any(Object[].class)))
+				.thenReturn(Timestamp.valueOf(LocalDateTime.of(2026, 7, 23, 8, 0)));
+		doAnswer(invocation -> {
 			RowCallbackHandler handler = invocation.getArgument(1);
 			handler.processRow(commentStatusRow);
 			return null;
-		}).when(jdbcTemplate).query(eq("SELECT status, COUNT(*) AS item_count FROM blog_comment WHERE is_deleted = FALSE GROUP BY status"),
+		}).when(jdbcTemplate).query(
+				eq("SELECT status, COUNT(*) AS item_count FROM blog_comment WHERE is_deleted = FALSE GROUP BY status"),
 				any(RowCallbackHandler.class));
-		doAnswer(invocation ->
-		{
+		doAnswer(invocation -> {
 			RowCallbackHandler handler = invocation.getArgument(1);
 			handler.processRow(reportStatusRow);
 			return null;
-		}).when(jdbcTemplate).query(eq("SELECT status, COUNT(*) AS item_count FROM blog_comment_report GROUP BY status"),
+		}).when(jdbcTemplate).query(
+				eq("SELECT status, COUNT(*) AS item_count FROM blog_comment_report GROUP BY status"),
 				any(RowCallbackHandler.class));
 		when(jdbcTemplate.query(contains("GROUP BY action"), any(RowMapper.class), any(Object[].class)))
-				.thenAnswer(invocation ->
-				{
-					RowMapper<CommentGovernanceOverviewResponse.ModerationActionCount> mapper =
-							invocation.getArgument(1);
+				.thenAnswer(invocation -> {
+					RowMapper<CommentGovernanceOverviewResponse.ModerationActionCount> mapper = invocation
+							.getArgument(1);
 					return List.of(mapper.mapRow(actionRow, 0));
 				});
 
@@ -109,19 +105,17 @@ class CommentGovernanceServiceTest
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void retrieveCommentReportsReturnsPagedReportQueue() throws Exception
-	{
+	void retrieveCommentReportsReturnsPagedReportQueue() throws Exception {
 		var pageable = PageRequest.of(1, 10);
 		when(jdbcTemplate.queryForObject(contains("FROM blog_comment_report"), eq(Long.class), any(Object[].class)))
 				.thenReturn(21L);
 		ArgumentCaptor<RowMapper<CommentReportResponse>> mapperCaptor = ArgumentCaptor.forClass(RowMapper.class);
 		when(jdbcTemplate.query(contains("ORDER BY report.created_at DESC"), mapperCaptor.capture(),
-				any(Object[].class))).thenAnswer(invocation ->
-		{
-			RowMapper<CommentReportResponse> mapper = invocation.getArgument(1);
-			stubReportRow();
-			return List.of(mapper.mapRow(resultSet, 0));
-		});
+				any(Object[].class))).thenAnswer(invocation -> {
+					RowMapper<CommentReportResponse> mapper = invocation.getArgument(1);
+					stubReportRow();
+					return List.of(mapper.mapRow(resultSet, 0));
+				});
 
 		var response = governanceService.retrieveCommentReports(CommentReportStatus.OPEN, 42L, "reporter", pageable);
 
@@ -135,19 +129,17 @@ class CommentGovernanceServiceTest
 		assertEquals(CommentStatus.APPROVED, report.commentStatus());
 		assertEquals("reporter", report.reporterUsername());
 		verify(jdbcTemplate).query(contains("reporter.username = ?"), any(RowMapper.class),
-				aryEq(new Object[] { CommentReportStatus.OPEN.name(), 42L, "reporter", 10, 10L }));
+				aryEq(new Object[]{CommentReportStatus.OPEN.name(), 42L, "reporter", 10, 10L}));
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void retrieveHighRiskCommentsUsesConfiguredThresholdWhenMissing() throws Exception
-	{
+	void retrieveHighRiskCommentsUsesConfiguredThresholdWhenMissing() throws Exception {
 		moderationProperties.setHighRiskReportThreshold(4L);
 		var pageable = PageRequest.of(0, 10);
 		when(jdbcTemplate.queryForObject(contains("high_risk"), eq(Long.class), any(Object[].class))).thenReturn(1L);
 		when(jdbcTemplate.query(contains("ORDER BY open_reports DESC"), any(RowMapper.class), any(Object[].class)))
-				.thenAnswer(invocation ->
-				{
+				.thenAnswer(invocation -> {
 					RowMapper<CommentRiskResponse> mapper = invocation.getArgument(1);
 					stubRiskRow();
 					return List.of(mapper.mapRow(resultSet, 0));
@@ -161,21 +153,19 @@ class CommentGovernanceServiceTest
 		assertEquals(5L, response.data().getList().getFirst().openReports());
 		assertEquals(70L, response.data().getList().getFirst().riskScore());
 		verify(jdbcTemplate).queryForObject(contains("high_risk"), eq(Long.class),
-				aryEq(new Object[] { CommentReportStatus.OPEN.name(), 4L }));
+				aryEq(new Object[]{CommentReportStatus.OPEN.name(), 4L}));
 		verify(jdbcTemplate).query(contains("ORDER BY open_reports DESC"), any(RowMapper.class),
-				aryEq(new Object[] { CommentReportStatus.OPEN.name(), 4L, 10, 0L }));
+				aryEq(new Object[]{CommentReportStatus.OPEN.name(), 4L, 10, 0L}));
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void retrieveCommentModerationLogsReturnsPagedAuditTrail() throws Exception
-	{
+	void retrieveCommentModerationLogsReturnsPagedAuditTrail() throws Exception {
 		var pageable = PageRequest.of(0, 5);
 		when(jdbcTemplate.queryForObject(contains("FROM blog_comment_moderation_log"), eq(Long.class),
 				any(Object[].class))).thenReturn(1L);
 		when(jdbcTemplate.query(contains("ORDER BY log.created_at DESC"), any(RowMapper.class), any(Object[].class)))
-				.thenAnswer(invocation ->
-				{
+				.thenAnswer(invocation -> {
 					RowMapper<CommentModerationLogResponse> mapper = invocation.getArgument(1);
 					stubModerationLogRow();
 					return List.of(mapper.mapRow(resultSet, 0));
@@ -193,7 +183,7 @@ class CommentGovernanceServiceTest
 		assertEquals(CommentStatus.PENDING, log.previousStatus());
 		assertEquals(CommentStatus.APPROVED, log.newStatus());
 		verify(jdbcTemplate).query(contains("log.action = ?"), any(RowMapper.class),
-				aryEq(new Object[] { 42L, CommentModerationAction.STATUS_CHANGED.name(), 5, 0L }));
+				aryEq(new Object[]{42L, CommentModerationAction.STATUS_CHANGED.name(), 5, 0L}));
 	}
 
 	private void stubReportRow() throws Exception

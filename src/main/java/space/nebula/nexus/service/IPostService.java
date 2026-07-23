@@ -17,9 +17,9 @@ import space.nebula.nexus.payload.response.BlogDiscoveryResponse;
 
 import java.util.List;
 
-public interface IPostService
-{
-	ApiResponse<PageResult<PostResponse>> searchPostsForAdmin(PostStatus status, Long categoryId, String keyword, Pageable pageable);
+public interface IPostService {
+	ApiResponse<PageResult<PostResponse>> searchPostsForAdmin(PostStatus status, Long categoryId, String keyword,
+			Pageable pageable);
 
 	ApiResponse<PostResponse> retrievePostById(Long id);
 
@@ -37,7 +37,8 @@ public interface IPostService
 	/**
 	 * Withdraws a pending post so its author can revise it.
 	 *
-	 * @param id post identifier
+	 * @param id
+	 *            post identifier
 	 * @return operation result
 	 */
 	ApiResponse<Void> withdrawFromReview(Long id);
@@ -50,8 +51,10 @@ public interface IPostService
 	/**
 	 * Approves a pending post for publication at a future time.
 	 *
-	 * @param id post identifier
-	 * @param request requested publication time
+	 * @param id
+	 *            post identifier
+	 * @param request
+	 *            requested publication time
 	 * @return operation result
 	 */
 	ApiResponse<Void> schedulePost(Long id, PostScheduleRequest request);
@@ -59,7 +62,8 @@ public interface IPostService
 	/**
 	 * Cancels a scheduled publication and returns the post to editorial review.
 	 *
-	 * @param id post identifier
+	 * @param id
+	 *            post identifier
 	 * @return operation result
 	 */
 	ApiResponse<Void> cancelScheduledPost(Long id);
@@ -67,8 +71,10 @@ public interface IPostService
 	/**
 	 * Removes a published post from public visibility with an audit reason.
 	 *
-	 * @param id post identifier
-	 * @param request archive reason
+	 * @param id
+	 *            post identifier
+	 * @param request
+	 *            archive reason
 	 * @return operation result
 	 */
 	ApiResponse<Void> archivePost(Long id, PostArchiveRequest request);
@@ -76,7 +82,8 @@ public interface IPostService
 	/**
 	 * Returns an archived post to draft status for revision and review.
 	 *
-	 * @param id post identifier
+	 * @param id
+	 *            post identifier
 	 * @return operation result
 	 */
 	ApiResponse<Void> restoreArchivedPost(Long id);
@@ -85,8 +92,10 @@ public interface IPostService
 	 * Publishes a bounded batch of scheduled posts whose publication time has
 	 * arrived.
 	 *
-	 * @param now publication cutoff
-	 * @param batchSize maximum number of posts to publish
+	 * @param now
+	 *            publication cutoff
+	 * @param batchSize
+	 *            maximum number of posts to publish
 	 * @return number of published posts
 	 */
 	int publishDueScheduledPosts(java.time.LocalDateTime now, int batchSize);

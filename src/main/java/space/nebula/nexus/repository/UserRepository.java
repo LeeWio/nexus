@@ -22,8 +22,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	 * Locks all active users assigned to a role so administrative invariants can be
 	 * checked without concurrent removal races.
 	 *
-	 * @param roleCode the role code
-	 * @param status the required account status
+	 * @param roleCode
+	 *            the role code
+	 * @param status
+	 *            the required account status
 	 * @return locked users assigned to the role
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -8,15 +8,18 @@ public interface RevokedTokenStore {
 	/**
 	 * Revokes a token for its remaining lifetime.
 	 *
-	 * @param token encoded access token
-	 * @param timeToLive remaining token lifetime
+	 * @param token
+	 *            encoded access token
+	 * @param timeToLive
+	 *            remaining token lifetime
 	 */
 	void revoke(String token, Duration timeToLive);
 
 	/**
 	 * Checks whether a token has been revoked.
 	 *
-	 * @param token encoded access token
+	 * @param token
+	 *            encoded access token
 	 * @return {@code true} if the token is revoked
 	 */
 	boolean isRevoked(String token);

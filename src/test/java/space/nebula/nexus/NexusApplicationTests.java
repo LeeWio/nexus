@@ -5,7 +5,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import space.nebula.nexus.repository.search.PostSearchRepository;
 
-@SpringBootTest(classes = {space.nebula.nexus.config.MockRedisConfig.class, space.nebula.nexus.config.MockRabbitMQConfig.class})
+@SpringBootTest(classes = {space.nebula.nexus.config.MockRedisConfig.class,
+		space.nebula.nexus.config.MockRabbitMQConfig.class})
 @org.springframework.test.context.ActiveProfiles("test")
 class NexusApplicationTests {
 

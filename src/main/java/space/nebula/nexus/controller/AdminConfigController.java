@@ -24,37 +24,32 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/configs")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class AdminConfigController
-{
+public class AdminConfigController {
 
 	private final IConfigService configService;
 
 	@GetMapping
 	@Operation(summary = "Get all configs", description = "Retrieve a full list of all system configurations.")
-	public ApiResponse<List<ConfigResponse>> getAllConfigs()
-	{
+	public ApiResponse<List<ConfigResponse>> getAllConfigs() {
 		return configService.getAllConfigs();
 	}
 
 	@PostMapping
 	@Operation(summary = "Create config", description = "Define a new system configuration key-value pair.")
-	public ApiResponse<ConfigResponse> createConfig(@Valid @RequestBody ConfigRequest request)
-	{
+	public ApiResponse<ConfigResponse> createConfig(@Valid @RequestBody ConfigRequest request) {
 		return configService.createConfig(request);
 	}
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update config", description = "Modify an existing system configuration.")
 	public ApiResponse<ConfigResponse> updateConfig(@Parameter(description = "Config ID") @PathVariable Long id,
-			@Valid @RequestBody ConfigRequest request)
-	{
+			@Valid @RequestBody ConfigRequest request) {
 		return configService.updateConfig(id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete config", description = "Permanently remove a system configuration.")
-	public ApiResponse<Void> deleteConfig(@Parameter(description = "Config ID") @PathVariable Long id)
-	{
+	public ApiResponse<Void> deleteConfig(@Parameter(description = "Config ID") @PathVariable Long id) {
 		return configService.deleteConfig(id);
 	}
 }

@@ -13,8 +13,7 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 import java.util.List;
 
 @Mapper(config = CentralMapperConfig.class)
-public interface MomentMapper
-{
+public interface MomentMapper {
 
 	@Mapping(target = "id", ignore = true)
 	@Mapping(target = "likesCount", ignore = true)

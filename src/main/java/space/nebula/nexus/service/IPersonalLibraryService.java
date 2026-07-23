@@ -16,10 +16,10 @@ import space.nebula.nexus.payload.response.ReadingHistoryResponse;
 import java.util.List;
 
 /**
- * Provides the authenticated user's favorites, reading history, and custom collections.
+ * Provides the authenticated user's favorites, reading history, and custom
+ * collections.
  */
-public interface IPersonalLibraryService
-{
+public interface IPersonalLibraryService {
 	/**
 	 * Returns the current user's aggregated personal content overview.
 	 *
@@ -30,7 +30,8 @@ public interface IPersonalLibraryService
 	/**
 	 * Returns published posts from categories followed by the current user.
 	 *
-	 * @param pageable pagination settings
+	 * @param pageable
+	 *            pagination settings
 	 * @return followed-category content feed
 	 */
 	ApiResponse<PageResult<PostDigestResponse>> getFollowingFeed(Pageable pageable);
@@ -45,7 +46,8 @@ public interface IPersonalLibraryService
 	/**
 	 * Follows a category for future recommendations.
 	 *
-	 * @param categoryId category identifier
+	 * @param categoryId
+	 *            category identifier
 	 * @return operation result
 	 */
 	ApiResponse<Void> followCategory(Long categoryId);
@@ -53,7 +55,8 @@ public interface IPersonalLibraryService
 	/**
 	 * Stops following a category.
 	 *
-	 * @param categoryId category identifier
+	 * @param categoryId
+	 *            category identifier
 	 * @return operation result
 	 */
 	ApiResponse<Void> unfollowCategory(Long categoryId);
@@ -61,7 +64,8 @@ public interface IPersonalLibraryService
 	/**
 	 * Hides a published post from future recommendations.
 	 *
-	 * @param postId post identifier
+	 * @param postId
+	 *            post identifier
 	 * @return operation result
 	 */
 	ApiResponse<Void> hideRecommendation(Long postId);
@@ -69,7 +73,8 @@ public interface IPersonalLibraryService
 	/**
 	 * Restores a post previously hidden from recommendations.
 	 *
-	 * @param postId post identifier
+	 * @param postId
+	 *            post identifier
 	 * @return operation result
 	 */
 	ApiResponse<Void> restoreRecommendation(Long postId);
@@ -87,7 +92,9 @@ public interface IPersonalLibraryService
 	/** Returns the current user's visible reading history. */
 	ApiResponse<PageResult<ReadingHistoryResponse>> getReadingHistory(Pageable pageable);
 
-	/** Records or replaces the current user's reading position for a published post. */
+	/**
+	 * Records or replaces the current user's reading position for a published post.
+	 */
 	ApiResponse<ReadingHistoryResponse> recordReadingProgress(Long postId, ReadingProgressRequest request);
 
 	/** Removes one post from the current user's reading history. */

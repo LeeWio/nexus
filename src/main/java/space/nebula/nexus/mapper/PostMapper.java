@@ -15,9 +15,8 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 
 import java.util.List;
 
-@Mapper(config = CentralMapperConfig.class, uses = { CategoryMapper.class, TagMapper.class, PostSeriesMapper.class })
-public interface PostMapper
-{
+@Mapper(config = CentralMapperConfig.class, uses = {CategoryMapper.class, TagMapper.class, PostSeriesMapper.class})
+public interface PostMapper {
 
 	@Mapping(target = "authorName", source = "author", qualifiedByName = "mapAuthorName")
 	@Mapping(target = "authorAvatar", source = "author.avatar")
@@ -73,8 +72,7 @@ public interface PostMapper
 	void updateEntity(@MappingTarget Post post, PostRequest request);
 
 	@Named("mapAuthorName")
-	default String mapAuthorName(User author)
-	{
+	default String mapAuthorName(User author) {
 		if (author == null)
 			return null;
 		return author.getNickname() != null ? author.getNickname() : author.getUsername();

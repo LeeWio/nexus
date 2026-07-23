@@ -23,37 +23,32 @@ import java.util.List;
 @RequestMapping("/api/v1/admin/tags")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class TagController
-{
+public class TagController {
 
 	private final ITagService tagService;
 
 	@GetMapping
 	@Operation(summary = "Get all tags", description = "Retrieve a comprehensive list of all blog tags.")
-	public ApiResponse<List<TagResponse>> getAllTags()
-	{
+	public ApiResponse<List<TagResponse>> getAllTags() {
 		return tagService.getAllTags();
 	}
 
 	@PostMapping
 	@Operation(summary = "Create tag", description = "Add a new tag keyword with a unique slug.")
-	public ApiResponse<TagResponse> createTag(@Valid @RequestBody TagRequest request)
-	{
+	public ApiResponse<TagResponse> createTag(@Valid @RequestBody TagRequest request) {
 		return tagService.createTag(request);
 	}
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update tag", description = "Modify an existing tag's name or slug.")
 	public ApiResponse<TagResponse> updateTag(@Parameter(description = "Tag ID") @PathVariable Long id,
-			@Valid @RequestBody TagRequest request)
-	{
+			@Valid @RequestBody TagRequest request) {
 		return tagService.updateTag(id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete tag", description = "Permanently remove a tag from the system.")
-	public ApiResponse<Void> deleteTag(@Parameter(description = "Tag ID") @PathVariable Long id)
-	{
+	public ApiResponse<Void> deleteTag(@Parameter(description = "Tag ID") @PathVariable Long id) {
 		return tagService.deleteTag(id);
 	}
 }

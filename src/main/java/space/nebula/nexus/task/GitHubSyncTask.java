@@ -10,8 +10,7 @@ import space.nebula.nexus.service.IGitHubService;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class GitHubSyncTask
-{
+public class GitHubSyncTask {
 
 	private final IGitHubService githubService;
 
@@ -20,15 +19,11 @@ public class GitHubSyncTask
 	 */
 	@Scheduled(cron = "0 0 0/12 * * ?")
 	@SchedulerLock(name = "githubMetricsSync", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
-	public void syncGitHubMetrics()
-	{
+	public void syncGitHubMetrics() {
 		log.info("Commencing scheduled GitHub metrics synchronization...");
-		try
-		{
+		try {
 			githubService.synchronizeProjectMetrics();
-		}
-		catch (Exception e)
-		{
+		} catch (Exception e) {
 			log.error("Scheduled GitHub synchronization failed", e);
 		}
 	}

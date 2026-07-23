@@ -8,21 +8,21 @@ import java.util.List;
 /**
  * User-controlled recommendation preferences.
  *
- * @param followedCategories explicitly followed categories
- * @param hiddenPostCount number of posts hidden from recommendations
+ * @param followedCategories
+ *            explicitly followed categories
+ * @param hiddenPostCount
+ *            number of posts hidden from recommendations
  */
 @Schema(description = "User-controlled recommendation preferences")
 public record ContentPreferenceResponse(
 		@Schema(description = "Explicitly followed categories") List<CategoryResponse> followedCategories,
-		@Schema(description = "Number of hidden recommendation posts") long hiddenPostCount) implements Serializable
-{
+		@Schema(description = "Number of hidden recommendation posts") long hiddenPostCount) implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Creates an immutable preference response.
 	 */
-	public ContentPreferenceResponse
-	{
+	public ContentPreferenceResponse {
 		followedCategories = List.copyOf(followedCategories);
 	}
 }

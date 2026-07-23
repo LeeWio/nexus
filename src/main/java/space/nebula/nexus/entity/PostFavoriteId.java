@@ -19,8 +19,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 @Embeddable
-public class PostFavoriteId implements Serializable
-{
+public class PostFavoriteId implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	@Column(name = "post_id")

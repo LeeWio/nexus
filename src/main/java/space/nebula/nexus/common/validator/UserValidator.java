@@ -21,7 +21,9 @@ public class UserValidator {
 
 	private final UserRepository userRepository;
 
-	// Regex for professional password: at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char (supporting periods, underscores, hyphens, and hashes)
+	// Regex for professional password: at least 8 chars, 1 uppercase, 1 lowercase,
+	// 1 number, 1 special char (supporting periods, underscores, hyphens, and
+	// hashes)
 	private static final String PASSWORD_PATTERN = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&._\\-#])[A-Za-z\\d@$!%*?&._\\-#]{8,}$";
 
 	/**
@@ -36,9 +38,9 @@ public class UserValidator {
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Email address is invalid"));
 
 		// 2. Password strength validation
-		Assert.isTrue(ReUtil.isMatch(PASSWORD_PATTERN, request.password()),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Password must be at least 8 characters and include upper-case letters, lower-case letters, a number, and a special character"));
+		Assert.isTrue(ReUtil.isMatch(PASSWORD_PATTERN, request.password()), () -> new BusinessException(
+				BusinessCode.BAD_REQUEST,
+				"Password must be at least 8 characters and include upper-case letters, lower-case letters, a number, and a special character"));
 
 		// 3. Uniqueness checks
 		Assert.isFalse(userRepository.existsByUsername(request.username()),

@@ -27,8 +27,7 @@ import java.util.Optional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class SystemInitializer
-{
+public class SystemInitializer {
 
 	private final UserRepository userRepository;
 	private final RoleRepository roleRepository;
@@ -37,24 +36,21 @@ public class SystemInitializer
 
 	@EventListener(ApplicationReadyEvent.class)
 	@Transactional
-	public void init()
-	{
+	public void init() {
 		log.info("Checking system initialization...");
 
 		// 1. Ensure ROLE_ADMIN and ROLE_USER exist
 		Role adminRole = ensureRole("ROLE_ADMIN", "Super Administrator", "Has full access to all system functions");
 		ensureRole("ROLE_USER", "Standard User", "Default role for registered members");
 
-		if (!bootstrapAdminProperties.isEnabled())
-		{
+		if (!bootstrapAdminProperties.isEnabled()) {
 			return;
 		}
 		validateBootstrapConfiguration();
 
 		String adminUsername = bootstrapAdminProperties.getUsername();
 		Optional<User> adminOpt = userRepository.findByUsername(adminUsername);
-		if (adminOpt.isEmpty())
-		{
+		if (adminOpt.isEmpty()) {
 			log.warn("Bootstrapping administrator account: {}", adminUsername);
 			User admin = new User();
 			admin.setUsername(adminUsername);
@@ -65,27 +61,21 @@ public class SystemInitializer
 			admin.setRoles(new HashSet<>(Collections.singletonList(adminRole)));
 			userRepository.save(admin);
 			log.info("Default administrator initialized successfully.");
-		}
-		else
-		{
+		} else {
 			log.info("Bootstrap administrator '{}' already exists; leaving status and roles unchanged", adminUsername);
 		}
 	}
 
-	private void validateBootstrapConfiguration()
-	{
+	private void validateBootstrapConfiguration() {
 		if (StrUtil.hasBlank(bootstrapAdminProperties.getUsername(), bootstrapAdminProperties.getEmail(),
-				bootstrapAdminProperties.getPassword()) || bootstrapAdminProperties.getPassword().length() < 12)
-		{
+				bootstrapAdminProperties.getPassword()) || bootstrapAdminProperties.getPassword().length() < 12) {
 			throw new BusinessException(BusinessCode.ERROR,
 					"Bootstrap administrator requires username, email and a password of at least 12 characters");
 		}
 	}
 
-	private Role ensureRole(String code, String name, String description)
-	{
-		return roleRepository.findByCode(code).orElseGet(() ->
-		{
+	private Role ensureRole(String code, String name, String description) {
+		return roleRepository.findByCode(code).orElseGet(() -> {
 			log.info("Initializing role: {}", code);
 			Role role = new Role();
 			role.setCode(code);

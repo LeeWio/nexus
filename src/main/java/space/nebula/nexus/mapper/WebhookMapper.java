@@ -35,17 +35,16 @@ public interface WebhookMapper {
 
 	@Named("eventsToString")
 	default String eventsToString(List<WebhookEvent> events) {
-		if (events == null || events.isEmpty()) return "";
+		if (events == null || events.isEmpty())
+			return "";
 		return events.stream().map(Enum::name).collect(Collectors.joining(","));
 	}
 
 	@Named("stringToEvents")
 	default List<WebhookEvent> stringToEvents(String events) {
-		if (StrUtil.isBlank(events)) return List.of();
-		return Arrays.stream(events.split(","))
-				.map(String::trim)
-				.filter(StrUtil::isNotBlank)
-				.map(WebhookEvent::valueOf)
+		if (StrUtil.isBlank(events))
+			return List.of();
+		return Arrays.stream(events.split(",")).map(String::trim).filter(StrUtil::isNotBlank).map(WebhookEvent::valueOf)
 				.collect(Collectors.toList());
 	}
 }

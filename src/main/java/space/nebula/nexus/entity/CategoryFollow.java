@@ -15,11 +15,9 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "blog_category_follow",
-		uniqueConstraints = @UniqueConstraint(name = "uk_category_follow_user_category",
-				columnNames = { "user_id", "category_id" }))
-public class CategoryFollow extends BaseEntity
-{
+@Table(name = "blog_category_follow", uniqueConstraints = @UniqueConstraint(name = "uk_category_follow_user_category", columnNames = {
+		"user_id", "category_id"}))
+public class CategoryFollow extends BaseEntity {
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;

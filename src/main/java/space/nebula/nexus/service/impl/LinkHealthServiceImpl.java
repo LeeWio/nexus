@@ -37,165 +37,164 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RequiredArgsConstructor
 public class LinkHealthServiceImpl implements ILinkHealthService {
 
-    private final PostRepository postRepository;
-    private final FriendLinkRepository friendLinkRepository;
-    private final LinkCheckLogRepository linkCheckLogRepository;
-    private final INotificationService notificationService;
-    private final UserRepository userRepository;
-    private final Executor outboundExecutor;
-    private final OutboundUrlValidator outboundUrlValidator;
-    private final LinkHealthProperties linkHealthProperties;
+	private final PostRepository postRepository;
+	private final FriendLinkRepository friendLinkRepository;
+	private final LinkCheckLogRepository linkCheckLogRepository;
+	private final INotificationService notificationService;
+	private final UserRepository userRepository;
+	private final Executor outboundExecutor;
+	private final OutboundUrlValidator outboundUrlValidator;
+	private final LinkHealthProperties linkHealthProperties;
 
-    // Basic regex to find URLs in Markdown: [text](url) or directly http://...
-    private static final String URL_REGEX = "https?://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,}(?:/[\\w\\.\\-\\?%&=\\+\\!]*)?";
+	// Basic regex to find URLs in Markdown: [text](url) or directly http://...
+	private static final String URL_REGEX = "https?://[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z]{2,}(?:/[\\w\\.\\-\\?%&=\\+\\!]*)?";
 
-    private record LinkCheckResult(
-            String url,
-            String sourceType,
-            Long sourceId,
-            String sourceTitle,
-            Integer status,
-            boolean isBroken,
-            String error
-    ) {}
+	private record LinkCheckResult(String url, String sourceType, Long sourceId, String sourceTitle, Integer status,
+			boolean isBroken, String error) {
+	}
 
-    @Override
-    public void runFullScan() {
-        log.info("Starting full external link health check scan...");
+	@Override
+	public void runFullScan() {
+		log.info("Starting full external link health check scan...");
 
-        AtomicInteger brokenCount = new AtomicInteger(0);
-        int pageNumber = 0;
-        org.springframework.data.domain.Page<FriendLink> friendPage;
-        do {
-            friendPage = friendLinkRepository.findAll(PageRequest.of(pageNumber++, linkHealthProperties.getFriendPageSize()));
-            processBatch(friendPage.getContent().stream()
-                    .map(link -> new LinkTarget(link.getUrl(), "FRIEND_LINK", link.getId(), link.getName())).toList(), brokenCount);
-        } while (friendPage.hasNext());
+		AtomicInteger brokenCount = new AtomicInteger(0);
+		int pageNumber = 0;
+		org.springframework.data.domain.Page<FriendLink> friendPage;
+		do {
+			friendPage = friendLinkRepository
+					.findAll(PageRequest.of(pageNumber++, linkHealthProperties.getFriendPageSize()));
+			processBatch(friendPage.getContent().stream()
+					.map(link -> new LinkTarget(link.getUrl(), "FRIEND_LINK", link.getId(), link.getName())).toList(),
+					brokenCount);
+		} while (friendPage.hasNext());
 
-        pageNumber = 0;
-        org.springframework.data.domain.Page<Post> postPage;
-        do {
-            postPage = postRepository.findScanPageByStatus(PostStatus.PUBLISHED,
-                    PageRequest.of(pageNumber++, linkHealthProperties.getPostPageSize()));
-            List<LinkTarget> targets = postPage.getContent().stream()
-                    .flatMap(post -> extractLinks(post.getContent()).stream()
-                            .map(url -> new LinkTarget(url, "POST", post.getId(), post.getTitle())))
-                    .toList();
-            processBatch(targets, brokenCount);
-        } while (postPage.hasNext());
+		pageNumber = 0;
+		org.springframework.data.domain.Page<Post> postPage;
+		do {
+			postPage = postRepository.findScanPageByStatus(PostStatus.PUBLISHED,
+					PageRequest.of(pageNumber++, linkHealthProperties.getPostPageSize()));
+			List<LinkTarget> targets = postPage.getContent().stream().flatMap(post -> extractLinks(post.getContent())
+					.stream().map(url -> new LinkTarget(url, "POST", post.getId(), post.getTitle()))).toList();
+			processBatch(targets, brokenCount);
+		} while (postPage.hasNext());
 
-        int found = brokenCount.get();
-        log.info("Full link scan completed. Found {} broken links.", found);
-        if (found > 0) notifyAdmins(found);
-    }
+		int found = brokenCount.get();
+		log.info("Full link scan completed. Found {} broken links.", found);
+		if (found > 0)
+			notifyAdmins(found);
+	}
 
-    private record LinkTarget(String url, String sourceType, Long sourceId, String sourceTitle) {}
+	private record LinkTarget(String url, String sourceType, Long sourceId, String sourceTitle) {
+	}
 
-    private void processBatch(List<LinkTarget> targets, AtomicInteger brokenCount) {
-        if (targets.isEmpty()) return;
-        List<CompletableFuture<LinkCheckResult>> futures = targets.stream()
-                .map(target -> checkLinkAsync(target.url(), target.sourceType(), target.sourceId(), target.sourceTitle(), brokenCount))
-                .toList();
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-        saveResultsInBatch(futures.stream().map(CompletableFuture::join).toList());
-    }
+	private void processBatch(List<LinkTarget> targets, AtomicInteger brokenCount) {
+		if (targets.isEmpty())
+			return;
+		List<CompletableFuture<LinkCheckResult>> futures = targets.stream().map(target -> checkLinkAsync(target.url(),
+				target.sourceType(), target.sourceId(), target.sourceTitle(), brokenCount)).toList();
+		CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+		saveResultsInBatch(futures.stream().map(CompletableFuture::join).toList());
+	}
 
-    @Override
-    @Transactional(readOnly = true)
-    public ApiResponse<PageResult<LinkCheckLog>> getBrokenLinks(Pageable pageable) {
-        return ApiResponse.success(PageResult.of(linkCheckLogRepository.findByIsBrokenTrue(pageable)));
-    }
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<LinkCheckLog>> getBrokenLinks(Pageable pageable) {
+		return ApiResponse.success(PageResult.of(linkCheckLogRepository.findByIsBrokenTrue(pageable)));
+	}
 
-    @Override
-    @Transactional
-    public ApiResponse<Void> clearLogs() {
-        linkCheckLogRepository.deleteAll();
-        return ApiResponse.success("Health check logs cleared", null);
-    }
+	@Override
+	@Transactional
+	public ApiResponse<Void> clearLogs() {
+		linkCheckLogRepository.deleteAll();
+		return ApiResponse.success("Health check logs cleared", null);
+	}
 
-    private void notifyAdmins(int brokenCount) {
-        userRepository.findAll().stream()
-            .filter(u -> u.getRoles().stream().anyMatch(r -> "ROLE_ADMIN".equals(r.getCode())))
-            .forEach(admin -> notificationService.send(
-                admin,
-                "Broken Links Detected",
-                String.format("The latest link health check found %d broken links in your content. Please review them in the admin panel.", brokenCount),
-                "HEALTH_CHECK",
-                "/admin/content/links"
-            ));
-    }
+	private void notifyAdmins(int brokenCount) {
+		userRepository.findAll().stream()
+				.filter(u -> u.getRoles().stream().anyMatch(r -> "ROLE_ADMIN".equals(r.getCode())))
+				.forEach(admin -> notificationService.send(admin, "Broken Links Detected", String.format(
+						"The latest link health check found %d broken links in your content. Please review them in the admin panel.",
+						brokenCount), "HEALTH_CHECK", "/admin/content/links"));
+	}
 
-    private CompletableFuture<LinkCheckResult> checkLinkAsync(String url, String sourceType, Long sourceId, String sourceTitle, AtomicInteger brokenCount) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                outboundUrlValidator.validate(url);
-                // 1. Try HEAD first (fast, minimal bandwidth)
-                int status;
-                try (HttpResponse response = HttpUtil.createRequest(cn.hutool.http.Method.HEAD, url).setFollowRedirects(false)
-                        .timeout(requestTimeoutMillis()).execute()) {
-                    status = response.getStatus();
-                }
-                if (status == 405 || status == 501) {
-                    status = executeGet(url);
-                }
-                boolean isBroken = status >= 400;
-                if (isBroken) brokenCount.incrementAndGet();
-                return new LinkCheckResult(url, sourceType, sourceId, sourceTitle, status, isBroken, null);
-            } catch (Exception e) {
-                try {
-                    // 2. Fall back to GET on any exception
-                    outboundUrlValidator.validate(url);
-                    int status = executeGet(url);
-                    boolean isBroken = status >= 400;
-                    if (isBroken) brokenCount.incrementAndGet();
-                    return new LinkCheckResult(url, sourceType, sourceId, sourceTitle, status, isBroken, null);
-                } catch (Exception ex) {
-                    brokenCount.incrementAndGet();
-                    return new LinkCheckResult(url, sourceType, sourceId, sourceTitle, null, true, ex.getMessage());
-                }
-            }
-        }, outboundExecutor);
-    }
+	private CompletableFuture<LinkCheckResult> checkLinkAsync(String url, String sourceType, Long sourceId,
+			String sourceTitle, AtomicInteger brokenCount) {
+		return CompletableFuture.supplyAsync(() -> {
+			try {
+				outboundUrlValidator.validate(url);
+				// 1. Try HEAD first (fast, minimal bandwidth)
+				int status;
+				try (HttpResponse response = HttpUtil.createRequest(cn.hutool.http.Method.HEAD, url)
+						.setFollowRedirects(false).timeout(requestTimeoutMillis()).execute()) {
+					status = response.getStatus();
+				}
+				if (status == 405 || status == 501) {
+					status = executeGet(url);
+				}
+				boolean isBroken = status >= 400;
+				if (isBroken)
+					brokenCount.incrementAndGet();
+				return new LinkCheckResult(url, sourceType, sourceId, sourceTitle, status, isBroken, null);
+			} catch (Exception e) {
+				try {
+					// 2. Fall back to GET on any exception
+					outboundUrlValidator.validate(url);
+					int status = executeGet(url);
+					boolean isBroken = status >= 400;
+					if (isBroken)
+						brokenCount.incrementAndGet();
+					return new LinkCheckResult(url, sourceType, sourceId, sourceTitle, status, isBroken, null);
+				} catch (Exception ex) {
+					brokenCount.incrementAndGet();
+					return new LinkCheckResult(url, sourceType, sourceId, sourceTitle, null, true, ex.getMessage());
+				}
+			}
+		}, outboundExecutor);
+	}
 
-    private int executeGet(String url) {
-        try (HttpResponse response = HttpUtil.createGet(url).setFollowRedirects(false).timeout(requestTimeoutMillis()).execute()) {
-            return response.getStatus();
-        }
-    }
+	private int executeGet(String url) {
+		try (HttpResponse response = HttpUtil.createGet(url).setFollowRedirects(false).timeout(requestTimeoutMillis())
+				.execute()) {
+			return response.getStatus();
+		}
+	}
 
-    private int requestTimeoutMillis() {
-        return Math.toIntExact(linkHealthProperties.getRequestTimeout().toMillis());
-    }
+	private int requestTimeoutMillis() {
+		return Math.toIntExact(linkHealthProperties.getRequestTimeout().toMillis());
+	}
 
-    private void saveResultsInBatch(List<LinkCheckResult> results) {
-        log.info("Persisting {} link health check logs...", results.size());
-        for (LinkCheckResult result : results) {
-            try {
-                LinkCheckLog logEntry = linkCheckLogRepository.findByUrlAndSourceTypeAndSourceId(result.url(), result.sourceType(), result.sourceId())
-                        .orElse(new LinkCheckLog());
-                
-                logEntry.setUrl(result.url());
-                logEntry.setSourceType(result.sourceType());
-                logEntry.setSourceId(result.sourceId());
-                logEntry.setSourceTitle(result.sourceTitle());
-                logEntry.setStatusCode(result.status());
-                logEntry.setIsBroken(result.isBroken());
-                logEntry.setErrorMessage(StrUtil.maxLength(result.error(), 450));
-                
-                linkCheckLogRepository.save(logEntry);
-                
-                if (result.isBroken()) {
-                    log.warn("Broken link detected in {}: {} -> {}", result.sourceType(), result.sourceTitle(), result.url());
-                }
-            } catch (Exception e) {
-                log.error("Failed to save health check log for url: {}", result.url(), e);
-            }
-        }
-    }
+	private void saveResultsInBatch(List<LinkCheckResult> results) {
+		log.info("Persisting {} link health check logs...", results.size());
+		for (LinkCheckResult result : results) {
+			try {
+				LinkCheckLog logEntry = linkCheckLogRepository
+						.findByUrlAndSourceTypeAndSourceId(result.url(), result.sourceType(), result.sourceId())
+						.orElse(new LinkCheckLog());
 
-    private Set<String> extractLinks(String content) {
-        if (StrUtil.isBlank(content)) return new HashSet<>();
-        List<String> urls = ReUtil.findAll(URL_REGEX, content, 0);
-        return new HashSet<>(urls);
-    }
+				logEntry.setUrl(result.url());
+				logEntry.setSourceType(result.sourceType());
+				logEntry.setSourceId(result.sourceId());
+				logEntry.setSourceTitle(result.sourceTitle());
+				logEntry.setStatusCode(result.status());
+				logEntry.setIsBroken(result.isBroken());
+				logEntry.setErrorMessage(StrUtil.maxLength(result.error(), 450));
+
+				linkCheckLogRepository.save(logEntry);
+
+				if (result.isBroken()) {
+					log.warn("Broken link detected in {}: {} -> {}", result.sourceType(), result.sourceTitle(),
+							result.url());
+				}
+			} catch (Exception e) {
+				log.error("Failed to save health check log for url: {}", result.url(), e);
+			}
+		}
+	}
+
+	private Set<String> extractLinks(String content) {
+		if (StrUtil.isBlank(content))
+			return new HashSet<>();
+		List<String> urls = ReUtil.findAll(URL_REGEX, content, 0);
+		return new HashSet<>(urls);
+	}
 }

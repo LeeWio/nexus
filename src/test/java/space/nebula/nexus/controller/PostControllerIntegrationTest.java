@@ -28,7 +28,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(classes = {space.nebula.nexus.config.MockRedisConfig.class, space.nebula.nexus.config.MockRabbitMQConfig.class})
+@SpringBootTest(classes = {space.nebula.nexus.config.MockRedisConfig.class,
+		space.nebula.nexus.config.MockRabbitMQConfig.class})
 @org.springframework.test.context.ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Transactional
@@ -77,7 +78,8 @@ public class PostControllerIntegrationTest {
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testCreateAndGetPost() throws Exception {
 		PostRequest request = new PostRequest("Test Post Title", "test-post-slug", null, "Summary of test post",
-				"Content of test post", null, PostStatus.PUBLISHED, false, categoryId, null, null, null, new HashSet<>());
+				"Content of test post", null, PostStatus.PUBLISHED, false, categoryId, null, null, null,
+				new HashSet<>());
 
 		// 1. Create Post
 		mockMvc.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
@@ -89,27 +91,25 @@ public class PostControllerIntegrationTest {
 		mockMvc.perform(get("/api/v1/public/blog/posts").param("page", "1").param("size", "10"))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.list").isArray());
 
-		// 3. Get curated prominent posts without forcing the frontend to page through all posts.
+		// 3. Get curated prominent posts without forcing the frontend to page through
+		// all posts.
 		mockMvc.perform(get("/api/v1/public/blog/posts/featured").param("page", "1").param("size", "10"))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.list").isArray());
 
 		// 4. Get archive and facet metadata for browse surfaces.
 		mockMvc.perform(get("/api/v1/public/blog/archive").param("page", "1").param("size", "10"))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.list").isArray());
-		mockMvc.perform(get("/api/v1/public/blog/facets"))
-				.andExpect(status().isOk())
+		mockMvc.perform(get("/api/v1/public/blog/facets")).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.totalPublishedCount").isNumber())
-				.andExpect(jsonPath("$.data.categories").isArray())
-				.andExpect(jsonPath("$.data.tags").isArray())
-				.andExpect(jsonPath("$.data.archives").isArray())
-				.andExpect(jsonPath("$.data.contentTypes").isArray());
+				.andExpect(jsonPath("$.data.categories").isArray()).andExpect(jsonPath("$.data.tags").isArray())
+				.andExpect(jsonPath("$.data.archives").isArray()).andExpect(jsonPath("$.data.contentTypes").isArray());
 	}
 
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testUpdatePost() throws Exception {
-		PostRequest createRequest = new PostRequest("Original Title", "original-slug", null, "Summary", "Content",
-				null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
+		PostRequest createRequest = new PostRequest("Original Title", "original-slug", null, "Summary", "Content", null,
+				PostStatus.DRAFT, false, categoryId, null, null, null, null);
 
 		String response = mockMvc
 				.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
@@ -132,41 +132,32 @@ public class PostControllerIntegrationTest {
 	public void testCompleteEditorialLifecycle() throws Exception {
 		PostRequest createRequest = new PostRequest("Lifecycle Post", "lifecycle-post", null, "Summary", "Content",
 				null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
-		String response = mockMvc.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(createRequest))).andReturn().getResponse().getContentAsString();
+		String response = mockMvc
+				.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(createRequest)))
+				.andReturn().getResponse().getContentAsString();
 		Long postId = objectMapper.readTree(response).get("data").get("id").asLong();
 
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/submit"))
-				.andExpect(status().isOk());
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/withdraw"))
-				.andExpect(status().isOk());
-		mockMvc.perform(get("/api/v1/admin/posts/" + postId))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("DRAFT"));
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/submit")).andExpect(status().isOk());
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/withdraw")).andExpect(status().isOk());
+		mockMvc.perform(get("/api/v1/admin/posts/" + postId)).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.status").value("DRAFT"));
 
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/submit"))
-				.andExpect(status().isOk());
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/review")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"approved\":true,\"reviewComment\":null}"))
-				.andExpect(status().isOk());
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/submit")).andExpect(status().isOk());
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/review").contentType(MediaType.APPLICATION_JSON)
+				.content("{\"approved\":true,\"reviewComment\":null}")).andExpect(status().isOk());
 
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/archive")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"reason\":\"Requires substantial revision\"}"))
-				.andExpect(status().isOk());
-		mockMvc.perform(get("/api/v1/admin/posts/" + postId))
-				.andExpect(status().isOk())
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/archive").contentType(MediaType.APPLICATION_JSON)
+				.content("{\"reason\":\"Requires substantial revision\"}")).andExpect(status().isOk());
+		mockMvc.perform(get("/api/v1/admin/posts/" + postId)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.status").value("ARCHIVED"))
 				.andExpect(jsonPath("$.data.archiveReason").value("Requires substantial revision"))
 				.andExpect(jsonPath("$.data.archivedByName").value("admin"));
 
-		mockMvc.perform(get("/api/v1/public/blog/posts/lifecycle-post"))
-				.andExpect(status().isForbidden());
+		mockMvc.perform(get("/api/v1/public/blog/posts/lifecycle-post")).andExpect(status().isForbidden());
 
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/restore"))
-				.andExpect(status().isOk());
-		mockMvc.perform(get("/api/v1/admin/posts/" + postId))
-				.andExpect(status().isOk())
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/restore")).andExpect(status().isOk());
+		mockMvc.perform(get("/api/v1/admin/posts/" + postId)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.status").value("DRAFT"))
 				.andExpect(jsonPath("$.data.archiveReason").doesNotExist())
 				.andExpect(jsonPath("$.data.publishedAt").doesNotExist());

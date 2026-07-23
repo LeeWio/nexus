@@ -16,8 +16,7 @@ import org.hibernate.annotations.SQLRestriction;
 @Table(name = "blog_tag")
 @SQLDelete(sql = "UPDATE blog_tag SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class Tag extends BaseEntity
-{
+public class Tag extends BaseEntity {
 
 	@Column(nullable = false, unique = true, length = 50)
 	private String name;

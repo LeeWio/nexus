@@ -27,8 +27,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ConfigServiceImpl implements IConfigService
-{
+public class ConfigServiceImpl implements IConfigService {
 
 	private final ConfigRepository configRepository;
 	private final ConfigMapper configMapper;
@@ -37,24 +36,21 @@ public class ConfigServiceImpl implements IConfigService
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.SYS_CONFIG, key = "'all'", sync = true)
-	public ApiResponse<List<ConfigResponse>> getAllConfigs()
-	{
+	public ApiResponse<List<ConfigResponse>> getAllConfigs() {
 		return ApiResponse.success(configMapper.toResponseList(configRepository.findAll()));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.SYS_CONFIG, key = CacheConstants.PUBLIC_CONFIGS_KEY, sync = true)
-	public ApiResponse<List<ConfigResponse>> getPublicConfigs()
-	{
+	public ApiResponse<List<ConfigResponse>> getPublicConfigs() {
 		return ApiResponse.success(configMapper.toResponseList(configRepository.findByIsPublicTrue()));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.SYS_CONFIG, key = "#configKey", sync = true)
-	public ApiResponse<ConfigResponse> getConfigByKey(String configKey)
-	{
+	public ApiResponse<ConfigResponse> getConfigByKey(String configKey) {
 		return configRepository.findByConfigKey(configKey)
 				.map(config -> ApiResponse.success(configMapper.toResponse(config))).orElseThrow(
 						() -> new BusinessException(BusinessCode.NOT_FOUND, "Config not found with key: " + configKey));
@@ -63,9 +59,8 @@ public class ConfigServiceImpl implements IConfigService
 	@Override
 	@Transactional
 	@LogOperation("Create Config")
-	@CacheEvict(value = { CacheConstants.SYS_CONFIG, CacheConstants.SEO }, allEntries = true)
-	public ApiResponse<ConfigResponse> createConfig(ConfigRequest request)
-	{
+	@CacheEvict(value = {CacheConstants.SYS_CONFIG, CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<ConfigResponse> createConfig(ConfigRequest request) {
 		Assert.isFalse(configRepository.existsByConfigKey(request.configKey()),
 				() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Config key already exists"));
 
@@ -81,16 +76,14 @@ public class ConfigServiceImpl implements IConfigService
 	@Override
 	@Transactional
 	@LogOperation("Update Config")
-	@CacheEvict(value = { CacheConstants.SYS_CONFIG, CacheConstants.SEO }, allEntries = true)
-	public ApiResponse<ConfigResponse> updateConfig(Long id, ConfigRequest request)
-	{
+	@CacheEvict(value = {CacheConstants.SYS_CONFIG, CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<ConfigResponse> updateConfig(Long id, ConfigRequest request) {
 		Config config = configRepository.findById(id)
 				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Config not found"));
 
 		String oldKey = config.getConfigKey();
 
-		if (!StrUtil.equals(oldKey, request.configKey()))
-		{
+		if (!StrUtil.equals(oldKey, request.configKey())) {
 			Assert.isFalse(configRepository.existsByConfigKey(request.configKey()),
 					() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Config key already exists"));
 		}
@@ -105,8 +98,7 @@ public class ConfigServiceImpl implements IConfigService
 		log.info("System configuration updated: {}", config.getConfigKey());
 
 		eventPublisher.publishEvent(new ConfigChangedEvent(this, request.configKey(), false));
-		if (!StrUtil.equals(oldKey, request.configKey()))
-		{
+		if (!StrUtil.equals(oldKey, request.configKey())) {
 			eventPublisher.publishEvent(new ConfigChangedEvent(this, oldKey, true));
 		}
 
@@ -116,9 +108,8 @@ public class ConfigServiceImpl implements IConfigService
 	@Override
 	@Transactional
 	@LogOperation("Delete Config")
-	@CacheEvict(value = { CacheConstants.SYS_CONFIG, CacheConstants.SEO }, allEntries = true)
-	public ApiResponse<Void> deleteConfig(Long id)
-	{
+	@CacheEvict(value = {CacheConstants.SYS_CONFIG, CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<Void> deleteConfig(Long id) {
 		Config config = configRepository.findById(id)
 				.orElseThrow(() -> new BusinessException(BusinessCode.NOT_FOUND, "Config not found"));
 

@@ -6,8 +6,7 @@ import space.nebula.nexus.payload.response.WebhookResponse;
 
 import java.util.List;
 
-public interface IWebhookService
-{
+public interface IWebhookService {
 
 	ApiResponse<List<WebhookResponse>> retrieveAllWebhooks();
 
@@ -19,5 +18,6 @@ public interface IWebhookService
 
 	ApiResponse<Void> triggerTestWebhook(Long id);
 
-	ApiResponse<space.nebula.nexus.payload.response.PageResult<space.nebula.nexus.entity.WebhookLog>> retrieveWebhookLogs(Long id, org.springframework.data.domain.Pageable pageable);
+	ApiResponse<space.nebula.nexus.payload.response.PageResult<space.nebula.nexus.entity.WebhookLog>> retrieveWebhookLogs(
+			Long id, org.springframework.data.domain.Pageable pageable);
 }

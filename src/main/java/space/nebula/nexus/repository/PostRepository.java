@@ -45,8 +45,7 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	@EntityGraph(attributePaths = {"category", "author"})
 	@Query("SELECT p FROM Post p WHERE p.status = :status "
 			+ "ORDER BY CASE WHEN p.isFeatured = true THEN 1 ELSE 0 END DESC, "
-			+ "(p.favoritesCount * 6 + p.likesCount * 4 + p.views) DESC, "
-			+ "p.publishedAt DESC, p.id DESC")
+			+ "(p.favoritesCount * 6 + p.likesCount * 4 + p.views) DESC, " + "p.publishedAt DESC, p.id DESC")
 	Page<Post> findProminentPublicPosts(PostStatus status, Pageable pageable);
 
 	/**
@@ -55,11 +54,13 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	@EntityGraph(attributePaths = {"category", "author"})
 	@Query("SELECT p FROM Post p WHERE p.status = :status "
 			+ "ORDER BY CASE WHEN p.isFeatured = true THEN 1 ELSE 0 END DESC, "
-			+ "(p.favoritesCount * 6 + p.likesCount * 4 + p.views) DESC, "
-			+ "p.publishedAt DESC, p.id DESC")
+			+ "(p.favoritesCount * 6 + p.likesCount * 4 + p.views) DESC, " + "p.publishedAt DESC, p.id DESC")
 	List<Post> findDiscoveryCandidates(PostStatus status, Pageable pageable);
 
-	/** Returns lightweight post pages for background scans without collection fetch joins. */
+	/**
+	 * Returns lightweight post pages for background scans without collection fetch
+	 * joins.
+	 */
 	@Query("SELECT p FROM Post p WHERE p.status = :status ORDER BY p.id")
 	Page<Post> findScanPageByStatus(PostStatus status, Pageable pageable);
 
@@ -69,7 +70,8 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	/**
 	 * Returns a post with the relationships required by publication notifications.
 	 *
-	 * @param id post identifier
+	 * @param id
+	 *            post identifier
 	 * @return post with category and author loaded
 	 */
 	@EntityGraph(attributePaths = {"category", "author"})
@@ -79,9 +81,12 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	/**
 	 * Returns published posts from categories explicitly followed by a user.
 	 *
-	 * @param userId user identifier
-	 * @param status required post status
-	 * @param pageable pagination settings
+	 * @param userId
+	 *            user identifier
+	 * @param status
+	 *            required post status
+	 * @param pageable
+	 *            pagination settings
 	 * @return followed-category post page
 	 */
 	@EntityGraph(attributePaths = {"category", "author"})
@@ -94,10 +99,14 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	/**
 	 * Finds unseen published posts within the user's preferred categories.
 	 *
-	 * @param userId user identifier
-	 * @param categoryIds preferred category identifiers
-	 * @param status required post status
-	 * @param pageable result limit
+	 * @param userId
+	 *            user identifier
+	 * @param categoryIds
+	 *            preferred category identifiers
+	 * @param status
+	 *            required post status
+	 * @param pageable
+	 *            result limit
 	 * @return recommendation candidates ordered by editorial and engagement signals
 	 */
 	@EntityGraph(attributePaths = {"category", "author"})
@@ -115,9 +124,12 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	/**
 	 * Finds popular unseen posts when personal preference signals are insufficient.
 	 *
-	 * @param userId user identifier
-	 * @param status required post status
-	 * @param pageable result limit
+	 * @param userId
+	 *            user identifier
+	 * @param status
+	 *            required post status
+	 * @param pageable
+	 *            result limit
 	 * @return popular unseen recommendation candidates
 	 */
 	@EntityGraph(attributePaths = {"category", "author"})
@@ -145,12 +157,15 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 
 	/**
 	 * Returns identifiers for the next scheduled posts whose publication time has
-	 * arrived. Selecting identifiers first preserves database-level pagination
-	 * when the publication graph later fetches a collection.
+	 * arrived. Selecting identifiers first preserves database-level pagination when
+	 * the publication graph later fetches a collection.
 	 *
-	 * @param status scheduled status
-	 * @param now publication cutoff
-	 * @param pageable batch limit
+	 * @param status
+	 *            scheduled status
+	 * @param now
+	 *            publication cutoff
+	 * @param pageable
+	 *            batch limit
 	 * @return due post identifiers in deterministic publication order
 	 */
 	@Query("SELECT p.id FROM Post p WHERE p.status = :status AND p.scheduledAt <= :now "
@@ -161,8 +176,10 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	 * Loads the complete graph required by publication side effects for a bounded
 	 * identifier batch.
 	 *
-	 * @param status required status at lock acquisition time
-	 * @param ids post identifiers
+	 * @param status
+	 *            required status at lock acquisition time
+	 * @param ids
+	 *            post identifiers
 	 * @return scheduled posts with publication relationships initialized
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -199,10 +216,8 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 			+ "ORDER BY COUNT(p.id) DESC, p.category.name ASC")
 	List<Object[]> countPublishedPostsByCategory(PostStatus status);
 
-	@Query("SELECT tag.id, tag.name, tag.slug, COUNT(p.id) "
-			+ "FROM Post p JOIN p.tags tag WHERE p.status = :status "
-			+ "GROUP BY tag.id, tag.name, tag.slug "
-			+ "ORDER BY COUNT(p.id) DESC, tag.name ASC")
+	@Query("SELECT tag.id, tag.name, tag.slug, COUNT(p.id) " + "FROM Post p JOIN p.tags tag WHERE p.status = :status "
+			+ "GROUP BY tag.id, tag.name, tag.slug " + "ORDER BY COUNT(p.id) DESC, tag.name ASC")
 	List<Object[]> countPublishedPostsByTag(PostStatus status);
 
 	@Query("SELECT YEAR(p.publishedAt), MONTH(p.publishedAt), COUNT(p.id) "

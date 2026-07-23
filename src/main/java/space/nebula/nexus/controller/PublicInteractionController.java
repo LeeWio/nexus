@@ -20,56 +20,49 @@ import space.nebula.nexus.service.IInteractionService;
 @RestController
 @RequestMapping("/api/v1/public/interactions")
 @RequiredArgsConstructor
-public class PublicInteractionController
-{
+public class PublicInteractionController {
 
 	private final IInteractionService interactionService;
 
 	@PostMapping("/posts/{postId}/like")
 	@Operation(summary = "Like a post", description = "Add a like to a specific blog post. Requires user authentication.")
 	@PreAuthorize("isAuthenticated()")
-	public ApiResponse<Void> likePost(@Parameter(description = "Post ID") @PathVariable Long postId)
-	{
+	public ApiResponse<Void> likePost(@Parameter(description = "Post ID") @PathVariable Long postId) {
 		return interactionService.likePost(postId);
 	}
 
 	@PostMapping("/posts/{postId}/unlike")
 	@Operation(summary = "Unlike a post", description = "Remove a previously added like from a blog post.")
 	@PreAuthorize("isAuthenticated()")
-	public ApiResponse<Void> unlikePost(@Parameter(description = "Post ID") @PathVariable Long postId)
-	{
+	public ApiResponse<Void> unlikePost(@Parameter(description = "Post ID") @PathVariable Long postId) {
 		return interactionService.unlikePost(postId);
 	}
 
 	@PostMapping("/comments/{commentId}/like")
 	@Operation(summary = "Like a comment", description = "Add a like to an approved comment. Requires user authentication.")
 	@PreAuthorize("isAuthenticated()")
-	public ApiResponse<Void> likeComment(@Parameter(description = "Comment ID") @PathVariable Long commentId)
-	{
+	public ApiResponse<Void> likeComment(@Parameter(description = "Comment ID") @PathVariable Long commentId) {
 		return interactionService.likeComment(commentId);
 	}
 
 	@PostMapping("/comments/{commentId}/unlike")
 	@Operation(summary = "Unlike a comment", description = "Remove a previously added like from a comment.")
 	@PreAuthorize("isAuthenticated()")
-	public ApiResponse<Void> unlikeComment(@Parameter(description = "Comment ID") @PathVariable Long commentId)
-	{
+	public ApiResponse<Void> unlikeComment(@Parameter(description = "Comment ID") @PathVariable Long commentId) {
 		return interactionService.unlikeComment(commentId);
 	}
 
 	@PostMapping("/posts/{postId}/favorite")
 	@Operation(summary = "Favorite a post", description = "Bookmark a post as a user favorite. Requires user authentication.")
 	@PreAuthorize("isAuthenticated()")
-	public ApiResponse<Void> favoritePost(@Parameter(description = "Post ID") @PathVariable Long postId)
-	{
+	public ApiResponse<Void> favoritePost(@Parameter(description = "Post ID") @PathVariable Long postId) {
 		return interactionService.favoritePost(postId);
 	}
 
 	@PostMapping("/posts/{postId}/unfavorite")
 	@Operation(summary = "Unfavorite a post", description = "Remove a post from the user's bookmarks.")
 	@PreAuthorize("isAuthenticated()")
-	public ApiResponse<Void> unfavoritePost(@Parameter(description = "Post ID") @PathVariable Long postId)
-	{
+	public ApiResponse<Void> unfavoritePost(@Parameter(description = "Post ID") @PathVariable Long postId) {
 		return interactionService.unfavoritePost(postId);
 	}
 }

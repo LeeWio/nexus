@@ -17,8 +17,7 @@ import static org.mockito.Mockito.verify;
  * Unit tests for scheduled post publication orchestration.
  */
 @ExtendWith(MockitoExtension.class)
-class PostTaskTest
-{
+class PostTaskTest {
 	@Mock
 	private IPostService postService;
 
@@ -26,8 +25,7 @@ class PostTaskTest
 	private PostTask postTask;
 
 	@Test
-	void delegatesDuePublicationToBusinessService()
-	{
+	void delegatesDuePublicationToBusinessService() {
 		postTask.publishScheduledPosts();
 
 		verify(postService).publishDueScheduledPosts(any(LocalDateTime.class), eq(100));

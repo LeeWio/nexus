@@ -19,24 +19,24 @@ import space.nebula.nexus.service.ILinkHealthService;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminLinkHealthController {
 
-    private final ILinkHealthService linkHealthService;
+	private final ILinkHealthService linkHealthService;
 
-    @GetMapping("/broken")
-    @Operation(summary = "Get broken links", description = "Retrieve a paginated list of all dead links found in the system.")
-    public ApiResponse<PageResult<LinkCheckLog>> getBrokenLinks(@PageableDefault(size = 20) Pageable pageable) {
-        return linkHealthService.getBrokenLinks(pageable);
-    }
+	@GetMapping("/broken")
+	@Operation(summary = "Get broken links", description = "Retrieve a paginated list of all dead links found in the system.")
+	public ApiResponse<PageResult<LinkCheckLog>> getBrokenLinks(@PageableDefault(size = 20) Pageable pageable) {
+		return linkHealthService.getBrokenLinks(pageable);
+	}
 
-    @PostMapping("/scan")
-    @Operation(summary = "Trigger manual scan", description = "Manually initiate a full system scan for external link health.")
-    public ApiResponse<Void> triggerManualScan() {
-        linkHealthService.runFullScan();
-        return ApiResponse.success("Link health check scan initiated in background", null);
-    }
+	@PostMapping("/scan")
+	@Operation(summary = "Trigger manual scan", description = "Manually initiate a full system scan for external link health.")
+	public ApiResponse<Void> triggerManualScan() {
+		linkHealthService.runFullScan();
+		return ApiResponse.success("Link health check scan initiated in background", null);
+	}
 
-    @DeleteMapping("/logs")
-    @Operation(summary = "Clear check logs", description = "Permanently clear all health check history.")
-    public ApiResponse<Void> clearLogs() {
-        return linkHealthService.clearLogs();
-    }
+	@DeleteMapping("/logs")
+	@Operation(summary = "Clear check logs", description = "Permanently clear all health check history.")
+	public ApiResponse<Void> clearLogs() {
+		return linkHealthService.clearLogs();
+	}
 }

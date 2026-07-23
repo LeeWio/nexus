@@ -9,8 +9,7 @@ import org.springframework.stereotype.Component;
 @Setter
 @Component
 @ConfigurationProperties(prefix = "app.blog.discovery")
-public class BlogDiscoveryProperties
-{
+public class BlogDiscoveryProperties {
 	private int sectionSize = 6;
 	private int categoryGroupSize = 3;
 	private int categoryPostSize = 4;

@@ -6,8 +6,7 @@ import space.nebula.nexus.payload.response.ConfigResponse;
 
 import java.util.List;
 
-public interface IConfigService
-{
+public interface IConfigService {
 	ApiResponse<List<ConfigResponse>> getAllConfigs();
 
 	ApiResponse<List<ConfigResponse>> getPublicConfigs();

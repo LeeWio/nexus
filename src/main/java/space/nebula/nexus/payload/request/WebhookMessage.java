@@ -13,12 +13,12 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WebhookMessage implements Serializable {
-    private static final long serialVersionUID = 1L;
-    
-    private Long webhookId;
-    private String deliveryId;
-    private String event;
-    private Dict payload;
+	private static final long serialVersionUID = 1L;
+
+	private Long webhookId;
+	private String deliveryId;
+	private String event;
+	private Dict payload;
 
 	public WebhookMessage(Long webhookId, String event, Dict payload) {
 		this(webhookId, cn.hutool.core.util.IdUtil.fastSimpleUUID(), event, payload);

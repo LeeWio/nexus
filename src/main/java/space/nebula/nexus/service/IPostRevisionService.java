@@ -8,8 +8,7 @@ import space.nebula.nexus.payload.response.PostRevisionResponse;
 
 import java.util.List;
 
-public interface IPostRevisionService
-{
+public interface IPostRevisionService {
 
 	/**
 	 * Saves a snapshot of the given post as a new revision.

@@ -16,17 +16,19 @@ import java.util.List;
  * Provides read access to durable post favorites.
  */
 @Repository
-public interface PostFavoriteRepository extends JpaRepository<PostFavorite, PostFavoriteId>
-{
+public interface PostFavoriteRepository extends JpaRepository<PostFavorite, PostFavoriteId> {
 	/**
 	 * Returns visible favorite posts for a user in reverse chronological order.
 	 *
-	 * @param userId user identifier
-	 * @param status required post status
-	 * @param pageable pagination settings
+	 * @param userId
+	 *            user identifier
+	 * @param status
+	 *            required post status
+	 * @param pageable
+	 *            pagination settings
 	 * @return favorite page
 	 */
-	@EntityGraph(attributePaths = { "post", "post.category", "post.author" })
+	@EntityGraph(attributePaths = {"post", "post.category", "post.author"})
 	@Query("SELECT favorite FROM PostFavorite favorite WHERE favorite.user.id = :userId "
 			+ "AND favorite.post.status = :status ORDER BY favorite.createdAt DESC")
 	Page<PostFavorite> findVisibleFavorites(Long userId, PostStatus status, Pageable pageable);
@@ -34,9 +36,12 @@ public interface PostFavoriteRepository extends JpaRepository<PostFavorite, Post
 	/**
 	 * Returns the user's strongest favorite category signals.
 	 *
-	 * @param userId user identifier
-	 * @param status required post status
-	 * @param pageable result limit
+	 * @param userId
+	 *            user identifier
+	 * @param status
+	 *            required post status
+	 * @param pageable
+	 *            result limit
 	 * @return category identifiers ordered by signal strength and recency
 	 */
 	@Query("SELECT favorite.post.category.id FROM PostFavorite favorite WHERE favorite.user.id = :userId "

@@ -1,7 +1,5 @@
 package space.nebula.nexus.security;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.lang.Assert;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.PermissionEvaluator;
@@ -25,22 +23,18 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class NexusPermissionEvaluator implements PermissionEvaluator
-{
+public class NexusPermissionEvaluator implements PermissionEvaluator {
 
 	private final PostRepository postRepository;
 
 	@Override
-	public boolean hasPermission(Authentication authentication, Object targetDomainObject, Object permission)
-	{
-		if (authentication == null || targetDomainObject == null || !(permission instanceof String permString))
-		{
+	public boolean hasPermission(Authentication authentication, Object targetDomainObject, Object permission) {
+		if (authentication == null || targetDomainObject == null || !(permission instanceof String permString)) {
 			return false;
 		}
 
 		// Example: Check permission if the actual domain object is passed
-		if (targetDomainObject instanceof Post post)
-		{
+		if (targetDomainObject instanceof Post post) {
 			return hasPrivilegeForPost(authentication, post, permString);
 		}
 
@@ -49,16 +43,13 @@ public class NexusPermissionEvaluator implements PermissionEvaluator
 
 	@Override
 	public boolean hasPermission(Authentication authentication, Serializable targetId, String targetType,
-			Object permission)
-	{
+			Object permission) {
 		if (authentication == null || targetId == null || targetType == null
-				|| !(permission instanceof String permString))
-		{
+				|| !(permission instanceof String permString)) {
 			return false;
 		}
 
-		if ("Post".equalsIgnoreCase(targetType))
-		{
+		if ("Post".equalsIgnoreCase(targetType)) {
 			Long postId = Long.valueOf(targetId.toString());
 			Post post = postRepository.findById(postId)
 					.orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
@@ -68,19 +59,16 @@ public class NexusPermissionEvaluator implements PermissionEvaluator
 		return false;
 	}
 
-	private boolean hasPrivilegeForPost(Authentication authentication, Post post, String permission)
-	{
+	private boolean hasPrivilegeForPost(Authentication authentication, Post post, String permission) {
 		Set<String> roles = authentication.getAuthorities().stream().map(GrantedAuthority::getAuthority)
 				.collect(Collectors.toSet());
 
 		// ADMIN always has full access
-		if (roles.contains("ROLE_ADMIN"))
-		{
+		if (roles.contains("ROLE_ADMIN")) {
 			return true;
 		}
 
-		if (!(authentication.getPrincipal() instanceof SecurityUser securityUser))
-		{
+		if (!(authentication.getPrincipal() instanceof SecurityUser securityUser)) {
 			return false;
 		}
 
@@ -89,11 +77,11 @@ public class NexusPermissionEvaluator implements PermissionEvaluator
 		boolean isEditor = roles.contains("ROLE_EDITOR");
 
 		return switch (permission.toUpperCase()) {
-		case "READ" -> true; // Depends on status, but technically controlled by service logic
-		case "EDIT", "DELETE" -> isAuthor || isEditor;
-		case "SUBMIT" -> isAuthor;
-		case "APPROVE", "REJECT" -> isEditor; // Only Editors (and Admins) can approve/reject
-		default -> false;
+			case "READ" -> true; // Depends on status, but technically controlled by service logic
+			case "EDIT", "DELETE" -> isAuthor || isEditor;
+			case "SUBMIT" -> isAuthor;
+			case "APPROVE", "REJECT" -> isEditor; // Only Editors (and Admins) can approve/reject
+			default -> false;
 		};
 	}
 }

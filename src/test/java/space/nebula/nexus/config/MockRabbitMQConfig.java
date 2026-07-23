@@ -10,15 +10,15 @@ import org.springframework.context.annotation.Primary;
 @TestConfiguration
 public class MockRabbitMQConfig {
 
-    @Bean
-    @Primary
-    public ConnectionFactory rabbitConnectionFactory() {
-        return Mockito.mock(ConnectionFactory.class);
-    }
+	@Bean
+	@Primary
+	public ConnectionFactory rabbitConnectionFactory() {
+		return Mockito.mock(ConnectionFactory.class);
+	}
 
-    @Bean
-    @Primary
-    public RabbitTemplate rabbitTemplate() {
-        return Mockito.mock(RabbitTemplate.class);
-    }
+	@Bean
+	@Primary
+	public RabbitTemplate rabbitTemplate() {
+		return Mockito.mock(RabbitTemplate.class);
+	}
 }

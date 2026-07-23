@@ -17,13 +17,12 @@ import java.util.List;
  * Stores and retrieves resumable reading history.
  */
 @Repository
-public interface ReadingHistoryRepository extends JpaRepository<ReadingHistory, Long>
-{
+public interface ReadingHistoryRepository extends JpaRepository<ReadingHistory, Long> {
 	/** Returns the unique reading state for a user and post. */
 	Optional<ReadingHistory> findByUserIdAndPostIdAndIsDeletedFalse(Long userId, Long postId);
 
 	/** Returns visible reading history in most-recently-read order. */
-	@EntityGraph(attributePaths = { "post", "post.category", "post.author" })
+	@EntityGraph(attributePaths = {"post", "post.category", "post.author"})
 	@Query("SELECT history FROM ReadingHistory history WHERE history.user.id = :userId "
 			+ "AND history.isDeleted = false AND history.post.status = :status ORDER BY history.lastReadAt DESC")
 	Page<ReadingHistory> findVisibleHistory(Long userId, PostStatus status, Pageable pageable);
@@ -31,12 +30,15 @@ public interface ReadingHistoryRepository extends JpaRepository<ReadingHistory, 
 	/**
 	 * Returns incomplete reading sessions for the personal overview.
 	 *
-	 * @param userId user identifier
-	 * @param status required post status
-	 * @param pageable result limit
+	 * @param userId
+	 *            user identifier
+	 * @param status
+	 *            required post status
+	 * @param pageable
+	 *            result limit
 	 * @return incomplete reading sessions
 	 */
-	@EntityGraph(attributePaths = { "post", "post.category", "post.author" })
+	@EntityGraph(attributePaths = {"post", "post.category", "post.author"})
 	@Query("SELECT history FROM ReadingHistory history WHERE history.user.id = :userId "
 			+ "AND history.isDeleted = false AND history.progressPercent < 100 "
 			+ "AND history.post.status = :status ORDER BY history.lastReadAt DESC")
@@ -45,9 +47,12 @@ public interface ReadingHistoryRepository extends JpaRepository<ReadingHistory, 
 	/**
 	 * Returns the user's strongest reading category signals.
 	 *
-	 * @param userId user identifier
-	 * @param status required post status
-	 * @param pageable result limit
+	 * @param userId
+	 *            user identifier
+	 * @param status
+	 *            required post status
+	 * @param pageable
+	 *            result limit
 	 * @return category identifiers ordered by signal strength and recency
 	 */
 	@Query("SELECT history.post.category.id FROM ReadingHistory history WHERE history.user.id = :userId "

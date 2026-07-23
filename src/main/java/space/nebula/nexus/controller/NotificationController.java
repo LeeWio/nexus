@@ -18,43 +18,43 @@ import space.nebula.nexus.service.INotificationService;
 @RequiredArgsConstructor
 public class NotificationController {
 
-    private final INotificationService notificationService;
+	private final INotificationService notificationService;
 
-    @GetMapping
-    @Operation(summary = "Get my notifications", description = "Retrieve a paginated notification inbox, optionally filtered to unread items.")
-    public ApiResponse<PageResult<NotificationResponse>> getMyNotifications(
-            @RequestParam(defaultValue = "false") boolean unreadOnly,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return notificationService.getMyNotifications(unreadOnly, pageable);
-    }
+	@GetMapping
+	@Operation(summary = "Get my notifications", description = "Retrieve a paginated notification inbox, optionally filtered to unread items.")
+	public ApiResponse<PageResult<NotificationResponse>> getMyNotifications(
+			@RequestParam(defaultValue = "false") boolean unreadOnly,
+			@PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+		return notificationService.getMyNotifications(unreadOnly, pageable);
+	}
 
-    @GetMapping("/unread/count")
-    @Operation(summary = "Get unread count", description = "Retrieve the number of unread notifications.")
-    public ApiResponse<Long> getUnreadCount() {
-        return notificationService.getUnreadCount();
-    }
+	@GetMapping("/unread/count")
+	@Operation(summary = "Get unread count", description = "Retrieve the number of unread notifications.")
+	public ApiResponse<Long> getUnreadCount() {
+		return notificationService.getUnreadCount();
+	}
 
-    @PatchMapping("/{id}/read")
-    @Operation(summary = "Mark as read", description = "Mark a specific notification as read.")
-    public ApiResponse<Void> markAsRead(@PathVariable Long id) {
-        return notificationService.markAsRead(id);
-    }
+	@PatchMapping("/{id}/read")
+	@Operation(summary = "Mark as read", description = "Mark a specific notification as read.")
+	public ApiResponse<Void> markAsRead(@PathVariable Long id) {
+		return notificationService.markAsRead(id);
+	}
 
-    @PatchMapping("/read-all")
-    @Operation(summary = "Mark all as read", description = "Mark all notifications for the current user as read.")
-    public ApiResponse<Void> markAllAsRead() {
-        return notificationService.markAllAsRead();
-    }
+	@PatchMapping("/read-all")
+	@Operation(summary = "Mark all as read", description = "Mark all notifications for the current user as read.")
+	public ApiResponse<Void> markAllAsRead() {
+		return notificationService.markAllAsRead();
+	}
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Delete notification", description = "Delete a notification owned by the current user.")
-    public ApiResponse<Void> deleteNotification(@PathVariable Long id) {
-        return notificationService.deleteNotification(id);
-    }
+	@DeleteMapping("/{id}")
+	@Operation(summary = "Delete notification", description = "Delete a notification owned by the current user.")
+	public ApiResponse<Void> deleteNotification(@PathVariable Long id) {
+		return notificationService.deleteNotification(id);
+	}
 
-    @DeleteMapping("/read")
-    @Operation(summary = "Clear read notifications", description = "Delete all read notifications owned by the current user.")
-    public ApiResponse<Void> clearReadNotifications() {
-        return notificationService.clearReadNotifications();
-    }
+	@DeleteMapping("/read")
+	@Operation(summary = "Clear read notifications", description = "Delete all read notifications owned by the current user.")
+	public ApiResponse<Void> clearReadNotifications() {
+		return notificationService.clearReadNotifications();
+	}
 }

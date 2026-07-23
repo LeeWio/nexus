@@ -16,44 +16,38 @@ import space.nebula.nexus.enums.PostStatus;
  */
 @Component
 @RequiredArgsConstructor
-public class PostPublicationCacheListener
-{
+public class PostPublicationCacheListener {
 	private final CacheManager cacheManager;
 
 	/**
-	 * Clears collection-level caches only for a committed visibility change. Running
-	 * after commit avoids exposing uncommitted post state and avoids clearing the
-	 * caches every time the scheduler finds no work.
+	 * Clears collection-level caches only for a committed visibility change.
+	 * Running after commit avoids exposing uncommitted post state and avoids
+	 * clearing the caches every time the scheduler finds no work.
 	 *
-	 * @param event committed post change event
+	 * @param event
+	 *            committed post change event
 	 */
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-	public void onVisibilityChanged(PostChangedEvent event)
-	{
-		if (!requiresPublicCacheInvalidation(event))
-		{
+	public void onVisibilityChanged(PostChangedEvent event) {
+		if (!requiresPublicCacheInvalidation(event)) {
 			return;
 		}
 		clear(CacheConstants.BLOG_POSTS);
 		clear(CacheConstants.SEO);
 	}
 
-	private boolean requiresPublicCacheInvalidation(PostChangedEvent event)
-	{
+	private boolean requiresPublicCacheInvalidation(PostChangedEvent event) {
 		if (event.getChangeType() == PostChangeType.PUBLISHED || event.getChangeType() == PostChangeType.ARCHIVED
 				|| event.getChangeType() == PostChangeType.RESTORED_TO_DRAFT
-				|| event.getChangeType() == PostChangeType.SCHEDULE_CANCELED)
-		{
+				|| event.getChangeType() == PostChangeType.SCHEDULE_CANCELED) {
 			return true;
 		}
 		return event.getChangeType() == PostChangeType.UPDATED && event.getPost().getStatus() == PostStatus.PUBLISHED;
 	}
 
-	private void clear(String cacheName)
-	{
+	private void clear(String cacheName) {
 		Cache cache = cacheManager.getCache(cacheName);
-		if (cache != null)
-		{
+		if (cache != null) {
 			cache.clear();
 		}
 	}

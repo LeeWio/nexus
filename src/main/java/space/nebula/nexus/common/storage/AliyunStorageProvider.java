@@ -80,7 +80,7 @@ public class AliyunStorageProvider implements StorageProvider {
 	public String getSignedUrl(String fileName, long expireSeconds) {
 		if (fileName == null || fileName.isBlank())
 			return null;
-		
+
 		OSS ossClient = new OSSClientBuilder().build(config.getEndpoint(), config.getAccessKeyId(),
 				config.getAccessKeySecret());
 		try {

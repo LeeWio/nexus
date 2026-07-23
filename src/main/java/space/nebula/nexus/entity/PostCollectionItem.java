@@ -15,10 +15,9 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "blog_post_collection_item",
-		uniqueConstraints = @UniqueConstraint(name = "uk_collection_item_collection_post", columnNames = { "collection_id", "post_id" }))
-public class PostCollectionItem extends BaseEntity
-{
+@Table(name = "blog_post_collection_item", uniqueConstraints = @UniqueConstraint(name = "uk_collection_item_collection_post", columnNames = {
+		"collection_id", "post_id"}))
+public class PostCollectionItem extends BaseEntity {
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "collection_id", nullable = false)
 	private PostCollection collection;

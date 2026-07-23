@@ -20,7 +20,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(classes = {space.nebula.nexus.config.MockRedisConfig.class, space.nebula.nexus.config.MockRabbitMQConfig.class})
+@SpringBootTest(classes = {space.nebula.nexus.config.MockRedisConfig.class,
+		space.nebula.nexus.config.MockRabbitMQConfig.class})
 @org.springframework.test.context.ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Transactional
@@ -49,8 +50,7 @@ public class AuthControllerIntegrationTest {
 
 		mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(registerRequest))).andExpect(status().isOk())
-				.andExpect(jsonPath("$.message")
-						.value("Registration successful. Your account is awaiting approval."));
+				.andExpect(jsonPath("$.message").value("Registration successful. Your account is awaiting approval."));
 
 		// 2. Login
 		LoginRequest loginRequest = new LoginRequest("testuser", "P@ssw0rd123!");

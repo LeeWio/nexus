@@ -7,8 +7,6 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.Named;
 import org.mapstruct.NullValuePropertyMappingStrategy;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import space.nebula.nexus.entity.PostSeries;
 import space.nebula.nexus.payload.request.SeriesRequest;
 import space.nebula.nexus.payload.response.SeriesResponse;
@@ -17,14 +15,12 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 import java.util.List;
 
 @Mapper(config = CentralMapperConfig.class)
-public abstract class PostSeriesMapper
-{
+public abstract class PostSeriesMapper {
 
 	protected PostMapper postMapper;
 
 	@org.springframework.beans.factory.annotation.Autowired
-	public void setPostMapper(@org.springframework.context.annotation.Lazy PostMapper postMapper)
-	{
+	public void setPostMapper(@org.springframework.context.annotation.Lazy PostMapper postMapper) {
 		this.postMapper = postMapper;
 	}
 

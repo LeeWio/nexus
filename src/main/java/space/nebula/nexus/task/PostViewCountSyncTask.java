@@ -20,8 +20,7 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class PostViewCountSyncTask
-{
+public class PostViewCountSyncTask {
 
 	private final RedisUtil redisUtil;
 	private final JdbcTemplate jdbcTemplate;
@@ -35,30 +34,23 @@ public class PostViewCountSyncTask
 	@Scheduled(fixedRate = 600000)
 	@SchedulerLock(name = "postViewCountSync", lockAtMostFor = "PT9M")
 	@Transactional
-	public void syncViewCounts()
-	{
-		if (!redisUtil.lock(LOCK_KEY, "locked", 590, java.util.concurrent.TimeUnit.SECONDS))
-		{
+	public void syncViewCounts() {
+		if (!redisUtil.lock(LOCK_KEY, "locked", 590, java.util.concurrent.TimeUnit.SECONDS)) {
 			return;
 		}
 
 		String syncKey = CacheConstants.POST_VIEW_EXTRA_HASH + "_sync_temp";
 
-		if (!redisUtil.hasKey(syncKey))
-		{
-			if (redisUtil.hasKey(CacheConstants.POST_VIEW_EXTRA_HASH))
-			{
+		if (!redisUtil.hasKey(syncKey)) {
+			if (redisUtil.hasKey(CacheConstants.POST_VIEW_EXTRA_HASH)) {
 				redisUtil.rename(CacheConstants.POST_VIEW_EXTRA_HASH, syncKey);
-			}
-			else
-			{
+			} else {
 				return;
 			}
 		}
 
 		Map<Object, Object> viewCounts = redisUtil.hashGetAll(syncKey);
-		if (viewCounts == null || viewCounts.isEmpty())
-		{
+		if (viewCounts == null || viewCounts.isEmpty()) {
 			redisUtil.delete(syncKey);
 			return;
 		}
@@ -66,38 +58,28 @@ public class PostViewCountSyncTask
 		log.info("Syncing view counts for {} posts from Redis to MySQL in batch...", viewCounts.size());
 
 		List<Object[]> batchArgs = new ArrayList<>();
-		viewCounts.forEach((postIdObj, countObj) ->
-		{
-			try
-			{
+		viewCounts.forEach((postIdObj, countObj) -> {
+			try {
 				Long postId = Long.valueOf(postIdObj.toString());
 				Long count = Long.valueOf(countObj.toString());
-				if (count > 0)
-				{
-					batchArgs.add(new Object[] { count, postId });
+				if (count > 0) {
+					batchArgs.add(new Object[]{count, postId});
 				}
-			}
-			catch (Exception e)
-			{
+			} catch (Exception e) {
 				log.error("Failed to parse view count for post id: {}", postIdObj, e);
 			}
 		});
 
-		if (!batchArgs.isEmpty())
-		{
-			try
-			{
+		if (!batchArgs.isEmpty()) {
+			try {
 				jdbcTemplate.batchUpdate(UPDATE_SQL, batchArgs);
 				log.info("Successfully synced {} post view records in batch.", batchArgs.size());
 				redisUtil.delete(syncKey);
+			} catch (Exception e) {
+				log.error("Failed to execute batch update for view counts. Temp key is retained to prevent data loss.",
+						e);
 			}
-			catch (Exception e)
-			{
-				log.error("Failed to execute batch update for view counts. Temp key is retained to prevent data loss.", e);
-			}
-		}
-		else
-		{
+		} else {
 			redisUtil.delete(syncKey);
 		}
 	}

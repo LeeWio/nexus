@@ -6,7 +6,6 @@ import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.search.Search;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.stereotype.Service;
@@ -18,21 +17,18 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class MetricsServiceImpl implements IMetricsService
-{
+public class MetricsServiceImpl implements IMetricsService {
 
 	private final MeterRegistry meterRegistry;
 	private final CaffeineCacheManager caffeineCacheManager;
 
 	@Override
-	public Dict getSystemPerformanceSnapshot()
-	{
+	public Dict getSystemPerformanceSnapshot() {
 		return Dict.create().set("jvm", getJvmMetrics()).set("http", getHttpMetrics()).set("cache", getCacheMetrics())
 				.set("mq", getMqMetrics()).set("timestamp", System.currentTimeMillis());
 	}
 
-	private Dict getJvmMetrics()
-	{
+	private Dict getJvmMetrics() {
 		double memoryUsed = meterRegistry.get("jvm.memory.used").gauge().value();
 		double memoryMax = meterRegistry.get("jvm.memory.max").gauge().value();
 		double threads = meterRegistry.get("jvm.threads.live").gauge().value();
@@ -42,11 +38,9 @@ public class MetricsServiceImpl implements IMetricsService
 				.set("memoryUsageRatio", Math.round((memoryUsed / memoryMax) * 100)).set("liveThreads", (int) threads);
 	}
 
-	private Dict getHttpMetrics()
-	{
+	private Dict getHttpMetrics() {
 		Search search = meterRegistry.find("http.server.requests");
-		if (search.timer() == null)
-		{
+		if (search.timer() == null) {
 			return Dict.create().set("totalRequests", 0).set("avgResponseTimeMs", 0);
 		}
 
@@ -57,17 +51,14 @@ public class MetricsServiceImpl implements IMetricsService
 				Math.round(avgTime * 100.0) / 100.0);
 	}
 
-	private Dict getCacheMetrics()
-	{
+	private Dict getCacheMetrics() {
 		Collection<String> cacheNames = caffeineCacheManager.getCacheNames();
 		long totalHits = 0;
 		long totalMisses = 0;
 
-		for (String name : cacheNames)
-		{
+		for (String name : cacheNames) {
 			CaffeineCache cache = (CaffeineCache) caffeineCacheManager.getCache(name);
-			if (cache != null)
-			{
+			if (cache != null) {
 				var stats = cache.getNativeCache().stats();
 				totalHits += stats.hitCount();
 				totalMisses += stats.missCount();
@@ -80,8 +71,7 @@ public class MetricsServiceImpl implements IMetricsService
 				Math.round(hitRate * 10000.0) / 100.0); // e.g. 95.55
 	}
 
-	private Dict getMqMetrics()
-	{
+	private Dict getMqMetrics() {
 		Search search = meterRegistry.find("nexus.mq.canal.processing");
 
 		long processed = search.timers().stream().mapToLong(Timer::count).sum();

@@ -11,8 +11,8 @@ import java.util.Optional;
 
 @Repository
 public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
-    Optional<Subscriber> findByEmail(String email);
-    Optional<Subscriber> findByVerificationToken(String token);
-    Optional<Subscriber> findByUnsubscribeToken(String token);
+	Optional<Subscriber> findByEmail(String email);
+	Optional<Subscriber> findByVerificationToken(String token);
+	Optional<Subscriber> findByUnsubscribeToken(String token);
 	Page<Subscriber> findAllByStatus(SubscriberStatus status, Pageable pageable);
 }

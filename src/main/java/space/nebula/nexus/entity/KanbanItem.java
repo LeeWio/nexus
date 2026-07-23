@@ -27,8 +27,7 @@ import java.util.Set;
 @Table(name = "kanban_item")
 @SQLDelete(sql = "UPDATE kanban_item SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class KanbanItem extends BaseEntity
-{
+public class KanbanItem extends BaseEntity {
 
 	@Column(nullable = false, length = 255)
 	private String title;

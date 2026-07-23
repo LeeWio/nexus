@@ -16,8 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-class ObservabilityEndpointIntegrationTest
-{
+class ObservabilityEndpointIntegrationTest {
 	@Autowired
 	private MockMvc mockMvc;
 
@@ -25,15 +24,13 @@ class ObservabilityEndpointIntegrationTest
 	private PostSearchRepository postSearchRepository;
 
 	@Test
-	void livenessProbeIsPublicAndHidesComponents() throws Exception
-	{
+	void livenessProbeIsPublicAndHidesComponents() throws Exception {
 		mockMvc.perform(get("/livez")).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UP"))
 				.andExpect(jsonPath("$.components").doesNotExist());
 	}
 
 	@Test
-	void managementHealthStillRequiresAdministrator() throws Exception
-	{
+	void managementHealthStillRequiresAdministrator() throws Exception {
 		mockMvc.perform(get("/management/health")).andExpect(status().isUnauthorized());
 	}
 }

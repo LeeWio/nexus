@@ -17,7 +17,8 @@ import cn.hutool.core.lang.Dict;
 import java.util.Map;
 
 /**
- * Listener for comment-related events. Dispatches email notifications via RabbitMQ.
+ * Listener for comment-related events. Dispatches email notifications via
+ * RabbitMQ.
  */
 @Slf4j
 @Component
@@ -48,22 +49,16 @@ public class CommentEventListener {
 		}
 	}
 
-	private void sendNewCommentNotification(CommentSubmittedEvent event, String email, String authorName, String postTitle) {
+	private void sendNewCommentNotification(CommentSubmittedEvent event, String email, String authorName,
+			String postTitle) {
 		String subject = "New Comment on: " + postTitle;
 
-		Map<String, Object> variables = Dict.create()
-				.set("authorName", authorName)
-				.set("commenterName", event.getAuthorDisplayName())
-				.set("postTitle", postTitle)
+		Map<String, Object> variables = Dict.create().set("authorName", authorName)
+				.set("commenterName", event.getAuthorDisplayName()).set("postTitle", postTitle)
 				.set("commentContent", event.getContent());
 
-		TemplateMailMessage message = TemplateMailMessage.builder()
-				.to(email)
-				.subject(subject)
-				.templateName("new-comment")
-				.variables(variables)
-				.type(TemplateMailMessage.MailType.TEMPLATE)
-				.build();
+		TemplateMailMessage message = TemplateMailMessage.builder().to(email).subject(subject)
+				.templateName("new-comment").variables(variables).type(TemplateMailMessage.MailType.TEMPLATE).build();
 
 		rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
 		log.info("Dispatched async comment notification task for: {}", email);
@@ -72,19 +67,12 @@ public class CommentEventListener {
 	private void sendViolationAlert(CommentSubmittedEvent event, String email, String postTitle) {
 		String subject = "[ALERT] Content Violation Blocked on: " + postTitle;
 
-		Map<String, Object> variables = Dict.create()
-				.set("commenterName", event.getAuthorUsername())
-				.set("postTitle", postTitle)
-				.set("commentContent", event.getContent())
-				.set("ipAddress", event.getIpAddress())
-				.set("userAgent", event.getUserAgent());
+		Map<String, Object> variables = Dict.create().set("commenterName", event.getAuthorUsername())
+				.set("postTitle", postTitle).set("commentContent", event.getContent())
+				.set("ipAddress", event.getIpAddress()).set("userAgent", event.getUserAgent());
 
-		TemplateMailMessage message = TemplateMailMessage.builder()
-				.to(email)
-				.subject(subject)
-				.templateName("violation-alert")
-				.variables(variables)
-				.type(TemplateMailMessage.MailType.TEMPLATE)
+		TemplateMailMessage message = TemplateMailMessage.builder().to(email).subject(subject)
+				.templateName("violation-alert").variables(variables).type(TemplateMailMessage.MailType.TEMPLATE)
 				.build();
 
 		rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);

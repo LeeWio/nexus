@@ -1,6 +1,5 @@
 package space.nebula.nexus.service.impl;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,39 +14,38 @@ import space.nebula.nexus.repository.TagRepository;
 import space.nebula.nexus.repository.search.PostSearchRepository;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PostSearchServiceTest {
 
-    @Mock
-    private PostRepository postRepository;
-    @Mock
-    private CategoryRepository categoryRepository;
-    @Mock
-    private TagRepository tagRepository;
-    @Mock
-    private ProjectRepository projectRepository;
-    @Mock
-    private MomentRepository momentRepository;
-    @Mock
-    private PostSearchRepository postSearchRepository;
-    @Mock
-    private ElasticsearchOperations elasticsearchOperations;
+	@Mock
+	private PostRepository postRepository;
+	@Mock
+	private CategoryRepository categoryRepository;
+	@Mock
+	private TagRepository tagRepository;
+	@Mock
+	private ProjectRepository projectRepository;
+	@Mock
+	private MomentRepository momentRepository;
+	@Mock
+	private PostSearchRepository postSearchRepository;
+	@Mock
+	private ElasticsearchOperations elasticsearchOperations;
 
-    @InjectMocks
-    private ElasticsearchPostSearchServiceImpl searchService;
+	@InjectMocks
+	private ElasticsearchPostSearchServiceImpl searchService;
 
-    @Test
-    void getSearchSuggestions_EmptyKeyword() {
-        var response = searchService.getSearchSuggestions("");
-        assertTrue(response.data().isEmpty());
-    }
+	@Test
+	void getSearchSuggestions_EmptyKeyword() {
+		var response = searchService.getSearchSuggestions("");
+		assertTrue(response.data().isEmpty());
+	}
 
-    @Test
-    void getSearchSuggestions_ShortKeyword() {
-        var response = searchService.getSearchSuggestions("a");
-        assertTrue(response.data().isEmpty());
-    }
+	@Test
+	void getSearchSuggestions_ShortKeyword() {
+		var response = searchService.getSearchSuggestions("a");
+		assertTrue(response.data().isEmpty());
+	}
 }

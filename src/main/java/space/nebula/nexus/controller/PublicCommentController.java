@@ -33,8 +33,7 @@ import java.util.concurrent.TimeUnit;
 @RestController
 @RequestMapping("/api/v1/public/comments")
 @RequiredArgsConstructor
-public class PublicCommentController
-{
+public class PublicCommentController {
 
 	private final ICommentService commentService;
 
@@ -43,15 +42,14 @@ public class PublicCommentController
 	@PreAuthorize("isAuthenticated()")
 	@RateLimit(count = 5, time = 15, unit = TimeUnit.MINUTES, message = "Too many comments. Please wait a moment.")
 	public ApiResponse<Void> publishComment(@Valid @RequestBody CommentRequest request,
-			HttpServletRequest servletRequest)
-	{
+			HttpServletRequest servletRequest) {
 		return commentService.publishComment(request, servletRequest);
 	}
 
 	@GetMapping("/post/{postId}")
 	@Operation(summary = "Retrieve comments for a post", description = "Fetch a complete hierarchical tree of approved comments for a specific post.")
-	public ApiResponse<List<Tree<Long>>> retrieveComments(@Parameter(description = "Post ID") @PathVariable Long postId)
-	{
+	public ApiResponse<List<Tree<Long>>> retrieveComments(
+			@Parameter(description = "Post ID") @PathVariable Long postId) {
 		return commentService.retrieveCommentsByPost(postId);
 	}
 
@@ -59,8 +57,7 @@ public class PublicCommentController
 	@Operation(summary = "Retrieve root comments for a post", description = "Fetch approved top-level comments for a specific post with pagination.")
 	public ApiResponse<PageResult<CommentResponse>> retrieveRootComments(
 			@Parameter(description = "Post ID") @PathVariable Long postId,
-			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return commentService.retrieveRootCommentsByPost(postId, pageable);
 	}
 
@@ -69,8 +66,7 @@ public class PublicCommentController
 	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveRootCommentsCursor(
 			@Parameter(description = "Post ID") @PathVariable Long postId,
 			@Parameter(description = "Last seen comment ID from the previous response") @RequestParam(required = false) Long cursor,
-			@Parameter(description = "Number of comments to return") @RequestParam(defaultValue = "20") int size)
-	{
+			@Parameter(description = "Number of comments to return") @RequestParam(defaultValue = "20") int size) {
 		return commentService.retrieveRootCommentsByPostCursor(postId, cursor, size);
 	}
 
@@ -78,17 +74,14 @@ public class PublicCommentController
 	@Operation(summary = "Retrieve hot root comments for a post", description = "Fetch approved top-level comments sorted by pinned, featured, likes, and recency.")
 	public ApiResponse<PageResult<CommentResponse>> retrieveHotRootComments(
 			@Parameter(description = "Post ID") @PathVariable Long postId,
-			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20) Pageable pageable)
-	{
+			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20) Pageable pageable) {
 		return commentService.retrieveHotRootCommentsByPost(postId, pageable);
 	}
 
 	@GetMapping("/post/{postId}/new-count")
 	@Operation(summary = "Count new root comments for a post", description = "Count approved top-level comments newer than the client's current anchor.")
-	public ApiResponse<Long> countNewRootComments(
-			@Parameter(description = "Post ID") @PathVariable Long postId,
-			@Parameter(description = "Highest comment ID currently known by the client") @RequestParam(required = false) Long afterId)
-	{
+	public ApiResponse<Long> countNewRootComments(@Parameter(description = "Post ID") @PathVariable Long postId,
+			@Parameter(description = "Highest comment ID currently known by the client") @RequestParam(required = false) Long afterId) {
 		return commentService.countNewRootCommentsByPost(postId, afterId);
 	}
 
@@ -97,8 +90,7 @@ public class PublicCommentController
 	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveNewRootComments(
 			@Parameter(description = "Post ID") @PathVariable Long postId,
 			@Parameter(description = "Highest comment ID currently known by the client") @RequestParam(required = false) Long afterId,
-			@Parameter(description = "Number of comments to return") @RequestParam(defaultValue = "20") int size)
-	{
+			@Parameter(description = "Number of comments to return") @RequestParam(defaultValue = "20") int size) {
 		return commentService.retrieveNewRootCommentsByPost(postId, afterId, size);
 	}
 
@@ -106,8 +98,7 @@ public class PublicCommentController
 	@Operation(summary = "Locate a comment anchor", description = "Return the root comment and a reply window for positioning a highlighted comment.")
 	public ApiResponse<CommentAnchorContextResponse> retrieveCommentAnchorContext(
 			@Parameter(description = "Comment ID") @PathVariable Long commentId,
-			@Parameter(description = "Number of replies to include around the root") @RequestParam(defaultValue = "20") int size)
-	{
+			@Parameter(description = "Number of replies to include around the root") @RequestParam(defaultValue = "20") int size) {
 		return commentService.retrieveCommentAnchorContext(commentId, size);
 	}
 
@@ -115,8 +106,7 @@ public class PublicCommentController
 	@Operation(summary = "Retrieve replies for a comment", description = "Fetch approved direct replies for a comment with pagination.")
 	public ApiResponse<PageResult<CommentResponse>> retrieveReplies(
 			@Parameter(description = "Parent comment ID") @PathVariable Long parentId,
-			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable)
-	{
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
 		return commentService.retrieveReplies(parentId, pageable);
 	}
 
@@ -125,8 +115,7 @@ public class PublicCommentController
 	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveRepliesCursor(
 			@Parameter(description = "Parent comment ID") @PathVariable Long parentId,
 			@Parameter(description = "Last seen reply ID from the previous response") @RequestParam(required = false) Long cursor,
-			@Parameter(description = "Number of replies to return") @RequestParam(defaultValue = "20") int size)
-	{
+			@Parameter(description = "Number of replies to return") @RequestParam(defaultValue = "20") int size) {
 		return commentService.retrieveRepliesCursor(parentId, cursor, size);
 	}
 
@@ -135,8 +124,7 @@ public class PublicCommentController
 	@PreAuthorize("isAuthenticated()")
 	@RateLimit(count = 5, time = 30, unit = TimeUnit.MINUTES, message = "Too many reports. Please try again later.")
 	public ApiResponse<Void> reportComment(@Parameter(description = "Comment ID") @PathVariable Long id,
-			@Valid @RequestBody CommentReportRequest request)
-	{
+			@Valid @RequestBody CommentReportRequest request) {
 		return commentService.reportComment(id, request);
 	}
 }

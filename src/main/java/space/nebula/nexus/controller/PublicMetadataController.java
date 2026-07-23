@@ -21,23 +21,20 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/public")
 @RequiredArgsConstructor
-public class PublicMetadataController
-{
+public class PublicMetadataController {
 
 	private final ICategoryService categoryService;
 	private final ITagService tagService;
 
 	@GetMapping("/categories")
 	@Operation(summary = "Retrieve all categories", description = "Fetch a complete list of all blog categories.")
-	public ApiResponse<List<CategoryResponse>> retrieveCategories()
-	{
+	public ApiResponse<List<CategoryResponse>> retrieveCategories() {
 		return categoryService.retrieveAllCategories();
 	}
 
 	@GetMapping("/tags")
 	@Operation(summary = "Get all tags", description = "Retrieve a comprehensive list of all blog tags.")
-	public ApiResponse<List<TagResponse>> getAllTags()
-	{
+	public ApiResponse<List<TagResponse>> getAllTags() {
 		return tagService.getAllTags();
 	}
 }

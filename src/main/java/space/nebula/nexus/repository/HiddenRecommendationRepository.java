@@ -10,12 +10,12 @@ import space.nebula.nexus.entity.HiddenRecommendation;
  * Stores user feedback that suppresses individual recommendation candidates.
  */
 @Repository
-public interface HiddenRecommendationRepository extends JpaRepository<HiddenRecommendation, Long>
-{
+public interface HiddenRecommendationRepository extends JpaRepository<HiddenRecommendation, Long> {
 	/**
 	 * Counts hidden posts owned by a user.
 	 *
-	 * @param userId user identifier
+	 * @param userId
+	 *            user identifier
 	 * @return hidden post count
 	 */
 	long countByUserIdAndIsDeletedFalse(Long userId);
@@ -23,8 +23,10 @@ public interface HiddenRecommendationRepository extends JpaRepository<HiddenReco
 	/**
 	 * Hides a post unless the feedback already exists.
 	 *
-	 * @param userId user identifier
-	 * @param postId post identifier
+	 * @param userId
+	 *            user identifier
+	 * @param postId
+	 *            post identifier
 	 * @return number of inserted rows
 	 */
 	@Modifying
@@ -36,8 +38,10 @@ public interface HiddenRecommendationRepository extends JpaRepository<HiddenReco
 	/**
 	 * Restores one hidden recommendation.
 	 *
-	 * @param userId user identifier
-	 * @param postId post identifier
+	 * @param userId
+	 *            user identifier
+	 * @param postId
+	 *            post identifier
 	 * @return number of removed rows
 	 */
 	@Modifying
@@ -47,7 +51,8 @@ public interface HiddenRecommendationRepository extends JpaRepository<HiddenReco
 	/**
 	 * Clears all hidden recommendation feedback for a user.
 	 *
-	 * @param userId user identifier
+	 * @param userId
+	 *            user identifier
 	 * @return number of removed rows
 	 */
 	@Modifying

@@ -7,11 +7,9 @@ import space.nebula.nexus.service.IMarketDataService;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-class MarketDataScheduledTaskTest
-{
+class MarketDataScheduledTaskTest {
 	@Test
-	void preWarmMarketData1DDelegatesRefreshToService()
-	{
+	void preWarmMarketData1DDelegatesRefreshToService() {
 		IMarketDataService marketDataService = mock(IMarketDataService.class);
 		MarketDataScheduledTask task = new MarketDataScheduledTask(marketDataService);
 

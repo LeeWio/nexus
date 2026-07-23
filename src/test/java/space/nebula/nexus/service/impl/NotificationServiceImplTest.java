@@ -34,8 +34,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
-class NotificationServiceImplTest
-{
+class NotificationServiceImplTest {
 	@Mock
 	private NotificationRepository notificationRepository;
 
@@ -51,25 +50,22 @@ class NotificationServiceImplTest
 	private User currentUser;
 
 	@BeforeEach
-	void setUp()
-	{
+	void setUp() {
 		currentUser = new User();
 		currentUser.setId(42L);
 		currentUser.setUsername("reader");
-		SecurityContextHolder.getContext().setAuthentication(
-				new UsernamePasswordAuthenticationToken("reader", "password", List.of()));
+		SecurityContextHolder.getContext()
+				.setAuthentication(new UsernamePasswordAuthenticationToken("reader", "password", List.of()));
 		lenient().when(userRepository.findByUsername("reader")).thenReturn(Optional.of(currentUser));
 	}
 
 	@AfterEach
-	void tearDown()
-	{
+	void tearDown() {
 		SecurityContextHolder.clearContext();
 	}
 
 	@Test
-	void categoryPublicationUsesOneIdempotentBulkInsert()
-	{
+	void categoryPublicationUsesOneIdempotentBulkInsert() {
 		Category category = new Category();
 		category.setId(3L);
 		category.setName("Architecture");
@@ -83,23 +79,20 @@ class NotificationServiceImplTest
 		post.setCategory(category);
 		post.setAuthor(author);
 		when(postRepository.findPublicationNotificationPost(7L)).thenReturn(Optional.of(post));
-		when(notificationRepository.insertCategoryPublicationNotifications(3L, 9L, 7L,
-				"New post in Architecture",
+		when(notificationRepository.insertCategoryPublicationNotifications(3L, 9L, 7L, "New post in Architecture",
 				"\"Designing Reliable Services\" is now available in a category you follow.",
 				"/post/designing-reliable-services")).thenReturn(12);
 
 		int recipients = notificationService.sendCategoryPublication(7L);
 
 		assertEquals(12, recipients);
-		verify(notificationRepository).insertCategoryPublicationNotifications(3L, 9L, 7L,
-				"New post in Architecture",
+		verify(notificationRepository).insertCategoryPublicationNotifications(3L, 9L, 7L, "New post in Architecture",
 				"\"Designing Reliable Services\" is now available in a category you follow.",
 				"/post/designing-reliable-services");
 	}
 
 	@Test
-	void getMyNotificationsCanFilterUnreadItems()
-	{
+	void getMyNotificationsCanFilterUnreadItems() {
 		var pageable = PageRequest.of(0, 10);
 		when(notificationRepository.findByRecipientIdAndIsReadFalse(42L, pageable))
 				.thenReturn(new PageImpl<>(List.of()));
@@ -111,8 +104,7 @@ class NotificationServiceImplTest
 	}
 
 	@Test
-	void markAsReadRecordsReadTimestamp()
-	{
+	void markAsReadRecordsReadTimestamp() {
 		Notification notification = new Notification();
 		notification.setIsRead(false);
 		when(notificationRepository.findByIdAndRecipientId(7L, 42L)).thenReturn(Optional.of(notification));
@@ -133,8 +125,7 @@ class NotificationServiceImplTest
 	}
 
 	@Test
-	void clearReadNotificationsDeletesOnlyOwnedReadItems()
-	{
+	void clearReadNotificationsDeletesOnlyOwnedReadItems() {
 		notificationService.clearReadNotifications();
 
 		verify(notificationRepository).deleteReadByRecipientId(42L);

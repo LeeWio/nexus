@@ -7,8 +7,7 @@ import org.springframework.context.annotation.Configuration;
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "app.storage")
-public class StorageProperties
-{
+public class StorageProperties {
 
 	/**
 	 * Storage type: local, aliyun, s3
@@ -31,15 +30,13 @@ public class StorageProperties
 	private S3Config s3 = new S3Config();
 
 	@Data
-	public static class LocalConfig
-	{
+	public static class LocalConfig {
 		private String location = "uploads";
 		private String baseUrl = "/api/v1/public/files/";
 	}
 
 	@Data
-	public static class AliyunConfig
-	{
+	public static class AliyunConfig {
 		private String endpoint;
 		private String accessKeyId;
 		private String accessKeySecret;
@@ -48,8 +45,7 @@ public class StorageProperties
 	}
 
 	@Data
-	public static class S3Config
-	{
+	public static class S3Config {
 		private String endpoint;
 		private String accessKeyId;
 		private String accessKeySecret;

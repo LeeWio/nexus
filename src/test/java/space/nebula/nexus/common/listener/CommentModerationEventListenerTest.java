@@ -13,14 +13,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class CommentModerationEventListenerTest
-{
+class CommentModerationEventListenerTest {
 	@Test
-	void approvedReplyNotifiesAuthorAndReplyRecipient()
-	{
+	void approvedReplyNotifiesAuthorAndReplyRecipient() {
 		UserRepository userRepository = mock(UserRepository.class);
 		INotificationService notificationService = mock(INotificationService.class);
-		CommentModerationEventListener listener = new CommentModerationEventListener(userRepository, notificationService);
+		CommentModerationEventListener listener = new CommentModerationEventListener(userRepository,
+				notificationService);
 		User author = user(1L, "author");
 		User recipient = user(2L, "recipient");
 		when(userRepository.findById(1L)).thenReturn(Optional.of(author));
@@ -30,19 +29,18 @@ class CommentModerationEventListenerTest
 
 		listener.onCommentModerated(event);
 
-		verify(notificationService).send(author, "Comment approved",
-				"Your comment is now visible to other readers.", "COMMENT_APPROVED",
-				"/posts/example#comment-20");
-		verify(notificationService).send(recipient, "New reply to your comment",
-				"author replied to your comment.", "COMMENT_REPLY", "/posts/example#comment-20");
+		verify(notificationService).send(author, "Comment approved", "Your comment is now visible to other readers.",
+				"COMMENT_APPROVED", "/posts/example#comment-20");
+		verify(notificationService).send(recipient, "New reply to your comment", "author replied to your comment.",
+				"COMMENT_REPLY", "/posts/example#comment-20");
 	}
 
 	@Test
-	void rejectedCommentNotifiesOnlyItsAuthor()
-	{
+	void rejectedCommentNotifiesOnlyItsAuthor() {
 		UserRepository userRepository = mock(UserRepository.class);
 		INotificationService notificationService = mock(INotificationService.class);
-		CommentModerationEventListener listener = new CommentModerationEventListener(userRepository, notificationService);
+		CommentModerationEventListener listener = new CommentModerationEventListener(userRepository,
+				notificationService);
 		User author = user(1L, "author");
 		when(userRepository.findById(1L)).thenReturn(Optional.of(author));
 		var event = new CommentModeratedEvent(this, 20L, 1L, 2L, "author", CommentStatus.REJECTED, null);
@@ -53,8 +51,7 @@ class CommentModerationEventListenerTest
 				"Your comment did not meet the publication requirements.", "COMMENT_REJECTED", null);
 	}
 
-	private User user(Long id, String username)
-	{
+	private User user(Long id, String username) {
 		User user = new User();
 		user.setId(id);
 		user.setUsername(username);

@@ -92,7 +92,8 @@ class PostServiceImplTest {
 		Pageable pageable = Pageable.unpaged();
 		Post post = new Post();
 		Page<Post> page = new PageImpl<>(List.of(post));
-		when(postRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable))).thenReturn(page);
+		when(postRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+				.thenReturn(page);
 
 		PostResponse response = mock(PostResponse.class);
 		when(postMapper.toResponse(any())).thenReturn(response);
@@ -109,8 +110,8 @@ class PostServiceImplTest {
 	@DisplayName("Should create a new post and publish event")
 	void createPost_Success() {
 		// Arrange
-		PostRequest request = new PostRequest("My Title", null, null, "Summary", "Content", null, PostStatus.PUBLISHED, false,
-				null, null, null, null, null);
+		PostRequest request = new PostRequest("My Title", null, null, "Summary", "Content", null, PostStatus.PUBLISHED,
+				false, null, null, null, null, null);
 		User author = new User();
 		author.setUsername("admin");
 
@@ -139,15 +140,15 @@ class PostServiceImplTest {
 		Post anotherLatest = post(3L, "Another latest");
 		Post mostRead = post(4L, "Most read");
 
-		when(postRepository.findAllByStatus(eq(PostStatus.PUBLISHED), any(Pageable.class)))
-				.thenReturn(new PageImpl<>(List.of(featured, latest, anotherLatest)),
-						new PageImpl<>(List.of(latest, mostRead, featured)));
+		when(postRepository.findAllByStatus(eq(PostStatus.PUBLISHED), any(Pageable.class))).thenReturn(
+				new PageImpl<>(List.of(featured, latest, anotherLatest)),
+				new PageImpl<>(List.of(latest, mostRead, featured)));
 		when(postRepository.findAllByStatusAndIsFeaturedTrue(eq(PostStatus.PUBLISHED), any(Pageable.class)))
 				.thenReturn(new PageImpl<>(List.of(featured)));
 		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
 			Post post = invocation.getArgument(0);
-			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null,
-					null, null, null, post.getViews(), post.getLikesCount(), post.getPublishedAt());
+			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null,
+					null, post.getViews(), post.getLikesCount(), post.getPublishedAt());
 		});
 
 		ApiResponse<BlogDiscoveryResponse> response = postService.retrievePublicDiscovery();
@@ -176,8 +177,8 @@ class PostServiceImplTest {
 				.thenReturn(new PageImpl<>(List.of(featured)));
 		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
 			Post post = invocation.getArgument(0);
-			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null,
-					null, null, null, post.getViews(), post.getLikesCount(), post.getPublishedAt());
+			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null,
+					null, post.getViews(), post.getLikesCount(), post.getPublishedAt());
 		});
 
 		ApiResponse<BlogDiscoveryResponse> response = postService.retrievePublicDiscovery();
@@ -193,8 +194,8 @@ class PostServiceImplTest {
 		Pageable pageable = Pageable.unpaged();
 		when(postRepository.findProminentPublicPosts(PostStatus.PUBLISHED, pageable))
 				.thenReturn(new PageImpl<>(List.of(featured)));
-		when(postMapper.toDigestResponse(featured)).thenReturn(new PostDigestResponse(1L, "Featured",
-				"featured", null, null, null, null, null, 0L, 0L, null));
+		when(postMapper.toDigestResponse(featured)).thenReturn(
+				new PostDigestResponse(1L, "Featured", "featured", null, null, null, null, null, 0L, 0L, null));
 
 		ApiResponse<PageResult<PostDigestResponse>> response = postService.retrieveFeaturedPublicPosts(pageable);
 
@@ -235,8 +236,8 @@ class PostServiceImplTest {
 				.thenReturn(new PageImpl<>(List.of(categoryOnly, sameSeriesAndTags)));
 		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
 			Post post = invocation.getArgument(0);
-			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null,
-					null, null, null, post.getViews(), post.getLikesCount(), post.getPublishedAt());
+			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null,
+					null, post.getViews(), post.getLikesCount(), post.getPublishedAt());
 		});
 
 		ApiResponse<List<PostDigestResponse>> response = postService.retrieveRelatedPosts("source",
@@ -267,9 +268,8 @@ class PostServiceImplTest {
 	@Test
 	@DisplayName("Should reject archive month without year")
 	void retrievePublicArchive_RejectsMonthWithoutYear() {
-		BusinessException exception = assertThrows(BusinessException.class,
-				() -> postService.retrievePublicArchive(null, 7,
-						org.springframework.data.domain.PageRequest.of(0, 10)));
+		BusinessException exception = assertThrows(BusinessException.class, () -> postService
+				.retrievePublicArchive(null, 7, org.springframework.data.domain.PageRequest.of(0, 10)));
 
 		assertEquals("Archive month requires a year", exception.getMessage());
 		verify(postRepository, never()).findAll(any(org.springframework.data.jpa.domain.Specification.class),
@@ -364,10 +364,8 @@ class PostServiceImplTest {
 
 		assertEquals(2, published);
 		assertAll(() -> assertEquals(PostStatus.PUBLISHED, first.getStatus()),
-				() -> assertEquals(PostStatus.PUBLISHED, second.getStatus()),
-				() -> assertNull(first.getScheduledAt()),
-				() -> assertNull(second.getScheduledAt()),
-				() -> assertNotNull(first.getPublishedAt()),
+				() -> assertEquals(PostStatus.PUBLISHED, second.getStatus()), () -> assertNull(first.getScheduledAt()),
+				() -> assertNull(second.getScheduledAt()), () -> assertNotNull(first.getPublishedAt()),
 				() -> assertNotNull(second.getPublishedAt()));
 		verify(postRepository).saveAll(List.of(first, second));
 		verify(eventPublisher, times(2)).publishEvent(any());
@@ -443,12 +441,11 @@ class PostServiceImplTest {
 	void updatePost_PublishedPostRejected() {
 		Post post = post(34L, "Published article");
 		post.publish();
-		PostRequest request = new PostRequest("Changed", null, null, "Summary", "Content", null,
-				PostStatus.DRAFT, false, null, null, null, null, null);
+		PostRequest request = new PostRequest("Changed", null, null, "Summary", "Content", null, PostStatus.DRAFT,
+				false, null, null, null, null, null);
 		when(postRepository.findByIdForUpdate(34L)).thenReturn(Optional.of(post));
 
-		BusinessException exception = assertThrows(BusinessException.class,
-				() -> postService.updatePost(34L, request));
+		BusinessException exception = assertThrows(BusinessException.class, () -> postService.updatePost(34L, request));
 
 		assertEquals("Only draft or rejected posts can be edited", exception.getMessage());
 		verify(postRepository, never()).save(post);
@@ -457,16 +454,16 @@ class PostServiceImplTest {
 	@Test
 	@DisplayName("Should verify that public search and retrieve methods are annotated with @Transactional to prevent LazyInitializationException")
 	void verifyTransactionalAnnotations() throws NoSuchMethodException {
-		java.lang.reflect.Method searchMethod = PostServiceImpl.class.getMethod("searchPublicPosts",
-				Long.class, Long.class, String.class, Pageable.class);
-		org.springframework.transaction.annotation.Transactional searchAnnotation =
-				searchMethod.getAnnotation(org.springframework.transaction.annotation.Transactional.class);
+		java.lang.reflect.Method searchMethod = PostServiceImpl.class.getMethod("searchPublicPosts", Long.class,
+				Long.class, String.class, Pageable.class);
+		org.springframework.transaction.annotation.Transactional searchAnnotation = searchMethod
+				.getAnnotation(org.springframework.transaction.annotation.Transactional.class);
 		assertNotNull(searchAnnotation, "searchPublicPosts must be annotated with @Transactional");
 		assertTrue(searchAnnotation.readOnly(), "searchPublicPosts @Transactional must be readOnly = true");
 
 		java.lang.reflect.Method retrieveMethod = PostServiceImpl.class.getMethod("retrievePostBySlug", String.class);
-		org.springframework.transaction.annotation.Transactional retrieveAnnotation =
-				retrieveMethod.getAnnotation(org.springframework.transaction.annotation.Transactional.class);
+		org.springframework.transaction.annotation.Transactional retrieveAnnotation = retrieveMethod
+				.getAnnotation(org.springframework.transaction.annotation.Transactional.class);
 		assertNotNull(retrieveAnnotation, "retrievePostBySlug must be annotated with @Transactional");
 		assertTrue(retrieveAnnotation.readOnly(), "retrievePostBySlug @Transactional must be readOnly = true");
 	}

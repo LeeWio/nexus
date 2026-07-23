@@ -6,8 +6,7 @@ import space.nebula.nexus.payload.response.CategoryResponse;
 
 import java.util.List;
 
-public interface ICategoryService
-{
+public interface ICategoryService {
 	ApiResponse<List<CategoryResponse>> retrieveAllCategories();
 
 	ApiResponse<CategoryResponse> createCategory(CategoryRequest request);

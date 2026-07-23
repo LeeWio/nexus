@@ -14,8 +14,7 @@ import java.io.Serializable;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class L1CacheInvalidationMessage implements Serializable
-{
+public class L1CacheInvalidationMessage implements Serializable {
 	private String cacheName;
 	private String key; // null means clear all in this cacheName
 	private boolean clearAll;

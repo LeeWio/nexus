@@ -10,8 +10,7 @@ import space.nebula.nexus.payload.response.PageResult;
 
 import java.util.List;
 
-public interface IFriendLinkService
-{
+public interface IFriendLinkService {
 
 	ApiResponse<PageResult<FriendLinkResponse>> retrieveAdminFriendLinks(Pageable pageable);
 

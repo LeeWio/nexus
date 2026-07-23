@@ -11,8 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 /**
  * Authentication Service Interface.
  */
-public interface IAuthService
-{
+public interface IAuthService {
 
 	/**
 	 * Registers a new user account.

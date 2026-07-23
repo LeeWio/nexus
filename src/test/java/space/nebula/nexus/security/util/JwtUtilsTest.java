@@ -3,7 +3,6 @@ package space.nebula.nexus.security.util;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.User;
@@ -16,7 +15,6 @@ import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class JwtUtilsTest {
@@ -30,12 +28,13 @@ class JwtUtilsTest {
 
 	@BeforeEach
 	void setUp() {
-	    lenient().when(jwtProperties.getSecret()).thenReturn("4A614E645267556B58703273357638792F423F4528482B4D6251655468576D5A");
-	    lenient().when(jwtProperties.getAccessTokenExpiration()).thenReturn(7200000L);
-	    lenient().when(jwtProperties.getRefreshTokenExpiration()).thenReturn(604800000L);
+		lenient().when(jwtProperties.getSecret())
+				.thenReturn("4A614E645267556B58703273357638792F423F4528482B4D6251655468576D5A");
+		lenient().when(jwtProperties.getAccessTokenExpiration()).thenReturn(7200000L);
+		lenient().when(jwtProperties.getRefreshTokenExpiration()).thenReturn(604800000L);
 
-	    jwtUtils = new JwtUtils(jwtProperties);
-	    userDetails = new User("testuser", "password", Collections.emptyList());
+		jwtUtils = new JwtUtils(jwtProperties);
+		userDetails = new User("testuser", "password", Collections.emptyList());
 	}
 
 	@Test

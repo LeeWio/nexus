@@ -6,8 +6,7 @@ import space.nebula.nexus.payload.response.SeriesResponse;
 
 import java.util.List;
 
-public interface IPostSeriesService
-{
+public interface IPostSeriesService {
 
 	ApiResponse<List<SeriesResponse>> retrieveAllSeriesForAdmin();
 

@@ -16,8 +16,7 @@ import org.hibernate.annotations.SQLRestriction;
 @Table(name = "blog_webhook")
 @SQLDelete(sql = "UPDATE blog_webhook SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class Webhook extends BaseEntity
-{
+public class Webhook extends BaseEntity {
 
 	@Column(nullable = false, length = 100)
 	private String name;
