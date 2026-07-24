@@ -1,0 +1,22 @@
+name: 'Setup API Environment'
+description: 'Standardized Java/JDK setup with native Maven dependency caching'
+
+inputs:
+  java-version:
+    description: 'Version of JDK to install'
+    required: false
+    default: '21'
+  distribution:
+    description: 'JDK distribution'
+    required: false
+    default: 'corretto'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ inputs.java-version }}
+        distribution: ${{ inputs.distribution }}
+        cache: 'maven'

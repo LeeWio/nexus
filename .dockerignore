@@ -3,7 +3,7 @@
 .idea
 .vscode
 .agents
-target
+#target
 build_log
 uploads
 .DS_Store

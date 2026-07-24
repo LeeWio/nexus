@@ -2,15 +2,70 @@ name: Nexus CI/CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
 
 concurrency:
   group: nexus-production-deploy
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  deploy:
+  build-and-push-image:
+    name: Build & Push API Image
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 1. Setup Java JDK and restore Maven cache (takes less than a few seconds)
+      - name: Setup API Environment
+        uses: ./.github/actions/setup-api
+
+      # 2. Make Maven wrapper executable
+      - name: Configure Maven Permissions
+        run: chmod +x mvnw
+
+      # 3. Fast compilation of Spring Boot application on high-speed GHA host
+      - name: Compile and Package JAR
+        run: ./mvnw clean package -DskipTests
+
+      # 4. Set up Docker Buildx and login to GHCR
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 5. Pack compiled JAR into the ultra-lean runner-prebuilt target stage (takes ~5s)
+      - name: Package Prebuilt JAR & Push Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: runner-prebuilt
+          push: true
+          tags: |
+            ghcr.io/leewio/nexus-api:latest
+            ghcr.io/leewio/nexus-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-to-server:
+    name: Pull & Recreate Container on Server
+    needs: build-and-push-image
+    runs-on: ubuntu-latest
+    environment:
+      name: production
     steps:
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -19,26 +74,88 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
+          # Pass temporary GHA secrets to the SSH session
+          envs: GITHUB_TOKEN,GITHUB_ACTOR
           script: |
-            # Navigate to the API repository directory on the server
-            cd ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}/apps/api
-            
-            # Clean up any crashed Git lock files to prevent lock-outs
-            rm -f .git/refs/remotes/origin/main.lock
-            rm -f .git/index.lock
-            
-            # Clean and reset to the latest origin/main code
-            git fetch --all && git reset --hard origin/main
-            
-            # Navigate to the root directory containing the compose.yaml file
+            set -e
+            echo "==== Starting Remote Container Pull deployment ===="
+
+            # 1. Navigate to the root directory containing compose.yaml
             cd ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}
-            
-            # Clean and build the new API image quietly with low CPU priority to protect the server
-            export COMPOSE_PARALLEL_LIMIT=1
-            nice -n 10 docker compose build api
-            
-            # Recreate and restart the API service container with zero downtime
+
+            # 2. Login to ghcr.io with the ephemeral token passed from GHA
+            echo "Logging in to GitHub Container Registry on production server..."
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+            # 3. Pull the newly pushed api image
+            echo "Pulling the latest precompiled api image..."
+            docker compose pull api
+
+            # 4. Gracefully recreate the API container with zero-downtime rolling restart (no compiling on server!)
+            echo "Recreating API container..."
             docker compose up -d --no-deps api
-            
-            # Safe garbage collection of dangling images left behind by the hot recreate
+
+            # 5. Logout of GHCR to protect server credentials
+            docker logout ghcr.io
+
+            # 6. Advanced Post-Deployment Verification (verifies that the container actually started up)
+            echo "Verifying container status..."
+            CONTAINER_ID="$(docker compose ps -q api)"
+
+            if [ -z "${CONTAINER_ID}" ]; then
+              echo "API container ID could not be resolved"
+              exit 1
+            fi
+
+            READY=false
+
+            for attempt in $(seq 1 30); do
+              RUNNING="$(
+                docker inspect \
+                  --format '{{.State.Running}}' \
+                  "${CONTAINER_ID}"
+              )"
+
+              HEALTH="$(
+                docker inspect \
+                  --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+                  "${CONTAINER_ID}"
+              )"
+
+              echo "Check ${attempt}/30: running=${RUNNING}, health=${HEALTH}"
+
+              if [ "${RUNNING}" != "true" ]; then
+                echo "API container stopped unexpectedly"
+                docker compose logs --tail=200 api
+                exit 1
+              fi
+
+              case "${HEALTH}" in
+                healthy|none)
+                  READY=true
+                  break
+                  ;;
+                unhealthy)
+                  echo "API container is unhealthy"
+                  docker compose logs --tail=200 api
+                  exit 1
+                  ;;
+              esac
+
+              sleep 2
+            done
+
+            if [ "${READY}" != "true" ]; then
+              echo "Container did not become ready in time"
+              docker compose logs --tail=200 api
+              exit 1
+            fi
+
+            # 7. Post-deployment safe cleanup of old images to preserve disk space
+            echo "Cleaning up outdated container images..."
             docker image prune -f
+            
+            echo "==== Deployment Completed Successfully ===="
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}

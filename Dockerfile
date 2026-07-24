@@ -25,3 +25,23 @@ ENV SPRING_PROFILES_ACTIVE=prod
 EXPOSE 8080
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+
+
+# ========================================================
+# 🌟 Stage 3: runner-prebuilt (专为 GitHub Actions 宿主机编译打造的极速精简运行层)
+# ========================================================
+FROM public.ecr.aws/docker/library/amazoncorretto:21-alpine AS runner-prebuilt
+
+WORKDIR /app
+
+# 直接从 GitHub 宿主机上 COPY 编译完的 JAR 产物
+COPY target/*.jar app.jar
+
+# 应用程序运行配置
+ENV JAVA_OPTS="-Xms512m -Xmx512m -Djava.security.egd=file:/dev/./urandom"
+ENV SPRING_PROFILES_ACTIVE=prod
+
+EXPOSE 8080
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+
