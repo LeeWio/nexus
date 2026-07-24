@@ -19,6 +19,10 @@ jobs:
             # Navigate to the API repository directory on the server
             cd ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}/apps/api
             
+            # Clean up any crashed Git lock files to prevent lock-outs
+            rm -f .git/refs/remotes/origin/main.lock
+            rm -f .git/index.lock
+            
             # Clean and reset to the latest origin/main code
             git fetch --all && git reset --hard origin/main
             
