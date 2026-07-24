@@ -55,7 +55,7 @@ services:
     restart: always
 
   nexus-db:
-    image: mysql:9.6
+    image: mysql:8.0
     container_name: nexus-db
     environment:
       - MYSQL_DATABASE=nexus_db
