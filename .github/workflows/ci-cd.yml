@@ -3,115 +3,10 @@ name: Nexus CI/CD
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: nexus_password
-          MYSQL_DATABASE: nexus_db
-        ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping -uroot -pnexus_password" --health-interval=10s --health-timeout=5s --health-retries=10
-
-      redis:
-        image: redis:7.4-alpine
-        ports:
-          - 6379:6379
-
-      rabbitmq:
-        image: rabbitmq:3.13-management
-        ports:
-          - 5672:5672
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-        cache: maven
-
-    - name: Wait for MySQL to be ready
-      run: |
-        echo "Installing mysql client..."
-        sudo apt-get update -y
-        sudo apt-get install -y default-mysql-client
-        echo "Waiting for MySQL to accept authenticated connections on 127.0.0.1:3306..."
-        for i in {1..90}; do
-          if mysqladmin ping -h 127.0.0.1 -P 3306 -u root -pnexus_password --silent; then
-            # Ensure the database schema has been initialized and exists
-            if mysql -h 127.0.0.1 -P 3306 -u root -pnexus_password -e "SELECT schema_name FROM information_schema.schemata WHERE schema_name='nexus_db'\G" | grep -q nexus_db; then
-              echo "MySQL and nexus_db ready!"
-              exit 0
-            fi
-          fi
-          sleep 2
-        done
-        echo "MySQL did not become ready in time" >&2
-        exit 1
-
-    - name: Build and Test with Maven
-      run: ./mvnw clean verify
-      env:
-        SPRING_DATA_REDIS_HOST: localhost
-        SPRING_RABBITMQ_HOST: localhost
-
-  build-and-push-image:
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest
-            type=sha,format=short
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
   deploy:
     runs-on: ubuntu-latest
-    needs: build-and-push-image
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
     steps:
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -121,8 +16,14 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
-            cd ${{ secrets.SERVER_PROJECT_PATH || '/var/www/blog' }}
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose pull api
-            docker compose up -d --no-deps api
-            docker image prune -f
+            # Navigate to the API repository directory on the server
+            cd ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}/apps/api
+            
+            # Pull the latest backend code
+            git pull
+            
+            # Navigate to the root directory containing the compose.yaml file
+            cd ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}
+            
+            # Rebuild and restart only the API service container
+            docker compose up -d --build api
