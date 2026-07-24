@@ -18,6 +18,7 @@ import space.nebula.nexus.service.IDashboardService;
 @Slf4j
 public class PublicStatsController {
 
+	// Aligned with SERVER_SERVLET_CONTEXT_PATH: /api in compose.yaml to resolve double-prefix 401 blocks
 	private final IDashboardService dashboardService;
 	private final space.nebula.nexus.service.IAnalyticsService analyticsService;
 
