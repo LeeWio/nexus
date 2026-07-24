@@ -68,10 +68,6 @@ jobs:
     - name: Build and Test with Maven
       run: ./mvnw clean verify
       env:
-        SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/nexus_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-        SPRING_DATASOURCE_USERNAME: root
-        SPRING_DATASOURCE_PASSWORD: nexus_password
-        SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
         SPRING_DATA_REDIS_HOST: localhost
         SPRING_RABBITMQ_HOST: localhost
 
