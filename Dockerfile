@@ -1,7 +1,6 @@
-# syntax=docker/dockerfile:1.7
 
 # Build stage
-FROM maven:3.9.9-amazoncorretto-21 AS build
+FROM public.ecr.aws/docker/library/maven:3.9.9-amazoncorretto-21 AS build
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
@@ -11,7 +10,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     mvn package -DskipTests
 
 # Run stage
-FROM amazoncorretto:21-alpine
+FROM public.ecr.aws/docker/library/amazoncorretto:21-alpine
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 

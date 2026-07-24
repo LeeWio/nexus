@@ -52,8 +52,62 @@ VALUES
 ('Finally finished reading "Clean Code". Highly recommended for any developer!', 1, 8, NOW(), NOW(), 'SYSTEM', 0);
 
 -- 7. Add sample projects
-INSERT INTO `blog_project` (`name`, `slug`, `description`, `github_url`, `is_published`, `sort_order`, `created_at`, `updated_at`, `created_by`, `is_deleted`)
-VALUES 
-('Nexus CMS', 'nexus-cms', 'A modern, lightweight blog and CMS system built with Spring Boot.', 'https://github.com/yourusername/nexus', 1, 1, NOW(), NOW(), 'SYSTEM', 0),
-('Starry Weather', 'starry-weather', 'A minimalist weather application with beautiful astronomy-themed backgrounds.', 'https://github.com/yourusername/starry-weather', 1, 2, NOW(), NOW(), 'SYSTEM', 0);
+INSERT INTO `blog_project` (
+    `name`,
+    `description`,
+    `github_url`,
+    `repo_name`,
+    `is_published`,
+    `sort_order`,
+    `created_at`,
+    `updated_at`,
+    `created_by`,
+    `is_deleted`
+)
+SELECT
+    'Nexus CMS',
+    'A modern, lightweight blog and CMS system built with Spring Boot.',
+    'https://github.com/yourusername/nexus',
+    'nexus',
+    1,
+    1,
+    NOW(),
+    NOW(),
+    'SYSTEM',
+    0
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM `blog_project`
+    WHERE `name` = 'Nexus CMS'
+       OR `repo_name` = 'nexus'
+);
 
+INSERT INTO `blog_project` (
+    `name`,
+    `description`,
+    `github_url`,
+    `repo_name`,
+    `is_published`,
+    `sort_order`,
+    `created_at`,
+    `updated_at`,
+    `created_by`,
+    `is_deleted`
+)
+SELECT
+    'Starry Weather',
+    'A minimalist weather application with beautiful astronomy-themed backgrounds.',
+    'https://github.com/yourusername/starry-weather',
+    'starry-weather',
+    1,
+    2,
+    NOW(),
+    NOW(),
+    'SYSTEM',
+    0
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM `blog_project`
+    WHERE `name` = 'Starry Weather'
+       OR `repo_name` = 'starry-weather'
+);

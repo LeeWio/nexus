@@ -1,4 +1,7 @@
--- Create canal user for binlog replication
--- Using IF NOT EXISTS or ignoring errors for the user creation
-GRANT SELECT, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'canal'@'%';
-FLUSH PRIVILEGES;
+-- V100: Canal user provisioning
+--
+-- The Canal database user requires global replication privileges.
+-- It is provisioned separately by the deployment process using
+-- a MySQL administrative account.
+--
+-- No application schema changes are required here.

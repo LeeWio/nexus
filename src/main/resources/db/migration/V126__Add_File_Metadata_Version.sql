@@ -1,2 +1,2 @@
-ALTER TABLE sys_file
-    ADD COLUMN version BIGINT NOT NULL DEFAULT 0 AFTER id;
+-- V126: sys_file.version already exists in the current schema.
+-- No schema change is required.
