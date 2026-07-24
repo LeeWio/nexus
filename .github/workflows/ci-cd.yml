@@ -19,8 +19,8 @@ jobs:
             # Navigate to the API repository directory on the server
             cd ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}/apps/api
             
-            # Pull the latest backend code
-            git pull
+            # Clean and reset to the latest origin/main code
+            git fetch --all && git reset --hard origin/main
             
             # Navigate to the root directory containing the compose.yaml file
             cd ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}
