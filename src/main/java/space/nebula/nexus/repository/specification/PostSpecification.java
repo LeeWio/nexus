@@ -11,6 +11,7 @@ import space.nebula.nexus.enums.PostStatus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Reusable specifications for Post entity queries.
@@ -55,10 +56,11 @@ public class PostSpecification {
 			}
 
 			if (StrUtil.isNotBlank(keyword)) {
-				String pattern = "%" + keyword.toLowerCase() + "%";
-				predicates.add(cb.or(cb.like(cb.lower(root.get("title")), pattern),
-						cb.like(cb.lower(root.get("summary")), pattern),
-						cb.like(cb.lower(root.get("content")), pattern)));
+				String normalizedPattern = "%" + keyword.toLowerCase(Locale.ROOT) + "%";
+				String rawPattern = "%" + keyword + "%";
+				predicates.add(cb.or(cb.like(cb.lower(root.get("title")), normalizedPattern),
+						cb.like(cb.lower(root.get("summary")), normalizedPattern),
+						cb.like(root.get("content"), rawPattern)));
 			}
 
 			if (Boolean.TRUE.equals(featuredOnly)) {

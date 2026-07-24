@@ -1,9 +1,8 @@
 -- Add interaction and edit metadata to comments.
-ALTER TABLE blog_comment
-    ADD COLUMN likes_count BIGINT NOT NULL DEFAULT 0,
-    ADD COLUMN reports_count BIGINT NOT NULL DEFAULT 0,
-    ADD COLUMN edited_at DATETIME NULL,
-    ADD COLUMN edit_count INT NOT NULL DEFAULT 0;
+ALTER TABLE blog_comment ADD COLUMN likes_count BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE blog_comment ADD COLUMN reports_count BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE blog_comment ADD COLUMN edited_at DATETIME NULL;
+ALTER TABLE blog_comment ADD COLUMN edit_count INT NOT NULL DEFAULT 0;
 
 CREATE TABLE blog_comment_like (
     comment_id BIGINT NOT NULL,

@@ -1,6 +1,5 @@
-ALTER TABLE blog_post
-    ADD COLUMN scheduled_at DATETIME(3) NULL AFTER published_at,
-    MODIFY COLUMN status ENUM(
+ALTER TABLE blog_post ADD COLUMN scheduled_at DATETIME(3) NULL AFTER published_at;
+ALTER TABLE blog_post MODIFY COLUMN status ENUM(
         'ARCHIVED',
         'DRAFT',
         'PENDING_REVIEW',

@@ -1,9 +1,8 @@
 -- Add moderation audit trail and report lifecycle state.
-ALTER TABLE blog_comment_report
-    ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
-    ADD COLUMN handled_by VARCHAR(100) NULL,
-    ADD COLUMN handled_at DATETIME NULL,
-    ADD COLUMN resolution_note VARCHAR(500) NULL;
+ALTER TABLE blog_comment_report ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'OPEN';
+ALTER TABLE blog_comment_report ADD COLUMN handled_by VARCHAR(100) NULL;
+ALTER TABLE blog_comment_report ADD COLUMN handled_at DATETIME NULL;
+ALTER TABLE blog_comment_report ADD COLUMN resolution_note VARCHAR(500) NULL;
 
 CREATE INDEX idx_comment_report_status_created
     ON blog_comment_report (status, created_at);

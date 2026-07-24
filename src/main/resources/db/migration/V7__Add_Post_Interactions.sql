@@ -1,6 +1,5 @@
-ALTER TABLE blog_post 
-ADD COLUMN likes_count BIGINT NOT NULL DEFAULT 0,
-ADD COLUMN favorites_count BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE blog_post ADD COLUMN likes_count BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE blog_post ADD COLUMN favorites_count BIGINT NOT NULL DEFAULT 0;
 
 CREATE TABLE user_favorite_post (
     user_id BIGINT NOT NULL,

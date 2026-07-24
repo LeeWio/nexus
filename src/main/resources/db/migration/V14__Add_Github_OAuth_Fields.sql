@@ -1,3 +1,2 @@
-ALTER TABLE sys_user 
-ADD COLUMN github_id VARCHAR(100) UNIQUE,
-ADD COLUMN github_username VARCHAR(100);
+ALTER TABLE sys_user ADD COLUMN github_id VARCHAR(100) UNIQUE;
+ALTER TABLE sys_user ADD COLUMN github_username VARCHAR(100);

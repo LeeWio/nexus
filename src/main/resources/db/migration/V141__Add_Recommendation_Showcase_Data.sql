@@ -35,7 +35,7 @@ VALUES
  '# Designing a Recommendation Surface\n\nA strong recommendation experience separates editorial judgment, personal preference, and current reading context. This guide walks through the ranking signals and product rules that keep every section useful.',
  'MDX', 'PUBLISHED', 1, 1840, 142, 78, 1320, 7,
  (SELECT id FROM `blog_category` WHERE slug = 'product-engineering'), 2,
- DATE_SUB(NOW(3), INTERVAL 1 DAY), DATE_SUB(NOW(3), INTERVAL 1 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '1' DAY, NOW(3) - INTERVAL '1' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Spring Boot API Boundaries for Content Heavy Products',
  'spring-boot-api-boundaries-content-products',
@@ -45,7 +45,7 @@ VALUES
  '# Spring Boot API Boundaries\n\nThis article outlines controller and service boundaries for a content product, including DTO shape, cache invalidation, and transactional rules.',
  'MDX', 'PUBLISHED', 1, 1630, 118, 64, 1680, 9,
  (SELECT id FROM `blog_category` WHERE slug = 'backend'), 1,
- DATE_SUB(NOW(3), INTERVAL 2 DAY), DATE_SUB(NOW(3), INTERVAL 2 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '2' DAY, NOW(3) - INTERVAL '2' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Full Stack Feature Flags Without Losing Product Clarity',
  'full-stack-feature-flags-product-clarity',
@@ -55,7 +55,7 @@ VALUES
  '# Full Stack Feature Flags\n\nFlags help teams ship carefully, but the model needs ownership, expiry, and observable rollout states.',
  'MDX', 'PUBLISHED', 0, 980, 71, 38, 1180, 6,
  (SELECT id FROM `blog_category` WHERE slug = 'product-engineering'), 2,
- DATE_SUB(NOW(3), INTERVAL 4 DAY), DATE_SUB(NOW(3), INTERVAL 4 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '4' DAY, NOW(3) - INTERVAL '4' DAY, NOW(3), 'SYSTEM', 0),
 
 ('A Field Guide to Read Next Ranking',
  'field-guide-read-next-ranking',
@@ -65,7 +65,7 @@ VALUES
  '# A Field Guide to Read Next Ranking\n\nRead-next ranking starts with the article in hand. Series order, shared tags, category overlap, and freshness create a useful next step.',
  'MDX', 'PUBLISHED', 1, 1420, 96, 52, 1260, 7,
  (SELECT id FROM `blog_category` WHERE slug = 'architecture'), 1,
- DATE_SUB(NOW(3), INTERVAL 5 DAY), DATE_SUB(NOW(3), INTERVAL 5 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '5' DAY, NOW(3) - INTERVAL '5' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Measuring Frontend Perceived Performance',
  'measuring-frontend-perceived-performance',
@@ -75,7 +75,7 @@ VALUES
  '# Measuring Frontend Perceived Performance\n\nPerceived performance combines content timing, interaction readiness, animation cost, and layout stability.',
  'MDX', 'PUBLISHED', 0, 1210, 89, 41, 1540, 8,
  (SELECT id FROM `blog_category` WHERE slug = 'frontend'), 2,
- DATE_SUB(NOW(3), INTERVAL 7 DAY), DATE_SUB(NOW(3), INTERVAL 7 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '7' DAY, NOW(3) - INTERVAL '7' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Design Tokens That Survive Real Product Screens',
  'design-tokens-real-product-screens',
@@ -85,7 +85,7 @@ VALUES
  '# Design Tokens That Survive\n\nThis post covers color roles, typography rhythm, spacing, and component-level constraints for product screens.',
  'MDX', 'PUBLISHED', 1, 1515, 103, 59, 1390, 7,
  (SELECT id FROM `blog_category` WHERE slug = 'design-systems'), 2,
- DATE_SUB(NOW(3), INTERVAL 8 DAY), DATE_SUB(NOW(3), INTERVAL 8 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '8' DAY, NOW(3) - INTERVAL '8' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Building Search Facets That Help Readers Browse',
  'building-search-facets-readers-browse',
@@ -95,7 +95,7 @@ VALUES
  '# Building Search Facets\n\nGood facets expose useful dimensions without overwhelming the reader. This guide covers ordering, counts, and empty states.',
  'MDX', 'PUBLISHED', 0, 875, 54, 27, 1010, 5,
  (SELECT id FROM `blog_category` WHERE slug = 'backend'), 1,
- DATE_SUB(NOW(3), INTERVAL 10 DAY), DATE_SUB(NOW(3), INTERVAL 10 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '10' DAY, NOW(3) - INTERVAL '10' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Database Indexes for Public Content Feeds',
  'database-indexes-public-content-feeds',
@@ -105,7 +105,7 @@ VALUES
  '# Database Indexes for Public Content Feeds\n\nThis article explains how content feeds use composite indexes and bounded candidate pools.',
  'MDX', 'PUBLISHED', 0, 1135, 67, 34, 1470, 8,
  (SELECT id FROM `blog_category` WHERE slug = 'database'), 1,
- DATE_SUB(NOW(3), INTERVAL 12 DAY), DATE_SUB(NOW(3), INTERVAL 12 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '12' DAY, NOW(3) - INTERVAL '12' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Caching Strategy for Blog Discovery APIs',
  'caching-strategy-blog-discovery-apis',
@@ -115,7 +115,7 @@ VALUES
  '# Caching Strategy for Blog Discovery APIs\n\nThis guide covers cache keys, invalidation events, and when not to cache user-specific recommendation data.',
  'MDX', 'PUBLISHED', 1, 1370, 82, 46, 1220, 6,
  (SELECT id FROM `blog_category` WHERE slug = 'architecture'), 1,
- DATE_SUB(NOW(3), INTERVAL 14 DAY), DATE_SUB(NOW(3), INTERVAL 14 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '14' DAY, NOW(3) - INTERVAL '14' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Observability for Content Workflows',
  'observability-content-workflows',
@@ -125,7 +125,7 @@ VALUES
  '# Observability for Content Workflows\n\nLogs, metrics, and audit fields make asynchronous content workflows debuggable.',
  'MDX', 'PUBLISHED', 0, 990, 61, 31, 1350, 7,
  (SELECT id FROM `blog_category` WHERE slug = 'devops'), 2,
- DATE_SUB(NOW(3), INTERVAL 16 DAY), DATE_SUB(NOW(3), INTERVAL 16 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '16' DAY, NOW(3) - INTERVAL '16' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Secure Webhooks in a Content Platform',
  'secure-webhooks-content-platform',
@@ -135,7 +135,7 @@ VALUES
  '# Secure Webhooks in a Content Platform\n\nThis article covers SSRF safeguards, retries, idempotency, and admin-facing delivery state.',
  'MDX', 'PUBLISHED', 0, 1188, 76, 37, 1490, 8,
  (SELECT id FROM `blog_category` WHERE slug = 'backend'), 1,
- DATE_SUB(NOW(3), INTERVAL 18 DAY), DATE_SUB(NOW(3), INTERVAL 18 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '18' DAY, NOW(3) - INTERVAL '18' DAY, NOW(3), 'SYSTEM', 0),
 
 ('AI Assisted Editorial Review That Keeps Humans in Control',
  'ai-assisted-editorial-review-human-control',
@@ -145,7 +145,7 @@ VALUES
  '# AI Assisted Editorial Review\n\nThis post covers AI-generated summaries, classification, sensitive-word review, and transparent editor controls.',
  'MDX', 'PUBLISHED', 1, 1328, 91, 44, 1580, 8,
  (SELECT id FROM `blog_category` WHERE slug = 'ai'), 2,
- DATE_SUB(NOW(3), INTERVAL 20 DAY), DATE_SUB(NOW(3), INTERVAL 20 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '20' DAY, NOW(3) - INTERVAL '20' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Newsletter Picks from a Living Archive',
  'newsletter-picks-living-archive',
@@ -155,7 +155,7 @@ VALUES
  '# Newsletter Picks from a Living Archive\n\nThis guide shows how archive facets, engagement, and freshness windows shape newsletter content.',
  'MDX', 'PUBLISHED', 0, 760, 43, 24, 1050, 5,
  (SELECT id FROM `blog_category` WHERE slug = 'product-engineering'), 2,
- DATE_SUB(NOW(3), INTERVAL 24 DAY), DATE_SUB(NOW(3), INTERVAL 24 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '24' DAY, NOW(3) - INTERVAL '24' DAY, NOW(3), 'SYSTEM', 0),
 
 ('CSS Scope Boundaries for Theme Rich Interfaces',
  'css-scope-boundaries-theme-rich-interfaces',
@@ -165,7 +165,7 @@ VALUES
  '# CSS Scope Boundaries\n\nThis article covers root attributes, scoped vendor CSS, and visual regression checks for rich theme systems.',
  'MDX', 'PUBLISHED', 0, 1045, 74, 39, 1440, 7,
  (SELECT id FROM `blog_category` WHERE slug = 'design-systems'), 2,
- DATE_SUB(NOW(3), INTERVAL 28 DAY), DATE_SUB(NOW(3), INTERVAL 28 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '28' DAY, NOW(3) - INTERVAL '28' DAY, NOW(3), 'SYSTEM', 0),
 
 ('A Practical Guide to Article Card Density',
  'practical-guide-article-card-density',
@@ -175,7 +175,7 @@ VALUES
  '# A Practical Guide to Article Card Density\n\nThis article looks at title length, summaries, metadata, cover ratios, and responsive card grids.',
  'MDX', 'PUBLISHED', 0, 915, 58, 29, 980, 5,
  (SELECT id FROM `blog_category` WHERE slug = 'design-systems'), 2,
- DATE_SUB(NOW(3), INTERVAL 32 DAY), DATE_SUB(NOW(3), INTERVAL 32 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '32' DAY, NOW(3) - INTERVAL '32' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Redis Patterns for Reader Interaction Counters',
  'redis-patterns-reader-interaction-counters',
@@ -185,7 +185,7 @@ VALUES
  '# Redis Patterns for Reader Interaction Counters\n\nThis post explains how to batch high-volume counters while keeping public pages fresh.',
  'MDX', 'PUBLISHED', 0, 1090, 66, 35, 1210, 6,
  (SELECT id FROM `blog_category` WHERE slug = 'database'), 1,
- DATE_SUB(NOW(3), INTERVAL 36 DAY), DATE_SUB(NOW(3), INTERVAL 36 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '36' DAY, NOW(3) - INTERVAL '36' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Kubernetes Deployments for a Small Content Team',
  'kubernetes-deployments-small-content-team',
@@ -195,7 +195,7 @@ VALUES
  '# Kubernetes Deployments for a Small Content Team\n\nThis guide covers image promotion, readiness checks, Flyway migrations, and rollback habits.',
  'MDX', 'PUBLISHED', 0, 845, 47, 23, 1380, 7,
  (SELECT id FROM `blog_category` WHERE slug = 'devops'), 1,
- DATE_SUB(NOW(3), INTERVAL 40 DAY), DATE_SUB(NOW(3), INTERVAL 40 DAY), NOW(3), 'SYSTEM', 0),
+ NOW(3) - INTERVAL '40' DAY, NOW(3) - INTERVAL '40' DAY, NOW(3), 'SYSTEM', 0),
 
 ('Building a Calm Admin Dashboard for Editors',
  'building-calm-admin-dashboard-editors',
@@ -205,7 +205,7 @@ VALUES
  '# Building a Calm Admin Dashboard\n\nThis article walks through editorial status, review queues, audit metadata, and navigation patterns.',
  'MDX', 'PUBLISHED', 0, 1240, 83, 48, 1520, 8,
  (SELECT id FROM `blog_category` WHERE slug = 'product-engineering'), 2,
- DATE_SUB(NOW(3), INTERVAL 45 DAY), DATE_SUB(NOW(3), INTERVAL 45 DAY), NOW(3), 'SYSTEM', 0);
+ NOW(3) - INTERVAL '45' DAY, NOW(3) - INTERVAL '45' DAY, NOW(3), 'SYSTEM', 0);
 
 UPDATE `blog_post`
 SET `path` = CONCAT('/', `slug`, '/')
@@ -345,28 +345,28 @@ WHERE c.slug IN ('frontend', 'backend', 'architecture', 'product-engineering', '
 
 INSERT IGNORE INTO `blog_reading_history`
 (`user_id`, `post_id`, `progress_percent`, `position_anchor`, `last_read_at`, `created_by`, `created_at`, `updated_at`, `is_deleted`)
-SELECT 1, p.id, 72, 'section-api-boundaries', DATE_SUB(NOW(3), INTERVAL 2 HOUR), 'SYSTEM', DATE_SUB(NOW(3), INTERVAL 2 HOUR), NOW(3), 0
+SELECT 1, p.id, 72, 'section-api-boundaries', NOW(3) - INTERVAL '2' HOUR, 'SYSTEM', NOW(3) - INTERVAL '2' HOUR, NOW(3), 0
 FROM `blog_post` p
 WHERE p.slug = 'spring-boot-api-boundaries-content-products';
 
 INSERT IGNORE INTO `blog_reading_history`
 (`user_id`, `post_id`, `progress_percent`, `position_anchor`, `last_read_at`, `created_by`, `created_at`, `updated_at`, `is_deleted`)
-SELECT 1, p.id, 46, 'section-visual-stability', DATE_SUB(NOW(3), INTERVAL 1 DAY), 'SYSTEM', DATE_SUB(NOW(3), INTERVAL 1 DAY), NOW(3), 0
+SELECT 1, p.id, 46, 'section-visual-stability', NOW(3) - INTERVAL '1' DAY, 'SYSTEM', NOW(3) - INTERVAL '1' DAY, NOW(3), 0
 FROM `blog_post` p
 WHERE p.slug = 'measuring-frontend-perceived-performance';
 
 INSERT IGNORE INTO `blog_reading_history`
 (`user_id`, `post_id`, `progress_percent`, `position_anchor`, `last_read_at`, `created_by`, `created_at`, `updated_at`, `is_deleted`)
-SELECT 1, p.id, 100, 'done', DATE_SUB(NOW(3), INTERVAL 3 DAY), 'SYSTEM', DATE_SUB(NOW(3), INTERVAL 3 DAY), NOW(3), 0
+SELECT 1, p.id, 100, 'done', NOW(3) - INTERVAL '3' DAY, 'SYSTEM', NOW(3) - INTERVAL '3' DAY, NOW(3), 0
 FROM `blog_post` p
 WHERE p.slug = 'design-tokens-real-product-screens';
 
 INSERT IGNORE INTO `blog_post_favorite` (`post_id`, `user_id`, `created_at`)
-SELECT p.id, 1, DATE_SUB(NOW(3), INTERVAL 4 HOUR)
+SELECT p.id, 1, NOW(3) - INTERVAL '4' HOUR
 FROM `blog_post` p
 WHERE p.slug IN ('design-tokens-real-product-screens', 'caching-strategy-blog-discovery-apis', 'building-calm-admin-dashboard-editors');
 
 INSERT IGNORE INTO `blog_post_like` (`post_id`, `user_id`, `created_at`)
-SELECT p.id, 1, DATE_SUB(NOW(3), INTERVAL 3 HOUR)
+SELECT p.id, 1, NOW(3) - INTERVAL '3' HOUR
 FROM `blog_post` p
 WHERE p.slug IN ('designing-recommendation-surface', 'field-guide-read-next-ranking', 'ai-assisted-editorial-review-human-control');

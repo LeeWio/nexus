@@ -6,7 +6,10 @@ ALTER TABLE blog_comment ADD COLUMN path VARCHAR(1000) DEFAULT NULL;
 UPDATE blog_comment SET path = CONCAT('/', id, '/') WHERE parent_id IS NULL;
 
 -- Assuming most existing comments in a blog aren't too deep, we can do a couple of updates for existing data
-UPDATE blog_comment c1 
-JOIN blog_comment c2 ON c1.parent_id = c2.id 
-SET c1.path = CONCAT(c2.path, c1.id, '/') 
-WHERE c1.parent_id IS NOT NULL AND c2.path IS NOT NULL;
+UPDATE blog_comment c1
+SET c1.path = (
+    SELECT CONCAT(c2.path, c1.id, '/')
+    FROM (SELECT id, path FROM blog_comment) c2
+    WHERE c2.id = c1.parent_id
+)
+WHERE c1.parent_id IS NOT NULL;

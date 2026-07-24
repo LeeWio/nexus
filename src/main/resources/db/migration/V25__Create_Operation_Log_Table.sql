@@ -17,7 +17,7 @@ CREATE TABLE `sys_operation_log` (
   `created_at` DATETIME NOT NULL,
   `last_modified_by` VARCHAR(100) DEFAULT NULL,
   `updated_at` DATETIME DEFAULT NULL,
-  `is_deleted` BIT(1) NOT NULL DEFAULT b'0',
+  `is_deleted` BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY (`id`),
   INDEX `idx_sys_op_username` (`username`),
   INDEX `idx_sys_op_status` (`status`),

@@ -6,4 +6,5 @@ ALTER TABLE `blog_project` ADD COLUMN `slug` VARCHAR(100) AFTER `name`;
 UPDATE `blog_project` SET `slug` = CAST(id AS CHAR) WHERE `slug` IS NULL;
 
 -- Make it unique and not null
-ALTER TABLE `blog_project` MODIFY COLUMN `slug` VARCHAR(100) NOT NULL UNIQUE;
+ALTER TABLE `blog_project` MODIFY COLUMN `slug` VARCHAR(100) NOT NULL;
+ALTER TABLE `blog_project` ADD CONSTRAINT `uk_project_slug` UNIQUE (`slug`);

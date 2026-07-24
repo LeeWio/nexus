@@ -22,6 +22,7 @@ import space.nebula.nexus.repository.TagRepository;
 import cn.hutool.core.util.StrUtil;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -58,9 +59,10 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService {
 				return statusSpec.toPredicate(root, query, cb);
 			}
 
-			String pattern = "%" + keyword.toLowerCase() + "%";
-			Specification<Post> keywordSpec = (r, q, c) -> c.or(c.like(c.lower(r.get("title")), pattern),
-					c.like(c.lower(r.get("summary")), pattern), c.like(c.lower(r.get("content")), pattern));
+			String normalizedPattern = normalizedLikePattern(keyword);
+			String rawPattern = rawLikePattern(keyword);
+			Specification<Post> keywordSpec = (r, q, c) -> c.or(c.like(c.lower(r.get("title")), normalizedPattern),
+					c.like(c.lower(r.get("summary")), normalizedPattern), c.like(r.get("content"), rawPattern));
 
 			return Specification.where(statusSpec).and(keywordSpec).toPredicate(root, query, cb);
 		};
@@ -93,11 +95,12 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService {
 	@Override
 	protected void searchPostsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups) {
 		Specification<Post> postSpec = (root, query, cb) -> {
-			String pattern = "%" + keyword.toLowerCase() + "%";
+			String normalizedPattern = normalizedLikePattern(keyword);
+			String rawPattern = rawLikePattern(keyword);
 			return cb.and(cb.equal(root.get("status"), PostStatus.PUBLISHED),
-					cb.or(cb.like(cb.lower(root.get("title")), pattern),
-							cb.like(cb.lower(root.get("summary")), pattern),
-							cb.like(cb.lower(root.get("content")), pattern)));
+					cb.or(cb.like(cb.lower(root.get("title")), normalizedPattern),
+							cb.like(cb.lower(root.get("summary")), normalizedPattern),
+							cb.like(root.get("content"), rawPattern)));
 		};
 
 		List<UnifiedSearchResponse.SearchResultItem> items = postRepository
@@ -165,5 +168,13 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService {
 		}
 
 		return doc;
+	}
+
+	private String normalizedLikePattern(String keyword) {
+		return "%" + keyword.toLowerCase(Locale.ROOT) + "%";
+	}
+
+	private String rawLikePattern(String keyword) {
+		return "%" + keyword + "%";
 	}
 }
