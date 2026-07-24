@@ -33,8 +33,5 @@ jobs:
             # Navigate to the root directory containing the compose.yaml file
             cd ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}
             
-            # Stop and remove any conflicting orphaned containers for this service
-            docker compose rm -fs api || true
-            
-            # Rebuild and restart only the API service container
-            docker compose up -d --build api
+            # Rebuild and recreate only the API service container with minimal downtime
+            docker compose up -d --build --no-deps api
