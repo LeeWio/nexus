@@ -1,7 +1,15 @@
 .git
+.github
 .idea
 .vscode
+.agents
 target
+build_log
+uploads
 .DS_Store
 .env
+.env.example
 *.log
+*.md
+skills-lock.json
+deploy.sh
