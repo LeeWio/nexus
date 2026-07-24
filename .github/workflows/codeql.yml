@@ -1,0 +1,55 @@
+name: "CodeQL Static Analysis & Security Review"
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  pull_request:
+    branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  schedule:
+    # Scan every Saturday at 18:00 UTC
+    - cron: '0 18 * * 6'
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: CodeQL Security Scan (Java)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 1. Setup JDK 21 using our local composite action (restores maven cache)
+      - name: Setup API Environment
+        uses: ./.github/actions/setup-api
+
+      - name: Configure Maven Permissions
+        run: chmod +x mvnw
+
+      # 2. Initialize CodeQL Tools for Java
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: 'java-kotlin'
+          queries: security-extended,quality
+
+      # 3. Compile the application (CodeQL needs compiling to trace semantic dataflows!)
+      - name: Compile and Package JAR
+        run: ./mvnw clean package -DskipTests
+
+      # 4. Perform Deep Semantic Analysis
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:java-kotlin"
