@@ -33,5 +33,9 @@ jobs:
             # Navigate to the root directory containing the compose.yaml file
             cd ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}
             
-            # Rebuild and recreate only the API service container with minimal downtime
-            docker compose up -d --build --no-deps api
+            # Clean and build the new API image quietly with low CPU priority to protect the server
+            export COMPOSE_PARALLEL_LIMIT=1
+            nice -n 10 docker compose build api
+            
+            # Recreate and restart the API service container with zero downtime
+            docker compose up -d --no-deps api
