@@ -3,6 +3,7 @@ package space.nebula.nexus.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +15,7 @@ import space.nebula.nexus.service.IDashboardService;
 @RestController
 @RequestMapping("/api/v1/public/stats")
 @RequiredArgsConstructor
+@Slf4j
 public class PublicStatsController {
 
 	private final IDashboardService dashboardService;
@@ -22,6 +24,7 @@ public class PublicStatsController {
 	@Operation(summary = "Get site statistics", description = "Returns non-sensitive site metrics for the front-end dashboard")
 	@GetMapping
 	public ApiResponse<PublicStatsResponse> getPublicStatistics() {
+		log.info("==> DevOps Pipeline Verification: Fetching public site statistics...");
 		return dashboardService.getPublicStatistics();
 	}
 
