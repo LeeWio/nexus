@@ -31,6 +31,11 @@ jobs:
         ports:
           - 6379:6379
 
+      rabbitmq:
+        image: rabbitmq:3.13-management
+        ports:
+          - 5672:5672
+
     steps:
     - uses: actions/checkout@v4
 
@@ -43,9 +48,12 @@ jobs:
 
     - name: Wait for MySQL to be ready
       run: |
-        echo "Waiting for MySQL to accept connections on port 3306..."
-        for i in {1..30}; do
-          if nc -z localhost 3306; then
+        echo "Installing mysql client..."
+        sudo apt-get update -y
+        sudo apt-get install -y default-mysql-client
+        echo "Waiting for MySQL to accept authenticated connections on 127.0.0.1:3306..."
+        for i in {1..60}; do
+          if mysqladmin ping -h 127.0.0.1 -P 3306 -u root -pnexus_password --silent; then
             echo "MySQL is up and accepting connections!"
             exit 0
           fi
@@ -57,10 +65,11 @@ jobs:
     - name: Build and Test with Maven
       run: ./mvnw clean verify
       env:
-        SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/nexus_db
+        SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/nexus_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
         SPRING_DATASOURCE_USERNAME: root
         SPRING_DATASOURCE_PASSWORD: nexus_password
         SPRING_DATA_REDIS_HOST: localhost
+        SPRING_RABBITMQ_HOST: localhost
 
   build-and-push-image:
     runs-on: ubuntu-latest
