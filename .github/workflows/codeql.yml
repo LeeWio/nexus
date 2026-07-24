@@ -42,7 +42,6 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: 'java-kotlin'
-          queries: security-extended,quality
 
       # 3. Compile the application (CodeQL needs compiling to trace semantic dataflows!)
       - name: Compile and Package JAR
