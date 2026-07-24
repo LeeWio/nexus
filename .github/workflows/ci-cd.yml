@@ -39,3 +39,6 @@ jobs:
             
             # Recreate and restart the API service container with zero downtime
             docker compose up -d --no-deps api
+            
+            # Safe garbage collection of dangling images left behind by the hot recreate
+            docker image prune -f
