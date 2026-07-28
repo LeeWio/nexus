@@ -46,11 +46,17 @@ public class WebhookMessageListener {
 			deliveryId = SecureUtil.sha256(
 					message.getWebhookId() + ":" + message.getEvent() + ":" + JSONUtil.toJsonStr(message.getPayload()));
 		}
-		WebhookLog webhookLog = webhookLogRepository.findByDeliveryId(deliveryId).orElseGet(WebhookLog::new);
+		WebhookLog webhookLog = webhookLogRepository.findByDeliveryId(deliveryId).orElseGet(() -> {
+			WebhookLog newLog = new WebhookLog();
+			newLog.setAttemptCount(0);
+			return newLog;
+		});
 		if (Boolean.TRUE.equals(webhookLog.getIsSuccess())) {
 			log.debug("Skipping already delivered webhook message: {}", deliveryId);
 			return;
 		}
+
+		webhookLog.setAttemptCount(webhookLog.getAttemptCount() == null ? 1 : webhookLog.getAttemptCount() + 1);
 
 		String event = message.getEvent();
 		Dict payload = message.getPayload();

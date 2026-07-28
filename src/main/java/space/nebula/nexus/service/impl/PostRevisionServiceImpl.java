@@ -183,7 +183,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 
 	private void refreshContentMetadata(Post post) {
 		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze(post.getTitle(), post.getSummary(),
-				post.getContent());
+				post.getContent(), post.getContentType());
 		post.setWordCount(metadata.wordCount());
 		post.setReadingTimeMinutes(metadata.readingTimeMinutes());
 		post.setAutoSummary(metadata.autoSummary());

@@ -65,4 +65,11 @@ public class AdminWebhookController {
 			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return webhookService.retrieveWebhookLogs(id, pageable);
 	}
+
+	@PostMapping("/logs/{deliveryId}/redeliver")
+	@Operation(summary = "Redeliver a failed webhook log")
+	public ApiResponse<Void> redeliverWebhookLog(
+			@Parameter(description = "Webhook Delivery ID") @PathVariable String deliveryId) {
+		return webhookService.redeliverWebhookLog(deliveryId);
+	}
 }

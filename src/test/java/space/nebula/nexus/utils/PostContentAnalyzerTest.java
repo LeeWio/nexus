@@ -1,6 +1,7 @@
 package space.nebula.nexus.utils;
 
 import org.junit.jupiter.api.Test;
+import space.nebula.nexus.enums.PostContentType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -33,5 +34,38 @@ class PostContentAnalyzerTest {
 				"Long body");
 
 		assertEquals("Manual summary", metadata.autoSummary());
+	}
+
+	@Test
+	void analyzeExtractsCleanTextFromJsonBlocks() {
+		String jsonContent = """
+				{
+				  "time": 1550476186479,
+				  "blocks": [
+				    {
+				      "id": "abc",
+				      "type": "paragraph",
+				      "data": {
+				        "text": "Hello world from JSON block editor."
+				      }
+				    },
+				    {
+				      "id": "def",
+				      "type": "paragraph",
+				      "data": {
+				        "text": "This is the second block."
+				      }
+				    }
+				  ],
+				  "version": "2.8.1"
+				}
+				""";
+
+		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze("Title", null, jsonContent, PostContentType.JSON);
+
+		// Clean words count should be: "Hello", "world", "from", "JSON", "block", "editor", "This", "is", "the", "second", "block" (11 words)
+		// It should NOT include blocks, time, type, data, paragraph, id, version etc.
+		assertEquals(11, metadata.wordCount());
+		assertEquals("Hello world from JSON block editor. This is the second block.", metadata.autoSummary());
 	}
 }

@@ -17,6 +17,7 @@ import space.nebula.nexus.service.WebhookDeliveryClient;
 
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -56,7 +57,9 @@ class WebhookMessageListenerTest {
 
 		webhookMessageListener.handleWebhookDispatch(message);
 
-		verify(webhookLogRepository).save(any(WebhookLog.class));
+		org.mockito.ArgumentCaptor<WebhookLog> logCaptor = org.mockito.ArgumentCaptor.forClass(WebhookLog.class);
+		verify(webhookLogRepository).save(logCaptor.capture());
+		assertEquals(1, logCaptor.getValue().getAttemptCount());
 	}
 
 	@Test

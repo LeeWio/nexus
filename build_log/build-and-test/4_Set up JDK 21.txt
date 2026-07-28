@@ -1,0 +1,35 @@
+﻿2026-07-24T12:57:29.4482676Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-24T12:57:29.4484005Z ##[group]Run actions/setup-java@v4
+2026-07-24T12:57:29.4484209Z with:
+2026-07-24T12:57:29.4484362Z   java-version: 21
+2026-07-24T12:57:29.4484532Z   distribution: temurin
+2026-07-24T12:57:29.4484704Z   cache: maven
+2026-07-24T12:57:29.4485016Z   java-package: jdk
+2026-07-24T12:57:29.4485182Z   check-latest: false
+2026-07-24T12:57:29.4485347Z   server-id: github
+2026-07-24T12:57:29.4485514Z   server-username: GITHUB_ACTOR
+2026-07-24T12:57:29.4485712Z   server-password: GITHUB_TOKEN
+2026-07-24T12:57:29.4485905Z   overwrite-settings: true
+2026-07-24T12:57:29.4486088Z   job-status: success
+2026-07-24T12:57:29.4488268Z   token: ***
+2026-07-24T12:57:29.4488589Z env:
+2026-07-24T12:57:29.4488765Z   REGISTRY: ghcr.io
+2026-07-24T12:57:29.4488937Z   IMAGE_NAME: LeeWio/nexus
+2026-07-24T12:57:29.4489118Z ##[endgroup]
+2026-07-24T12:57:29.5719775Z ##[group]Installed distributions
+2026-07-24T12:57:29.5776662Z Resolved Java 21.0.11+10 from tool-cache
+2026-07-24T12:57:29.5777045Z Setting Java 21.0.11+10 as the default
+2026-07-24T12:57:29.5785354Z (node:3089) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-07-24T12:57:29.5786072Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-24T12:57:29.5787961Z Creating toolchains.xml for JDK version 21 from temurin
+2026-07-24T12:57:29.5841429Z Writing to /home/runner/.m2/toolchains.xml
+2026-07-24T12:57:29.5841815Z 
+2026-07-24T12:57:29.5841994Z Java configuration:
+2026-07-24T12:57:29.5842290Z   Distribution: temurin
+2026-07-24T12:57:29.5842581Z   Version: 21.0.11+10
+2026-07-24T12:57:29.5842986Z   Path: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.0.11-10/x64
+2026-07-24T12:57:29.5843390Z 
+2026-07-24T12:57:29.5843752Z ##[endgroup]
+2026-07-24T12:57:29.5859358Z Creating settings.xml with server-id: github
+2026-07-24T12:57:29.5859894Z Writing to /home/runner/.m2/settings.xml
+2026-07-24T12:57:29.7515772Z maven cache is not found

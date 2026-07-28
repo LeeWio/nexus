@@ -65,7 +65,6 @@ public interface PostMapper {
 	@Mapping(target = "archiveReason", ignore = true)
 	@Mapping(target = "archivedAt", ignore = true)
 	@Mapping(target = "archivedBy", ignore = true)
-	@Mapping(target = "status", ignore = true)
 	@Mapping(target = "isDeleted", ignore = true)
 	@Mapping(target = "parent", ignore = true)
 	@Mapping(target = "path", ignore = true)

@@ -2,6 +2,7 @@ package space.nebula.nexus.utils;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
+import space.nebula.nexus.enums.PostContentType;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -27,8 +28,12 @@ public final class PostContentAnalyzer {
 	}
 
 	public static Metadata analyze(String title, String summary, String content) {
+		return analyze(title, summary, content, PostContentType.MDX);
+	}
+
+	public static Metadata analyze(String title, String summary, String content, PostContentType contentType) {
 		String normalizedContent = StrUtil.blankToDefault(content, "");
-		String plainText = toPlainText(normalizedContent);
+		String plainText = toPlainText(normalizedContent, contentType);
 		int wordCount = countWords(plainText);
 		int readingTimeMinutes = Math.max(1, (int) Math.ceil(wordCount / (double) WORDS_PER_MINUTE));
 		String autoSummary = StrUtil.blankToDefault(cleanSummary(summary), createSummary(plainText));
@@ -38,9 +43,36 @@ public final class PostContentAnalyzer {
 	}
 
 	public static String toPlainText(String content) {
+		return toPlainText(content, PostContentType.MDX);
+	}
+
+	public static String toPlainText(String content, PostContentType contentType) {
 		if (StrUtil.isBlank(content)) {
 			return "";
 		}
+
+		if (contentType == PostContentType.JSON) {
+			try {
+				if (cn.hutool.json.JSONUtil.isTypeJSONObject(content)) {
+					cn.hutool.json.JSONObject json = cn.hutool.json.JSONUtil.parseObj(content);
+					cn.hutool.json.JSONArray blocks = json.getJSONArray("blocks");
+					if (blocks != null) {
+						StringBuilder textBuilder = new StringBuilder();
+						for (int i = 0; i < blocks.size(); i++) {
+							cn.hutool.json.JSONObject block = blocks.getJSONObject(i);
+							cn.hutool.json.JSONObject data = block.getJSONObject("data");
+							if (data != null && data.containsKey("text")) {
+								textBuilder.append(data.getStr("text")).append(" ");
+							}
+						}
+						content = textBuilder.toString();
+					}
+				}
+			} catch (Exception e) {
+				// Fallback to naive string if JSON parsing fails
+			}
+		}
+
 		String text = HTML_TAG.matcher(content).replaceAll(" ");
 		text = JSON_DECORATION.matcher(text).replaceAll(" ");
 		text = MARKDOWN_DECORATION.matcher(text).replaceAll(" ");

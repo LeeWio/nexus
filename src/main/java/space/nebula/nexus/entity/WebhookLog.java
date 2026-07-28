@@ -34,4 +34,7 @@ public class WebhookLog extends BaseEntity {
 	private Boolean isSuccess;
 
 	private String errorMessage;
+
+	@Column(name = "attempt_count", nullable = false)
+	private Integer attemptCount = 1;
 }

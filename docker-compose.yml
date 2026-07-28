@@ -18,16 +18,17 @@ services:
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=nexus_password
       - SPRING_DATA_REDIS_HOST=nexus-redis
+      - SPRING_DATA_REDIS_PORT=6379
       - RABBITMQ_HOST=nexus-rabbitmq
       - ES_URIS=http://nexus-elasticsearch:9200
       - MANAGEMENT_HEALTH_MAIL_ENABLED=false
-      - MAIL_HOST=nexus-mail
-      - MAIL_PORT=1025
-      - MAIL_USERNAME=test@nexus.com
-      - MAIL_PASSWORD=testpassword
-      - MAIL_AUTH=false
-      - MAIL_SSL=false
-      - MAIL_STARTTLS=false
+      - DEV_MAIL_HOST=nexus-mail
+      - DEV_MAIL_PORT=1025
+      - DEV_MAIL_USERNAME=test@nexus.com
+      - DEV_MAIL_PASSWORD=testpassword
+      - DEV_MAIL_AUTH=false
+      - DEV_MAIL_SSL=false
+      - DEV_MAIL_STARTTLS=false
     depends_on:
       nexus-db:
         condition: service_healthy
@@ -65,7 +66,7 @@ services:
     restart: always
 
   nexus-db:
-    image: mysql:8.0
+    image: mysql:9.6
     container_name: nexus-db
     logging:
       driver: "json-file"

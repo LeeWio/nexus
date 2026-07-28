@@ -127,8 +127,17 @@ public class PostServiceImpl implements IPostService {
 		postMapper.updateEntity(newPost, request);
 		newPost.setSlug(uniqueSlug);
 		newPost.setAuthor(currentAuthor);
-		// Workflow state is controlled by dedicated commands, never by CRUD payloads.
-		newPost.moveToDraft();
+
+		// Administrators can directly control the workflow state from the payload.
+		// Standard users are restricted to DRAFT until dedicated commands are invoked.
+		if (SecurityUtil.hasRole("ADMIN") && request.status() != null) {
+			newPost.setStatus(request.status());
+			if (request.status() == PostStatus.PUBLISHED && newPost.getPublishedAt() == null) {
+				newPost.setPublishedAt(java.time.LocalDateTime.now());
+			}
+		} else {
+			newPost.moveToDraft();
+		}
 
 		if (request.contentType() != null) {
 			newPost.setContentType(request.contentType());
@@ -165,8 +174,14 @@ public class PostServiceImpl implements IPostService {
 	public ApiResponse<PostResponse> updatePost(Long id, PostRequest request) {
 		postValidator.validatePostRequest(request);
 		Post existingPost = findPostForUpdateOrThrow(id);
-		Assert.isTrue(existingPost.isEditable(),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only draft or rejected posts can be edited"));
+
+		// Admins can edit posts in any state; standard users only DRAFT or REJECTED.
+		boolean isAdmin = SecurityUtil.hasRole("ADMIN");
+		if (!isAdmin) {
+			Assert.isTrue(existingPost.isEditable(),
+					() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only draft or rejected posts can be edited"));
+		}
+
 		String previousPath = existingPost.getPath();
 		String previousSlug = existingPost.getSlug();
 
@@ -177,6 +192,15 @@ public class PostServiceImpl implements IPostService {
 		}
 
 		postMapper.updateEntity(existingPost, request);
+
+		// Admin status override
+		if (isAdmin && request.status() != null) {
+			existingPost.setStatus(request.status());
+			if (request.status() == PostStatus.PUBLISHED && existingPost.getPublishedAt() == null) {
+				existingPost.setPublishedAt(java.time.LocalDateTime.now());
+			}
+		}
+
 		if (request.contentType() != null) {
 			existingPost.setContentType(request.contentType());
 		}
@@ -862,7 +886,7 @@ public class PostServiceImpl implements IPostService {
 
 	private void refreshContentMetadata(Post post) {
 		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze(post.getTitle(), post.getSummary(),
-				post.getContent());
+				post.getContent(), post.getContentType());
 		post.setWordCount(metadata.wordCount());
 		post.setReadingTimeMinutes(metadata.readingTimeMinutes());
 		post.setAutoSummary(metadata.autoSummary());
