@@ -3,6 +3,8 @@ package space.nebula.nexus.service;
 import org.springframework.data.domain.Pageable;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.payload.request.NotificationPreferenceRequest;
+import space.nebula.nexus.payload.response.NotificationPreferenceResponse;
 import space.nebula.nexus.payload.response.NotificationResponse;
 import space.nebula.nexus.payload.response.PageResult;
 
@@ -32,6 +34,22 @@ public interface INotificationService {
 	 * @return number of notifications created
 	 */
 	int sendCategoryPublication(Long postId);
+
+	/**
+	 * Returns the current user's notification delivery preferences.
+	 *
+	 * @return current notification settings, with all categories enabled by default
+	 */
+	ApiResponse<NotificationPreferenceResponse> getMyPreferences();
+
+	/**
+	 * Replaces the current user's notification delivery preferences.
+	 *
+	 * @param request
+	 *            requested setting for every notification category
+	 * @return persisted notification settings
+	 */
+	ApiResponse<NotificationPreferenceResponse> updateMyPreferences(NotificationPreferenceRequest request);
 
 	/**
 	 * Retrieves notifications for the current user.

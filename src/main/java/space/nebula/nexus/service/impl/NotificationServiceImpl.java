@@ -8,10 +8,14 @@ import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Notification;
+import space.nebula.nexus.entity.NotificationPreference;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.payload.request.NotificationPreferenceRequest;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.NotificationPreferenceResponse;
 import space.nebula.nexus.payload.response.NotificationResponse;
+import space.nebula.nexus.repository.NotificationPreferenceRepository;
 import space.nebula.nexus.repository.NotificationRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
@@ -19,6 +23,7 @@ import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.INotificationService;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -26,12 +31,20 @@ import java.time.LocalDateTime;
 public class NotificationServiceImpl implements INotificationService {
 
 	private final NotificationRepository notificationRepository;
+	private final NotificationPreferenceRepository notificationPreferenceRepository;
 	private final UserRepository userRepository;
 	private final PostRepository postRepository;
+
+	private static final Set<String> COMMENT_NOTIFICATION_TYPES = Set.of("COMMENT_APPROVED", "COMMENT_REJECTED",
+			"COMMENT_REPLY", "POST_COMMENT");
 
 	@Override
 	@Transactional
 	public void send(User recipient, String title, String content, String type, String link) {
+		if (!isNotificationEnabled(recipient.getId(), type)) {
+			log.debug("Notification suppressed by preference for user {}: {}", recipient.getUsername(), type);
+			return;
+		}
 		Notification notification = new Notification();
 		notification.setRecipient(recipient);
 		notification.setTitle(title);
@@ -56,6 +69,31 @@ public class NotificationServiceImpl implements INotificationService {
 				post.getAuthor().getId(), post.getId(), title, content, "/post/" + post.getSlug());
 		log.info("Created {} category publication notifications for post {}", inserted, postId);
 		return inserted;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<NotificationPreferenceResponse> getMyPreferences() {
+		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		return ApiResponse.success(notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(currentUser.getId())
+				.map(this::toPreferenceResponse).orElseGet(NotificationServiceImpl::defaultPreferenceResponse));
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<NotificationPreferenceResponse> updateMyPreferences(NotificationPreferenceRequest request) {
+		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		NotificationPreference preference = notificationPreferenceRepository
+				.findByUserId(currentUser.getId()).orElseGet(() -> {
+					NotificationPreference created = new NotificationPreference();
+					created.setUser(currentUser);
+					return created;
+				});
+		preference.setIsDeleted(false);
+		preference.setCommentEnabled(request.commentNotificationsEnabled());
+		preference.setCategoryPostEnabled(request.categoryPostNotificationsEnabled());
+		preference.setSystemEnabled(request.systemNotificationsEnabled());
+		return ApiResponse.success(toPreferenceResponse(notificationPreferenceRepository.save(preference)));
 	}
 
 	@Override
@@ -123,5 +161,36 @@ public class NotificationServiceImpl implements INotificationService {
 		return new NotificationResponse(notification.getId(), notification.getTitle(), notification.getContent(),
 				notification.getType(), notification.getIsRead(), notification.getReadAt(), notification.getLink(),
 				notification.getCreatedAt());
+	}
+
+	private boolean isNotificationEnabled(Long recipientId, String type) {
+		return notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(recipientId)
+				.map(preference -> switch (notificationCategory(type)) {
+					case COMMENT -> Boolean.TRUE.equals(preference.getCommentEnabled());
+					case CATEGORY_POST -> Boolean.TRUE.equals(preference.getCategoryPostEnabled());
+					case SYSTEM -> Boolean.TRUE.equals(preference.getSystemEnabled());
+				}).orElse(true);
+	}
+
+	private NotificationCategory notificationCategory(String type) {
+		if (COMMENT_NOTIFICATION_TYPES.contains(type)) {
+			return NotificationCategory.COMMENT;
+		}
+		return "CATEGORY_POST".equals(type) ? NotificationCategory.CATEGORY_POST : NotificationCategory.SYSTEM;
+	}
+
+	private NotificationPreferenceResponse toPreferenceResponse(NotificationPreference preference) {
+		return new NotificationPreferenceResponse(Boolean.TRUE.equals(preference.getCommentEnabled()),
+				Boolean.TRUE.equals(preference.getCategoryPostEnabled()), Boolean.TRUE.equals(preference.getSystemEnabled()));
+	}
+
+	private static NotificationPreferenceResponse defaultPreferenceResponse() {
+		return new NotificationPreferenceResponse(true, true, true);
+	}
+
+	private enum NotificationCategory {
+		COMMENT,
+		CATEGORY_POST,
+		SYSTEM
 	}
 }

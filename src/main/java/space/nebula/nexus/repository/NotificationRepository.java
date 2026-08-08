@@ -53,8 +53,11 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 			+ "SELECT follow.user_id, :title, :content, 'CATEGORY_POST', false, :link, "
 			+ "CONCAT('CATEGORY_POST:', :postId, ':', follow.user_id), UTC_TIMESTAMP(3), UTC_TIMESTAMP(3), false "
 			+ "FROM blog_category_follow follow JOIN sys_user user_account ON user_account.id = follow.user_id "
+			+ "LEFT JOIN sys_notification_preference preference ON preference.user_id = follow.user_id "
+			+ "AND preference.is_deleted = false "
 			+ "WHERE follow.category_id = :categoryId AND follow.is_deleted = false "
 			+ "AND user_account.is_deleted = false AND user_account.status = 'ACTIVE' "
+			+ "AND COALESCE(preference.category_post_enabled, true) = true "
 			+ "AND follow.user_id <> :authorId", nativeQuery = true)
 	int insertCategoryPublicationNotifications(Long categoryId, Long authorId, Long postId, String title,
 			String content, String link);

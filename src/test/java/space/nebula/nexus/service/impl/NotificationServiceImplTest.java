@@ -13,10 +13,13 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Notification;
+import space.nebula.nexus.entity.NotificationPreference;
 import space.nebula.nexus.entity.Category;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.payload.request.NotificationPreferenceRequest;
+import space.nebula.nexus.repository.NotificationPreferenceRepository;
 import space.nebula.nexus.repository.NotificationRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
@@ -32,11 +35,15 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceImplTest {
 	@Mock
 	private NotificationRepository notificationRepository;
+
+	@Mock
+	private NotificationPreferenceRepository notificationPreferenceRepository;
 
 	@Mock
 	private UserRepository userRepository;
@@ -129,5 +136,58 @@ class NotificationServiceImplTest {
 		notificationService.clearReadNotifications();
 
 		verify(notificationRepository).deleteReadByRecipientId(42L);
+	}
+
+	@Test
+	void getMyPreferencesDefaultsToEveryCategoryEnabled() {
+		when(notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(42L)).thenReturn(Optional.empty());
+
+		var response = notificationService.getMyPreferences();
+
+		assertTrue(response.data().commentNotificationsEnabled());
+		assertTrue(response.data().categoryPostNotificationsEnabled());
+		assertTrue(response.data().systemNotificationsEnabled());
+	}
+
+	@Test
+	void updateMyPreferencesCreatesAndReturnsCompleteConfiguration() {
+		when(notificationPreferenceRepository.findByUserId(42L)).thenReturn(Optional.empty());
+		when(notificationPreferenceRepository.save(any(NotificationPreference.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		var response = notificationService
+				.updateMyPreferences(new NotificationPreferenceRequest(false, true, false));
+
+		assertTrue(!response.data().commentNotificationsEnabled());
+		assertTrue(response.data().categoryPostNotificationsEnabled());
+		assertTrue(!response.data().systemNotificationsEnabled());
+		var savedPreference = org.mockito.ArgumentCaptor.forClass(NotificationPreference.class);
+		verify(notificationPreferenceRepository).save(savedPreference.capture());
+		assertEquals(currentUser, savedPreference.getValue().getUser());
+		assertTrue(!savedPreference.getValue().getCommentEnabled());
+		assertTrue(savedPreference.getValue().getCategoryPostEnabled());
+		assertTrue(!savedPreference.getValue().getSystemEnabled());
+	}
+
+	@Test
+	void sendSkipsDisabledCommentNotifications() {
+		NotificationPreference preference = new NotificationPreference();
+		preference.setCommentEnabled(false);
+		when(notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(42L)).thenReturn(Optional.of(preference));
+
+		notificationService.send(currentUser, "New reply", "A reader replied to your comment.", "COMMENT_REPLY",
+				"/posts/example#comment-1");
+
+		verify(notificationRepository, never()).save(any(Notification.class));
+	}
+
+	@Test
+	void sendDeliversSystemNotificationsWhenNoPreferenceExists() {
+		when(notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(42L)).thenReturn(Optional.empty());
+
+		notificationService.send(currentUser, "Broken links", "One link needs review.", "HEALTH_CHECK",
+				"/admin/content/links");
+
+		verify(notificationRepository).save(any(Notification.class));
 	}
 }

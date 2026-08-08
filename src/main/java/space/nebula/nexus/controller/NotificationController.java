@@ -2,12 +2,15 @@ package space.nebula.nexus.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.payload.request.NotificationPreferenceRequest;
+import space.nebula.nexus.payload.response.NotificationPreferenceResponse;
 import space.nebula.nexus.payload.response.NotificationResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.service.INotificationService;
@@ -32,6 +35,19 @@ public class NotificationController {
 	@Operation(summary = "Get unread count", description = "Retrieve the number of unread notifications.")
 	public ApiResponse<Long> getUnreadCount() {
 		return notificationService.getUnreadCount();
+	}
+
+	@GetMapping("/preferences")
+	@Operation(summary = "Get notification preferences", description = "Retrieve the current user's in-app notification delivery settings.")
+	public ApiResponse<NotificationPreferenceResponse> getMyPreferences() {
+		return notificationService.getMyPreferences();
+	}
+
+	@PutMapping("/preferences")
+	@Operation(summary = "Update notification preferences", description = "Replace the current user's in-app notification delivery settings.")
+	public ApiResponse<NotificationPreferenceResponse> updateMyPreferences(
+			@Valid @RequestBody NotificationPreferenceRequest request) {
+		return notificationService.updateMyPreferences(request);
 	}
 
 	@PatchMapping("/{id}/read")
