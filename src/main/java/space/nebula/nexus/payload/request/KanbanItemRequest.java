@@ -39,4 +39,8 @@ public class KanbanItemRequest {
 
 	@Schema(description = "IDs of tags to assign to this task", example = "[1, 3]")
 	private Set<Long> tagIds;
+
+	@Schema(description = "IDs of active users assigned to this task; null preserves assignees during an update", example = "[2, 5]")
+	@Size(max = 20, message = "A task can have at most 20 assignees")
+	private Set<@NotNull(message = "Assignee ID is required") Long> assigneeIds;
 }

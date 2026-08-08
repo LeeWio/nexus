@@ -5,6 +5,7 @@ import lombok.Data;
 import space.nebula.nexus.enums.KanbanPriority;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 @Data
@@ -33,6 +34,12 @@ public class KanbanItemResponse {
 
 	@Schema(description = "List of associated tags")
 	private Set<TagResponse> tags;
+
+	@Schema(description = "Active users assigned to this task")
+	private Set<KanbanAssigneeResponse> assignees;
+
+	@Schema(description = "Ordered checklist items and their completion state")
+	private List<KanbanChecklistItemResponse> checklistItems;
 
 	@Schema(description = "Creation time")
 	private LocalDateTime createdAt;

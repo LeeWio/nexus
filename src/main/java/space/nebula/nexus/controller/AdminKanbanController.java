@@ -9,9 +9,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.request.KanbanColumnRequest;
+import space.nebula.nexus.payload.request.KanbanChecklistItemCompletionRequest;
+import space.nebula.nexus.payload.request.KanbanChecklistItemRequest;
 import space.nebula.nexus.payload.request.KanbanItemMoveRequest;
 import space.nebula.nexus.payload.request.KanbanItemRequest;
+import space.nebula.nexus.payload.request.KanbanTaskAssigneeRequest;
 import space.nebula.nexus.payload.response.KanbanColumnResponse;
+import space.nebula.nexus.payload.response.KanbanChecklistItemResponse;
 import space.nebula.nexus.payload.response.KanbanItemResponse;
 import space.nebula.nexus.service.IKanbanService;
 
@@ -66,6 +70,66 @@ public class AdminKanbanController {
 	public ApiResponse<KanbanItemResponse> updateTask(@Parameter(description = "Task ID") @PathVariable Long id,
 			@Valid @RequestBody KanbanItemRequest request) {
 		return kanbanService.updateTask(id, request);
+	}
+
+	@GetMapping("/tasks/{taskId}/checklist")
+	@Operation(summary = "Retrieve task checklist", description = "Fetch the ordered checklist items for a task.")
+	public ApiResponse<List<KanbanChecklistItemResponse>> retrieveChecklistItems(
+			@Parameter(description = "Task ID") @PathVariable Long taskId) {
+		return kanbanService.retrieveChecklistItems(taskId);
+	}
+
+	@PostMapping("/tasks/{taskId}/checklist")
+	@Operation(summary = "Create checklist item", description = "Add an ordered checklist item to a task.")
+	public ApiResponse<KanbanChecklistItemResponse> createChecklistItem(
+			@Parameter(description = "Task ID") @PathVariable Long taskId,
+			@Valid @RequestBody KanbanChecklistItemRequest request) {
+		return kanbanService.createChecklistItem(taskId, request);
+	}
+
+	@PutMapping("/tasks/{taskId}/checklist/{checklistItemId}")
+	@Operation(summary = "Update checklist item", description = "Modify checklist text or completion state.")
+	public ApiResponse<KanbanChecklistItemResponse> updateChecklistItem(
+			@Parameter(description = "Task ID") @PathVariable Long taskId,
+			@Parameter(description = "Checklist item ID") @PathVariable Long checklistItemId,
+			@Valid @RequestBody KanbanChecklistItemRequest request) {
+		return kanbanService.updateChecklistItem(taskId, checklistItemId, request);
+	}
+
+	@PatchMapping("/tasks/{taskId}/checklist/{checklistItemId}/completion")
+	@Operation(summary = "Set checklist completion", description = "Mark one checklist item complete or incomplete.")
+	public ApiResponse<KanbanChecklistItemResponse> completeChecklistItem(
+			@Parameter(description = "Task ID") @PathVariable Long taskId,
+			@Parameter(description = "Checklist item ID") @PathVariable Long checklistItemId,
+			@Valid @RequestBody KanbanChecklistItemCompletionRequest request) {
+		return kanbanService.completeChecklistItem(taskId, checklistItemId, request);
+	}
+
+	@DeleteMapping("/tasks/{taskId}/checklist/{checklistItemId}")
+	@Operation(summary = "Delete checklist item", description = "Remove one checklist item and compact the remaining order.")
+	public ApiResponse<Void> deleteChecklistItem(@Parameter(description = "Task ID") @PathVariable Long taskId,
+			@Parameter(description = "Checklist item ID") @PathVariable Long checklistItemId) {
+		return kanbanService.deleteChecklistItem(taskId, checklistItemId);
+	}
+
+	@PostMapping("/tasks/{taskId}/checklist/sequence")
+	@Operation(summary = "Adjust checklist sequence", description = "Reorder every checklist item on a task.")
+	public ApiResponse<Void> adjustChecklistItemSequence(@Parameter(description = "Task ID") @PathVariable Long taskId,
+			@RequestBody List<Long> checklistItemIds) {
+		return kanbanService.adjustChecklistItemSequence(taskId, checklistItemIds);
+	}
+
+	@PutMapping("/tasks/{id}/assignees")
+	@Operation(summary = "Assign task users", description = "Replace the active users assigned to a task.")
+	public ApiResponse<KanbanItemResponse> assignTaskAssignees(@Parameter(description = "Task ID") @PathVariable Long id,
+			@Valid @RequestBody KanbanTaskAssigneeRequest request) {
+		return kanbanService.assignTaskAssignees(id, request);
+	}
+
+	@PostMapping("/tasks/{id}/duplicate")
+	@Operation(summary = "Duplicate task", description = "Create a copy immediately after the source task in the same column.")
+	public ApiResponse<KanbanItemResponse> duplicateTask(@Parameter(description = "Task ID") @PathVariable Long id) {
+		return kanbanService.duplicateTask(id);
 	}
 
 	@DeleteMapping("/tasks/{id}")
