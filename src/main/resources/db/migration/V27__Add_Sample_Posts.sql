@@ -54,6 +54,7 @@ VALUES
 -- 7. Add sample projects
 INSERT INTO `blog_project` (
     `name`,
+    `slug`,
     `description`,
     `github_url`,
     `repo_name`,
@@ -66,6 +67,7 @@ INSERT INTO `blog_project` (
 )
 SELECT
     'Nexus CMS',
+    'nexus-cms',
     'A modern, lightweight blog and CMS system built with Spring Boot.',
     'https://github.com/yourusername/nexus',
     'nexus',
@@ -84,6 +86,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO `blog_project` (
     `name`,
+    `slug`,
     `description`,
     `github_url`,
     `repo_name`,
@@ -96,6 +99,7 @@ INSERT INTO `blog_project` (
 )
 SELECT
     'Starry Weather',
+    'starry-weather',
     'A minimalist weather application with beautiful astronomy-themed backgrounds.',
     'https://github.com/yourusername/starry-weather',
     'starry-weather',

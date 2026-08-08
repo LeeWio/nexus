@@ -15,8 +15,11 @@ runs:
   using: 'composite'
   steps:
     - name: Set up JDK
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: ${{ inputs.java-version }}
         distribution: ${{ inputs.distribution }}
         cache: 'maven'
+        cache-dependency-path: 'pom.xml'
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: '5'

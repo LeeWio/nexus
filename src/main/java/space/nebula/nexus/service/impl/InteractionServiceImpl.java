@@ -8,6 +8,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.payload.response.CommentInteractionResponse;
+import space.nebula.nexus.payload.response.PostInteractionResponse;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.CommentRepository;
 import space.nebula.nexus.repository.UserRepository;
@@ -19,6 +21,8 @@ import space.nebula.nexus.security.util.SecurityUtil;
 import cn.hutool.core.lang.Assert;
 import org.springframework.cache.CacheManager;
 import space.nebula.nexus.entity.Post;
+
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -34,7 +38,7 @@ public class InteractionServiceImpl implements IInteractionService {
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> likePost(Long postId) {
+	public ApiResponse<PostInteractionResponse> likePost(Long postId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Post post = validatePublishedPost(postId);
 		int inserted = jdbcTemplate.update(
@@ -45,12 +49,12 @@ public class InteractionServiceImpl implements IInteractionService {
 		String key = CacheConstants.POST_LIKES_SET + postId;
 		redisUtil.setAdd(key, user.getId().toString());
 		evictCaches(post);
-		return ApiResponse.success("Post liked", null);
+		return ApiResponse.success("Post liked", getPostInteractionResponse(postId, user.getId()));
 	}
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> unlikePost(Long postId) {
+	public ApiResponse<PostInteractionResponse> unlikePost(Long postId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Post post = validatePostExists(postId);
 		int deleted = jdbcTemplate.update("DELETE FROM blog_post_like WHERE post_id = ? AND user_id = ?", postId,
@@ -60,12 +64,12 @@ public class InteractionServiceImpl implements IInteractionService {
 		String key = CacheConstants.POST_LIKES_SET + postId;
 		redisUtil.setRemove(key, user.getId().toString());
 		evictCaches(post);
-		return ApiResponse.success("Post unliked", null);
+		return ApiResponse.success("Post unliked", getPostInteractionResponse(postId, user.getId()));
 	}
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> likeComment(Long commentId) {
+	public ApiResponse<CommentInteractionResponse> likeComment(Long commentId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		validateApprovedComment(commentId);
 		int inserted = jdbcTemplate.update(
@@ -74,12 +78,12 @@ public class InteractionServiceImpl implements IInteractionService {
 		if (inserted > 0) {
 			commentRepository.incrementLikes(commentId, 1L);
 		}
-		return ApiResponse.success("Comment liked", null);
+		return ApiResponse.success("Comment liked", getCommentInteractionResponse(commentId, user.getId()));
 	}
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> unlikeComment(Long commentId) {
+	public ApiResponse<CommentInteractionResponse> unlikeComment(Long commentId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		validateCommentExists(commentId);
 		int deleted = jdbcTemplate.update("DELETE FROM blog_comment_like WHERE comment_id = ? AND user_id = ?",
@@ -87,12 +91,12 @@ public class InteractionServiceImpl implements IInteractionService {
 		if (deleted > 0) {
 			commentRepository.incrementLikes(commentId, -1L);
 		}
-		return ApiResponse.success("Comment unliked", null);
+		return ApiResponse.success("Comment unliked", getCommentInteractionResponse(commentId, user.getId()));
 	}
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> favoritePost(Long postId) {
+	public ApiResponse<PostInteractionResponse> favoritePost(Long postId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Post post = validatePublishedPost(postId);
 		int inserted = jdbcTemplate.update(
@@ -103,12 +107,12 @@ public class InteractionServiceImpl implements IInteractionService {
 		String key = CacheConstants.POST_FAVORITES_SET + postId;
 		redisUtil.setAdd(key, user.getId().toString());
 		evictCaches(post);
-		return ApiResponse.success("Post favorited", null);
+		return ApiResponse.success("Post favorited", getPostInteractionResponse(postId, user.getId()));
 	}
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> unfavoritePost(Long postId) {
+	public ApiResponse<PostInteractionResponse> unfavoritePost(Long postId) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Post post = validatePostExists(postId);
 		int deleted = jdbcTemplate.update("DELETE FROM blog_post_favorite WHERE post_id = ? AND user_id = ?", postId,
@@ -118,7 +122,53 @@ public class InteractionServiceImpl implements IInteractionService {
 		String key = CacheConstants.POST_FAVORITES_SET + postId;
 		redisUtil.setRemove(key, user.getId().toString());
 		evictCaches(post);
-		return ApiResponse.success("Post unfavorited", null);
+		return ApiResponse.success("Post unfavorited", getPostInteractionResponse(postId, user.getId()));
+	}
+
+	/**
+	 * Reads the response from the database after bulk counter updates. The Post
+	 * instance loaded for validation can retain pre-update values in the JPA
+	 * persistence context, so it must not be used to build this response.
+	 */
+	private PostInteractionResponse getPostInteractionResponse(Long postId, Long userId) {
+		Map<String, Object> row = jdbcTemplate.queryForMap("""
+				SELECT p.likes_count AS likesCount,
+				       p.favorites_count AS favoritesCount,
+				       EXISTS(SELECT 1 FROM blog_post_like l WHERE l.post_id = p.id AND l.user_id = ?) AS liked,
+				       EXISTS(SELECT 1 FROM blog_post_favorite f WHERE f.post_id = p.id AND f.user_id = ?) AS favorited
+				FROM blog_post p
+				WHERE p.id = ?
+				""", userId, userId, postId);
+		return new PostInteractionResponse(postId, booleanValue(row.get("liked")), booleanValue(row.get("favorited")),
+				longValue(row.get("likesCount")), longValue(row.get("favoritesCount")));
+	}
+
+	/**
+	 * Reads the response from the database after a bulk comment counter update
+	 * rather than relying on the validation entity's potentially stale state.
+	 */
+	private CommentInteractionResponse getCommentInteractionResponse(Long commentId, Long userId) {
+		Map<String, Object> row = jdbcTemplate.queryForMap("""
+				SELECT c.likes_count AS likesCount,
+				       EXISTS(SELECT 1 FROM blog_comment_like l WHERE l.comment_id = c.id AND l.user_id = ?) AS liked
+				FROM blog_comment c
+				WHERE c.id = ?
+				""", userId, commentId);
+		return new CommentInteractionResponse(commentId, booleanValue(row.get("liked")), longValue(row.get("likesCount")));
+	}
+
+	private boolean booleanValue(Object value) {
+		if (value instanceof Boolean booleanValue) {
+			return booleanValue;
+		}
+		if (value instanceof Number number) {
+			return number.intValue() != 0;
+		}
+		return Boolean.parseBoolean(String.valueOf(value));
+	}
+
+	private long longValue(Object value) {
+		return value instanceof Number number ? number.longValue() : Long.parseLong(String.valueOf(value));
 	}
 
 	@Override

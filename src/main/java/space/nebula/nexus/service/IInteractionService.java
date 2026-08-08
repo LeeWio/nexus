@@ -1,20 +1,22 @@
 package space.nebula.nexus.service;
 
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.payload.response.CommentInteractionResponse;
+import space.nebula.nexus.payload.response.PostInteractionResponse;
 
 public interface IInteractionService {
 
-	ApiResponse<Void> likePost(Long postId);
+	ApiResponse<PostInteractionResponse> likePost(Long postId);
 
-	ApiResponse<Void> unlikePost(Long postId);
+	ApiResponse<PostInteractionResponse> unlikePost(Long postId);
 
-	ApiResponse<Void> likeComment(Long commentId);
+	ApiResponse<CommentInteractionResponse> likeComment(Long commentId);
 
-	ApiResponse<Void> unlikeComment(Long commentId);
+	ApiResponse<CommentInteractionResponse> unlikeComment(Long commentId);
 
-	ApiResponse<Void> favoritePost(Long postId);
+	ApiResponse<PostInteractionResponse> favoritePost(Long postId);
 
-	ApiResponse<Void> unfavoritePost(Long postId);
+	ApiResponse<PostInteractionResponse> unfavoritePost(Long postId);
 
 	/**
 	 * Updates a PostResponse with dynamic interaction data (like/favorite status)

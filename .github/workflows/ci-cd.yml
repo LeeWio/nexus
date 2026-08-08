@@ -6,110 +6,353 @@ on:
     paths-ignore:
       - '**.md'
       - '.gitignore'
-
-concurrency:
-  group: nexus-production-deploy
-  cancel-in-progress: true
+  pull_request:
+    branches: ["main"]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: leewio/nexus-api
 
 jobs:
-  build-and-push-image:
-    name: Build & Push API Image
+  verify:
+    name: Verify API
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      # 1. Setup Java JDK and restore Maven cache (takes less than a few seconds)
       - name: Setup API Environment
         uses: ./.github/actions/setup-api
 
-      # 2. Make Maven wrapper executable
-      - name: Configure Maven Permissions
+      - name: Verify Maven Wrapper
         run: chmod +x mvnw
 
-      # 3. Run the backend test suite before producing a deployable artifact
-      - name: Run Tests
-        run: ./mvnw test
+      - name: Resolve Formatting Baseline
+        id: formatting-baseline
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "ref=origin/main" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=HEAD^" >> "$GITHUB_OUTPUT"
+          fi
 
-      # 4. Fast compilation of Spring Boot application on high-speed GHA host
-      - name: Compile and Package JAR
-        run: ./mvnw clean package -DskipTests
+      - name: Test and Package API
+        run: >-
+          ./mvnw -B -ntp clean spotless:check pmd:pmd verify
+          -Dspotless.ratchetFrom=${{ steps.formatting-baseline.outputs.ref }}
 
-      # 5. Set up Docker Buildx and login to GHCR
+      - name: Upload Quality Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-quality-reports-${{ github.run_id }}
+          path: |
+            target/pmd.xml
+            target/site/pmd.html
+            target/site/jacoco
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Test Reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-reports-${{ github.run_id }}
+          path: target/surefire-reports
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload Packaged JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-jar-${{ github.sha }}
+          path: target/*.jar
+          if-no-files-found: error
+          retention-days: 1
+
+  migration-verify:
+    name: Verify Flyway Migrations on MySQL 8.4
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: nexus-api-migrations-${{ github.ref }}
+      cancel-in-progress: true
+    services:
+      mysql:
+        image: mysql:8.4.9
+        env:
+          MYSQL_DATABASE: nexus_migration_ci
+          MYSQL_USER: nexus
+          MYSQL_PASSWORD: nexus_ci_password
+          MYSQL_ROOT_PASSWORD: nexus_ci_root_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -unexus -pnexus_ci_password --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Apply Migrations to Clean MySQL Schema
+        run: |
+          docker run --rm --network host \
+            -v "${GITHUB_WORKSPACE}/src/main/resources/db/migration:/flyway/sql:ro" \
+            flyway/flyway:11.14.1 \
+            -url="jdbc:mysql://127.0.0.1:3306/nexus_migration_ci?allowPublicKeyRetrieval=true&useSSL=false" \
+            -user=nexus \
+            -password=nexus_ci_password \
+            -locations=filesystem:/flyway/sql \
+            -connectRetries=60 \
+            -validateMigrationNaming=true \
+            migrate
+
+      - name: Validate Applied Migration History
+        run: |
+          docker run --rm --network host \
+            -v "${GITHUB_WORKSPACE}/src/main/resources/db/migration:/flyway/sql:ro" \
+            flyway/flyway:11.14.1 \
+            -url="jdbc:mysql://127.0.0.1:3306/nexus_migration_ci?allowPublicKeyRetrieval=true&useSSL=false" \
+            -user=nexus \
+            -password=nexus_ci_password \
+            -locations=filesystem:/flyway/sql \
+            validate
+
+      - name: Export Migration Report
+        if: always()
+        run: |
+          docker run --rm --network host \
+            -v "${GITHUB_WORKSPACE}/src/main/resources/db/migration:/flyway/sql:ro" \
+            flyway/flyway:11.14.1 \
+            -url="jdbc:mysql://127.0.0.1:3306/nexus_migration_ci?allowPublicKeyRetrieval=true&useSSL=false" \
+            -user=nexus \
+            -password=nexus_ci_password \
+            -locations=filesystem:/flyway/sql \
+            info > flyway-migration-report.txt
+
+      - name: Upload Migration Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flyway-migration-report-${{ github.run_id }}
+          path: flyway-migration-report.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+  build-and-push-image:
+    name: Build and Push API Image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [verify, migration-verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Download Packaged JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: api-jar-${{ github.sha }}
+          path: target
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 6. Pack compiled JAR into the ultra-lean runner-prebuilt target stage (takes ~5s)
-      - name: Package Prebuilt JAR & Push Image
-        uses: docker/build-push-action@v6
+      - name: Package Prebuilt JAR and Push Image
+        id: image
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
           target: runner-prebuilt
           push: true
           tags: |
-            ghcr.io/leewio/nexus-api:latest
-            ghcr.io/leewio/nexus-api:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          provenance: mode=max
+          sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Scan Deployable Image for Critical Vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.image.outputs.digest }}
+          format: json
+          output: trivy-image-report.json
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          timeout: 10m
+
+      - name: Upload Image Security Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-report-${{ github.run_id }}
+          path: trivy-image-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
   deploy-to-server:
-    name: Pull & Recreate Container on Server
+    name: Deploy Immutable API Image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build-and-push-image
     runs-on: ubuntu-latest
+    timeout-minutes: 18
+    permissions:
+      contents: read
+      packages: read
+    concurrency:
+      group: nexus-api-production-deploy
+      cancel-in-progress: false
     environment:
       name: production
+    env:
+      API_IMAGE: ghcr.io/leewio/nexus-api@${{ needs.build-and-push-image.outputs.image-digest }}
+      API_LATEST_IMAGE: ghcr.io/leewio/nexus-api:latest
+      EXPECTED_REVISION: ${{ github.sha }}
+      SERVER_PROJECT_PATH: ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_ACTOR: ${{ github.actor }}
+      SERVER_SSH_FINGERPRINT: ${{ secrets.SERVER_SSH_FINGERPRINT }}
     steps:
+      - name: Require Pinned Production SSH Host Key
+        run: |
+          test -n "${SERVER_SSH_FINGERPRINT}" || {
+            echo "SERVER_SSH_FINGERPRINT must be configured before production deployment"
+            exit 1
+          }
+
       - name: Deploy to Server via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
+          fingerprint: ${{ secrets.SERVER_SSH_FINGERPRINT }}
           command_timeout: 15m
-          # Pass temporary GHA secrets to the SSH session
-          envs: GITHUB_TOKEN,GITHUB_ACTOR
+          envs: API_IMAGE,API_LATEST_IMAGE,EXPECTED_REVISION,SERVER_PROJECT_PATH,GITHUB_TOKEN,GITHUB_ACTOR
           script: |
-            set -e
-            echo "==== Starting Remote Container Pull deployment ===="
+            set -eu
 
-            # 1. Navigate to the root directory containing compose.yaml
-            cd ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}
+            cleanup() {
+              docker logout ghcr.io >/dev/null 2>&1 || true
+            }
+            trap cleanup 0
 
-            # 2. Login to ghcr.io with the ephemeral token passed from GHA
-            echo "Logging in to GitHub Container Registry on production server..."
-            echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+            case "${SERVER_PROJECT_PATH}" in
+              /*) ;;
+              *)
+                echo "SERVER_PROJECT_PATH must be an absolute path"
+                exit 1
+                ;;
+            esac
 
-            # 3. Pull the newly pushed api image
-            echo "Pulling the latest precompiled api image..."
-            docker compose pull api
+            cd -- "${SERVER_PROJECT_PATH}"
+            docker compose config --quiet
 
-            # 4. Gracefully recreate the API container with zero-downtime rolling restart (no compiling on server!)
-            echo "Recreating API container..."
-            docker compose up -d --no-deps api
+            echo "Logging in to GitHub Container Registry..."
+            echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
 
-            # 5. Logout of GHCR to protect server credentials
-            docker logout ghcr.io
+            echo "Pulling immutable API image for revision ${EXPECTED_REVISION}..."
+            docker pull "${API_IMAGE}"
 
-            # 6. Advanced Post-Deployment Verification (verifies that the container actually started up)
-            echo "Verifying container status..."
-            CONTAINER_ID="$(docker compose ps -q api)"
-
-            if [ -z "${CONTAINER_ID}" ]; then
-              echo "API container ID could not be resolved"
+            PULLED_REVISION="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "${API_IMAGE}")"
+            if [ "${PULLED_REVISION}" != "${EXPECTED_REVISION}" ]; then
+              echo "Pulled image revision '${PULLED_REVISION}' does not match '${EXPECTED_REVISION}'"
               exit 1
+            fi
+
+            PREVIOUS_CONTAINER_ID="$(docker compose ps -q api || true)"
+            PREVIOUS_IMAGE_ID=""
+            PREVIOUS_REVISION=""
+            if [ -n "${PREVIOUS_CONTAINER_ID}" ]; then
+              PREVIOUS_IMAGE_ID="$(docker inspect --format '{{.Image}}' "${PREVIOUS_CONTAINER_ID}" 2>/dev/null || true)"
+              PREVIOUS_REVISION="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "${PREVIOUS_IMAGE_ID}" 2>/dev/null || true)"
+            fi
+
+            rollback() {
+              echo "Deployment failed. Recent API logs:"
+              docker compose logs --tail=200 api || true
+
+              if [ -z "${PREVIOUS_IMAGE_ID}" ]; then
+                echo "No previous API container was available for rollback"
+                return
+              fi
+
+              echo "Restoring previous API revision ${PREVIOUS_REVISION:-unknown}..."
+              if ! docker tag "${PREVIOUS_IMAGE_ID}" "${API_LATEST_IMAGE}"; then
+                echo "Unable to retag the previous API image for rollback"
+                return
+              fi
+
+              if ! docker compose up -d --no-deps --force-recreate --pull never api; then
+                echo "Unable to recreate the previous API container"
+                return
+              fi
+
+              ROLLED_BACK_CONTAINER_ID="$(docker compose ps -q api || true)"
+              ROLLED_BACK_IMAGE_ID="$(docker inspect --format '{{.Image}}' "${ROLLED_BACK_CONTAINER_ID}" 2>/dev/null || true)"
+              if [ "${ROLLED_BACK_IMAGE_ID}" = "${PREVIOUS_IMAGE_ID}" ]; then
+                echo "Rollback container was recreated from the previous image"
+              else
+                echo "Rollback image verification failed"
+              fi
+            }
+
+            fail_deploy() {
+              echo "$1"
+              rollback
+              exit 1
+            }
+
+            # compose.yaml references :latest. Repoint that local tag to the exact
+            # SHA image before recreating the service, rather than pulling a moving tag.
+            PULLED_IMAGE_ID="$(docker image inspect --format '{{.Id}}' "${API_IMAGE}")"
+            docker tag "${PULLED_IMAGE_ID}" "${API_LATEST_IMAGE}"
+            if ! docker compose up -d --no-deps --force-recreate --pull never api; then
+              fail_deploy "Unable to recreate the API container"
+            fi
+
+            CONTAINER_ID="$(docker compose ps -q api)"
+            if [ -z "${CONTAINER_ID}" ]; then
+              fail_deploy "API container ID could not be resolved"
+            fi
+
+            DEPLOYED_IMAGE_ID="$(docker inspect --format '{{.Image}}' "${CONTAINER_ID}" 2>/dev/null || true)"
+            DEPLOYED_REVISION="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "${DEPLOYED_IMAGE_ID}" 2>/dev/null || true)"
+            if [ "${DEPLOYED_REVISION}" != "${EXPECTED_REVISION}" ]; then
+              fail_deploy "Container revision '${DEPLOYED_REVISION}' does not match '${EXPECTED_REVISION}'"
             fi
 
             READY=false
@@ -118,24 +361,13 @@ jobs:
             MAX_ATTEMPTS=$((MAX_WAIT_SECONDS / POLL_INTERVAL_SECONDS))
 
             for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
-              RUNNING="$(
-                docker inspect \
-                  --format '{{.State.Running}}' \
-                  "${CONTAINER_ID}"
-              )"
-
-              HEALTH="$(
-                docker inspect \
-                  --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
-                  "${CONTAINER_ID}"
-              )"
+              RUNNING="$(docker inspect --format '{{.State.Running}}' "${CONTAINER_ID}" 2>/dev/null || true)"
+              HEALTH="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "${CONTAINER_ID}" 2>/dev/null || true)"
 
               echo "Check ${attempt}/${MAX_ATTEMPTS}: running=${RUNNING}, health=${HEALTH}"
 
               if [ "${RUNNING}" != "true" ]; then
-                echo "API container stopped unexpectedly"
-                docker compose logs --tail=200 api
-                exit 1
+                fail_deploy "API container stopped unexpectedly"
               fi
 
               case "${HEALTH}" in
@@ -147,9 +379,7 @@ jobs:
                   echo "API container is temporarily unhealthy; waiting for cold start to complete"
                   ;;
                 none)
-                  echo "API image does not define a Docker health check"
-                  docker compose logs --tail=200 api
-                  exit 1
+                  fail_deploy "API image does not define a Docker health check"
                   ;;
               esac
 
@@ -157,16 +387,8 @@ jobs:
             done
 
             if [ "${READY}" != "true" ]; then
-              echo "Container did not become ready in time"
-              docker compose logs --tail=200 api
-              exit 1
+              fail_deploy "Container did not become ready in time"
             fi
 
-            # 7. Post-deployment safe cleanup of old images to preserve disk space
-            echo "Cleaning up outdated container images..."
-            docker image prune -f
-            
-            echo "==== Deployment Completed Successfully ===="
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_ACTOR: ${{ github.actor }}
+            docker image prune -f || true
+            echo "Deployment completed for revision ${EXPECTED_REVISION}"

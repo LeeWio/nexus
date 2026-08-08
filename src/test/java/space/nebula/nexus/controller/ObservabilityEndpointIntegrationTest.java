@@ -1,9 +1,13 @@
 package space.nebula.nexus.controller;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.availability.AvailabilityChangeEvent;
+import org.springframework.boot.availability.ReadinessState;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -20,6 +24,9 @@ class ObservabilityEndpointIntegrationTest {
 	@Autowired
 	private MockMvc mockMvc;
 
+	@Autowired
+	private ApplicationContext applicationContext;
+
 	@MockitoBean
 	private PostSearchRepository postSearchRepository;
 
@@ -29,10 +36,17 @@ class ObservabilityEndpointIntegrationTest {
 				.andExpect(jsonPath("$.components").doesNotExist());
 	}
 
+	@AfterEach
+	void restoreReadiness() {
+		AvailabilityChangeEvent.publish(applicationContext, ReadinessState.ACCEPTING_TRAFFIC);
+	}
+
 	@Test
-	void readinessProbeReflectsDependencyFailureWithoutLeakingComponents() throws Exception {
+	void readinessProbeReflectsUnavailableApplicationWithoutLeakingComponents() throws Exception {
+		AvailabilityChangeEvent.publish(applicationContext, ReadinessState.REFUSING_TRAFFIC);
+
 		mockMvc.perform(get("/readyz")).andExpect(status().isServiceUnavailable())
-				.andExpect(jsonPath("$.status").value("DOWN"))
+				.andExpect(jsonPath("$.status").value("OUT_OF_SERVICE"))
 				.andExpect(jsonPath("$.components").doesNotExist());
 	}
 

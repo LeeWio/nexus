@@ -11,14 +11,19 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.entity.Comment;
+import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.CommentStatus;
+import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.payload.response.CommentInteractionResponse;
+import space.nebula.nexus.payload.response.PostInteractionResponse;
 import space.nebula.nexus.repository.CommentRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.utils.RedisUtil;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -46,6 +51,7 @@ class InteractionServiceImplTest {
 	private InteractionServiceImpl interactionService;
 	private User user;
 	private Comment comment;
+	private Post post;
 
 	@BeforeEach
 	void setUp() {
@@ -58,23 +64,32 @@ class InteractionServiceImplTest {
 		comment.setId(10L);
 		comment.setUser(user);
 		comment.setStatus(CommentStatus.APPROVED);
-		when(commentRepository.findById(10L)).thenReturn(Optional.of(comment));
+		lenient().when(commentRepository.findById(10L)).thenReturn(Optional.of(comment));
+		post = new Post();
+		post.setId(20L);
+		post.setSlug("published-post");
+		post.setStatus(PostStatus.PUBLISHED);
+		lenient().when(postRepository.findById(20L)).thenReturn(Optional.of(post));
+		lenient().when(jdbcTemplate.queryForMap(contains("FROM blog_comment c"), eq(1L), eq(10L)))
+				.thenReturn(Map.of("likesCount", 1L, "liked", 1));
+		lenient().when(jdbcTemplate.queryForMap(contains("FROM blog_post p"), eq(1L), eq(1L), eq(20L)))
+				.thenReturn(Map.of("likesCount", 1L, "favoritesCount", 0L, "liked", 1, "favorited", 0));
 	}
 
 	@Test
-	void duplicateCommentLikeOnlyIncrementsCounterOnce()
-	{
+	void duplicateCommentLikeOnlyIncrementsCounterOnce() {
 		when(jdbcTemplate.update(anyString(), eq(10L), eq(1L))).thenReturn(1, 0);
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(user);
 
-			ApiResponse<Void> first = interactionService.likeComment(10L);
-			ApiResponse<Void> duplicate = interactionService.likeComment(10L);
+			ApiResponse<CommentInteractionResponse> first = interactionService.likeComment(10L);
+			ApiResponse<CommentInteractionResponse> duplicate = interactionService.likeComment(10L);
 
 			assertEquals(200, first.code());
 			assertEquals(200, duplicate.code());
+			assertEquals(new CommentInteractionResponse(10L, true, 1L), first.data());
+			assertEquals(first.data(), duplicate.data());
 			verify(commentRepository).incrementLikes(10L, 1L);
 		}
 	}
@@ -96,8 +111,7 @@ class InteractionServiceImplTest {
 	}
 
 	@Test
-	void duplicateCommentUnlikeOnlyDecrementsCounterOnce()
-	{
+	void duplicateCommentUnlikeOnlyDecrementsCounterOnce() {
 		when(jdbcTemplate.update(anyString(), eq(10L), eq(1L))).thenReturn(1, 0);
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
@@ -107,6 +121,40 @@ class InteractionServiceImplTest {
 			interactionService.unlikeComment(10L);
 			interactionService.unlikeComment(10L);
 
+			verify(commentRepository).incrementLikes(10L, -1L);
+		}
+	}
+
+	@Test
+	void postFavoriteReturnsFinalStateAndCurrentCounters() {
+		when(jdbcTemplate.update(startsWith("INSERT IGNORE INTO blog_post_favorite"), eq(20L), eq(1L))).thenReturn(1);
+		when(jdbcTemplate.queryForMap(contains("FROM blog_post p"), eq(1L), eq(1L), eq(20L)))
+				.thenReturn(Map.of("likesCount", 8L, "favoritesCount", 3L, "liked", 1, "favorited", 1));
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(user);
+
+			ApiResponse<PostInteractionResponse> response = interactionService.favoritePost(20L);
+
+			assertEquals(200, response.code());
+			assertEquals(new PostInteractionResponse(20L, true, true, 8L, 3L), response.data());
+			verify(postRepository).incrementFavorites(20L, 1L);
+		}
+	}
+
+	@Test
+	void commentUnlikeReturnsCurrentStateAndCounter() {
+		when(jdbcTemplate.update(startsWith("DELETE FROM blog_comment_like"), eq(10L), eq(1L))).thenReturn(1);
+		when(jdbcTemplate.queryForMap(contains("FROM blog_comment c"), eq(1L), eq(10L)))
+				.thenReturn(Map.of("likesCount", 4L, "liked", 0));
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(user);
+
+			ApiResponse<CommentInteractionResponse> response = interactionService.unlikeComment(10L);
+
+			assertEquals(200, response.code());
+			assertEquals(new CommentInteractionResponse(10L, false, 4L), response.data());
 			verify(commentRepository).incrementLikes(10L, -1L);
 		}
 	}

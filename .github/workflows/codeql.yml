@@ -28,7 +28,9 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       # 1. Setup JDK 21 using our local composite action (restores maven cache)
       - name: Setup API Environment
@@ -39,16 +41,17 @@ jobs:
 
       # 2. Initialize CodeQL Tools for Java
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: 'java-kotlin'
+          build-mode: manual
 
       # 3. Compile the application (CodeQL needs compiling to trace semantic dataflows!)
       - name: Compile and Package JAR
-        run: ./mvnw clean package -DskipTests
+        run: ./mvnw -B -ntp clean package -DskipTests
 
       # 4. Perform Deep Semantic Analysis
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:java-kotlin"

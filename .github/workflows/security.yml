@@ -1,0 +1,63 @@
+name: Supply Chain Security
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Review New Dependencies
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Block Newly Introduced Critical Vulnerabilities
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: critical
+
+  filesystem-audit:
+    name: Audit Source, Dependencies, and Configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Create Trivy Filesystem Report
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: json
+          output: trivy-filesystem-report.json
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+          timeout: 10m
+
+      - name: Upload Filesystem Security Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-filesystem-report-${{ github.run_id }}
+          path: trivy-filesystem-report.json
+          if-no-files-found: error
+          retention-days: 14
