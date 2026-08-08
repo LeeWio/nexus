@@ -59,10 +59,10 @@ public class AuthController {
 	}
 
 	@PostMapping("/otp/send")
-	@Operation(summary = "Send OTP", description = "Sends a verification code to the registered email address.")
+	@Operation(summary = "Request an OTP", description = "Returns a generic acknowledgement to prevent account enumeration.")
 	@ApiResponses({
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "OTP code sent successfully"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Email address not found")})
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "OTP request accepted"),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "OTP request rate limit exceeded")})
 	@RateLimit(count = 1, time = 1, unit = TimeUnit.MINUTES, message = "Please wait before requesting another OTP.")
 	public ApiResponse<Void> sendOtp(@Valid @RequestBody OtpSendRequest request) {
 		return authService.sendOtp(request.email());

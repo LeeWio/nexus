@@ -194,9 +194,22 @@ class AuthServiceImplTest {
 		ApiResponse<Void> response = authService.sendOtp("test@example.com");
 
 		assertEquals(200, response.code());
+		assertEquals("If an account is associated with this email, an OTP has been sent.", response.message());
 		verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.MAIL_EXCHANGE), eq(RabbitMQConfig.MAIL_ROUTING_KEY),
 				any(Object.class));
 		verify(redisUtil, never()).delete(anyString());
+	}
+
+	@Test
+	@DisplayName("Should not reveal whether an OTP email belongs to an account")
+	void sendOtp_UnknownEmailReturnsTheSameAcknowledgement() {
+		when(userRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
+
+		ApiResponse<Void> response = authService.sendOtp("unknown@example.com");
+
+		assertEquals(200, response.code());
+		assertEquals("If an account is associated with this email, an OTP has been sent.", response.message());
+		verifyNoInteractions(redisUtil, rabbitTemplate);
 	}
 
 	@Test
@@ -235,8 +248,24 @@ class AuthServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("Should delete OTP and surface business error when email dispatch fails")
-	void sendOtp_MailFailure() {
+	@DisplayName("Should acknowledge OTP requests when Redis cannot store the code")
+	void sendOtp_RedisFailureReturnsAcknowledgement() {
+		User user = new User();
+		user.setEmail("test@example.com");
+		String otpKey = CacheConstants.OTP_CODE + "test@example.com";
+		when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+		when(redisUtil.set(eq(otpKey), any(String.class), eq(5L), eq(TimeUnit.MINUTES))).thenReturn(false);
+
+		ApiResponse<Void> response = authService.sendOtp("test@example.com");
+
+		assertEquals(200, response.code());
+		assertEquals("If an account is associated with this email, an OTP has been sent.", response.message());
+		verifyNoInteractions(rabbitTemplate);
+	}
+
+	@Test
+	@DisplayName("Should delete OTP and acknowledge requests when email dispatch fails")
+	void sendOtp_MailFailureReturnsAcknowledgement() {
 		User user = new User();
 		user.setEmail("test@example.com");
 		String otpKey = CacheConstants.OTP_CODE + "test@example.com";
@@ -245,10 +274,10 @@ class AuthServiceImplTest {
 		doThrow(new RuntimeException("RabbitMQ connection failed")).when(rabbitTemplate).convertAndSend(
 				eq(RabbitMQConfig.MAIL_EXCHANGE), eq(RabbitMQConfig.MAIL_ROUTING_KEY), any(Object.class));
 
-		BusinessException exception = assertThrows(BusinessException.class,
-				() -> authService.sendOtp("test@example.com"));
+		ApiResponse<Void> response = authService.sendOtp("test@example.com");
 
-		assertEquals(BusinessCode.ERROR.getCode(), exception.getCode());
+		assertEquals(200, response.code());
+		assertEquals("If an account is associated with this email, an OTP has been sent.", response.message());
 		verify(redisUtil).delete(otpKey);
 	}
 }

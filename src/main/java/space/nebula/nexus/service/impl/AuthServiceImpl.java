@@ -132,13 +132,16 @@ public class AuthServiceImpl implements IAuthService {
 	@Override
 	@LogOperation(value = "Send Login OTP", logArgs = false)
 	public ApiResponse<Void> sendOtp(String email) {
-		userRepository.findByEmail(email).orElseThrow(
-				() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "No account is linked to this email"));
+		if (userRepository.findByEmail(email).isEmpty()) {
+			return otpRequestAccepted();
+		}
 
 		var otp = RandomUtil.randomNumbers(6);
 		var otpKey = CacheConstants.OTP_CODE + email;
-		Assert.isTrue(redisUtil.set(otpKey, otp, 5, TimeUnit.MINUTES),
-				() -> new BusinessException(BusinessCode.ERROR, "Failed to store the OTP code"));
+		if (!redisUtil.set(otpKey, otp, 5, TimeUnit.MINUTES)) {
+			log.error("Failed to store OTP code");
+			return otpRequestAccepted();
+		}
 
 		Map<String, Object> variables = Dict.create().set("otp", otp).set("expireMin", 5);
 
@@ -151,10 +154,14 @@ public class AuthServiceImpl implements IAuthService {
 		} catch (Exception e) {
 			redisUtil.delete(otpKey);
 			log.error("Failed to dispatch OTP email task to MQ for: {}", email, e);
-			throw new BusinessException(BusinessCode.ERROR, "Failed to dispatch the email task");
+			return otpRequestAccepted();
 		}
 
-		return ApiResponse.success("OTP code sent successfully. Please check your inbox.", null);
+		return otpRequestAccepted();
+	}
+
+	private ApiResponse<Void> otpRequestAccepted() {
+		return ApiResponse.success("If an account is associated with this email, an OTP has been sent.", null);
 	}
 
 	@Override
