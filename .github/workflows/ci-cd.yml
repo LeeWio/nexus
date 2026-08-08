@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -54,7 +54,7 @@ jobs:
 
       - name: Upload Quality Reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: api-quality-reports-${{ github.run_id }}
           path: |
@@ -66,7 +66,7 @@ jobs:
 
       - name: Upload Test Reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: api-test-reports-${{ github.run_id }}
           path: target/surefire-reports
@@ -74,7 +74,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Packaged JAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: api-jar-${{ github.sha }}
           path: target/*.jar
@@ -105,7 +105,7 @@ jobs:
           --health-retries=12
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Apply Migrations to Clean MySQL Schema
         run: |
@@ -145,7 +145,7 @@ jobs:
 
       - name: Upload Migration Report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: flyway-migration-report-${{ github.run_id }}
           path: flyway-migration-report.txt
@@ -165,10 +165,10 @@ jobs:
       image-digest: ${{ steps.image.outputs.digest }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Download Packaged JAR
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: api-jar-${{ github.sha }}
           path: target
@@ -215,7 +215,7 @@ jobs:
 
       - name: Upload Image Security Report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-image-report-${{ github.run_id }}
           path: trivy-image-report.json
