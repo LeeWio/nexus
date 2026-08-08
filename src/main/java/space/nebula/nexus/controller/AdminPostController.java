@@ -12,8 +12,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.enums.PostReportStatus;
 import space.nebula.nexus.payload.request.PostAutosaveRequest;
 import space.nebula.nexus.payload.request.PostArchiveRequest;
+import space.nebula.nexus.payload.request.PostReportResolutionRequest;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.request.PostScheduleRequest;
 import space.nebula.nexus.payload.response.PageResult;
@@ -21,7 +23,9 @@ import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostDiffResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.payload.response.PostRevisionResponse;
+import space.nebula.nexus.payload.response.PostReportResponse;
 import space.nebula.nexus.service.IPostRevisionService;
+import space.nebula.nexus.service.IPostReportService;
 import space.nebula.nexus.service.IPostService;
 
 import java.util.List;
@@ -38,7 +42,27 @@ public class AdminPostController {
 
 	private final IPostService postService;
 	private final IPostRevisionService postRevisionService;
+	private final IPostReportService postReportService;
 	private final space.nebula.nexus.service.IStaticGenerationService staticGenerationService;
+
+	@GetMapping("/reports")
+	@PreAuthorize("hasAnyRole('ADMIN', 'EDITOR')")
+	@Operation(summary = "Get post reports", description = "Retrieve the article report queue with status and reporter filters.")
+	public ApiResponse<PageResult<PostReportResponse>> getPostReports(
+			@Parameter(description = "Filter by report status") @RequestParam(required = false) PostReportStatus status,
+			@Parameter(description = "Filter by post ID") @RequestParam(required = false) Long postId,
+			@Parameter(description = "Filter by reporter username") @RequestParam(required = false) String reporterUsername,
+			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20) Pageable pageable) {
+		return postReportService.retrieveReports(status, postId, reporterUsername, pageable);
+	}
+
+	@PatchMapping("/reports/{postId}/{reporterId}")
+	@PreAuthorize("hasAnyRole('ADMIN', 'EDITOR')")
+	@Operation(summary = "Resolve a post report", description = "Mark one open article report as actioned or dismissed.")
+	public ApiResponse<Void> resolvePostReport(@PathVariable Long postId, @PathVariable Long reporterId,
+			@Valid @RequestBody PostReportResolutionRequest request) {
+		return postReportService.resolveReport(postId, reporterId, request);
+	}
 
 	@GetMapping
 	@PreAuthorize("hasAnyRole('ADMIN', 'EDITOR')")

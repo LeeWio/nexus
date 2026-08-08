@@ -4,21 +4,27 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.enums.PostContentType;
+import space.nebula.nexus.payload.request.PostReportRequest;
 import space.nebula.nexus.payload.response.BlogFacetResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.payload.response.BlogDiscoveryResponse;
 import space.nebula.nexus.service.IPostService;
+import space.nebula.nexus.service.IPostReportService;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Controller for public access to blog content. Provides endpoints for browsing
@@ -31,6 +37,7 @@ import java.util.List;
 public class PublicBlogController {
 
 	private final IPostService postService;
+	private final IPostReportService postReportService;
 
 	@GetMapping("/discovery")
 	@Operation(summary = "Retrieve blog discovery content", description = "Returns compact spotlight, latest, and most-read content groups for the public blog experience.")
@@ -99,6 +106,15 @@ public class PublicBlogController {
 			@Parameter(description = "The unique URL slug of the source post") @PathVariable String slug,
 			@Parameter(description = "Pagination parameters") @PageableDefault(size = 6) Pageable pageable) {
 		return postService.retrieveRelatedPosts(slug, pageable);
+	}
+
+	@PostMapping("/posts/{id}/report")
+	@PreAuthorize("isAuthenticated()")
+	@RateLimit(count = 5, time = 30, unit = TimeUnit.MINUTES, message = "Too many reports. Please try again later.")
+	@Operation(summary = "Report a post", description = "Report a published article for moderator review.")
+	public ApiResponse<Void> reportPost(@Parameter(description = "Post ID") @PathVariable Long id,
+			@Valid @RequestBody PostReportRequest request) {
+		return postReportService.reportPost(id, request);
 	}
 
 	@GetMapping("/posts/{slug}")
