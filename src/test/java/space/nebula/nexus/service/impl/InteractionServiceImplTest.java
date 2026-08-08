@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.cache.CacheManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.CommentStatus;
@@ -22,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -106,6 +108,21 @@ class InteractionServiceImplTest {
 			interactionService.unlikeComment(10L);
 
 			verify(commentRepository).incrementLikes(10L, -1L);
+		}
+	}
+
+	@Test
+	void deletedPlaceholderCannotBeLiked() {
+		comment.setDeletedPlaceholder(true);
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(user);
+
+			BusinessException exception = assertThrows(BusinessException.class,
+					() -> interactionService.likeComment(10L));
+
+			assertEquals(400, exception.getCode());
+			verify(jdbcTemplate, never()).update(anyString(), any(), any());
 		}
 	}
 }

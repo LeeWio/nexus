@@ -127,4 +127,12 @@ public class Comment extends BaseEntity {
 		this.featured = false;
 		this.status = CommentStatus.APPROVED;
 	}
+
+	/**
+	 * Deleted placeholders remain visible only to preserve thread context and must
+	 * not accept new public interaction.
+	 */
+	public boolean isDeletedPlaceholder() {
+		return Boolean.TRUE.equals(deletedPlaceholder);
+	}
 }

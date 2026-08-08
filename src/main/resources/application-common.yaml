@@ -166,6 +166,8 @@ app:
     lock-duration-minutes: 15
     default-role-code: "ROLE_USER"
   comment:
+    thread:
+      max-reply-depth: ${COMMENT_MAX_REPLY_DEPTH:5}
     moderation:
       auto-review-report-threshold: ${COMMENT_AUTO_REVIEW_REPORT_THRESHOLD:3}
       high-risk-report-threshold: ${COMMENT_HIGH_RISK_REPORT_THRESHOLD:2}

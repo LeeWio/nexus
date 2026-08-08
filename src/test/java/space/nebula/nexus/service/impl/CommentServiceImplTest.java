@@ -12,6 +12,7 @@ import space.nebula.nexus.common.event.CommentModeratedEvent;
 import space.nebula.nexus.common.event.CommentSubmittedEvent;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.config.CommentModerationProperties;
+import space.nebula.nexus.config.CommentThreadProperties;
 import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
@@ -66,6 +67,7 @@ class CommentServiceImplTest {
 
 	private CommentServiceImpl commentService;
 	private CommentModerationProperties moderationProperties;
+	private CommentThreadProperties threadProperties;
 
 	private User testUser;
 	private Post testPost;
@@ -82,6 +84,7 @@ class CommentServiceImplTest {
 		testPost.setTitle("Professional Comments");
 		testPost.setStatus(PostStatus.PUBLISHED);
 		moderationProperties = new CommentModerationProperties();
+		threadProperties = new CommentThreadProperties();
 		lenient().when(idempotencyService.hashSubmission(any(), any(), any())).thenReturn("request-hash");
 		lenient().when(idempotencyService.begin(anyLong(), any(), any())).thenReturn(Optional.empty());
 		lenient().when(commentRepository.saveAndFlush(any(Comment.class))).thenAnswer(invocation -> {
@@ -96,8 +99,8 @@ class CommentServiceImplTest {
 		});
 		commentService = new CommentServiceImpl(
 				new CommentCommandService(commentRepository, postRepository, userRepository, sensitiveWordService,
-						eventPublisher, jdbcTemplate, governanceService, moderationProperties, idempotencyService,
-						metricsService),
+						eventPublisher, jdbcTemplate, governanceService, moderationProperties, threadProperties,
+						idempotencyService, metricsService),
 				new CommentQueryService(commentRepository, postRepository, userRepository, commentResponseAssembler),
 				new CommentModerationService(commentRepository, eventPublisher, governanceService, metricsService),
 				governanceService);
@@ -423,6 +426,26 @@ class CommentServiceImplTest {
 	}
 
 	@Test
+	void updateMyCommentRejectsDeletedPlaceholder() {
+		Comment comment = new Comment();
+		comment.setId(41L);
+		comment.setUser(testUser);
+		comment.setStatus(CommentStatus.APPROVED);
+		comment.setDeletedPlaceholder(true);
+		when(commentRepository.findById(41L)).thenReturn(Optional.of(comment));
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
+
+			BusinessException exception = assertThrows(BusinessException.class,
+					() -> commentService.updateMyComment(41L, new CommentUpdateRequest("new content")));
+
+			assertEquals(400, exception.getCode());
+			verify(commentRepository, never()).save(comment);
+		}
+	}
+
+	@Test
 	void deleteMyCommentDeletesOwnApprovedCommentWhenNoRepliesExist() {
 		Comment comment = new Comment();
 		comment.setId(42L);
@@ -550,6 +573,47 @@ class CommentServiceImplTest {
 		parent.setId(10L);
 		parent.setPost(testPost);
 		parent.setStatus(CommentStatus.PENDING);
+		CommentRequest request = new CommentRequest("Reply", 1L, 10L);
+
+		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
+		when(sensitiveWordService.filter("Reply")).thenReturn("Reply");
+		when(commentRepository.findById(10L)).thenReturn(Optional.of(parent));
+
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> commentService.publishComment(request, servletRequest));
+
+		assertEquals(400, exception.getCode());
+		verify(commentRepository, never()).saveAndFlush(any());
+	}
+
+	@Test
+	void publishCommentRejectsReplyToDeletedPlaceholder() {
+		Comment parent = new Comment();
+		parent.setId(10L);
+		parent.setPost(testPost);
+		parent.setStatus(CommentStatus.APPROVED);
+		parent.setDeletedPlaceholder(true);
+		CommentRequest request = new CommentRequest("Reply", 1L, 10L);
+
+		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
+		when(sensitiveWordService.filter("Reply")).thenReturn("Reply");
+		when(commentRepository.findById(10L)).thenReturn(Optional.of(parent));
+
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> commentService.publishComment(request, servletRequest));
+
+		assertEquals(400, exception.getCode());
+		verify(commentRepository, never()).saveAndFlush(any());
+	}
+
+	@Test
+	void publishCommentRejectsReplyBeyondConfiguredThreadDepth() {
+		threadProperties.setMaxReplyDepth(2);
+		Comment parent = new Comment();
+		parent.setId(10L);
+		parent.setPost(testPost);
+		parent.setStatus(CommentStatus.APPROVED);
+		parent.setPath("/1/2/10/");
 		CommentRequest request = new CommentRequest("Reply", 1L, 10L);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));

@@ -16,6 +16,7 @@ import space.nebula.nexus.common.event.CommentSubmittedEvent;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.config.CommentModerationProperties;
+import space.nebula.nexus.config.CommentThreadProperties;
 import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
@@ -33,6 +34,8 @@ import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.SensitiveWordService;
 import space.nebula.nexus.utils.IpUtil;
 
+import cn.hutool.core.util.StrUtil;
+
 import java.util.Objects;
 
 @Slf4j
@@ -48,6 +51,7 @@ public class CommentCommandService {
 	private final JdbcTemplate jdbcTemplate;
 	private final CommentGovernanceService governanceService;
 	private final CommentModerationProperties moderationProperties;
+	private final CommentThreadProperties threadProperties;
 	private final CommentIdempotencyService idempotencyService;
 	private final CommentMetricsService metricsService;
 
@@ -117,6 +121,8 @@ public class CommentCommandService {
 	public ApiResponse<Void> updateMyComment(Long id, CommentUpdateRequest request) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Comment comment = findOwnedComment(id, currentUser);
+		Assert.isFalse(comment.isDeletedPlaceholder(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
+				"Deleted comments cannot be edited"));
 		String filteredContent = sensitiveWordService.filter(request.content());
 		boolean hasViolation = request.content() != null && !request.content().equals(filteredContent);
 
@@ -137,6 +143,9 @@ public class CommentCommandService {
 	public ApiResponse<Void> deleteMyComment(Long id) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Comment comment = findOwnedComment(id, currentUser);
+		if (comment.isDeletedPlaceholder()) {
+			return ApiResponse.success("Comment was already deleted.", null);
+		}
 		if (commentRepository.existsByParentId(id)) {
 			comment.markDeletedPlaceholder();
 			commentRepository.save(comment);
@@ -157,6 +166,8 @@ public class CommentCommandService {
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
 		Assert.isTrue(comment.getStatus() == CommentStatus.APPROVED,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only visible comments can be reported"));
+		Assert.isFalse(comment.isDeletedPlaceholder(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
+				"Deleted comments cannot be reported"));
 		Assert.isFalse(comment.getUser().getId().equals(currentUser.getId()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "You cannot report your own comment"));
 
@@ -208,7 +219,26 @@ public class CommentCommandService {
 		Assert.isTrue(parentComment.getStatus() == CommentStatus.APPROVED,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST,
 						"Replies can only be added to approved comments"));
+		Assert.isFalse(parentComment.isDeletedPlaceholder(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
+				"Replies cannot target a deleted comment"));
+		Assert.isTrue(replyDepth(parentComment) <= threadProperties.getMaxReplyDepth(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Replies can be nested up to " + threadProperties.getMaxReplyDepth() + " levels"));
 		return parentComment;
+	}
+
+	private int replyDepth(Comment parentComment) {
+		if (StrUtil.isNotBlank(parentComment.getPath())) {
+			return StrUtil.splitTrim(parentComment.getPath(), '/').size();
+		}
+
+		int depth = 1;
+		Comment cursor = parentComment;
+		while (cursor.getParent() != null && depth <= threadProperties.getMaxReplyDepth()) {
+			depth++;
+			cursor = cursor.getParent();
+		}
+		return depth;
 	}
 
 	private String normalizeClientRequestId(HttpServletRequest servletRequest) {

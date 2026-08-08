@@ -183,6 +183,10 @@ public class InteractionServiceImpl implements IInteractionService {
 				() -> new space.nebula.nexus.common.exception.BusinessException(
 						space.nebula.nexus.common.constant.BusinessCode.BAD_REQUEST,
 						"Only approved comments can be interacted with"));
+		Assert.isFalse(comment.isDeletedPlaceholder(),
+				() -> new space.nebula.nexus.common.exception.BusinessException(
+						space.nebula.nexus.common.constant.BusinessCode.BAD_REQUEST,
+						"Deleted comments cannot be interacted with"));
 		return comment;
 	}
 }
