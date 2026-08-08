@@ -75,9 +75,14 @@ spring:
   elasticsearch:
     uris: ${ES_URIS}
 
+server:
+  forward-headers-strategy: framework
+
 app:
+  newsletter:
+    base-url: ${APP_BASE_URL:https://easylove.top}
   oauth2:
-    redirect-uri: ${OAUTH2_REDIRECT_URI}
+    redirect-uri: ${OAUTH2_REDIRECT_URI:https://easylove.top/oauth2/redirect}
   jwt:
     secret: ${JWT_SECRET}
   github:
