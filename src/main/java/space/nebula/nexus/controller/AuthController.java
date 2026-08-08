@@ -16,12 +16,12 @@ import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.payload.request.LoginRequest;
 import space.nebula.nexus.payload.request.OtpLoginRequest;
 import space.nebula.nexus.payload.request.OtpSendRequest;
+import space.nebula.nexus.payload.request.RefreshTokenRequest;
 import space.nebula.nexus.payload.request.RegisterRequest;
 import space.nebula.nexus.payload.response.AuthResponse;
 import space.nebula.nexus.service.IAuthService;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -83,8 +83,8 @@ public class AuthController {
 	@ApiResponses({
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")})
-	public ApiResponse<AuthResponse> refresh(@RequestBody Map<String, String> request) {
-		return authService.refreshToken(request.get("refreshToken"));
+	public ApiResponse<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+		return authService.refreshToken(request.refreshToken());
 	}
 
 	@PostMapping("/logout")

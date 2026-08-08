@@ -73,4 +73,11 @@ public class AuthControllerIntegrationTest {
 				.content(objectMapper.writeValueAsString(registerRequest))).andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value(40002));
 	}
+
+	@Test
+	public void refreshRejectsRequestsWithoutAToken() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value(40001))
+				.andExpect(jsonPath("$.message").value("Validation failed: Refresh token is required"));
+	}
 }
