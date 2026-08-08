@@ -3,6 +3,7 @@ package space.nebula.nexus.controller;
 import cn.hutool.core.lang.tree.Tree;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -39,6 +40,7 @@ public class PublicCommentController {
 
 	@PostMapping
 	@Operation(summary = "Publish a new comment", description = "Submit a comment on a blog post. Requires user authentication.")
+	@SecurityRequirement(name = "bearerAuth")
 	@PreAuthorize("isAuthenticated()")
 	@RateLimit(count = 5, time = 15, unit = TimeUnit.MINUTES, message = "Too many comments. Please wait a moment.")
 	public ApiResponse<Void> publishComment(@Valid @RequestBody CommentRequest request,
@@ -121,6 +123,7 @@ public class PublicCommentController {
 
 	@PostMapping("/{id}/report")
 	@Operation(summary = "Report a comment", description = "Report an approved public comment for moderation review.")
+	@SecurityRequirement(name = "bearerAuth")
 	@PreAuthorize("isAuthenticated()")
 	@RateLimit(count = 5, time = 30, unit = TimeUnit.MINUTES, message = "Too many reports. Please try again later.")
 	public ApiResponse<Void> reportComment(@Parameter(description = "Comment ID") @PathVariable Long id,

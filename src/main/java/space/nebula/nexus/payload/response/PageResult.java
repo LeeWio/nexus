@@ -22,16 +22,16 @@ import java.util.List;
 public class PageResult<T> implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	@Schema(description = "List of data items for current page")
+	@Schema(description = "Items in the requested page")
 	private List<T> list;
 
 	@Schema(description = "Total number of items matching filter", example = "100")
 	private long total;
 
-	@Schema(description = "Current page number (1-based)", example = "1")
+	@Schema(description = "Current response page number (1-based). The request `page` query parameter is zero-based.", example = "1")
 	private int page;
 
-	@Schema(description = "Number of items per page", example = "10")
+	@Schema(description = "Number of items requested per page", example = "10")
 	private int size;
 
 	@Schema(description = "Total number of pages", example = "10")

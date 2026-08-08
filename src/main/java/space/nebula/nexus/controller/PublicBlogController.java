@@ -3,6 +3,7 @@ package space.nebula.nexus.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -111,7 +112,8 @@ public class PublicBlogController {
 	@PostMapping("/posts/{id}/report")
 	@PreAuthorize("isAuthenticated()")
 	@RateLimit(count = 5, time = 30, unit = TimeUnit.MINUTES, message = "Too many reports. Please try again later.")
-	@Operation(summary = "Report a post", description = "Report a published article for moderator review.")
+	@Operation(summary = "Report a post", description = "Report a published article for moderator review. A user can submit one report per post; a repeat request is accepted without creating a duplicate.")
+	@SecurityRequirement(name = "bearerAuth")
 	public ApiResponse<Void> reportPost(@Parameter(description = "Post ID") @PathVariable Long id,
 			@Valid @RequestBody PostReportRequest request) {
 		return postReportService.reportPost(id, request);
@@ -128,8 +130,9 @@ public class PublicBlogController {
 	}
 
 	@GetMapping("/preview/{token}")
-	@Operation(summary = "Preview a post by token", description = "Fetch a short-lived preview of a draft, rejected, scheduled, or published post.")
-	public ApiResponse<PostResponse> retrievePreview(@PathVariable String token) {
+	@Operation(summary = "Preview a post by token", description = "Fetch a short-lived preview of a draft, rejected, scheduled, or published post. The token is the sole credential for this endpoint, so do not expose it in client logs or analytics.")
+	public ApiResponse<PostResponse> retrievePreview(
+			@Parameter(description = "Short-lived post preview token") @PathVariable String token) {
 		return postService.retrievePostPreview(token);
 	}
 }

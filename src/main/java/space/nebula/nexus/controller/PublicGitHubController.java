@@ -18,7 +18,7 @@ public class PublicGitHubController {
 
 	private final IGitHubService githubService;
 
-	@Operation(summary = "Retrieve global GitHub statistics for the profile")
+	@Operation(summary = "Retrieve public GitHub profile statistics", description = "Return the latest synchronized GitHub profile and repository metrics for public profile widgets. Values may be cached between scheduled synchronizations.")
 	@GetMapping("/stats")
 	public ApiResponse<GitHubStatsResponse> retrieveStats() {
 		return ApiResponse.success(githubService.retrieveGlobalStats());

@@ -28,33 +28,33 @@ public class AdminWebhookController {
 	private final IWebhookService webhookService;
 
 	@GetMapping
-	@Operation(summary = "List all webhooks")
+	@Operation(summary = "List all webhooks", description = "Return every webhook configuration visible to administrators, including its target URL, subscribed events, and enabled state.")
 	public ApiResponse<List<WebhookResponse>> listWebhooks() {
 		return webhookService.retrieveAllWebhooks();
 	}
 
 	@PostMapping
-	@Operation(summary = "Create a webhook")
+	@Operation(summary = "Create a webhook", description = "Create a webhook delivery configuration. The returned object includes the generated identifier required for later updates, testing, and log queries.")
 	public ApiResponse<WebhookResponse> createWebhook(@Valid @RequestBody WebhookRequest request) {
 		return webhookService.createWebhook(request);
 	}
 
 	@PutMapping("/{id}")
-	@Operation(summary = "Update a webhook")
-	public ApiResponse<WebhookResponse> updateWebhook(@PathVariable Long id,
+	@Operation(summary = "Update a webhook", description = "Replace the editable configuration for one webhook. Use the returned enabled state to keep management UI state synchronized.")
+	public ApiResponse<WebhookResponse> updateWebhook(@Parameter(description = "Webhook ID") @PathVariable Long id,
 			@Valid @RequestBody WebhookRequest request) {
 		return webhookService.updateWebhook(id, request);
 	}
 
 	@DeleteMapping("/{id}")
-	@Operation(summary = "Delete a webhook")
-	public ApiResponse<Void> deleteWebhook(@PathVariable Long id) {
+	@Operation(summary = "Delete a webhook", description = "Permanently remove a webhook configuration. This cannot be undone.")
+	public ApiResponse<Void> deleteWebhook(@Parameter(description = "Webhook ID") @PathVariable Long id) {
 		return webhookService.deleteWebhook(id);
 	}
 
 	@PostMapping("/{id}/test")
-	@Operation(summary = "Trigger a test ping to the webhook")
-	public ApiResponse<Void> testWebhook(@PathVariable Long id) {
+	@Operation(summary = "Send a webhook test delivery", description = "Trigger a test delivery to validate one webhook target and its configuration. Inspect the delivery log for the resulting status.")
+	public ApiResponse<Void> testWebhook(@Parameter(description = "Webhook ID") @PathVariable Long id) {
 		return webhookService.triggerTestWebhook(id);
 	}
 
@@ -67,7 +67,7 @@ public class AdminWebhookController {
 	}
 
 	@PostMapping("/logs/{deliveryId}/redeliver")
-	@Operation(summary = "Redeliver a failed webhook log")
+	@Operation(summary = "Redeliver a failed webhook delivery", description = "Retry one recorded failed delivery. The original delivery ID identifies the payload and destination to retry.")
 	public ApiResponse<Void> redeliverWebhookLog(
 			@Parameter(description = "Webhook Delivery ID") @PathVariable String deliveryId) {
 		return webhookService.redeliverWebhookLog(deliveryId);

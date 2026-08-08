@@ -2,6 +2,7 @@ package space.nebula.nexus.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.service.ICommentService;
 
 @Tag(name = "User Comments", description = "Endpoints for users to manage their own comments")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/user/comments")
 @RequiredArgsConstructor
@@ -24,7 +26,7 @@ public class UserCommentController {
 	private final ICommentService commentService;
 
 	@GetMapping
-	@Operation(summary = "Get my comments", description = "Retrieve comments authored by the current user with optional status filtering.")
+	@Operation(summary = "Get my comments", description = "Retrieve comments owned by the current user, including their moderation status. This endpoint never exposes other users' drafts or moderation state.")
 	public ApiResponse<PageResult<CommentResponse>> retrieveMyComments(
 			@Parameter(description = "Optional comment status filter") @RequestParam(required = false) CommentStatus status,
 			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
@@ -32,13 +34,13 @@ public class UserCommentController {
 	}
 
 	@DeleteMapping("/{id}")
-	@Operation(summary = "Delete my comment", description = "Delete a comment authored by the current user when it has no child replies.")
+	@Operation(summary = "Delete my comment", description = "Delete a comment owned by the current user. A comment with replies is retained as a placeholder to preserve the visible thread.")
 	public ApiResponse<Void> deleteMyComment(@Parameter(description = "Comment ID") @PathVariable Long id) {
 		return commentService.deleteMyComment(id);
 	}
 
 	@PutMapping("/{id}")
-	@Operation(summary = "Edit my comment", description = "Update a comment authored by the current user and submit it for moderation again.")
+	@Operation(summary = "Edit my comment", description = "Update a comment owned by the current user. Edited content is submitted for moderation again before it becomes public.")
 	public ApiResponse<Void> updateMyComment(@Parameter(description = "Comment ID") @PathVariable Long id,
 			@Valid @RequestBody CommentUpdateRequest request) {
 		return commentService.updateMyComment(id, request);

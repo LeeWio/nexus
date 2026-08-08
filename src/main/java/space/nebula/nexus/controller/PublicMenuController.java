@@ -21,7 +21,7 @@ public class PublicMenuController {
 	private final IMenuService menuService;
 
 	@GetMapping("/navigation")
-	@Operation(summary = "Retrieve the public navigation menu tree")
+	@Operation(summary = "Retrieve the public navigation menu tree", description = "Return the hierarchy of visible navigation items for website headers, sidebars, and footer menus. Administrative-only menu items are excluded.")
 	public ApiResponse<List<Tree<Long>>> retrieveNavigation() {
 		return menuService.retrievePublicNavigationMenuTree();
 	}

@@ -19,7 +19,7 @@ public class AdminGitHubController {
 
 	private final IGitHubService githubService;
 
-	@Operation(summary = "Manually trigger GitHub project metrics synchronization")
+	@Operation(summary = "Trigger GitHub metrics synchronization", description = "Refresh configured GitHub project metrics on demand. Use this after updating repository metadata when the scheduled synchronization should not be awaited.")
 	@PostMapping("/sync")
 	public ApiResponse<Void> triggerSync() {
 		githubService.synchronizeProjectMetrics();

@@ -3,6 +3,7 @@ package space.nebula.nexus.controller;
 import cn.hutool.core.lang.tree.Tree;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -82,6 +83,7 @@ public class PublicGuestbookController {
 	@PostMapping
 	@PreAuthorize("isAuthenticated()")
 	@Operation(summary = "Post to guestbook", description = "Submit a new message to the global guestbook. Requires authentication.")
+	@SecurityRequirement(name = "bearerAuth")
 	@RateLimit(count = 3, time = 10, unit = TimeUnit.MINUTES, message = "Too many guestbook posts. Please try again later.")
 	public ApiResponse<Void> publishComment(@Valid @RequestBody GuestbookRequest request,
 			HttpServletRequest servletRequest) {

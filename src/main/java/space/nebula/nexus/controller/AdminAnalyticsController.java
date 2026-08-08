@@ -1,6 +1,7 @@
 package space.nebula.nexus.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,29 +21,29 @@ public class AdminAnalyticsController {
 
 	private final IAnalyticsService analyticsService;
 
-	@Operation(summary = "Retrieve today's traffic overview")
+	@Operation(summary = "Retrieve today's traffic overview", description = "Return headline traffic counters and comparison values used by the administrative analytics landing view.")
 	@GetMapping("/overview")
 	public ApiResponse<AnalyticsOverviewResponse> retrieveOverview() {
 		return analyticsService.retrieveOverviewStats();
 	}
 
-	@Operation(summary = "Retrieve top pages statistics", description = "Get a list of top visited pages with views, mocked average time, bounce rate and trend.")
+	@Operation(summary = "Retrieve top pages statistics", description = "Return the most visited page routes with views, average time, bounce rate, and trend values for analytics tables.")
 	@GetMapping("/top-pages")
 	public ApiResponse<java.util.List<space.nebula.nexus.payload.response.TopPageResponse>> getTopPages() {
 		return analyticsService.getTopPages();
 	}
 
-	@Operation(summary = "Retrieve traffic statistics", description = "Get traffic breakdown by device type and referer source.")
+	@Operation(summary = "Retrieve traffic statistics", description = "Return traffic time series and breakdowns by device and referrer source for the requested rolling number of days.")
 	@GetMapping("/traffic")
 	public ApiResponse<space.nebula.nexus.payload.response.TrafficStatsResponse> getTrafficStats(
-			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "30") int days) {
+			@Parameter(description = "Rolling lookback window in days", example = "30") @org.springframework.web.bind.annotation.RequestParam(defaultValue = "30") int days) {
 		return analyticsService.getTrafficStats(days);
 	}
 
-	@Operation(summary = "Retrieve trending posts", description = "Get a list of currently popular posts based on recent traffic.")
+	@Operation(summary = "Retrieve trending posts", description = "Return the currently popular posts ordered by recent traffic, intended for administrative dashboards rather than the public discovery feed.")
 	@GetMapping("/trending")
 	public ApiResponse<java.util.List<space.nebula.nexus.payload.response.PostResponse>> getTrending(
-			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int limit) {
+			@Parameter(description = "Maximum number of trending posts to return", example = "10") @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int limit) {
 		return analyticsService.getTrendingPosts(limit);
 	}
 }

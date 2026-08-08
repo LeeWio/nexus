@@ -13,13 +13,13 @@ import java.io.Serializable;
  */
 @Builder(toBuilder = true)
 @Schema(description = "Standard API Response Wrapper")
-public record ApiResponse<T>(@Schema(description = "Business response code", example = "200") int code,
+public record ApiResponse<T>(@Schema(description = "Application response code. Success is 200; failures normally match the HTTP status.", example = "200") int code,
 
-		@Schema(description = "Response message", example = "Operation successful") String message,
+		@Schema(description = "Human-readable outcome. Inspect code rather than parsing this text programmatically.", example = "Operation successful") String message,
 
-		@Schema(description = "Response data payload") T data,
+		@Schema(description = "Success payload. Null for command-only successes and all error responses.") T data,
 
-		@Schema(description = "Log trace ID for troubleshooting") String traceId) implements Serializable {
+		@Schema(description = "Request correlation ID. Include it when reporting an error.", example = "7e8f6a1cf4cc4d0fa2eec6d85a7c9f31") String traceId) implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 

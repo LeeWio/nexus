@@ -2,6 +2,7 @@ package space.nebula.nexus.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +18,7 @@ import space.nebula.nexus.service.IInteractionService;
  * for liking and favoriting blog content.
  */
 @Tag(name = "User Interactions", description = "Endpoints for social interactions including likes and favorites")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/public/interactions")
 @RequiredArgsConstructor
@@ -32,7 +34,7 @@ public class PublicInteractionController {
 	}
 
 	@PostMapping("/posts/{postId}/unlike")
-	@Operation(summary = "Unlike a post", description = "Remove a previously added like from a blog post.")
+	@Operation(summary = "Unlike a post", description = "Remove the current user's like from a published post. This is safe to call when the post is already unliked.")
 	@PreAuthorize("isAuthenticated()")
 	public ApiResponse<Void> unlikePost(@Parameter(description = "Post ID") @PathVariable Long postId) {
 		return interactionService.unlikePost(postId);
@@ -46,7 +48,7 @@ public class PublicInteractionController {
 	}
 
 	@PostMapping("/comments/{commentId}/unlike")
-	@Operation(summary = "Unlike a comment", description = "Remove a previously added like from a comment.")
+	@Operation(summary = "Unlike a comment", description = "Remove the current user's like from an approved comment. This is safe to call when the comment is already unliked.")
 	@PreAuthorize("isAuthenticated()")
 	public ApiResponse<Void> unlikeComment(@Parameter(description = "Comment ID") @PathVariable Long commentId) {
 		return interactionService.unlikeComment(commentId);
@@ -60,7 +62,7 @@ public class PublicInteractionController {
 	}
 
 	@PostMapping("/posts/{postId}/unfavorite")
-	@Operation(summary = "Unfavorite a post", description = "Remove a post from the user's bookmarks.")
+	@Operation(summary = "Unfavorite a post", description = "Remove a published post from the current user's bookmarks. This is safe to call when it is not bookmarked.")
 	@PreAuthorize("isAuthenticated()")
 	public ApiResponse<Void> unfavoritePost(@Parameter(description = "Post ID") @PathVariable Long postId) {
 		return interactionService.unfavoritePost(postId);
