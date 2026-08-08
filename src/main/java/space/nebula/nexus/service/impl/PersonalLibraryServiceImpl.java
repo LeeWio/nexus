@@ -24,6 +24,7 @@ import space.nebula.nexus.payload.request.ReadingProgressRequest;
 import space.nebula.nexus.payload.response.CollectionPostResponse;
 import space.nebula.nexus.payload.response.ContentPreferenceResponse;
 import space.nebula.nexus.payload.response.FavoritePostResponse;
+import space.nebula.nexus.payload.response.LikedPostResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.PersonalLibraryOverviewResponse;
 import space.nebula.nexus.payload.response.PostCollectionResponse;
@@ -36,6 +37,7 @@ import space.nebula.nexus.repository.CategoryRepository;
 import space.nebula.nexus.repository.HiddenRecommendationRepository;
 import space.nebula.nexus.repository.PostCollectionRepository;
 import space.nebula.nexus.repository.PostFavoriteRepository;
+import space.nebula.nexus.repository.PostLikeRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.ReadingHistoryRepository;
 import space.nebula.nexus.repository.UserRepository;
@@ -71,6 +73,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	private final CategoryFollowRepository categoryFollowRepository;
 	private final HiddenRecommendationRepository hiddenRecommendationRepository;
 	private final PostFavoriteRepository favoriteRepository;
+	private final PostLikeRepository likeRepository;
 	private final ReadingHistoryRepository readingHistoryRepository;
 	private final PostCollectionRepository collectionRepository;
 	private final PostCollectionItemRepository collectionItemRepository;
@@ -181,6 +184,16 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 				.map(favorite -> new FavoritePostResponse(postMapper.toDigestResponse(favorite.getPost()),
 						favorite.getCreatedAt()));
 		return ApiResponse.success(PageResult.of(favorites));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<LikedPostResponse>> getLikedPosts(Pageable pageable) {
+		User user = currentUser();
+		var likedPosts = likeRepository.findVisibleLikes(user.getId(), PostStatus.PUBLISHED, pageable)
+				.map(postLike -> new LikedPostResponse(postMapper.toDigestResponse(postLike.getPost()),
+						postLike.getCreatedAt()));
+		return ApiResponse.success(PageResult.of(likedPosts));
 	}
 
 	@Override
@@ -343,6 +356,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 		Set<Long> categoryIds = new LinkedHashSet<>();
 		categoryIds.addAll(followedCategoryIds);
 		categoryIds.addAll(favoriteRepository.findPreferredCategoryIds(userId, PostStatus.PUBLISHED, preferenceLimit));
+		categoryIds.addAll(likeRepository.findPreferredCategoryIds(userId, PostStatus.PUBLISHED, preferenceLimit));
 		categoryIds.addAll(
 				readingHistoryRepository.findPreferredCategoryIds(userId, PostStatus.PUBLISHED, preferenceLimit));
 		return categoryIds.stream().limit(PREFERENCE_CATEGORY_SIZE).toList();

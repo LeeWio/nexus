@@ -16,6 +16,7 @@ import space.nebula.nexus.entity.Category;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.PostCollection;
 import space.nebula.nexus.entity.PostFavorite;
+import space.nebula.nexus.entity.PostLike;
 import space.nebula.nexus.entity.ReadingHistory;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.PostStatus;
@@ -30,6 +31,7 @@ import space.nebula.nexus.repository.CategoryRepository;
 import space.nebula.nexus.repository.HiddenRecommendationRepository;
 import space.nebula.nexus.repository.PostCollectionRepository;
 import space.nebula.nexus.repository.PostFavoriteRepository;
+import space.nebula.nexus.repository.PostLikeRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.ReadingHistoryRepository;
 import space.nebula.nexus.repository.UserRepository;
@@ -61,6 +63,8 @@ class PersonalLibraryServiceImplTest {
 	private HiddenRecommendationRepository hiddenRecommendationRepository;
 	@Mock
 	private PostFavoriteRepository favoriteRepository;
+	@Mock
+	private PostLikeRepository likeRepository;
 	@Mock
 	private ReadingHistoryRepository readingHistoryRepository;
 	@Mock
@@ -128,6 +132,7 @@ class PersonalLibraryServiceImplTest {
 				.thenReturn(new PageImpl<>(List.of(duplicateFavorite, distinctFavorite), candidatePage, 2));
 		when(favoriteRepository.findPreferredCategoryIds(42L, PostStatus.PUBLISHED, preferencePage))
 				.thenReturn(List.of(3L));
+		when(likeRepository.findPreferredCategoryIds(42L, PostStatus.PUBLISHED, preferencePage)).thenReturn(List.of());
 		when(readingHistoryRepository.findPreferredCategoryIds(42L, PostStatus.PUBLISHED, preferencePage))
 				.thenReturn(List.of(3L));
 		when(categoryFollowRepository.findCategoryIdsByUserId(42L)).thenReturn(List.of(3L));
@@ -194,6 +199,24 @@ class PersonalLibraryServiceImplTest {
 
 		assertEquals(1, response.data().getTotal());
 		assertEquals(9L, response.data().getList().getFirst().post().id());
+	}
+
+	@Test
+	void likedPostsAreReturnedInRepositoryOrder() {
+		Post post = publishedPost(9L);
+		PostLike postLike = new PostLike();
+		postLike.setPost(post);
+		postLike.setCreatedAt(LocalDateTime.now());
+		var pageable = PageRequest.of(0, 20);
+		when(likeRepository.findVisibleLikes(42L, PostStatus.PUBLISHED, pageable))
+				.thenReturn(new PageImpl<>(List.of(postLike), pageable, 1));
+		when(postMapper.toDigestResponse(post)).thenReturn(digest(9L));
+
+		var response = personalLibraryService.getLikedPosts(pageable);
+
+		assertEquals(1, response.data().getTotal());
+		assertEquals(9L, response.data().getList().getFirst().post().id());
+		assertEquals(postLike.getCreatedAt(), response.data().getList().getFirst().likedAt());
 	}
 
 	@Test

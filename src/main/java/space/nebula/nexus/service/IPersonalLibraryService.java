@@ -7,6 +7,7 @@ import space.nebula.nexus.payload.request.ReadingProgressRequest;
 import space.nebula.nexus.payload.response.CollectionPostResponse;
 import space.nebula.nexus.payload.response.ContentPreferenceResponse;
 import space.nebula.nexus.payload.response.FavoritePostResponse;
+import space.nebula.nexus.payload.response.LikedPostResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.PersonalLibraryOverviewResponse;
 import space.nebula.nexus.payload.response.PostCollectionResponse;
@@ -88,6 +89,9 @@ public interface IPersonalLibraryService {
 
 	/** Returns the current user's visible favorite posts. */
 	ApiResponse<PageResult<FavoritePostResponse>> getFavorites(Pageable pageable);
+
+	/** Returns the current user's visible liked posts. */
+	ApiResponse<PageResult<LikedPostResponse>> getLikedPosts(Pageable pageable);
 
 	/** Returns the current user's visible reading history. */
 	ApiResponse<PageResult<ReadingHistoryResponse>> getReadingHistory(Pageable pageable);

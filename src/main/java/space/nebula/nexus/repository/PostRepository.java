@@ -115,6 +115,8 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 			+ "AND history.post = post AND history.isDeleted = false) "
 			+ "AND NOT EXISTS (SELECT favorite.id FROM PostFavorite favorite WHERE favorite.user.id = :userId "
 			+ "AND favorite.post = post) "
+			+ "AND NOT EXISTS (SELECT postLike.id FROM PostLike postLike WHERE postLike.user.id = :userId "
+			+ "AND postLike.post = post) "
 			+ "AND NOT EXISTS (SELECT hidden.id FROM HiddenRecommendation hidden WHERE hidden.user.id = :userId "
 			+ "AND hidden.post = post AND hidden.isDeleted = false) "
 			+ "ORDER BY post.isFeatured DESC, post.views DESC, post.likesCount DESC, post.publishedAt DESC, post.id DESC")
@@ -138,6 +140,8 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 			+ "AND history.post = post AND history.isDeleted = false) "
 			+ "AND NOT EXISTS (SELECT favorite.id FROM PostFavorite favorite WHERE favorite.user.id = :userId "
 			+ "AND favorite.post = post) "
+			+ "AND NOT EXISTS (SELECT postLike.id FROM PostLike postLike WHERE postLike.user.id = :userId "
+			+ "AND postLike.post = post) "
 			+ "AND NOT EXISTS (SELECT hidden.id FROM HiddenRecommendation hidden WHERE hidden.user.id = :userId "
 			+ "AND hidden.post = post AND hidden.isDeleted = false) "
 			+ "ORDER BY post.isFeatured DESC, post.views DESC, post.likesCount DESC, post.publishedAt DESC, post.id DESC")

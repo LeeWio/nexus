@@ -20,6 +20,7 @@ import space.nebula.nexus.payload.request.ReadingProgressRequest;
 import space.nebula.nexus.payload.response.CollectionPostResponse;
 import space.nebula.nexus.payload.response.ContentPreferenceResponse;
 import space.nebula.nexus.payload.response.FavoritePostResponse;
+import space.nebula.nexus.payload.response.LikedPostResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.PersonalLibraryOverviewResponse;
 import space.nebula.nexus.payload.response.PostCollectionResponse;
@@ -142,6 +143,13 @@ public class PersonalLibraryController {
 	@Operation(summary = "Get favorite posts")
 	public ApiResponse<PageResult<FavoritePostResponse>> getFavorites(@PageableDefault(size = 20) Pageable pageable) {
 		return personalLibraryService.getFavorites(pageable);
+	}
+
+	/** Returns the current user's liked posts. */
+	@GetMapping("/likes")
+	@Operation(summary = "Get liked posts", description = "Returns published articles liked by the current user, newest first.")
+	public ApiResponse<PageResult<LikedPostResponse>> getLikedPosts(@PageableDefault(size = 20) Pageable pageable) {
+		return personalLibraryService.getLikedPosts(pageable);
 	}
 
 	/** Returns resumable reading history. */
