@@ -174,9 +174,12 @@ public class CommentModerationService {
 
 	private void publishModerationEvent(Comment comment, CommentStatus status) {
 		Long replyRecipientId = comment.getParent() == null ? null : comment.getParent().getUser().getId();
+		var post = comment.getPost();
+		Long postAuthorId = post == null || post.getAuthor() == null ? null : post.getAuthor().getId();
+		String postTitle = post == null ? null : post.getTitle();
 		String link = status == CommentStatus.APPROVED ? buildCommentLink(comment) : null;
 		eventPublisher.publishEvent(new CommentModeratedEvent(this, comment.getId(), comment.getUser().getId(),
-				replyRecipientId, comment.getUser().getUsername(), status, link));
+				replyRecipientId, postAuthorId, comment.getUser().getUsername(), postTitle, status, link));
 	}
 
 	private String buildCommentLink(Comment comment) {

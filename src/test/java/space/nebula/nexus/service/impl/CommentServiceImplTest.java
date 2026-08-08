@@ -657,6 +657,9 @@ class CommentServiceImplTest {
 		User parentAuthor = new User();
 		parentAuthor.setId(2L);
 		parentAuthor.setUsername("parent-author");
+		User postAuthor = new User();
+		postAuthor.setId(3L);
+		postAuthor.setUsername("post-author");
 		Comment parent = new Comment();
 		parent.setStatus(CommentStatus.APPROVED);
 		parent.setUser(parentAuthor);
@@ -668,6 +671,7 @@ class CommentServiceImplTest {
 		reply.setUser(testUser);
 		reply.setStatus(CommentStatus.PENDING);
 		testPost.setSlug("professional-comments");
+		testPost.setAuthor(postAuthor);
 		when(commentRepository.findById(20L)).thenReturn(Optional.of(reply));
 
 		commentService.moderateComment(20L, CommentStatus.APPROVED);
@@ -677,6 +681,8 @@ class CommentServiceImplTest {
 		CommentModeratedEvent event = eventCaptor.getValue();
 		assertEquals(1L, event.getAuthorId());
 		assertEquals(2L, event.getReplyRecipientId());
+		assertEquals(3L, event.getPostAuthorId());
+		assertEquals("Professional Comments", event.getPostTitle());
 		assertEquals(CommentStatus.APPROVED, event.getStatus());
 		assertEquals("/posts/professional-comments#comment-20", event.getLink());
 		verify(governanceService).recordModeration(reply, CommentStatus.PENDING, CommentStatus.APPROVED,

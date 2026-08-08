@@ -12,6 +12,9 @@ import space.nebula.nexus.enums.CommentStatus;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.INotificationService;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 /**
  * Creates user notifications after comment moderation transactions commit.
  */
@@ -23,8 +26,8 @@ public class CommentModerationEventListener {
 	private final INotificationService notificationService;
 
 	/**
-	 * Delivers moderation and reply notifications without coupling them to the
-	 * moderation transaction.
+	 * Delivers moderation and comment audience notifications without coupling them
+	 * to the moderation transaction.
 	 *
 	 * @param event
 	 *            committed comment moderation event
@@ -34,12 +37,30 @@ public class CommentModerationEventListener {
 	public void onCommentModerated(CommentModeratedEvent event) {
 		userRepository.findById(event.getAuthorId()).ifPresent(author -> notifyAuthor(author, event));
 
-		if (event.getStatus() == CommentStatus.APPROVED && event.getReplyRecipientId() != null
-				&& !event.getReplyRecipientId().equals(event.getAuthorId())) {
+		if (event.getStatus() == CommentStatus.APPROVED) {
+			notifyApprovedCommentAudience(event);
+		}
+	}
+
+	private void notifyApprovedCommentAudience(CommentModeratedEvent event) {
+		Set<Long> notifiedRecipients = new LinkedHashSet<>();
+		if (isAnotherUser(event.getReplyRecipientId(), event.getAuthorId())
+				&& notifiedRecipients.add(event.getReplyRecipientId())) {
 			userRepository.findById(event.getReplyRecipientId())
 					.ifPresent(recipient -> notificationService.send(recipient, "New reply to your comment",
 							event.getAuthorUsername() + " replied to your comment.", "COMMENT_REPLY", event.getLink()));
 		}
+		if (isAnotherUser(event.getPostAuthorId(), event.getAuthorId())
+				&& notifiedRecipients.add(event.getPostAuthorId())) {
+			userRepository.findById(event.getPostAuthorId())
+					.ifPresent(recipient -> notificationService.send(recipient, "New comment on your post",
+							event.getAuthorUsername() + " commented on \"" + event.getPostTitle() + "\".",
+							"POST_COMMENT", event.getLink()));
+		}
+	}
+
+	private boolean isAnotherUser(Long recipientId, Long authorId) {
+		return recipientId != null && !recipientId.equals(authorId);
 	}
 
 	private void notifyAuthor(User author, CommentModeratedEvent event) {
