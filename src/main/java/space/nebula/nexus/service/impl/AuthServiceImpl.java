@@ -72,7 +72,7 @@ public class AuthServiceImpl implements IAuthService {
 
 	@Override
 	@Transactional
-	@LogOperation("User Registration")
+	@LogOperation(value = "User Registration", logArgs = false)
 	public ApiResponse<Void> registerAccount(RegisterRequest request) {
 		userValidator.validateRegistration(request);
 
@@ -101,7 +101,7 @@ public class AuthServiceImpl implements IAuthService {
 	}
 
 	@Override
-	@LogOperation("User Login")
+	@LogOperation(value = "User Login", logArgs = false)
 	public ApiResponse<AuthResponse> authenticate(LoginRequest request) {
 		var username = request.username();
 
@@ -130,7 +130,7 @@ public class AuthServiceImpl implements IAuthService {
 	}
 
 	@Override
-	@LogOperation("Send Login OTP")
+	@LogOperation(value = "Send Login OTP", logArgs = false)
 	public ApiResponse<Void> sendOtp(String email) {
 		userRepository.findByEmail(email).orElseThrow(
 				() -> new BusinessException(BusinessCode.USER_NOT_FOUND, "No account is linked to this email"));
@@ -159,7 +159,7 @@ public class AuthServiceImpl implements IAuthService {
 
 	@Override
 	@Transactional
-	@LogOperation("OTP Login")
+	@LogOperation(value = "OTP Login", logArgs = false)
 	public ApiResponse<AuthResponse> loginWithOtp(OtpLoginRequest request) {
 		var email = request.email();
 		var code = request.code();

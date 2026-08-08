@@ -58,7 +58,7 @@ public class ConfigServiceImpl implements IConfigService {
 
 	@Override
 	@Transactional
-	@LogOperation("Create Config")
+	@LogOperation(value = "Create Config", logArgs = false)
 	@CacheEvict(value = {CacheConstants.SYS_CONFIG, CacheConstants.SEO}, allEntries = true)
 	public ApiResponse<ConfigResponse> createConfig(ConfigRequest request) {
 		Assert.isFalse(configRepository.existsByConfigKey(request.configKey()),
@@ -75,7 +75,7 @@ public class ConfigServiceImpl implements IConfigService {
 
 	@Override
 	@Transactional
-	@LogOperation("Update Config")
+	@LogOperation(value = "Update Config", logArgs = false)
 	@CacheEvict(value = {CacheConstants.SYS_CONFIG, CacheConstants.SEO}, allEntries = true)
 	public ApiResponse<ConfigResponse> updateConfig(Long id, ConfigRequest request) {
 		Config config = configRepository.findById(id)

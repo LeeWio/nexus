@@ -47,7 +47,7 @@ public class WebhookServiceImpl implements IWebhookService {
 
 	@Override
 	@Transactional
-	@LogOperation("Create Webhook")
+	@LogOperation(value = "Create Webhook", logArgs = false)
 	@org.springframework.cache.annotation.CacheEvict(value = space.nebula.nexus.common.constant.CacheConstants.SYS_CONFIG, key = "'active_webhooks'")
 	public ApiResponse<WebhookResponse> createWebhook(WebhookRequest request) {
 		outboundUrlValidator.validate(request.url());
@@ -62,7 +62,7 @@ public class WebhookServiceImpl implements IWebhookService {
 
 	@Override
 	@Transactional
-	@LogOperation("Update Webhook")
+	@LogOperation(value = "Update Webhook", logArgs = false)
 	@org.springframework.cache.annotation.CacheEvict(value = space.nebula.nexus.common.constant.CacheConstants.SYS_CONFIG, key = "'active_webhooks'")
 	public ApiResponse<WebhookResponse> updateWebhook(Long id, WebhookRequest request) {
 		outboundUrlValidator.validate(request.url());

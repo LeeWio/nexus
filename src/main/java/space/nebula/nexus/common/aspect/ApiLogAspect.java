@@ -1,9 +1,8 @@
 package space.nebula.nexus.common.aspect;
 
-import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.ObjectUtil;
-import cn.hutool.json.JSONUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -13,11 +12,8 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import space.nebula.nexus.common.logging.SensitiveLogSanitizer;
 import space.nebula.nexus.utils.IpUtil;
-
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Global Aspect for logging all API requests and responses. Provides
@@ -26,7 +22,10 @@ import java.util.stream.IntStream;
 @Aspect
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class ApiLogAspect {
+
+	private final SensitiveLogSanitizer sensitiveLogSanitizer;
 
 	/**
 	 * Pointcut that matches all methods in any class under 'controller' package.
@@ -75,34 +74,8 @@ public class ApiLogAspect {
 		return result;
 	}
 
-	/**
-	 * Serializes method arguments while masking sensitive fields like 'password'.
-	 */
+	/** Serializes method arguments without exposing sensitive request fields. */
 	private String getSafeParamsJson(ProceedingJoinPoint joinPoint) {
-		try {
-			String[] parameterNames = ((MethodSignature) joinPoint.getSignature()).getParameterNames();
-			Object[] args = joinPoint.getArgs();
-
-			if (ArrayUtil.isEmpty(parameterNames) || ArrayUtil.isEmpty(args))
-				return "{}";
-
-			Map<String, Object> paramsMap = IntStream.range(0, parameterNames.length).boxed()
-					.collect(Collectors.toMap(i -> parameterNames[i], i -> {
-						Object arg = args[i];
-						if (ObjectUtil.isNull(arg))
-							return "null";
-
-						String name = parameterNames[i].toLowerCase();
-						// Simple masking for common sensitive fields
-						if (name.contains("password") || name.contains("secret") || name.contains("token")) {
-							return "******";
-						}
-						return arg;
-					}, (v1, v2) -> v1));
-
-			return JSONUtil.toJsonStr(paramsMap);
-		} catch (Exception e) {
-			return "{ \"error\": \"Failed to serialize parameters\" }";
-		}
+		return sensitiveLogSanitizer.sanitizeArguments((MethodSignature) joinPoint.getSignature(), joinPoint.getArgs());
 	}
 }

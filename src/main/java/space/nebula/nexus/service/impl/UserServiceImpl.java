@@ -54,7 +54,7 @@ public class UserServiceImpl implements IUserService {
 
 	@Override
 	@Transactional
-	@LogOperation("Change Password")
+	@LogOperation(value = "Change Password", logArgs = false)
 	public ApiResponse<Void> changePassword(PasswordChangeRequest request) {
 		User currentUser = authService.getAuthenticatedUser().data();
 

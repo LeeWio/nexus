@@ -1,8 +1,6 @@
 package space.nebula.nexus.common.aspect;
 
-import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.ObjectUtil;
-import cn.hutool.json.JSONUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,14 +16,12 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import space.nebula.nexus.common.annotation.LogOperation;
 import space.nebula.nexus.common.constant.CacheConstants;
+import space.nebula.nexus.common.logging.SensitiveLogSanitizer;
 import space.nebula.nexus.entity.OperationLog;
 import space.nebula.nexus.utils.IpUtil;
 import space.nebula.nexus.utils.RedisUtil;
 
 import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Enhanced Aspect for handling @LogOperation. Captures detailed metadata and
@@ -38,6 +34,8 @@ import java.util.stream.IntStream;
 public class LogOperationAspect {
 
 	private final RedisUtil redisUtil;
+
+	private final SensitiveLogSanitizer sensitiveLogSanitizer;
 
 	@Around("@annotation(logOperation)")
 	public Object around(ProceedingJoinPoint joinPoint, LogOperation logOperation) throws Throwable {
@@ -93,12 +91,12 @@ public class LogOperationAspect {
 			opLog.setUserAgent(request.getHeader("User-Agent"));
 		}
 
-		if (annotation.logArgs() && ArrayUtil.isNotEmpty(joinPoint.getArgs())) {
+		if (annotation.logArgs() && joinPoint.getArgs() != null && joinPoint.getArgs().length > 0) {
 			opLog.setParameters(getSafeArgsJson((MethodSignature) joinPoint.getSignature(), joinPoint.getArgs()));
 		}
 
 		if (annotation.logResult() && ObjectUtil.isNotNull(result)) {
-			opLog.setResult(JSONUtil.toJsonStr(result));
+			opLog.setResult(sensitiveLogSanitizer.sanitize(result));
 		}
 
 		if (ObjectUtil.isNotNull(exception)) {
@@ -111,46 +109,6 @@ public class LogOperationAspect {
 	}
 
 	private String getSafeArgsJson(MethodSignature signature, Object[] args) {
-		try {
-			String[] parameterNames = signature.getParameterNames();
-			if (ArrayUtil.isEmpty(parameterNames) || ArrayUtil.isEmpty(args))
-				return "[]";
-
-			Map<String, Object> paramsMap = IntStream.range(0, parameterNames.length).boxed()
-					.collect(Collectors.toMap(i -> parameterNames[i], i -> {
-						Object arg = args[i];
-						if (ObjectUtil.isNull(arg))
-							return "null";
-
-						String name = parameterNames[i].toLowerCase();
-						if (name.contains("password") || name.contains("secret") || name.contains("token")) {
-							return "******";
-						}
-
-						// Mask if it's an object with sensitive fields (e.g. RegisterRequest,
-						// LoginRequest)
-						if (arg instanceof space.nebula.nexus.payload.request.LoginRequest
-								|| arg instanceof space.nebula.nexus.payload.request.RegisterRequest) {
-							try {
-								Map<String, Object> beanMap = cn.hutool.core.bean.BeanUtil.beanToMap(arg);
-								beanMap.keySet().forEach(key -> {
-									String keyLower = key.toLowerCase();
-									if (keyLower.contains("password") || keyLower.contains("secret")
-											|| keyLower.contains("token")) {
-										beanMap.put(key, "******");
-									}
-								});
-								return beanMap;
-							} catch (Exception ignored) {
-							}
-						}
-
-						return arg;
-					}, (v1, v2) -> v1));
-
-			return JSONUtil.toJsonStr(paramsMap);
-		} catch (Exception e) {
-			return "[Serialization Failed]";
-		}
+		return sensitiveLogSanitizer.sanitizeArguments(signature, args);
 	}
 }

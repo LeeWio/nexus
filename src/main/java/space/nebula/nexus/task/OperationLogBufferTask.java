@@ -7,6 +7,7 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.constant.CacheConstants;
+import space.nebula.nexus.common.logging.SensitiveLogSanitizer;
 import space.nebula.nexus.entity.OperationLog;
 import space.nebula.nexus.repository.OperationLogRepository;
 import space.nebula.nexus.utils.RedisUtil;
@@ -23,6 +24,7 @@ public class OperationLogBufferTask {
 
 	private final RedisUtil redisUtil;
 	private final OperationLogRepository operationLogRepository;
+	private final SensitiveLogSanitizer sensitiveLogSanitizer;
 
 	/**
 	 * Flush operation logs every 1 minute.
@@ -42,8 +44,14 @@ public class OperationLogBufferTask {
 				OperationLog.class);
 
 		if (!logsToPersist.isEmpty()) {
+			logsToPersist.forEach(this::sanitizeLog);
 			operationLogRepository.saveAll(logsToPersist);
 			log.info("Successfully persisted {} operation logs to database.", logsToPersist.size());
 		}
+	}
+
+	private void sanitizeLog(OperationLog operationLog) {
+		operationLog.setParameters(sensitiveLogSanitizer.sanitizeSerializedJson(operationLog.getParameters()));
+		operationLog.setResult(sensitiveLogSanitizer.sanitizeSerializedJson(operationLog.getResult()));
 	}
 }
