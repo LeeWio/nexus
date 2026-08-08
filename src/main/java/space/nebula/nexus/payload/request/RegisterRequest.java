@@ -15,5 +15,5 @@ public record RegisterRequest(
 
 		@Schema(description = "User email address", example = "john@example.com") @NotBlank(message = "Email is required") @Email(message = "Email address is invalid") @Size(max = 50) String email,
 
-		@Schema(description = "User password (must contain digit and special char)", example = "SecurePass123!") @NotBlank(message = "Password is required") @Password String password) {
+		@Schema(description = "User password. Must contain upper-case and lower-case letters, a digit, and a special character.", example = "SecurePass123!") @NotBlank(message = "Password is required") @Password String password) {
 }

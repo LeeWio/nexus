@@ -16,6 +16,8 @@ import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.payload.request.LoginRequest;
 import space.nebula.nexus.payload.request.OtpLoginRequest;
 import space.nebula.nexus.payload.request.OtpSendRequest;
+import space.nebula.nexus.payload.request.PasswordResetConfirmRequest;
+import space.nebula.nexus.payload.request.PasswordResetRequest;
 import space.nebula.nexus.payload.request.RefreshTokenRequest;
 import space.nebula.nexus.payload.request.RegisterRequest;
 import space.nebula.nexus.payload.response.AuthResponse;
@@ -76,6 +78,29 @@ public class AuthController {
 	@RateLimit(count = 5, time = 5, unit = TimeUnit.MINUTES, message = "Too many OTP login attempts. Please try again later.")
 	public ApiResponse<AuthResponse> loginWithOtp(@Valid @RequestBody OtpLoginRequest request) {
 		return authService.loginWithOtp(request);
+	}
+
+	@PostMapping("/password/reset/request")
+	@Operation(summary = "Request a password reset", description = "Sends a password-reset code to the account email when eligible. Always returns the same acknowledgement to prevent account enumeration.")
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password-reset request accepted"),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid email format", content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "Password-reset request rate limit exceeded")})
+	@RateLimit(key = "password_reset_request", count = 3, time = 1, unit = TimeUnit.HOURS, message = "Too many password reset requests. Please try again later.")
+	public ApiResponse<Void> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+		return authService.requestPasswordReset(request);
+	}
+
+	@PostMapping("/password/reset/confirm")
+	@Operation(summary = "Confirm a password reset", description = "Validates and atomically consumes the email verification code, updates the password, and invalidates all existing access and refresh tokens.")
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password reset successful"),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input or password policy violation", content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid or expired password-reset code"),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "Password-reset confirmation rate limit exceeded")})
+	@RateLimit(key = "password_reset_confirm", count = 5, time = 5, unit = TimeUnit.MINUTES, message = "Too many password reset attempts. Please try again later.")
+	public ApiResponse<Void> confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest request) {
+		return authService.confirmPasswordReset(request);
 	}
 
 	@PostMapping("/refresh")

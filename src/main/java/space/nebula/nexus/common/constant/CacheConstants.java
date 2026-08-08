@@ -48,6 +48,7 @@ public final class CacheConstants {
 	public static final String LOGIN_LOCK = "nexus:security:login_lock:";
 	public static final String RATE_LIMIT_PREFIX = "nexus:rate_limit:";
 	public static final String OTP_CODE = "nexus:security:otp:";
+	public static final String PASSWORD_RESET_OTP = "nexus:security:password_reset:";
 
 	// SEO
 	public static final String SITEMAP_KEY = "sitemap";

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,7 +25,10 @@ import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.payload.request.LoginRequest;
 import space.nebula.nexus.payload.request.OtpLoginRequest;
+import space.nebula.nexus.payload.request.PasswordResetConfirmRequest;
+import space.nebula.nexus.payload.request.PasswordResetRequest;
 import space.nebula.nexus.payload.request.RegisterRequest;
+import space.nebula.nexus.payload.request.TemplateMailMessage;
 import space.nebula.nexus.payload.response.AuthResponse;
 import space.nebula.nexus.repository.RoleRepository;
 import space.nebula.nexus.repository.UserRepository;
@@ -279,5 +283,103 @@ class AuthServiceImplTest {
 		assertEquals(200, response.code());
 		assertEquals("If an account is associated with this email, an OTP has been sent.", response.message());
 		verify(redisUtil).delete(otpKey);
+	}
+
+	@Test
+	@DisplayName("Should send a password reset code through an isolated Redis key")
+	void requestPasswordReset_SendsCodeForKnownEmail() {
+		User user = new User();
+		user.setEmail("test@example.com");
+		String otpKey = CacheConstants.PASSWORD_RESET_OTP + user.getEmail();
+		when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+		when(redisUtil.set(eq(otpKey), any(String.class), eq(10L), eq(TimeUnit.MINUTES))).thenReturn(true);
+
+		ApiResponse<Void> response = authService.requestPasswordReset(new PasswordResetRequest(user.getEmail()));
+
+		assertEquals(200, response.code());
+		assertEquals("If an account is associated with this email, password reset instructions have been sent.",
+				response.message());
+		verify(redisUtil).set(eq(otpKey), any(String.class), eq(10L), eq(TimeUnit.MINUTES));
+		verify(redisUtil, never()).set(eq(CacheConstants.OTP_CODE + user.getEmail()), any(String.class), anyLong(),
+				any(TimeUnit.class));
+		ArgumentCaptor<TemplateMailMessage> mailCaptor = ArgumentCaptor.forClass(TemplateMailMessage.class);
+		verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.MAIL_EXCHANGE), eq(RabbitMQConfig.MAIL_ROUTING_KEY),
+				mailCaptor.capture());
+		TemplateMailMessage mailMessage = mailCaptor.getValue();
+		assertEquals("Nexus Password Reset", mailMessage.getSubject());
+		assertEquals("password-reset", mailMessage.getTemplateName());
+		assertEquals(user.getEmail(), mailMessage.getTo());
+	}
+
+	@Test
+	@DisplayName("Should not reveal whether a password reset email belongs to an account")
+	void requestPasswordReset_UnknownEmailReturnsTheSameAcknowledgement() {
+		when(userRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
+
+		ApiResponse<Void> response = authService.requestPasswordReset(new PasswordResetRequest("unknown@example.com"));
+
+		assertEquals(200, response.code());
+		assertEquals("If an account is associated with this email, password reset instructions have been sent.",
+				response.message());
+		verifyNoInteractions(redisUtil, rabbitTemplate);
+	}
+
+	@Test
+	@DisplayName("Should atomically consume the reset code and invalidate existing sessions")
+	void confirmPasswordReset_UpdatesPasswordAndTokenVersion() {
+		String email = "test@example.com";
+		User user = new User();
+		user.setUsername("testuser");
+		user.setEmail(email);
+		user.setPassword("encodedOldPassword");
+		user.setTokenVersion(4);
+		PasswordResetConfirmRequest request = new PasswordResetConfirmRequest(email, "123456", "NewP@ssw0rd123!");
+		String otpKey = CacheConstants.PASSWORD_RESET_OTP + email;
+		when(redisUtil.consumeIfEquals(otpKey, request.code())).thenReturn(true);
+		when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+		when(passwordEncoder.matches(request.newPassword(), user.getPassword())).thenReturn(false);
+		when(passwordEncoder.encode(request.newPassword())).thenReturn("encodedNewPassword");
+
+		ApiResponse<Void> response = authService.confirmPasswordReset(request);
+
+		assertEquals(200, response.code());
+		assertEquals("Password reset successfully. Please sign in again.", response.message());
+		assertEquals("encodedNewPassword", user.getPassword());
+		assertEquals(5, user.getTokenVersion());
+		verify(redisUtil).consumeIfEquals(otpKey, request.code());
+		verify(userRepository).save(user);
+	}
+
+	@Test
+	@DisplayName("Should reject an invalid password reset code without loading the user")
+	void confirmPasswordReset_RejectsInvalidCode() {
+		PasswordResetConfirmRequest request = new PasswordResetConfirmRequest("test@example.com", "000000",
+				"NewP@ssw0rd123!");
+		when(redisUtil.consumeIfEquals(CacheConstants.PASSWORD_RESET_OTP + request.email(), request.code()))
+				.thenReturn(false);
+
+		BusinessException exception = assertThrows(BusinessException.class, () -> authService.confirmPasswordReset(request));
+
+		assertEquals(BusinessCode.INVALID_TOKEN.getCode(), exception.getCode());
+		verifyNoInteractions(userRepository, passwordEncoder);
+	}
+
+	@Test
+	@DisplayName("Should reject resetting to the current password after consuming a valid code")
+	void confirmPasswordReset_RejectsCurrentPassword() {
+		String email = "test@example.com";
+		User user = new User();
+		user.setEmail(email);
+		user.setPassword("encodedPassword");
+		PasswordResetConfirmRequest request = new PasswordResetConfirmRequest(email, "123456", "CurrentP@ssw0rd1!");
+		when(redisUtil.consumeIfEquals(CacheConstants.PASSWORD_RESET_OTP + email, request.code())).thenReturn(true);
+		when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+		when(passwordEncoder.matches(request.newPassword(), user.getPassword())).thenReturn(true);
+
+		BusinessException exception = assertThrows(BusinessException.class, () -> authService.confirmPasswordReset(request));
+
+		assertEquals(BusinessCode.BAD_REQUEST.getCode(), exception.getCode());
+		verify(userRepository, never()).save(any(User.class));
+		verify(passwordEncoder, never()).encode(anyString());
 	}
 }

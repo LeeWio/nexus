@@ -22,6 +22,8 @@ import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.payload.request.LoginRequest;
 import space.nebula.nexus.payload.request.OtpLoginRequest;
+import space.nebula.nexus.payload.request.PasswordResetConfirmRequest;
+import space.nebula.nexus.payload.request.PasswordResetRequest;
 import space.nebula.nexus.payload.request.RegisterRequest;
 import space.nebula.nexus.payload.request.TemplateMailMessage;
 import space.nebula.nexus.payload.response.AuthResponse;
@@ -55,6 +57,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements IAuthService {
+	private static final long LOGIN_OTP_EXPIRATION_MINUTES = 5;
+	private static final long PASSWORD_RESET_OTP_EXPIRATION_MINUTES = 10;
 
 	private final UserRepository userRepository;
 	private final RoleRepository roleRepository;
@@ -138,12 +142,12 @@ public class AuthServiceImpl implements IAuthService {
 
 		var otp = RandomUtil.randomNumbers(6);
 		var otpKey = CacheConstants.OTP_CODE + email;
-		if (!redisUtil.set(otpKey, otp, 5, TimeUnit.MINUTES)) {
+		if (!redisUtil.set(otpKey, otp, LOGIN_OTP_EXPIRATION_MINUTES, TimeUnit.MINUTES)) {
 			log.error("Failed to store OTP code");
 			return otpRequestAccepted();
 		}
 
-		Map<String, Object> variables = Dict.create().set("otp", otp).set("expireMin", 5);
+		Map<String, Object> variables = Dict.create().set("otp", otp).set("expireMin", LOGIN_OTP_EXPIRATION_MINUTES);
 
 		TemplateMailMessage mailMessage = TemplateMailMessage.builder().to(email).subject("Nexus Login OTP")
 				.templateName("otp-login").variables(variables).type(TemplateMailMessage.MailType.TEMPLATE).build();
@@ -188,6 +192,62 @@ public class AuthServiceImpl implements IAuthService {
 		log.info("User logged in via OTP authentication: {}", user.getUsername());
 
 		return ApiResponse.success("Login successful", createAuthResponse(securityUser));
+	}
+
+	@Override
+	@LogOperation(value = "Request Password Reset", logArgs = false)
+	public ApiResponse<Void> requestPasswordReset(PasswordResetRequest request) {
+		userRepository.findByEmail(request.email()).ifPresent(this::sendPasswordResetOtp);
+		return passwordResetRequestAccepted();
+	}
+
+	private void sendPasswordResetOtp(User user) {
+		String email = user.getEmail();
+		String otp = RandomUtil.randomNumbers(6);
+		String otpKey = CacheConstants.PASSWORD_RESET_OTP + email;
+		if (!redisUtil.set(otpKey, otp, PASSWORD_RESET_OTP_EXPIRATION_MINUTES, TimeUnit.MINUTES)) {
+			log.error("Failed to store password reset OTP");
+			return;
+		}
+
+		Map<String, Object> variables = Dict.create().set("otp", otp).set("expireMin",
+				PASSWORD_RESET_OTP_EXPIRATION_MINUTES);
+		TemplateMailMessage mailMessage = TemplateMailMessage.builder().to(email).subject("Nexus Password Reset")
+				.templateName("password-reset").variables(variables).type(TemplateMailMessage.MailType.TEMPLATE).build();
+
+		try {
+			rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mailMessage);
+			log.info("Password reset task dispatched to MQ for {}", email);
+		} catch (Exception e) {
+			redisUtil.delete(otpKey);
+			log.error("Failed to dispatch password reset email task to MQ for: {}", email, e);
+		}
+	}
+
+	private ApiResponse<Void> passwordResetRequestAccepted() {
+		return ApiResponse.success("If an account is associated with this email, password reset instructions have been sent.",
+				null);
+	}
+
+	@Override
+	@Transactional
+	@LogOperation(value = "Confirm Password Reset", logArgs = false)
+	public ApiResponse<Void> confirmPasswordReset(PasswordResetConfirmRequest request) {
+		String otpKey = CacheConstants.PASSWORD_RESET_OTP + request.email();
+		Assert.isTrue(redisUtil.consumeIfEquals(otpKey, request.code()),
+				() -> new BusinessException(BusinessCode.INVALID_TOKEN, "Verification code is invalid or expired"));
+
+		User user = userRepository.findByEmail(request.email())
+				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
+		Assert.isFalse(passwordEncoder.matches(request.newPassword(), user.getPassword()),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "New password must be different from the current password"));
+
+		user.setPassword(passwordEncoder.encode(request.newPassword()));
+		user.setTokenVersion(user.getTokenVersion() + 1);
+		userRepository.save(user);
+
+		log.info("Password reset completed for user: {}", user.getUsername());
+		return ApiResponse.success("Password reset successfully. Please sign in again.", null);
 	}
 
 	@Override
