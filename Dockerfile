@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     mvn test
 
 # Run stage
-FROM public.ecr.aws/docker/library/amazoncorretto:21-alpine
+FROM public.ecr.aws/docker/library/amazoncorretto:21-alpine AS runner
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
@@ -28,6 +28,9 @@ ENV JAVA_OPTS="-Xms512m -Xmx512m -Djava.security.egd=file:/dev/./urandom"
 ENV SPRING_PROFILES_ACTIVE=prod
 
 EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=3 \
+    CMD wget --quiet --spider --tries=1 --timeout=5 http://127.0.0.1:8080/readyz || exit 1
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 
@@ -47,5 +50,8 @@ ENV JAVA_OPTS="-Xms512m -Xmx512m -Djava.security.egd=file:/dev/./urandom"
 ENV SPRING_PROFILES_ACTIVE=prod
 
 EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=3 \
+    CMD wget --quiet --spider --tries=1 --timeout=5 http://127.0.0.1:8080/readyz || exit 1
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

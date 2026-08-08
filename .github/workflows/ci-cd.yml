@@ -114,7 +114,7 @@ jobs:
 
             READY=false
 
-            for attempt in $(seq 1 30); do
+            for attempt in $(seq 1 60); do
               RUNNING="$(
                 docker inspect \
                   --format '{{.State.Running}}' \
@@ -136,12 +136,17 @@ jobs:
               fi
 
               case "${HEALTH}" in
-                healthy|none)
+                healthy)
                   READY=true
                   break
                   ;;
                 unhealthy)
                   echo "API container is unhealthy"
+                  docker compose logs --tail=200 api
+                  exit 1
+                  ;;
+                none)
+                  echo "API image does not define a Docker health check"
                   docker compose logs --tail=200 api
                   exit 1
                   ;;
