@@ -53,7 +53,8 @@ public class MockRedisConfig {
 	public org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate() {
 		org.springframework.data.redis.core.StringRedisTemplate template = Mockito
 				.mock(org.springframework.data.redis.core.StringRedisTemplate.class);
-		Mockito.when(template.execute(Mockito.any(), Mockito.anyList(), Mockito.any(), Mockito.any(), Mockito.any()))
+		Mockito.when(template.execute(Mockito.any(), Mockito.anyList(), Mockito.any(), Mockito.any(), Mockito.any(),
+				Mockito.any()))
 				.thenReturn(1L);
 		return template;
 	}
