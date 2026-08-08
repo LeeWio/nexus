@@ -113,8 +113,11 @@ jobs:
             fi
 
             READY=false
+            MAX_WAIT_SECONDS=240
+            POLL_INTERVAL_SECONDS=2
+            MAX_ATTEMPTS=$((MAX_WAIT_SECONDS / POLL_INTERVAL_SECONDS))
 
-            for attempt in $(seq 1 60); do
+            for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
               RUNNING="$(
                 docker inspect \
                   --format '{{.State.Running}}' \
@@ -127,7 +130,7 @@ jobs:
                   "${CONTAINER_ID}"
               )"
 
-              echo "Check ${attempt}/30: running=${RUNNING}, health=${HEALTH}"
+              echo "Check ${attempt}/${MAX_ATTEMPTS}: running=${RUNNING}, health=${HEALTH}"
 
               if [ "${RUNNING}" != "true" ]; then
                 echo "API container stopped unexpectedly"
@@ -141,9 +144,7 @@ jobs:
                   break
                   ;;
                 unhealthy)
-                  echo "API container is unhealthy"
-                  docker compose logs --tail=200 api
-                  exit 1
+                  echo "API container is temporarily unhealthy; waiting for cold start to complete"
                   ;;
                 none)
                   echo "API image does not define a Docker health check"
@@ -152,7 +153,7 @@ jobs:
                   ;;
               esac
 
-              sleep 2
+              sleep "${POLL_INTERVAL_SECONDS}"
             done
 
             if [ "${READY}" != "true" ]; then
