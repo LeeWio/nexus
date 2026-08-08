@@ -31,11 +31,15 @@ jobs:
       - name: Configure Maven Permissions
         run: chmod +x mvnw
 
-      # 3. Fast compilation of Spring Boot application on high-speed GHA host
+      # 3. Run the backend test suite before producing a deployable artifact
+      - name: Run Tests
+        run: ./mvnw test
+
+      # 4. Fast compilation of Spring Boot application on high-speed GHA host
       - name: Compile and Package JAR
         run: ./mvnw clean package -DskipTests
 
-      # 4. Set up Docker Buildx and login to GHCR
+      # 5. Set up Docker Buildx and login to GHCR
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -46,7 +50,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 5. Pack compiled JAR into the ultra-lean runner-prebuilt target stage (takes ~5s)
+      # 6. Pack compiled JAR into the ultra-lean runner-prebuilt target stage (takes ~5s)
       - name: Package Prebuilt JAR & Push Image
         uses: docker/build-push-action@v6
         with:

@@ -13,10 +13,10 @@ ENV MAVEN_OPTS="-Xmx512m -XX:+UseSerialGC"
 RUN --mount=type=cache,target=/root/.m2 \
     mvn package -DskipTests
 
-# Optional JDK 21 verification target for the observability probe contract.
+# Optional JDK 21 verification target for the complete backend test suite.
 FROM build AS test
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -Dtest=ObservabilityEndpointIntegrationTest test
+    mvn test
 
 # Run stage
 FROM public.ecr.aws/docker/library/amazoncorretto:21-alpine
