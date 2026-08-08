@@ -6,6 +6,9 @@ import space.nebula.nexus.payload.request.MomentRequest;
 import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.payload.response.PageResult;
 
+import java.util.List;
+import java.util.Set;
+
 public interface IMomentService {
 
 	// Admin methods
@@ -23,4 +26,8 @@ public interface IMomentService {
 	ApiResponse<PageResult<MomentResponse>> getPublicMoments(Pageable pageable);
 
 	ApiResponse<Void> likeMoment(Long id);
+
+	ApiResponse<Void> unlikeMoment(Long id);
+
+	ApiResponse<Set<Long>> getLikedMomentIds(List<Long> momentIds);
 }

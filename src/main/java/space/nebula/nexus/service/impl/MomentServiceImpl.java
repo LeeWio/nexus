@@ -1,35 +1,46 @@
 package space.nebula.nexus.service.impl;
 
+import cn.hutool.core.lang.Assert;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
+import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
+import space.nebula.nexus.common.exception.BusinessException;
+import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Moment;
+import space.nebula.nexus.entity.User;
 import space.nebula.nexus.mapper.MomentMapper;
 import space.nebula.nexus.payload.request.MomentRequest;
 import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.MomentRepository;
+import space.nebula.nexus.repository.UserRepository;
+import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IMomentService;
 
-import space.nebula.nexus.common.exception.ResourceNotFoundException;
-
-import cn.hutool.core.lang.Assert;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MomentServiceImpl implements IMomentService {
+	private static final int MAX_LIKED_MOMENT_IDS = 100;
 
 	private final MomentRepository momentRepository;
 	private final MomentMapper momentMapper;
+	private final UserRepository userRepository;
+	private final JdbcTemplate jdbcTemplate;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -93,13 +104,56 @@ public class MomentServiceImpl implements IMomentService {
 	@Transactional
 	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
 	public ApiResponse<Void> likeMoment(Long id) {
-		Moment moment = findMomentOrThrow(id);
-		moment.setLikesCount(moment.getLikesCount() + 1);
-		momentRepository.save(moment);
+		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		findPublishedMomentOrThrow(id);
+		int inserted = jdbcTemplate.update(
+				"INSERT IGNORE INTO blog_moment_like(moment_id, user_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+				id, user.getId());
+		if (inserted > 0) {
+			momentRepository.incrementLikes(id, 1L);
+		}
 		return ApiResponse.success("Moment liked", null);
+	}
+
+	@Override
+	@Transactional
+	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
+	public ApiResponse<Void> unlikeMoment(Long id) {
+		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		findMomentOrThrow(id);
+		int deleted = jdbcTemplate.update("DELETE FROM blog_moment_like WHERE moment_id = ? AND user_id = ?", id,
+				user.getId());
+		if (deleted > 0) {
+			momentRepository.incrementLikes(id, -1L);
+		}
+		return ApiResponse.success("Moment like removed", null);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<Set<Long>> getLikedMomentIds(List<Long> momentIds) {
+		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		Assert.isTrue(momentIds != null && !momentIds.isEmpty(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Moment IDs are required"));
+		Assert.isTrue(momentIds.size() <= MAX_LIKED_MOMENT_IDS,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "At most 100 moment IDs can be requested"));
+		Assert.isTrue(momentIds.stream().allMatch(id -> id != null && id > 0),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Moment IDs must be positive"));
+
+		Set<Long> uniqueMomentIds = new LinkedHashSet<>(momentIds);
+		Set<Long> likedMomentIds = new LinkedHashSet<>(
+				momentRepository.findLikedMomentIdsByUserIdAndMomentIdIn(user.getId(), uniqueMomentIds));
+		return ApiResponse.success(likedMomentIds);
 	}
 
 	private Moment findMomentOrThrow(Long id) {
 		return momentRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Moment", "id", id));
+	}
+
+	private Moment findPublishedMomentOrThrow(Long id) {
+		Moment moment = findMomentOrThrow(id);
+		Assert.isTrue(Boolean.TRUE.equals(moment.getIsPublished()),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only published moments can be interacted with"));
+		return moment;
 	}
 }
