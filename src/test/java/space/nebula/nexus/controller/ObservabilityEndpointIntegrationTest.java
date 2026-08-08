@@ -30,6 +30,13 @@ class ObservabilityEndpointIntegrationTest {
 	}
 
 	@Test
+	void readinessProbeReflectsDependencyFailureWithoutLeakingComponents() throws Exception {
+		mockMvc.perform(get("/readyz")).andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.status").value("DOWN"))
+				.andExpect(jsonPath("$.components").doesNotExist());
+	}
+
+	@Test
 	void managementHealthStillRequiresAdministrator() throws Exception {
 		mockMvc.perform(get("/management/health")).andExpect(status().isUnauthorized());
 	}

@@ -13,6 +13,11 @@ ENV MAVEN_OPTS="-Xmx512m -XX:+UseSerialGC"
 RUN --mount=type=cache,target=/root/.m2 \
     mvn package -DskipTests
 
+# Optional JDK 21 verification target for the observability probe contract.
+FROM build AS test
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -Dtest=ObservabilityEndpointIntegrationTest test
+
 # Run stage
 FROM public.ecr.aws/docker/library/amazoncorretto:21-alpine
 WORKDIR /app
@@ -44,4 +49,3 @@ ENV SPRING_PROFILES_ACTIVE=prod
 EXPOSE 8080
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
-
