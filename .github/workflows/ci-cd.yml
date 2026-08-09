@@ -249,7 +249,7 @@ jobs:
       name: production
     env:
       API_IMAGE: crpi-jljp0dhu73tl5aot.cn-shenzhen.personal.cr.aliyuncs.com/wei_li/nexus-api@${{ needs.build-and-push-image.outputs.image-digest }}
-      API_LATEST_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      API_LATEST_IMAGE: ghcr.io/leewio/nexus-api:latest
       EXPECTED_REVISION: ${{ github.sha }}
       SERVER_PROJECT_PATH: ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}
       ALIYUN_REGISTRY_USER: ${{ secrets.ALIYUN_REGISTRY_USER }}
