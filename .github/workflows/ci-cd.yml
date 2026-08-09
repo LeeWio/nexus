@@ -305,7 +305,7 @@ jobs:
               exit 1
             fi
 
-            PREVIOUS_CONTAINER_ID="$(docker compose ps -q nexus-app || true)"
+            PREVIOUS_CONTAINER_ID="$(docker compose ps -q | xargs -r docker inspect --format '{{.Id}} {{.Name}}' | grep "nexus-app$" | awk '{print $1}' || true)"
             PREVIOUS_IMAGE_ID=""
             PREVIOUS_REVISION=""
             if [ -n "${PREVIOUS_CONTAINER_ID}" ]; then
@@ -333,7 +333,7 @@ jobs:
                 return
               fi
 
-              ROLLED_BACK_CONTAINER_ID="$(docker compose ps -q nexus-app || true)"
+              ROLLED_BACK_CONTAINER_ID="$(docker compose ps -q | xargs -r docker inspect --format '{{.Id}} {{.Name}}' | grep "nexus-app$" | awk '{print $1}' || true)"
               ROLLED_BACK_IMAGE_ID="$(docker inspect --format '{{.Image}}' "${ROLLED_BACK_CONTAINER_ID}" 2>/dev/null || true)"
               if [ "${ROLLED_BACK_IMAGE_ID}" = "${PREVIOUS_IMAGE_ID}" ]; then
                 echo "Rollback container was recreated from the previous image"
@@ -356,7 +356,7 @@ jobs:
               fail_deploy "Unable to recreate the API container"
             fi
 
-            CONTAINER_ID="$(docker compose ps -q nexus-app)"
+            CONTAINER_ID="$(docker compose ps -q | xargs -r docker inspect --format '{{.Id}} {{.Name}}' | grep "nexus-app$" | awk '{print $1}')"
             if [ -z "${CONTAINER_ID}" ]; then
               fail_deploy "API container ID could not be resolved"
             fi
