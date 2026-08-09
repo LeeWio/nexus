@@ -387,6 +387,16 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<argLine>@{argLine} -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</argLine>
+					<!-- Keep tests isolated when the invoking environment defines production datasource properties. -->
+					<systemPropertyVariables>
+						<spring.datasource.url>jdbc:h2:mem:nexus_test_db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL;DATABASE_TO_LOWER=TRUE</spring.datasource.url>
+						<spring.datasource.username>sa</spring.datasource.username>
+						<spring.datasource.password></spring.datasource.password>
+						<spring.datasource.driver-class-name>org.h2.Driver</spring.datasource.driver-class-name>
+						<spring.jpa.database-platform>org.hibernate.dialect.H2Dialect</spring.jpa.database-platform>
+						<spring.jpa.hibernate.ddl-auto>create-drop</spring.jpa.hibernate.ddl-auto>
+						<spring.flyway.enabled>false</spring.flyway.enabled>
+					</systemPropertyVariables>
 				</configuration>
 			</plugin>
 			<plugin>
