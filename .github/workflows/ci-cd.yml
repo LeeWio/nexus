@@ -249,7 +249,7 @@ jobs:
       name: production
     env:
       API_IMAGE: crpi-jljp0dhu73tl5aot.cn-shenzhen.personal.cr.aliyuncs.com/wei_li/nexus-api@${{ needs.build-and-push-image.outputs.image-digest }}
-      API_LATEST_IMAGE: crpi-jljp0dhu73tl5aot.cn-shenzhen.personal.cr.aliyuncs.com/wei_li/nexus-api:latest
+      API_LATEST_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
       EXPECTED_REVISION: ${{ github.sha }}
       SERVER_PROJECT_PATH: ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}
       ALIYUN_REGISTRY_USER: ${{ secrets.ALIYUN_REGISTRY_USER }}
@@ -290,7 +290,7 @@ jobs:
             esac
 
             cd -- "${SERVER_PROJECT_PATH}"
-            docker compose -f docker-compose.yml config --quiet
+            docker compose -f compose.yaml config --quiet
 
             echo "Logging in to Aliyun Container Registry..."
             echo "${ALIYUN_REGISTRY_PASSWORD}" | docker login "${ALIYUN_REGISTRY}" -u "${ALIYUN_REGISTRY_USER}" --password-stdin
@@ -305,7 +305,7 @@ jobs:
               exit 1
             fi
 
-            PREVIOUS_CONTAINER_ID="$(docker compose -f docker-compose.yml ps -q | xargs -r docker inspect --format '{{.Id}} {{.Name}}' | grep "nexus-app$" | awk '{print $1}' || true)"
+            PREVIOUS_CONTAINER_ID="$(docker compose -f compose.yaml ps -q api || true)"
             PREVIOUS_IMAGE_ID=""
             PREVIOUS_REVISION=""
             if [ -n "${PREVIOUS_CONTAINER_ID}" ]; then
@@ -315,7 +315,7 @@ jobs:
 
             rollback() {
               echo "Deployment failed. Recent API logs:"
-              docker compose -f docker-compose.yml logs --tail=200 nexus-app || true
+              docker compose -f compose.yaml logs --tail=200 api || true
 
               if [ -z "${PREVIOUS_IMAGE_ID}" ]; then
                 echo "No previous API container was available for rollback"
@@ -328,12 +328,12 @@ jobs:
                 return
               fi
 
-              if ! docker compose -f docker-compose.yml up -d --no-deps --force-recreate --pull never nexus-app; then
+              if ! docker compose -f compose.yaml up -d --no-deps --force-recreate --pull never api; then
                 echo "Unable to recreate the previous API container"
                 return
               fi
 
-              ROLLED_BACK_CONTAINER_ID="$(docker compose -f docker-compose.yml ps -q | xargs -r docker inspect --format '{{.Id}} {{.Name}}' | grep "nexus-app$" | awk '{print $1}' || true)"
+              ROLLED_BACK_CONTAINER_ID="$(docker compose -f compose.yaml ps -q api || true)"
               ROLLED_BACK_IMAGE_ID="$(docker inspect --format '{{.Image}}' "${ROLLED_BACK_CONTAINER_ID}" 2>/dev/null || true)"
               if [ "${ROLLED_BACK_IMAGE_ID}" = "${PREVIOUS_IMAGE_ID}" ]; then
                 echo "Rollback container was recreated from the previous image"
@@ -352,11 +352,11 @@ jobs:
             # SHA image before recreating the service, rather than pulling a moving tag.
             PULLED_IMAGE_ID="$(docker image inspect --format '{{.Id}}' "${API_IMAGE}")"
             docker tag "${PULLED_IMAGE_ID}" "${API_LATEST_IMAGE}"
-            if ! docker compose -f docker-compose.yml up -d --no-deps --force-recreate --pull never nexus-app; then
+            if ! docker compose -f compose.yaml up -d --no-deps --force-recreate --pull never api; then
               fail_deploy "Unable to recreate the API container"
             fi
 
-            CONTAINER_ID="$(docker compose -f docker-compose.yml ps -q | xargs -r docker inspect --format '{{.Id}} {{.Name}}' | grep "nexus-app$" | awk '{print $1}')"
+            CONTAINER_ID="$(docker compose -f compose.yaml ps -q api)"
             if [ -z "${CONTAINER_ID}" ]; then
               fail_deploy "API container ID could not be resolved"
             fi
