@@ -227,7 +227,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build-and-push-image
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: read
@@ -260,7 +260,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           fingerprint: ${{ secrets.SERVER_SSH_FINGERPRINT }}
-          command_timeout: 15m
+          command_timeout: 40m
           envs: API_IMAGE,API_LATEST_IMAGE,EXPECTED_REVISION,SERVER_PROJECT_PATH,GITHUB_TOKEN,GITHUB_ACTOR
           script: |
             set -eu
