@@ -24,6 +24,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.HashSet;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -82,7 +83,7 @@ public class PostControllerIntegrationTest {
 				new HashSet<>());
 
 		// 1. Create Post
-		mockMvc.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
+		mockMvc.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request))).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.title").value("Test Post Title"))
 				.andExpect(jsonPath("$.data.slug").value("test-post-slug"));
@@ -112,7 +113,7 @@ public class PostControllerIntegrationTest {
 				PostStatus.DRAFT, false, categoryId, null, null, null, null);
 
 		String response = mockMvc
-				.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
+				.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(createRequest)))
 				.andReturn().getResponse().getContentAsString();
 
@@ -121,7 +122,7 @@ public class PostControllerIntegrationTest {
 		PostRequest updateRequest = new PostRequest("Updated Title", "updated-slug", null, "Updated Summary",
 				"Updated Content", null, PostStatus.PUBLISHED, true, categoryId, null, null, null, null);
 
-		mockMvc.perform(put("/api/v1/admin/posts/" + postId).contentType(MediaType.APPLICATION_JSON)
+		mockMvc.perform(put("/api/v1/admin/posts/" + postId).with(csrf()).contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(updateRequest))).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.title").value("Updated Title"))
 				.andExpect(jsonPath("$.data.isFeatured").value(true));
@@ -133,21 +134,21 @@ public class PostControllerIntegrationTest {
 		PostRequest createRequest = new PostRequest("Lifecycle Post", "lifecycle-post", null, "Summary", "Content",
 				null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
 		String response = mockMvc
-				.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
+				.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(createRequest)))
 				.andReturn().getResponse().getContentAsString();
 		Long postId = objectMapper.readTree(response).get("data").get("id").asLong();
 
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/submit")).andExpect(status().isOk());
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/withdraw")).andExpect(status().isOk());
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/submit").with(csrf())).andExpect(status().isOk());
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/withdraw").with(csrf())).andExpect(status().isOk());
 		mockMvc.perform(get("/api/v1/admin/posts/" + postId)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.status").value("DRAFT"));
 
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/submit")).andExpect(status().isOk());
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/review").contentType(MediaType.APPLICATION_JSON)
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/submit").with(csrf())).andExpect(status().isOk());
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/review").with(csrf()).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"approved\":true,\"reviewComment\":null}")).andExpect(status().isOk());
 
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/archive").contentType(MediaType.APPLICATION_JSON)
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/archive").with(csrf()).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"reason\":\"Requires substantial revision\"}")).andExpect(status().isOk());
 		mockMvc.perform(get("/api/v1/admin/posts/" + postId)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.status").value("ARCHIVED"))
@@ -156,7 +157,7 @@ public class PostControllerIntegrationTest {
 
 		mockMvc.perform(get("/api/v1/public/blog/posts/lifecycle-post")).andExpect(status().isForbidden());
 
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/restore")).andExpect(status().isOk());
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/restore").with(csrf())).andExpect(status().isOk());
 		mockMvc.perform(get("/api/v1/admin/posts/" + postId)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.status").value("DRAFT"))
 				.andExpect(jsonPath("$.data.archiveReason").doesNotExist())

@@ -9,7 +9,6 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -74,8 +73,16 @@ public class SecurityConfig {
 				// 1. Explicit CORS configuration
 				.cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-				// 2. Disable CSRF since we are using stateless JWT authentication
-				.csrf(AbstractHttpConfigurer::disable)
+				// 2. Configure CSRF protection using a cookie-based repository
+				// This resolves CodeQL alerts while supporting SPA clients.
+				.csrf(csrf -> csrf
+						.csrfTokenRepository(
+								org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse())
+						.csrfTokenRequestHandler(
+								new org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler())
+						// Ignore CSRF for OAuth2 paths and Auth APIs.
+						.ignoringRequestMatchers("/api/v1/auth/**", "/api/v1/public/**", "/oauth2/**",
+								"/login/oauth2/**"))
 
 				// 3. Enhance Security Headers
 				.headers(headers -> headers
