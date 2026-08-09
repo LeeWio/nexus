@@ -49,12 +49,13 @@ public class SystemInitializer {
 		validateBootstrapConfiguration();
 
 		String adminUsername = bootstrapAdminProperties.getUsername();
-		Optional<User> adminOpt = userRepository.findByUsername(adminUsername);
+		String adminEmail = bootstrapAdminProperties.getEmail();
+		Optional<User> adminOpt = userRepository.findByUsernameOrEmail(adminUsername, adminEmail);
 		if (adminOpt.isEmpty()) {
 			log.warn("Bootstrapping administrator account: {}", adminUsername);
 			User admin = new User();
 			admin.setUsername(adminUsername);
-			admin.setEmail(bootstrapAdminProperties.getEmail());
+			admin.setEmail(adminEmail);
 			admin.setNickname("Administrator");
 			admin.setPassword(passwordEncoder.encode(bootstrapAdminProperties.getPassword()));
 			admin.setStatus(UserStatus.ACTIVE);
@@ -62,7 +63,17 @@ public class SystemInitializer {
 			userRepository.save(admin);
 			log.info("Default administrator initialized successfully.");
 		} else {
-			log.info("Bootstrap administrator '{}' already exists; leaving status and roles unchanged", adminUsername);
+			User admin = adminOpt.get();
+			boolean alreadyAdmin = admin.getRoles().stream().anyMatch(role -> "ROLE_ADMIN".equals(role.getCode()));
+			if (alreadyAdmin) {
+				log.info("Bootstrap administrator '{}' already exists with ROLE_ADMIN", admin.getUsername());
+				return;
+			}
+
+			admin.getRoles().add(adminRole);
+			userRepository.save(admin);
+			log.warn("Granted ROLE_ADMIN to existing bootstrap account '{}' matched by username or email",
+					admin.getUsername());
 		}
 	}
 
