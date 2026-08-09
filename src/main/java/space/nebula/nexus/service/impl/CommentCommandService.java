@@ -89,8 +89,14 @@ public class CommentCommandService {
 			comment.setIpAddress(IpUtil.getIpAddress(servletRequest));
 			comment.setUserAgent(servletRequest.getHeader("User-Agent"));
 			comment.setClientRequestId(clientRequestId);
-			comment.setStatus(hasViolation ? CommentStatus.SPAM : CommentStatus.PENDING);
-			if (hasViolation) {
+			boolean isAdmin = SecurityUtil.hasRole("ADMIN");
+			if (isAdmin) {
+				comment.setStatus(CommentStatus.APPROVED);
+			} else {
+				comment.setStatus(hasViolation ? CommentStatus.SPAM : CommentStatus.PENDING);
+			}
+
+			if (hasViolation && !isAdmin) {
 				log.warn("Comment by {} automatically marked as spam due to policy violation", author.getUsername());
 			}
 
@@ -100,9 +106,13 @@ public class CommentCommandService {
 			eventPublisher.publishEvent(buildSubmittedEvent(comment));
 			metricsService.incrementPublished(comment.getStatus());
 
-			ApiResponse<Void> response = hasViolation
-					? ApiResponse.success("Comment received and flagged for moderation.", null)
-					: ApiResponse.success("Comment submitted successfully. It is awaiting moderation.", null);
+			ApiResponse<Void> response;
+			if (isAdmin) {
+				response = ApiResponse.success("Comment published successfully.", null);
+			} else {
+				response = hasViolation ? ApiResponse.success("Comment received and flagged for moderation.", null)
+						: ApiResponse.success("Comment submitted successfully. It is awaiting moderation.", null);
+			}
 			idempotencyService.complete(author.getId(), clientRequestId, requestHash, response, comment.getId());
 			return response;
 		} catch (DataIntegrityViolationException ex) {
@@ -127,11 +137,19 @@ public class CommentCommandService {
 		boolean hasViolation = request.content() != null && !request.content().equals(filteredContent);
 
 		comment.editContent(filteredContent);
-		comment.setStatus(hasViolation ? CommentStatus.SPAM : CommentStatus.PENDING);
+		boolean isAdmin = SecurityUtil.hasRole("ADMIN");
+		if (isAdmin) {
+			comment.setStatus(CommentStatus.APPROVED);
+		} else {
+			comment.setStatus(hasViolation ? CommentStatus.SPAM : CommentStatus.PENDING);
+		}
 		commentRepository.save(comment);
-		log.info("User {} edited comment {} and reset status to {}", currentUser.getUsername(), id,
+		log.info("User {} edited comment {} and status is now {}", currentUser.getUsername(), id,
 				comment.getStatus());
 
+		if (isAdmin) {
+			return ApiResponse.success("Comment updated successfully.", null);
+		}
 		if (hasViolation) {
 			return ApiResponse.success("Comment updated and flagged for moderation.", null);
 		}

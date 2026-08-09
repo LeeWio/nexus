@@ -151,6 +151,48 @@ class CommentServiceImplTest {
 	}
 
 	@Test
+	void publishComment_AdminSuccess() {
+		CommentRequest request = new CommentRequest("Hello from Admin", 1L, null);
+
+		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
+		when(sensitiveWordService.filter("Hello from Admin")).thenReturn("Hello from Admin");
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
+			mockedSecurity.when(() -> SecurityUtil.hasRole("ADMIN")).thenReturn(true);
+
+			var response = commentService.publishComment(request, servletRequest);
+
+			assertEquals(200, response.code());
+			verify(commentRepository).save(any(Comment.class));
+			var eventCaptor = org.mockito.ArgumentCaptor.forClass(CommentSubmittedEvent.class);
+			verify(eventPublisher).publishEvent(eventCaptor.capture());
+			assertEquals(CommentStatus.APPROVED, eventCaptor.getValue().getStatus());
+		}
+	}
+
+	@Test
+	void publishComment_AdminWithViolation() {
+		CommentRequest request = new CommentRequest("Admin Bad Word", 1L, null);
+
+		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
+		when(sensitiveWordService.filter("Admin Bad Word")).thenReturn("***");
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
+			mockedSecurity.when(() -> SecurityUtil.hasRole("ADMIN")).thenReturn(true);
+
+			var response = commentService.publishComment(request, servletRequest);
+
+			assertEquals(200, response.code());
+			verify(commentRepository).save(any(Comment.class));
+			var eventCaptor = org.mockito.ArgumentCaptor.forClass(CommentSubmittedEvent.class);
+			verify(eventPublisher).publishEvent(eventCaptor.capture());
+			assertEquals(CommentStatus.APPROVED, eventCaptor.getValue().getStatus());
+		}
+	}
+
+	@Test
 	void publishCommentWithSameIdempotencyKeyReturnsExistingSuccess() {
 		CommentRequest request = new CommentRequest("Hello World", 1L, null);
 		Comment existing = new Comment();
@@ -420,6 +462,30 @@ class CommentServiceImplTest {
 			assertEquals(200, response.code());
 			assertEquals("new content", comment.getContent());
 			assertEquals(CommentStatus.PENDING, comment.getStatus());
+			assertNotNull(comment.getEditedAt());
+			verify(commentRepository).save(comment);
+		}
+	}
+
+	@Test
+	void updateMyComment_AdminKeepsApprovedStatus() {
+		Comment comment = new Comment();
+		comment.setId(41L);
+		comment.setUser(testUser);
+		comment.setContent("old");
+		comment.setStatus(CommentStatus.APPROVED);
+		when(commentRepository.findById(41L)).thenReturn(Optional.of(comment));
+		when(sensitiveWordService.filter("new content")).thenReturn("new content");
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
+			mockedSecurity.when(() -> SecurityUtil.hasRole("ADMIN")).thenReturn(true);
+
+			var response = commentService.updateMyComment(41L, new CommentUpdateRequest("new content"));
+
+			assertEquals(200, response.code());
+			assertEquals("new content", comment.getContent());
+			assertEquals(CommentStatus.APPROVED, comment.getStatus());
 			assertNotNull(comment.getEditedAt());
 			verify(commentRepository).save(comment);
 		}
