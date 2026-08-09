@@ -248,8 +248,8 @@ jobs:
     environment:
       name: production
     env:
-      API_IMAGE: ${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_IMAGE_NAME }}@${{ needs.build-and-push-image.outputs.image-digest }}
-      API_LATEST_IMAGE: ${{ env.ALIYUN_REGISTRY }}/${{ env.ALIYUN_IMAGE_NAME }}:latest
+      API_IMAGE: crpi-jljp0dhu73tl5aot.cn-shenzhen.personal.cr.aliyuncs.com/wei_li/nexus-api@${{ needs.build-and-push-image.outputs.image-digest }}
+      API_LATEST_IMAGE: crpi-jljp0dhu73tl5aot.cn-shenzhen.personal.cr.aliyuncs.com/wei_li/nexus-api:latest
       EXPECTED_REVISION: ${{ github.sha }}
       SERVER_PROJECT_PATH: ${{ secrets.SERVER_PROJECT_PATH || '/srv/blog' }}
       ALIYUN_REGISTRY_USER: ${{ secrets.ALIYUN_REGISTRY_USER }}
