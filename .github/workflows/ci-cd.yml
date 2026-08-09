@@ -305,7 +305,7 @@ jobs:
               exit 1
             fi
 
-            PREVIOUS_CONTAINER_ID="$(docker compose ps -q api || true)"
+            PREVIOUS_CONTAINER_ID="$(docker compose ps -q nexus-app || true)"
             PREVIOUS_IMAGE_ID=""
             PREVIOUS_REVISION=""
             if [ -n "${PREVIOUS_CONTAINER_ID}" ]; then
@@ -315,7 +315,7 @@ jobs:
 
             rollback() {
               echo "Deployment failed. Recent API logs:"
-              docker compose logs --tail=200 api || true
+              docker compose logs --tail=200 nexus-app || true
 
               if [ -z "${PREVIOUS_IMAGE_ID}" ]; then
                 echo "No previous API container was available for rollback"
@@ -328,12 +328,12 @@ jobs:
                 return
               fi
 
-              if ! docker compose up -d --no-deps --force-recreate --pull never api; then
+              if ! docker compose up -d --no-deps --force-recreate --pull never nexus-app; then
                 echo "Unable to recreate the previous API container"
                 return
               fi
 
-              ROLLED_BACK_CONTAINER_ID="$(docker compose ps -q api || true)"
+              ROLLED_BACK_CONTAINER_ID="$(docker compose ps -q nexus-app || true)"
               ROLLED_BACK_IMAGE_ID="$(docker inspect --format '{{.Image}}' "${ROLLED_BACK_CONTAINER_ID}" 2>/dev/null || true)"
               if [ "${ROLLED_BACK_IMAGE_ID}" = "${PREVIOUS_IMAGE_ID}" ]; then
                 echo "Rollback container was recreated from the previous image"
@@ -352,11 +352,11 @@ jobs:
             # SHA image before recreating the service, rather than pulling a moving tag.
             PULLED_IMAGE_ID="$(docker image inspect --format '{{.Id}}' "${API_IMAGE}")"
             docker tag "${PULLED_IMAGE_ID}" "${API_LATEST_IMAGE}"
-            if ! docker compose up -d --no-deps --force-recreate --pull never api; then
+            if ! docker compose up -d --no-deps --force-recreate --pull never nexus-app; then
               fail_deploy "Unable to recreate the API container"
             fi
 
-            CONTAINER_ID="$(docker compose ps -q api)"
+            CONTAINER_ID="$(docker compose ps -q nexus-app)"
             if [ -z "${CONTAINER_ID}" ]; then
               fail_deploy "API container ID could not be resolved"
             fi
