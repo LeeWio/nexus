@@ -145,11 +145,13 @@ public class PostControllerIntegrationTest {
 				.andExpect(jsonPath("$.data.status").value("DRAFT"));
 
 		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/submit").with(csrf())).andExpect(status().isOk());
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/review").with(csrf()).contentType(MediaType.APPLICATION_JSON)
-				.content("{\"approved\":true,\"reviewComment\":null}")).andExpect(status().isOk());
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/review").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"approved\":true,\"reviewComment\":null}"))
+				.andExpect(status().isOk());
 
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/archive").with(csrf()).contentType(MediaType.APPLICATION_JSON)
-				.content("{\"reason\":\"Requires substantial revision\"}")).andExpect(status().isOk());
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/archive").with(csrf())
+				.contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"Requires substantial revision\"}"))
+				.andExpect(status().isOk());
 		mockMvc.perform(get("/api/v1/admin/posts/" + postId)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.status").value("ARCHIVED"))
 				.andExpect(jsonPath("$.data.archiveReason").value("Requires substantial revision"))
