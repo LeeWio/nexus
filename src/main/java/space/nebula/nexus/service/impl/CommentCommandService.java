@@ -110,7 +110,8 @@ public class CommentCommandService {
 			if (isAdmin) {
 				response = ApiResponse.success("Comment published successfully.", null);
 			} else {
-				response = hasViolation ? ApiResponse.success("Comment received and flagged for moderation.", null)
+				response = hasViolation
+						? ApiResponse.success("Comment received and flagged for moderation.", null)
 						: ApiResponse.success("Comment submitted successfully. It is awaiting moderation.", null);
 			}
 			idempotencyService.complete(author.getId(), clientRequestId, requestHash, response, comment.getId());
@@ -131,8 +132,8 @@ public class CommentCommandService {
 	public ApiResponse<Void> updateMyComment(Long id, CommentUpdateRequest request) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		Comment comment = findOwnedComment(id, currentUser);
-		Assert.isFalse(comment.isDeletedPlaceholder(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
-				"Deleted comments cannot be edited"));
+		Assert.isFalse(comment.isDeletedPlaceholder(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Deleted comments cannot be edited"));
 		String filteredContent = sensitiveWordService.filter(request.content());
 		boolean hasViolation = request.content() != null && !request.content().equals(filteredContent);
 
@@ -144,8 +145,7 @@ public class CommentCommandService {
 			comment.setStatus(hasViolation ? CommentStatus.SPAM : CommentStatus.PENDING);
 		}
 		commentRepository.save(comment);
-		log.info("User {} edited comment {} and status is now {}", currentUser.getUsername(), id,
-				comment.getStatus());
+		log.info("User {} edited comment {} and status is now {}", currentUser.getUsername(), id, comment.getStatus());
 
 		if (isAdmin) {
 			return ApiResponse.success("Comment updated successfully.", null);
@@ -184,8 +184,8 @@ public class CommentCommandService {
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
 		Assert.isTrue(comment.getStatus() == CommentStatus.APPROVED,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only visible comments can be reported"));
-		Assert.isFalse(comment.isDeletedPlaceholder(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
-				"Deleted comments cannot be reported"));
+		Assert.isFalse(comment.isDeletedPlaceholder(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Deleted comments cannot be reported"));
 		Assert.isFalse(comment.getUser().getId().equals(currentUser.getId()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "You cannot report your own comment"));
 
@@ -237,8 +237,8 @@ public class CommentCommandService {
 		Assert.isTrue(parentComment.getStatus() == CommentStatus.APPROVED,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST,
 						"Replies can only be added to approved comments"));
-		Assert.isFalse(parentComment.isDeletedPlaceholder(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
-				"Replies cannot target a deleted comment"));
+		Assert.isFalse(parentComment.isDeletedPlaceholder(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Replies cannot target a deleted comment"));
 		Assert.isTrue(replyDepth(parentComment) <= threadProperties.getMaxReplyDepth(),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST,
 						"Replies can be nested up to " + threadProperties.getMaxReplyDepth() + " levels"));
