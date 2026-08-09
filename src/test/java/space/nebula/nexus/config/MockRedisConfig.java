@@ -1,5 +1,7 @@
 package space.nebula.nexus.config;
 
+import java.util.Properties;
+
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -35,6 +37,10 @@ public class MockRedisConfig {
 		Mockito.when(connection.setCommands()).thenReturn(setCommands);
 		Mockito.when(connection.listCommands()).thenReturn(listCommands);
 		Mockito.when(connection.keyCommands()).thenReturn(keyCommands);
+
+		Properties serverInfo = new Properties();
+		serverInfo.setProperty("redis_version", "test");
+		Mockito.when(serverCommands.info()).thenReturn(serverInfo);
 
 		// Mock specific scan commands to return empty cursors to avoid NPEs in
 		// scheduled tasks

@@ -11,13 +11,15 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import space.nebula.nexus.config.MockRabbitMQConfig;
+import space.nebula.nexus.config.MockRedisConfig;
 import space.nebula.nexus.repository.search.PostSearchRepository;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(classes = {MockRedisConfig.class, MockRabbitMQConfig.class})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class ObservabilityEndpointIntegrationTest {
