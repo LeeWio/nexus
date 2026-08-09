@@ -34,19 +34,7 @@ public class LocalStorageProvider implements StorageProvider {
 	@Override
 	public String store(InputStream inputStream, String filename) {
 		try {
-			Assert.isFalse(filename.contains(".."), () -> new BusinessException("File path is invalid: " + filename));
-
-			Path destinationFile = this.rootLocation.resolve(Paths.get(filename)).normalize().toAbsolutePath();
-
-			// Security check: Ensure destination is still within rootLocation
-			String destPath = destinationFile.toFile().getCanonicalPath();
-			String rootPath = this.rootLocation.toFile().getCanonicalPath();
-			if (!rootPath.endsWith(java.io.File.separator)) {
-				rootPath += java.io.File.separator;
-			}
-			String finalRootPath = rootPath;
-			Assert.isTrue(destPath.startsWith(finalRootPath),
-					() -> new BusinessException("File path is outside the storage directory"));
+			Path destinationFile = validateFilenameAndResolve(filename);
 
 			// Create parent directories if they don't exist
 			Files.createDirectories(destinationFile.getParent());
@@ -62,21 +50,31 @@ public class LocalStorageProvider implements StorageProvider {
 	@Override
 	public void delete(String filename) {
 		try {
-			Path file = resolveWithinRoot(filename);
+			Path file = validateFilenameAndResolve(filename);
 			Files.deleteIfExists(file);
 		} catch (IOException e) {
 			log.error("Could not delete file {}", filename, e);
 		}
 	}
 
-	private Path resolveWithinRoot(String filename) throws IOException {
-		Assert.isFalse(filename.contains(".."), () -> new BusinessException("File path is invalid"));
+	private Path validateFilenameAndResolve(String filename) throws IOException {
+		// Strict check: No path separators or parent directory references allowed
+		Assert.isFalse(filename.contains("..") || filename.contains("/") || filename.contains("\\"),
+				() -> new BusinessException("Invalid filename format"));
+
 		Path resolved = rootLocation.resolve(filename).normalize().toAbsolutePath();
-		Path canonicalRoot = rootLocation.toFile().getCanonicalFile().toPath();
-		Path canonicalTarget = resolved.toFile().getCanonicalFile().toPath();
-		Assert.isTrue(canonicalTarget.startsWith(canonicalRoot),
+
+		// Additional safety check: Ensure destination is still within rootLocation
+		String destPath = resolved.toFile().getCanonicalPath();
+		String rootPath = this.rootLocation.toFile().getCanonicalPath();
+		if (!rootPath.endsWith(java.io.File.separator)) {
+			rootPath += java.io.File.separator;
+		}
+
+		Assert.isTrue(destPath.startsWith(rootPath),
 				() -> new BusinessException("File path is outside the storage directory"));
-		return canonicalTarget;
+
+		return resolved;
 	}
 
 	@Override
