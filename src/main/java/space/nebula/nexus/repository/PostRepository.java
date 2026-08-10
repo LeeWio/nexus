@@ -93,6 +93,18 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	Optional<Post> findPublicationNotificationPost(Long id);
 
 	/**
+	 * Loads the associations needed to build a post search document outside the
+	 * original request transaction.
+	 *
+	 * @param id
+	 *            post identifier
+	 * @return current post state with indexing relationships initialized
+	 */
+	@EntityGraph(attributePaths = {"category", "author", "tags"})
+	@Query("SELECT post FROM Post post WHERE post.id = :id")
+	Optional<Post> findPostForSearchIndexing(Long id);
+
+	/**
 	 * Returns published posts from categories explicitly followed by a user.
 	 *
 	 * @param userId

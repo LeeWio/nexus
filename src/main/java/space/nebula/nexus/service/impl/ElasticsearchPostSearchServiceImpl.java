@@ -57,16 +57,25 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 	@Async("asyncExecutor")
 	@Override
 	public void indexPost(Post post) {
-		if (post.getStatus() != PostStatus.PUBLISHED) {
-			deletePostIndex(post.getId());
+		if (post == null || post.getId() == null) {
+			log.warn("Cannot index a post without an identifier");
 			return;
 		}
+
+		Long postId = post.getId();
 		try {
-			PostDocument document = mapToDocument(post);
+			Post currentPost = postRepository.findPostForSearchIndexing(postId).orElse(null);
+			if (currentPost == null || currentPost.getStatus() != PostStatus.PUBLISHED) {
+				postSearchRepository.deleteById(postId.toString());
+				log.info("Removed non-published post from Elasticsearch: {}", postId);
+				return;
+			}
+
+			PostDocument document = mapToDocument(currentPost);
 			postSearchRepository.save(document);
-			log.info("Successfully indexed post to Elasticsearch: {}", post.getId());
+			log.info("Successfully indexed post to Elasticsearch: {}", postId);
 		} catch (Exception e) {
-			log.error("Failed to index post to Elasticsearch: {}", post.getId(), e);
+			log.error("Failed to index post to Elasticsearch: {}", postId, e);
 		}
 	}
 
