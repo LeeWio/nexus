@@ -168,6 +168,73 @@ class PostServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("Should preserve workflow and featured state when an author edits a draft")
+	void updatePost_StandardUserCannotEscalateWorkflowOrFeaturedState() {
+		Post existingPost = post(61L, "Draft article");
+		existingPost.setSlug("draft-article");
+		existingPost.setStatus(PostStatus.DRAFT);
+		existingPost.setIsFeatured(false);
+		PostRequest request = new PostRequest("Updated article", "draft-article", null, "Summary", "Updated content",
+				PostContentType.MDX, PostStatus.PUBLISHED, true, null, null, null, null, null);
+		PostResponse postResponse = mock(PostResponse.class);
+		when(postRepository.findByIdForUpdate(61L)).thenReturn(Optional.of(existingPost));
+		when(postMapper.toResponse(existingPost)).thenReturn(postResponse);
+		doAnswer(invocation -> {
+			Post target = invocation.getArgument(0);
+			PostRequest update = invocation.getArgument(1);
+			target.setStatus(update.status());
+			target.setIsFeatured(update.isFeatured());
+			return null;
+		}).when(postMapper).updateEntity(any(Post.class), any(PostRequest.class));
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.hasRole("ADMIN")).thenReturn(false);
+			mockedSecurity.when(SecurityUtil::getCurrentUsername).thenReturn("author");
+
+			postService.updatePost(61L, request);
+		}
+
+		assertEquals(PostStatus.DRAFT, existingPost.getStatus());
+		assertFalse(existingPost.getIsFeatured());
+		org.mockito.ArgumentCaptor<space.nebula.nexus.common.event.PostChangedEvent> eventCaptor = org.mockito.ArgumentCaptor
+				.forClass(space.nebula.nexus.common.event.PostChangedEvent.class);
+		verify(eventPublisher).publishEvent(eventCaptor.capture());
+		assertEquals(PostStatus.DRAFT, eventCaptor.getValue().getPreviousStatus());
+	}
+
+	@Test
+	@DisplayName("Should not allow a standard author to create a featured post")
+	void createPost_StandardUserCannotCreateFeaturedPost() {
+		PostRequest request = new PostRequest("New article", null, null, "Summary", "Content", PostContentType.MDX,
+				PostStatus.PUBLISHED, true, null, null, null, null, null);
+		User author = new User();
+		author.setUsername("author");
+		PostResponse postResponse = mock(PostResponse.class);
+		when(slugService.generateUniqueSlug(any(), any(), any())).thenReturn("new-article");
+		when(postMapper.toResponse(any(Post.class))).thenReturn(postResponse);
+		doAnswer(invocation -> {
+			Post target = invocation.getArgument(0);
+			PostRequest create = invocation.getArgument(1);
+			target.setStatus(create.status());
+			target.setIsFeatured(create.isFeatured());
+			return null;
+		}).when(postMapper).updateEntity(any(Post.class), any(PostRequest.class));
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(author);
+			mockedSecurity.when(() -> SecurityUtil.hasRole("ADMIN")).thenReturn(false);
+
+			postService.createPost(request);
+		}
+
+		org.mockito.ArgumentCaptor<Post> postCaptor = org.mockito.ArgumentCaptor.forClass(Post.class);
+		verify(postRepository, times(2)).save(postCaptor.capture());
+		Post createdPost = postCaptor.getAllValues().getFirst();
+		assertEquals(PostStatus.DRAFT, createdPost.getStatus());
+		assertFalse(createdPost.getIsFeatured());
+	}
+
+	@Test
 	@DisplayName("Should build distinct discovery sections with featured content first")
 	void retrievePublicDiscovery_ReturnsDistinctSections() {
 		Post featured = post(1L, "Featured");
@@ -316,13 +383,13 @@ class PostServiceImplTest {
 	void retrievePublicFacets_ReturnsAggregatedCounts() {
 		when(postRepository.countByStatus(PostStatus.PUBLISHED)).thenReturn(3L);
 		when(postRepository.countPublishedPostsByCategory(PostStatus.PUBLISHED))
-				.thenReturn(Collections.singletonList(new Object[] { 7L, "Architecture", "architecture", 2L }));
+				.thenReturn(Collections.singletonList(new Object[]{7L, "Architecture", "architecture", 2L}));
 		when(postRepository.countPublishedPostsByTag(PostStatus.PUBLISHED))
-				.thenReturn(Collections.singletonList(new Object[] { 5L, "Java", "java", 3L }));
+				.thenReturn(Collections.singletonList(new Object[]{5L, "Java", "java", 3L}));
 		when(postRepository.countPublishedPostsByArchiveMonth(PostStatus.PUBLISHED))
-				.thenReturn(Collections.singletonList(new Object[] { 2026, 7, 3L }));
+				.thenReturn(Collections.singletonList(new Object[]{2026, 7, 3L}));
 		when(postRepository.countPublishedPostsByContentType(PostStatus.PUBLISHED))
-				.thenReturn(Collections.singletonList(new Object[] { PostContentType.MDX, 1L }));
+				.thenReturn(Collections.singletonList(new Object[]{PostContentType.MDX, 1L}));
 
 		ApiResponse<BlogFacetResponse> response = postService.retrievePublicFacets();
 

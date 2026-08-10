@@ -141,6 +141,7 @@ public class PostServiceImpl implements IPostService {
 			}
 		} else {
 			newPost.moveToDraft();
+			newPost.setIsFeatured(false);
 		}
 
 		if (request.contentType() != null) {
@@ -193,12 +194,14 @@ public class PostServiceImpl implements IPostService {
 		// Admins can edit posts in any state; standard users only DRAFT or REJECTED.
 		boolean isAdmin = SecurityUtil.hasRole("ADMIN");
 		if (!isAdmin) {
-			Assert.isTrue(existingPost.isEditable(),
-					() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only draft or rejected posts can be edited"));
+			Assert.isTrue(existingPost.isEditable(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
+					"Only draft or rejected posts can be edited"));
 		}
 
 		String previousPath = existingPost.getPath();
 		String previousSlug = existingPost.getSlug();
+		PostStatus previousStatus = existingPost.getStatus();
+		Boolean previousFeatured = existingPost.getIsFeatured();
 
 		if (StrUtil.isNotBlank(request.slug()) && !StrUtil.equals(request.slug(), existingPost.getSlug())) {
 			String newSlug = slugService.generateUniqueSlug(request.slug(), request.title(),
@@ -208,12 +211,16 @@ public class PostServiceImpl implements IPostService {
 
 		postMapper.updateEntity(existingPost, request);
 
-		// Admin status override
+		// Only administrators may change workflow or featured state through the
+		// general edit payload. Other users must use the dedicated review flow.
 		if (isAdmin && request.status() != null) {
 			existingPost.setStatus(request.status());
 			if (request.status() == PostStatus.PUBLISHED && existingPost.getPublishedAt() == null) {
 				existingPost.setPublishedAt(java.time.LocalDateTime.now());
 			}
+		} else {
+			existingPost.setStatus(previousStatus);
+			existingPost.setIsFeatured(previousFeatured);
 		}
 
 		if (request.contentType() != null) {
@@ -228,8 +235,7 @@ public class PostServiceImpl implements IPostService {
 		if (previousPath != null && !previousPath.equals(existingPost.getPath())) {
 			postRepository.replaceDescendantPathPrefix(existingPost.getId(), previousPath, existingPost.getPath());
 		}
-		postRevisionService.saveRevision(existingPost, PostRevisionKind.UPDATED,
-				"Post content or metadata updated");
+		postRevisionService.saveRevision(existingPost, PostRevisionKind.UPDATED, "Post content or metadata updated");
 
 		log.info("Blog post updated: {}", existingPost.getTitle());
 
@@ -238,7 +244,8 @@ public class PostServiceImpl implements IPostService {
 		clearAutosaveData(existingPost.getSlug());
 
 		// Publish event
-		eventPublisher.publishEvent(new PostChangedEvent(this, existingPost, PostChangeType.UPDATED, previousSlug));
+		eventPublisher.publishEvent(
+				new PostChangedEvent(this, existingPost, PostChangeType.UPDATED, previousSlug, previousStatus));
 
 		return ApiResponse.success("Post updated successfully", postMapper.toResponse(existingPost));
 	}
@@ -275,8 +282,7 @@ public class PostServiceImpl implements IPostService {
 		List<Long> postIds = request.ids().stream().distinct().sorted().toList();
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		List<Post> posts = postRepository.findAllByIdInForUpdate(postIds);
-		Assert.isTrue(posts.size() == postIds.size(),
-				() -> new ResourceNotFoundException("Post", "ids", postIds));
+		Assert.isTrue(posts.size() == postIds.size(), () -> new ResourceNotFoundException("Post", "ids", postIds));
 
 		for (Post post : posts) {
 			Assert.isTrue(canManagePost(currentUser, post), () -> new BusinessException(BusinessCode.FORBIDDEN,

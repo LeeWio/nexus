@@ -42,7 +42,8 @@ public class PostPublicationCacheListener {
 				|| event.getChangeType() == PostChangeType.SCHEDULE_CANCELED) {
 			return true;
 		}
-		return event.getChangeType() == PostChangeType.UPDATED && event.getPost().getStatus() == PostStatus.PUBLISHED;
+		return event.getChangeType() == PostChangeType.UPDATED && (event.getPost().getStatus() == PostStatus.PUBLISHED
+				|| event.getPreviousStatus() == PostStatus.PUBLISHED);
 	}
 
 	private void clear(String cacheName) {

@@ -35,8 +35,7 @@ class PostPublicationCacheListenerTest {
 	private PostPublicationCacheListener listener;
 
 	@Test
-	void clearsPublicCachesForPublishedPost()
-	{
+	void clearsPublicCachesForPublishedPost() {
 		when(cacheManager.getCache(CacheConstants.BLOG_POSTS)).thenReturn(blogCache);
 		when(cacheManager.getCache(CacheConstants.SEO)).thenReturn(seoCache);
 
@@ -47,8 +46,7 @@ class PostPublicationCacheListenerTest {
 	}
 
 	@Test
-	void clearsPublicCachesForArchivedPost()
-	{
+	void clearsPublicCachesForArchivedPost() {
 		when(cacheManager.getCache(CacheConstants.BLOG_POSTS)).thenReturn(blogCache);
 		when(cacheManager.getCache(CacheConstants.SEO)).thenReturn(seoCache);
 
@@ -59,8 +57,7 @@ class PostPublicationCacheListenerTest {
 	}
 
 	@Test
-	void clearsPublicCachesForPublishedPostUpdate()
-	{
+	void clearsPublicCachesForPublishedPostUpdate() {
 		when(cacheManager.getCache(CacheConstants.BLOG_POSTS)).thenReturn(blogCache);
 		when(cacheManager.getCache(CacheConstants.SEO)).thenReturn(seoCache);
 		Post post = new Post();
@@ -73,8 +70,21 @@ class PostPublicationCacheListenerTest {
 	}
 
 	@Test
-	void clearsPublicCachesForRestoreToDraft()
-	{
+	void clearsPublicCachesWhenPublishedPostIsUpdatedToDraft() {
+		when(cacheManager.getCache(CacheConstants.BLOG_POSTS)).thenReturn(blogCache);
+		when(cacheManager.getCache(CacheConstants.SEO)).thenReturn(seoCache);
+		Post post = new Post();
+		post.setStatus(PostStatus.DRAFT);
+
+		listener.onVisibilityChanged(
+				new PostChangedEvent(this, post, PostChangeType.UPDATED, "published-post", PostStatus.PUBLISHED));
+
+		verify(blogCache).clear();
+		verify(seoCache).clear();
+	}
+
+	@Test
+	void clearsPublicCachesForRestoreToDraft() {
 		when(cacheManager.getCache(CacheConstants.BLOG_POSTS)).thenReturn(blogCache);
 		when(cacheManager.getCache(CacheConstants.SEO)).thenReturn(seoCache);
 

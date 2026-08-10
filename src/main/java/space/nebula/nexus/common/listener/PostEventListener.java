@@ -47,7 +47,7 @@ public class PostEventListener {
 		} else {
 			// If post was published but moved back to draft/archived, remove from index
 			postSearchService.deletePostIndex(event.getPost().getId());
-			if (event.getChangeType() == PostChangeType.ARCHIVED
+			if (event.getPreviousStatus() == PostStatus.PUBLISHED || event.getChangeType() == PostChangeType.ARCHIVED
 					|| event.getChangeType() == PostChangeType.RESTORED_TO_DRAFT) {
 				staticGenerationService.deletePostStaticHtml(event.getPost().getSlug());
 			}
