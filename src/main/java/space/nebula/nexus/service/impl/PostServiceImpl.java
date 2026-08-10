@@ -696,7 +696,8 @@ public class PostServiceImpl implements IPostService {
 		Post post = findPostOrThrow(id);
 		String token = UUID.randomUUID().toString();
 		String previewKey = CacheConstants.POST_PREVIEW_PREFIX + token;
-		PostPreviewToken previewToken = new PostPreviewToken(post.getId(), previewContentHash(post), post.getStatus());
+		PostPreviewToken previewToken = new PostPreviewToken(post.getId(), previewContentHash(post), post.getStatus(),
+				post.getLockVersion());
 		if (!redisUtil.set(previewKey, previewToken, 30, TimeUnit.MINUTES)) {
 			throw new BusinessException(BusinessCode.ERROR, "Preview service is temporarily unavailable");
 		}
@@ -711,7 +712,7 @@ public class PostServiceImpl implements IPostService {
 		PostPreviewToken previewToken = redisUtil.get(previewKey, PostPreviewToken.class).orElseThrow(
 				() -> new BusinessException(BusinessCode.NOT_FOUND, "Preview token is invalid or expired"));
 		Post post = findPostOrThrow(previewToken.postId());
-		if (!previewToken.matches(post.getId(), previewContentHash(post), post.getStatus())) {
+		if (!previewToken.matches(post.getId(), previewContentHash(post), post.getStatus(), post.getLockVersion())) {
 			redisUtil.delete(previewKey);
 			throw new BusinessException(BusinessCode.NOT_FOUND, "Preview token is invalid or expired");
 		}

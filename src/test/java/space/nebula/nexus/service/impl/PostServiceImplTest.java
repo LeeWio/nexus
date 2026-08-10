@@ -673,6 +673,7 @@ class PostServiceImplTest {
 		Post post = post(70L, "Preview article");
 		post.setContentHash("content-hash");
 		post.setStatus(PostStatus.DRAFT);
+		post.setLockVersion(3L);
 		when(postRepository.findById(70L)).thenReturn(Optional.of(post));
 		when(redisUtil.set(anyString(), any(PostPreviewToken.class), eq(30L), eq(TimeUnit.MINUTES))).thenReturn(true);
 
@@ -685,13 +686,14 @@ class PostServiceImplTest {
 		assertEquals(70L, previewTokenCaptor.getValue().postId());
 		assertEquals("content-hash", previewTokenCaptor.getValue().contentHash());
 		assertEquals(PostStatus.DRAFT, previewTokenCaptor.getValue().status());
+		assertEquals(3L, previewTokenCaptor.getValue().lockVersion());
 	}
 
 	@Test
 	@DisplayName("Should preserve the preview token type through Redis JSON serialization")
 	void previewToken_RoundTripsThroughRedisJsonSerialization() {
 		RedisSerializer<Object> serializer = RedisSerializer.json();
-		PostPreviewToken previewToken = new PostPreviewToken(70L, "content-hash", PostStatus.DRAFT);
+		PostPreviewToken previewToken = new PostPreviewToken(70L, "content-hash", PostStatus.DRAFT, 3L);
 
 		Object restoredToken = serializer.deserialize(serializer.serialize(previewToken));
 
@@ -706,10 +708,11 @@ class PostServiceImplTest {
 		Post post = post(71L, "Preview article");
 		post.setContentHash("content-hash");
 		post.setStatus(PostStatus.SCHEDULED);
+		post.setLockVersion(4L);
 		PostResponse mappedResponse = PostResponse.builder().id(71L).title("Preview article").slug("preview-article")
 				.build();
 		when(redisUtil.get(previewKey, PostPreviewToken.class))
-				.thenReturn(Optional.of(new PostPreviewToken(71L, "content-hash", PostStatus.SCHEDULED)));
+				.thenReturn(Optional.of(new PostPreviewToken(71L, "content-hash", PostStatus.SCHEDULED, 4L)));
 		when(postRepository.findById(71L)).thenReturn(Optional.of(post));
 		when(postMapper.toResponse(post)).thenReturn(mappedResponse);
 
@@ -728,8 +731,9 @@ class PostServiceImplTest {
 		Post post = post(72L, "Updated preview article");
 		post.setContentHash("new-content-hash");
 		post.setStatus(PostStatus.DRAFT);
+		post.setLockVersion(5L);
 		when(redisUtil.get(previewKey, PostPreviewToken.class))
-				.thenReturn(Optional.of(new PostPreviewToken(72L, "old-content-hash", PostStatus.DRAFT)));
+				.thenReturn(Optional.of(new PostPreviewToken(72L, "old-content-hash", PostStatus.DRAFT, 5L)));
 		when(postRepository.findById(72L)).thenReturn(Optional.of(post));
 
 		BusinessException exception = assertThrows(BusinessException.class,
@@ -748,9 +752,31 @@ class PostServiceImplTest {
 		Post post = post(73L, "Archived preview article");
 		post.setContentHash("content-hash");
 		post.setStatus(PostStatus.ARCHIVED);
+		post.setLockVersion(6L);
 		when(redisUtil.get(previewKey, PostPreviewToken.class))
-				.thenReturn(Optional.of(new PostPreviewToken(73L, "content-hash", PostStatus.PUBLISHED)));
+				.thenReturn(Optional.of(new PostPreviewToken(73L, "content-hash", PostStatus.PUBLISHED, 6L)));
 		when(postRepository.findById(73L)).thenReturn(Optional.of(post));
+
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> postService.retrievePostPreview(token));
+
+		assertEquals("Preview token is invalid or expired", exception.getMessage());
+		verify(redisUtil).delete(previewKey);
+	}
+
+	@Test
+	@DisplayName("Should revoke a preview token after post metadata changes")
+	void retrievePostPreview_RejectsChangedMetadataVersion() {
+		String token = "preview-token";
+		String previewKey = CacheConstants.POST_PREVIEW_PREFIX + token;
+		Post post = post(74L, "Preview article");
+		post.setCoverImage("https://example.com/new-cover.png");
+		post.setContentHash("content-hash");
+		post.setStatus(PostStatus.DRAFT);
+		post.setLockVersion(8L);
+		when(redisUtil.get(previewKey, PostPreviewToken.class))
+				.thenReturn(Optional.of(new PostPreviewToken(74L, "content-hash", PostStatus.DRAFT, 7L)));
+		when(postRepository.findById(74L)).thenReturn(Optional.of(post));
 
 		BusinessException exception = assertThrows(BusinessException.class,
 				() -> postService.retrievePostPreview(token));
@@ -776,13 +802,14 @@ class PostServiceImplTest {
 	@Test
 	@DisplayName("Should fail preview token creation when it cannot be persisted")
 	void createPreviewToken_RejectsUnavailablePreviewStore() {
-		Post post = post(74L, "Preview article");
+		Post post = post(75L, "Preview article");
 		post.setContentHash("content-hash");
 		post.setStatus(PostStatus.DRAFT);
-		when(postRepository.findById(74L)).thenReturn(Optional.of(post));
+		post.setLockVersion(9L);
+		when(postRepository.findById(75L)).thenReturn(Optional.of(post));
 		when(redisUtil.set(anyString(), any(PostPreviewToken.class), eq(30L), eq(TimeUnit.MINUTES))).thenReturn(false);
 
-		BusinessException exception = assertThrows(BusinessException.class, () -> postService.createPreviewToken(74L));
+		BusinessException exception = assertThrows(BusinessException.class, () -> postService.createPreviewToken(75L));
 
 		assertEquals("Preview service is temporarily unavailable", exception.getMessage());
 	}
