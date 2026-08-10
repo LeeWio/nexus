@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import space.nebula.nexus.enums.PostContentType;
+import space.nebula.nexus.enums.PostRevisionKind;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -36,6 +37,10 @@ public class PostRevision implements Serializable {
 	@JoinColumn(name = "post_id", nullable = false)
 	private Post post;
 
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "parent_revision_id")
+	private PostRevision parentRevision;
+
 	@Column(nullable = false, length = 200)
 	private String title;
 
@@ -53,14 +58,31 @@ public class PostRevision implements Serializable {
 	@Column(name = "version_number", nullable = false)
 	private Integer versionNumber;
 
+	@Column(name = "base_version_number")
+	private Integer baseVersionNumber;
+
+	@Column(name = "source_revision_id")
+	private Long sourceRevisionId;
+
 	@Column(name = "change_type", length = 50)
 	private String changeType;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "revision_kind", nullable = false, length = 32)
+	private PostRevisionKind revisionKind = PostRevisionKind.LEGACY;
 
 	@Column(name = "change_summary", length = 500)
 	private String changeSummary;
 
 	@Column(name = "content_hash", length = 64)
 	private String contentHash;
+
+	@Lob
+	@Column(name = "snapshot_json", columnDefinition = "LONGTEXT")
+	private String snapshotJson;
+
+	@Column(name = "snapshot_hash", length = 64)
+	private String snapshotHash;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "created_by")

@@ -11,14 +11,12 @@ import space.nebula.nexus.common.event.PostDeletedEvent;
 import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.service.IStaticGenerationService;
-import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostSearchService;
 import space.nebula.nexus.utils.RedisUtil;
 import space.nebula.nexus.common.constant.CacheConstants;
 
 /**
- * Listener for Post related events. Decouples core business from side-effects
- * like indexing and revisioning.
+ * Listener for post change side effects that run after transaction commit.
  */
 @Slf4j
 @Component
@@ -26,7 +24,6 @@ import space.nebula.nexus.common.constant.CacheConstants;
 public class PostEventListener {
 
 	private final IPostSearchService postSearchService;
-	private final IPostRevisionService postRevisionService;
 	private final IStaticGenerationService staticGenerationService;
 	private final RedisUtil redisUtil;
 
@@ -59,24 +56,6 @@ public class PostEventListener {
 			staticGenerationService.deletePostStaticHtml(event.getPreviousSlug());
 		}
 
-		if (shouldSaveRevision(event.getChangeType())) {
-			postRevisionService.saveRevision(event.getPost(), event.getChangeType().name(),
-					revisionSummary(event.getChangeType()));
-		}
-	}
-
-	private boolean shouldSaveRevision(PostChangeType changeType) {
-		return changeType == PostChangeType.CREATED || changeType == PostChangeType.UPDATED
-				|| changeType == PostChangeType.RESTORED_TO_DRAFT;
-	}
-
-	private String revisionSummary(PostChangeType changeType) {
-		return switch (changeType) {
-			case CREATED -> "Initial post content";
-			case UPDATED -> "Post content or metadata updated";
-			case RESTORED_TO_DRAFT -> "Archived post restored for a new editing cycle";
-			default -> "Post snapshot saved";
-		};
 	}
 
 	/**

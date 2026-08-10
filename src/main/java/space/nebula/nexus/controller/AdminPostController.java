@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
@@ -24,6 +25,8 @@ import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostDiffResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.payload.response.PostRevisionResponse;
+import space.nebula.nexus.payload.response.PostRevisionDetailResponse;
+import space.nebula.nexus.payload.response.PostRevisionSummaryResponse;
 import space.nebula.nexus.payload.response.PostReportResponse;
 import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostReportService;
@@ -103,8 +106,9 @@ public class AdminPostController {
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Post not found")})
 	public ApiResponse<PostResponse> updatePost(
 			@Parameter(description = "ID of the post to update") @PathVariable Long id,
+			@Parameter(description = "Optional current revision version. Accepts 3 or \"revision-3\" and rejects stale writes with HTTP 409.") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
 			@Valid @RequestBody PostRequest request) {
-		return postService.updatePost(id, request);
+		return postService.updatePost(id, request, parseExpectedRevision(ifMatch));
 	}
 
 	@DeleteMapping("/{id}")
@@ -216,6 +220,23 @@ public class AdminPostController {
 		return postRevisionService.getPostRevisions(id);
 	}
 
+	@GetMapping("/{id}/revisions/summary")
+	@PreAuthorize("hasPermission(#id, 'Post', 'READ') or hasAnyRole('ADMIN', 'EDITOR')")
+	@Operation(summary = "List revision metadata", description = "Returns a lightweight revision timeline without loading historical article bodies.")
+	public ApiResponse<List<PostRevisionSummaryResponse>> retrieveRevisionSummaries(
+			@Parameter(description = "ID of the post") @PathVariable Long id) {
+		return postRevisionService.getPostRevisionSummaries(id);
+	}
+
+	@GetMapping("/{id}/revisions/{revisionId}")
+	@PreAuthorize("hasPermission(#id, 'Post', 'READ') or hasAnyRole('ADMIN', 'EDITOR')")
+	@Operation(summary = "Get revision detail", description = "Returns one immutable revision snapshot including its article content.")
+	public ApiResponse<PostRevisionDetailResponse> retrieveRevision(
+			@Parameter(description = "ID of the post") @PathVariable Long id,
+			@Parameter(description = "ID of the revision") @PathVariable Long revisionId) {
+		return postRevisionService.getPostRevision(id, revisionId);
+	}
+
 	@PostMapping("/{id}/revisions/{revisionId}/revert")
 	@PreAuthorize("hasPermission(#id, 'Post', 'EDIT')")
 	@Operation(summary = "Revert to revision", description = "Restores the post content and metadata from a previous revision.")
@@ -223,8 +244,9 @@ public class AdminPostController {
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Reversion successful"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Post or Revision not found")})
 	public ApiResponse<PostResponse> revertToRevision(@Parameter(description = "ID of the post") @PathVariable Long id,
-			@Parameter(description = "ID of the specific revision") @PathVariable Long revisionId) {
-		return postRevisionService.revertToRevision(id, revisionId);
+			@Parameter(description = "ID of the specific revision") @PathVariable Long revisionId,
+			@Parameter(description = "Optional current revision version. Rejects stale restores with HTTP 409.") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch) {
+		return postRevisionService.revertToRevision(id, revisionId, parseExpectedRevision(ifMatch));
 	}
 
 	@GetMapping("/{id}/revisions/compare")
@@ -242,5 +264,30 @@ public class AdminPostController {
 	public ApiResponse<Void> regenerateStaticHtml() {
 		staticGenerationService.regenerateAllPosts();
 		return ApiResponse.success("Static HTML regeneration task initiated", null);
+	}
+
+	private Integer parseExpectedRevision(String ifMatch) {
+		if (ifMatch == null || ifMatch.isBlank() || "*".equals(ifMatch.trim())) {
+			return null;
+		}
+		String value = ifMatch.trim();
+		if (value.startsWith("W/")) {
+			value = value.substring(2);
+		}
+		value = value.replace("\"", "");
+		if (value.startsWith("revision-")) {
+			value = value.substring("revision-".length());
+		}
+		try {
+			int revisionNumber = Integer.parseInt(value);
+			if (revisionNumber < 0) {
+				throw new NumberFormatException("negative revision");
+			}
+			return revisionNumber;
+		} catch (NumberFormatException exception) {
+			throw new space.nebula.nexus.common.exception.BusinessException(
+					space.nebula.nexus.common.constant.BusinessCode.BAD_REQUEST,
+					"If-Match must contain a non-negative revision number");
+		}
 	}
 }

@@ -24,6 +24,7 @@ import space.nebula.nexus.config.BlogDiscoveryProperties;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.PostContentType;
+import space.nebula.nexus.enums.PostRevisionKind;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.payload.request.BatchDeleteRequest;
 import space.nebula.nexus.mapper.PostMapper;
@@ -46,6 +47,7 @@ import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.repository.specification.PostSpecification;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IInteractionService;
+import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostService;
 import space.nebula.nexus.service.ISlugService;
 import space.nebula.nexus.service.PostRankingService;
@@ -84,6 +86,7 @@ public class PostServiceImpl implements IPostService {
 	private final RedisUtil redisUtil;
 	private final ApplicationEventPublisher eventPublisher;
 	private final IInteractionService interactionService;
+	private final IPostRevisionService postRevisionService;
 	private final ISlugService slugService;
 	private final PostRankingService postRankingService;
 	private final space.nebula.nexus.common.validator.PostValidator postValidator;
@@ -155,6 +158,7 @@ public class PostServiceImpl implements IPostService {
 			newPost.updatePath(newPost.getParent());
 			postRepository.save(newPost);
 		}
+		postRevisionService.saveRevision(newPost, PostRevisionKind.CREATED, "Initial post content");
 
 		log.info("Blog post created: {} by {}", newPost.getTitle(), currentAuthor.getUsername());
 
@@ -173,8 +177,18 @@ public class PostServiceImpl implements IPostService {
 	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
 			CacheConstants.SEO}, allEntries = true)
 	public ApiResponse<PostResponse> updatePost(Long id, PostRequest request) {
+		return updatePost(id, request, null);
+	}
+
+	@Override
+	@Transactional
+	@LogOperation("Update Blog Post")
+	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
+			CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<PostResponse> updatePost(Long id, PostRequest request, Integer expectedRevisionNumber) {
 		postValidator.validatePostRequest(request);
 		Post existingPost = findPostForUpdateOrThrow(id);
+		postRevisionService.assertExpectedRevision(id, expectedRevisionNumber);
 
 		// Admins can edit posts in any state; standard users only DRAFT or REJECTED.
 		boolean isAdmin = SecurityUtil.hasRole("ADMIN");
@@ -214,6 +228,8 @@ public class PostServiceImpl implements IPostService {
 		if (previousPath != null && !previousPath.equals(existingPost.getPath())) {
 			postRepository.replaceDescendantPathPrefix(existingPost.getId(), previousPath, existingPost.getPath());
 		}
+		postRevisionService.saveRevision(existingPost, PostRevisionKind.UPDATED,
+				"Post content or metadata updated");
 
 		log.info("Blog post updated: {}", existingPost.getTitle());
 
@@ -320,6 +336,7 @@ public class PostServiceImpl implements IPostService {
 		postRepository.save(copiedPost);
 		copiedPost.updatePath(null);
 		postRepository.save(copiedPost);
+		postRevisionService.saveRevision(copiedPost, PostRevisionKind.CREATED, "Copied from post " + source.getId());
 		eventPublisher.publishEvent(new PostChangedEvent(this, copiedPost, PostChangeType.CREATED));
 		log.info("Post {} copied as {} by {}", source.getId(), copiedPost.getId(), currentAuthor.getUsername());
 		return ApiResponse.success("Post copied successfully", postMapper.toResponse(copiedPost));
@@ -472,6 +489,8 @@ public class PostServiceImpl implements IPostService {
 
 		post.restoreToDraft();
 		postRepository.save(post);
+		postRevisionService.saveRevision(post, PostRevisionKind.RESTORED,
+				"Archived post restored for a new editing cycle");
 		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.RESTORED_TO_DRAFT));
 		log.info("Archived post '{}' restored to draft", post.getTitle());
 		return ApiResponse.success("Post restored to draft", null);

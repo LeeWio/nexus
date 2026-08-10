@@ -39,6 +39,7 @@ public interface PostMapper {
 
 	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 	@Mapping(target = "id", ignore = true)
+	@Mapping(target = "lockVersion", ignore = true)
 	@Mapping(target = "slug", ignore = true)
 	@Mapping(target = "category", ignore = true)
 	@Mapping(target = "series", ignore = true)

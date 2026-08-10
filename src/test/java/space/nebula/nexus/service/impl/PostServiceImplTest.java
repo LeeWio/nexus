@@ -20,6 +20,7 @@ import space.nebula.nexus.entity.PostSeries;
 import space.nebula.nexus.entity.Tag;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.PostContentType;
+import space.nebula.nexus.enums.PostRevisionKind;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.payload.request.BatchDeleteRequest;
 import space.nebula.nexus.mapper.PostMapper;
@@ -36,6 +37,7 @@ import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.TagRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.IInteractionService;
+import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.PostRankingService;
 import space.nebula.nexus.utils.RedisUtil;
@@ -72,6 +74,8 @@ class PostServiceImplTest {
 	private ApplicationEventPublisher eventPublisher;
 	@Mock
 	private IInteractionService interactionService;
+	@Mock
+	private IPostRevisionService postRevisionService;
 
 	@Mock
 	private space.nebula.nexus.repository.PostSeriesRepository seriesRepository;
@@ -131,6 +135,34 @@ class PostServiceImplTest {
 			ArgumentCaptor<Post> savedPost = ArgumentCaptor.forClass(Post.class);
 			verify(postRepository, times(2)).save(savedPost.capture());
 			assertTrue(savedPost.getAllValues().stream().allMatch(post -> post.getStatus() == PostStatus.DRAFT));
+			verify(postRevisionService).saveRevision(any(Post.class), eq(PostRevisionKind.CREATED),
+					eq("Initial post content"));
+			verify(eventPublisher).publishEvent(any());
+		}
+	}
+
+	@Test
+	@DisplayName("Should save an update revision after validating the expected version")
+	void updatePost_SavesRevisionAfterVersionValidation() {
+		Post existingPost = post(60L, "Original title");
+		existingPost.setSlug("original-title");
+		existingPost.setStatus(PostStatus.DRAFT);
+		PostRequest request = new PostRequest("Updated title", "original-title", null, "Summary", "Updated content",
+				PostContentType.MDX, PostStatus.DRAFT, false, null, null, null, null, null);
+		PostResponse postResponse = mock(PostResponse.class);
+		when(postRepository.findByIdForUpdate(60L)).thenReturn(Optional.of(existingPost));
+		when(postMapper.toResponse(existingPost)).thenReturn(postResponse);
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.hasRole("ADMIN")).thenReturn(false);
+			mockedSecurity.when(SecurityUtil::getCurrentUsername).thenReturn("author");
+
+			ApiResponse<PostResponse> response = postService.updatePost(60L, request, 3);
+
+			assertSame(postResponse, response.data());
+			verify(postRevisionService).assertExpectedRevision(60L, 3);
+			verify(postRevisionService).saveRevision(existingPost, PostRevisionKind.UPDATED,
+					"Post content or metadata updated");
 			verify(eventPublisher).publishEvent(any());
 		}
 	}

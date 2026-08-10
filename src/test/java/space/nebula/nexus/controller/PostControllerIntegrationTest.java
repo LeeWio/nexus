@@ -130,6 +130,45 @@ public class PostControllerIntegrationTest {
 
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
+	public void testRevisionTimelineDetailRestoreAndStaleWriteProtection() throws Exception {
+		PostRequest initialRequest = new PostRequest("Revision source", "revision-source", null, "Original summary",
+				"Original content", null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
+		String created = mockMvc
+				.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(initialRequest)))
+				.andReturn().getResponse().getContentAsString();
+		Long postId = objectMapper.readTree(created).get("data").get("id").asLong();
+
+		String firstTimeline = mockMvc.perform(get("/api/v1/admin/posts/" + postId + "/revisions/summary"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data[0].versionNumber").value(1)).andReturn()
+				.getResponse().getContentAsString();
+		Long firstRevisionId = objectMapper.readTree(firstTimeline).get("data").get(0).get("id").asLong();
+
+		PostRequest updatedRequest = new PostRequest("Revision source updated", "revision-source", null,
+				"Updated summary", "Updated content", null, PostStatus.DRAFT, false, categoryId, null, null, null,
+				null);
+		mockMvc.perform(put("/api/v1/admin/posts/" + postId).with(csrf())
+				.header("If-Match", "\"revision-1\"").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(updatedRequest))).andExpect(status().isOk());
+
+		mockMvc.perform(put("/api/v1/admin/posts/" + postId).with(csrf()).header("If-Match", "revision-1")
+				.contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(updatedRequest)))
+				.andExpect(status().isConflict());
+
+		mockMvc.perform(get("/api/v1/admin/posts/" + postId + "/revisions/" + firstRevisionId))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.snapshot.content").value("Original content"));
+
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/revisions/" + firstRevisionId + "/revert")
+				.with(csrf()).header("If-Match", "revision-2")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.content").value("Original content"));
+
+		mockMvc.perform(get("/api/v1/admin/posts/" + postId + "/revisions/summary")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.length()").value(3)).andExpect(jsonPath("$.data[0].revisionKind")
+						.value("RESTORED"));
+	}
+
+	@Test
+	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testCopyAndBatchDeletePosts() throws Exception {
 		PostRequest createRequest = new PostRequest("Copy Source", "copy-source", null, "Summary", "Content", null,
 				PostStatus.DRAFT, false, categoryId, null, null, null, null);

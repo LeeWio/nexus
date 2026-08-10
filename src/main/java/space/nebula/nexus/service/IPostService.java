@@ -28,6 +28,12 @@ public interface IPostService {
 
 	ApiResponse<PostResponse> updatePost(Long id, PostRequest request);
 
+	/**
+	 * Updates a post and rejects the write when the client is editing a stale
+	 * revision. A {@code null} expected revision keeps legacy clients compatible.
+	 */
+	ApiResponse<PostResponse> updatePost(Long id, PostRequest request, Integer expectedRevisionNumber);
+
 	ApiResponse<Void> deletePost(Long id);
 
 	ApiResponse<Void> deletePosts(BatchDeleteRequest request);
