@@ -79,22 +79,8 @@ public class GitHubServiceImpl implements IGitHubService {
 		List<Project> projects = projectRepository.findAll();
 
 		List<CompletableFuture<Project>> futures = projects.stream()
-				.map(project -> CompletableFuture.supplyAsync(() -> {
-					if (project.getGithubUrl() != null && !project.getGithubUrl().isBlank()) {
-						String repoName = extractRepoName(project.getGithubUrl());
-						if (repoName != null) {
-							Map<String, Object> metrics = retrieveRepoMetrics(repoName);
-							if (metrics != null) {
-								project.setStarsCount((Integer) metrics.get("stars"));
-								project.setForksCount((Integer) metrics.get("forks"));
-								project.setLanguage((String) metrics.get("language"));
-								project.setRepoName(repoName);
-								return project;
-							}
-						}
-					}
-					return null;
-				}, outboundExecutor)).toList();
+				.map(project -> CompletableFuture.supplyAsync(() -> synchronizeProjectMetrics(project), outboundExecutor))
+				.toList();
 
 		List<Project> updatedProjects = futures.stream().map(CompletableFuture::join).filter(java.util.Objects::nonNull)
 				.toList();
@@ -107,6 +93,33 @@ public class GitHubServiceImpl implements IGitHubService {
 
 		// Also refresh global stats
 		redisUtil.delete(CacheConstants.GITHUB_STATS_CACHE_KEY);
+	}
+
+	private Project synchronizeProjectMetrics(Project project) {
+		if (project.getGithubUrl() == null || project.getGithubUrl().isBlank()) {
+			return null;
+		}
+
+		String repoName = extractRepoName(project.getGithubUrl());
+		if (repoName == null) {
+			return null;
+		}
+
+		try {
+			Map<String, Object> metrics = retrieveRepoMetrics(repoName);
+			if (metrics == null) {
+				return null;
+			}
+
+			project.setStarsCount((Integer) metrics.get("stars"));
+			project.setForksCount((Integer) metrics.get("forks"));
+			project.setLanguage((String) metrics.get("language"));
+			project.setRepoName(repoName);
+			return project;
+		} catch (RuntimeException exception) {
+			log.warn("Skipping GitHub metric synchronization for {}: {}", repoName, exception.getMessage());
+			return null;
+		}
 	}
 
 	private GitHubStatsResponse fetchGlobalStatsFromApi() {
