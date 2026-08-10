@@ -695,7 +695,11 @@ public class PostServiceImpl implements IPostService {
 	public ApiResponse<String> createPreviewToken(Long id) {
 		Post post = findPostOrThrow(id);
 		String token = UUID.randomUUID().toString();
-		redisUtil.set(CacheConstants.POST_PREVIEW_PREFIX + token, post.getId(), 30, TimeUnit.MINUTES);
+		String previewKey = CacheConstants.POST_PREVIEW_PREFIX + token;
+		PostPreviewToken previewToken = new PostPreviewToken(post.getId(), previewContentHash(post), post.getStatus());
+		if (!redisUtil.set(previewKey, previewToken, 30, TimeUnit.MINUTES)) {
+			throw new BusinessException(BusinessCode.ERROR, "Preview service is temporarily unavailable");
+		}
 		return ApiResponse.success("Preview token created", token);
 	}
 
@@ -703,9 +707,14 @@ public class PostServiceImpl implements IPostService {
 	@Transactional(readOnly = true)
 	public ApiResponse<PostResponse> retrievePostPreview(String token) {
 		Assert.notBlank(token, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Preview token is required"));
-		Long postId = redisUtil.get(CacheConstants.POST_PREVIEW_PREFIX + token, Long.class).orElseThrow(
+		String previewKey = CacheConstants.POST_PREVIEW_PREFIX + token;
+		PostPreviewToken previewToken = redisUtil.get(previewKey, PostPreviewToken.class).orElseThrow(
 				() -> new BusinessException(BusinessCode.NOT_FOUND, "Preview token is invalid or expired"));
-		Post post = findPostOrThrow(postId);
+		Post post = findPostOrThrow(previewToken.postId());
+		if (!previewToken.matches(post.getId(), previewContentHash(post), post.getStatus())) {
+			redisUtil.delete(previewKey);
+			throw new BusinessException(BusinessCode.NOT_FOUND, "Preview token is invalid or expired");
+		}
 		PostResponse response = postMapper.toResponse(post);
 		PostResponse.PostResponseBuilder responseBuilder = response.toBuilder();
 		populateWikiMetadata(responseBuilder, response);
@@ -1017,5 +1026,13 @@ public class PostServiceImpl implements IPostService {
 		post.setAutoSummary(metadata.autoSummary());
 		post.setToc(metadata.toc());
 		post.setContentHash(metadata.contentHash());
+	}
+
+	private String previewContentHash(Post post) {
+		if (StrUtil.isNotBlank(post.getContentHash())) {
+			return post.getContentHash();
+		}
+		return PostContentAnalyzer.analyze(post.getTitle(), post.getSummary(), post.getContent(), post.getContentType())
+				.contentHash();
 	}
 }
