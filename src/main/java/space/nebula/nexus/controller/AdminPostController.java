@@ -239,7 +239,7 @@ public class AdminPostController {
 
 	@PostMapping("/{id}/revisions/{revisionId}/revert")
 	@PreAuthorize("hasPermission(#id, 'Post', 'EDIT')")
-	@Operation(summary = "Revert to revision", description = "Restores the post content and metadata from a previous revision.")
+	@Operation(summary = "Revert to revision", description = "Restores the post's editable content and metadata from a previous revision without changing its current workflow state.")
 	@ApiResponses({
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Reversion successful"),
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Post or Revision not found")})
