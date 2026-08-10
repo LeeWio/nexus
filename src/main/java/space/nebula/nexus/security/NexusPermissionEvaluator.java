@@ -77,7 +77,7 @@ public class NexusPermissionEvaluator implements PermissionEvaluator {
 		boolean isEditor = roles.contains("ROLE_EDITOR");
 
 		return switch (permission.toUpperCase()) {
-			case "READ" -> true; // Depends on status, but technically controlled by service logic
+			case "READ" -> isAuthor || isEditor;
 			case "EDIT", "DELETE" -> isAuthor || isEditor;
 			case "SUBMIT" -> isAuthor;
 			case "APPROVE", "REJECT" -> isEditor; // Only Editors (and Admins) can approve/reject
