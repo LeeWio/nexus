@@ -199,8 +199,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 
 	private PostRevisionSnapshot toSnapshot(Post post) {
 		Set<Long> tagIds = Optional.ofNullable(post.getTags()).orElseGet(Set::of).stream().map(tag -> tag.getId())
-				.filter(Objects::nonNull)
-				.collect(java.util.stream.Collectors.toCollection(TreeSet::new));
+				.filter(Objects::nonNull).collect(java.util.stream.Collectors.toCollection(TreeSet::new));
 		return new PostRevisionSnapshot(post.getTitle(), post.getSlug(), post.getCoverImage(), post.getSummary(),
 				post.getContent(), post.getContentType(), post.getStatus(), post.getIsFeatured(),
 				post.getCategory() == null ? null : post.getCategory().getId(), tagIds,
@@ -210,8 +209,8 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 
 	private PostRevisionSnapshot snapshotFor(PostRevision revision) {
 		if (revision.getSnapshotJson() == null) {
-			return new PostRevisionSnapshot(revision.getTitle(), null, null, revision.getSummary(), revision.getContent(),
-					revision.getContentType(), null, false, null, Set.of(), null, null, null);
+			return new PostRevisionSnapshot(revision.getTitle(), null, null, revision.getSummary(),
+					revision.getContent(), revision.getContentType(), null, false, null, Set.of(), null, null, null);
 		}
 		try {
 			return objectMapper.readValue(revision.getSnapshotJson(), PostRevisionSnapshot.class);
@@ -221,13 +220,13 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 	}
 
 	/**
-	 * Restores the author-controlled fields captured by a modern revision. Workflow,
-	 * review, archive, and interaction fields deliberately remain untouched.
+	 * Restores the author-controlled fields captured by a modern revision.
+	 * Workflow, review, archive, and interaction fields deliberately remain
+	 * untouched.
 	 */
 	private void restoreEditableMetadata(Post post, PostRevisionSnapshot snapshot) {
 		String snapshotSlug = snapshot.slug();
-		Assert.notBlank(snapshotSlug,
-				() -> new BusinessException(500, "Stored post revision is missing its slug"));
+		Assert.notBlank(snapshotSlug, () -> new BusinessException(500, "Stored post revision is missing its slug"));
 		postRepository.findBySlug(snapshotSlug).filter(candidate -> !candidate.getId().equals(post.getId()))
 				.ifPresent(candidate -> {
 					throw new BusinessException(BusinessCode.DUPLICATE_KEY,
@@ -248,8 +247,8 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 			post.setCategory(null);
 			return;
 		}
-		post.setCategory(categoryRepository.findById(categoryId).orElseThrow(
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+		post.setCategory(categoryRepository.findById(categoryId)
+				.orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST,
 						"Cannot restore revision because category " + categoryId + " no longer exists")));
 	}
 
@@ -272,8 +271,8 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 			post.setSeriesOrder(0);
 			return;
 		}
-		post.setSeries(seriesRepository.findById(seriesId).orElseThrow(
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+		post.setSeries(
+				seriesRepository.findById(seriesId).orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST,
 						"Cannot restore revision because series " + seriesId + " no longer exists")));
 		post.setSeriesOrder(seriesOrder == null ? 0 : seriesOrder);
 	}
@@ -286,12 +285,14 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 		}
 		Assert.isFalse(parentId.equals(post.getId()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "A post cannot be its own parent"));
-		Post parent = postRepository.findById(parentId).orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST,
-				"Cannot restore revision because parent post " + parentId + " no longer exists"));
+		Post parent = postRepository.findById(parentId)
+				.orElseThrow(() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Cannot restore revision because parent post " + parentId + " no longer exists"));
 		Assert.notBlank(parent.getPath(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
 				"Cannot restore revision because parent post has no hierarchy path"));
-		Assert.isFalse(parent.getPath().contains("/" + post.getId() + "/"), () -> new BusinessException(
-				BusinessCode.BAD_REQUEST, "A post cannot be moved below one of its descendants"));
+		Assert.isFalse(parent.getPath().contains("/" + post.getId() + "/"),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"A post cannot be moved below one of its descendants"));
 		post.setParent(parent);
 		post.updatePath(parent);
 	}
@@ -380,7 +381,8 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 	}
 
 	private String escapeHtml(String input) {
-		return input == null ? ""
+		return input == null
+				? ""
 				: input.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 						.replace("'", "&#39;");
 	}

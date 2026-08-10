@@ -126,10 +126,9 @@ class PostRevisionServiceImplTest {
 		target.setId(201L);
 		target.setPost(post);
 		target.setVersionNumber(1);
-		target.setSnapshotJson(objectMapper.writeValueAsString(
-				new PostRevisionSnapshot("Restored title", "restored-title", "cover.png", "Restored summary",
-						"Restored content", PostContentType.MDX, PostStatus.DRAFT, false, null, java.util.Set.of(),
-						null, 0, null)));
+		target.setSnapshotJson(objectMapper.writeValueAsString(new PostRevisionSnapshot("Restored title",
+				"restored-title", "cover.png", "Restored summary", "Restored content", PostContentType.MDX,
+				PostStatus.DRAFT, false, null, java.util.Set.of(), null, 0, null)));
 		PostRevision latest = new PostRevision();
 		latest.setId(202L);
 		latest.setVersionNumber(2);
@@ -231,8 +230,8 @@ class PostRevisionServiceImplTest {
 		target.setPost(post);
 		target.setVersionNumber(1);
 		target.setSnapshotJson(objectMapper.writeValueAsString(new PostRevisionSnapshot("Restored title",
-				"restored-slug", null, "Restored summary", "Restored content", PostContentType.MDX,
-				PostStatus.DRAFT, false, null, Set.of(701L), null, 0, null)));
+				"restored-slug", null, "Restored summary", "Restored content", PostContentType.MDX, PostStatus.DRAFT,
+				false, null, Set.of(701L), null, 0, null)));
 
 		when(postRepository.findByIdForUpdate(16L)).thenReturn(Optional.of(post));
 		when(postRevisionRepository.findById(501L)).thenReturn(Optional.of(target));

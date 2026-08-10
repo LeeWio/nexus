@@ -129,7 +129,8 @@ public class AdminPostController {
 	@PostMapping("/{id}/copy")
 	@PreAuthorize("hasPermission(#id, 'Post', 'EDIT')")
 	@Operation(summary = "Copy a post", description = "Create an independent draft from an editable post. Content, category, and tags are retained while publication and interaction data are reset.")
-	public ApiResponse<PostResponse> copyPost(@Parameter(description = "ID of the post to copy") @PathVariable Long id) {
+	public ApiResponse<PostResponse> copyPost(
+			@Parameter(description = "ID of the post to copy") @PathVariable Long id) {
 		return postService.copyPost(id);
 	}
 
