@@ -130,6 +130,27 @@ public class PostControllerIntegrationTest {
 
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
+	public void testCopyAndBatchDeletePosts() throws Exception {
+		PostRequest createRequest = new PostRequest("Copy Source", "copy-source", null, "Summary", "Content", null,
+				PostStatus.DRAFT, false, categoryId, null, null, null, null);
+		String created = mockMvc
+				.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(createRequest)))
+				.andReturn().getResponse().getContentAsString();
+		Long sourceId = objectMapper.readTree(created).get("data").get("id").asLong();
+
+		String copied = mockMvc
+				.perform(post("/api/v1/admin/posts/" + sourceId + "/copy").with(csrf()))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.title").value("Copy Source (Copy)"))
+				.andExpect(jsonPath("$.data.status").value("DRAFT")).andReturn().getResponse().getContentAsString();
+		Long copiedId = objectMapper.readTree(copied).get("data").get("id").asLong();
+
+		mockMvc.perform(delete("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"ids\":[" + sourceId + "," + copiedId + "]}")).andExpect(status().isOk());
+	}
+
+	@Test
+	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testCompleteEditorialLifecycle() throws Exception {
 		PostRequest createRequest = new PostRequest("Lifecycle Post", "lifecycle-post", null, "Summary", "Content",
 				null, PostStatus.DRAFT, false, categoryId, null, null, null, null);

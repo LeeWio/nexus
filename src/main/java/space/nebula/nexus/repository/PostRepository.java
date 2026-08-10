@@ -18,6 +18,7 @@ import space.nebula.nexus.enums.PostStatus;
 import java.util.Optional;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificationExecutor<Post> {
@@ -26,6 +27,19 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("SELECT p FROM Post p WHERE p.id = :id")
 	Optional<Post> findByIdForUpdate(Long id);
+
+	/** Locks a bounded post set before a destructive batch operation. */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT p FROM Post p WHERE p.id IN :ids")
+	List<Post> findAllByIdInForUpdate(Collection<Long> ids);
+
+	/**
+	 * Identifies selected parent posts that would retain children outside a batch
+	 * delete operation.
+	 */
+	@Query("SELECT DISTINCT child.parent.id FROM Post child WHERE child.parent.id IN :parentIds "
+			+ "AND child.id NOT IN :excludedIds")
+	Set<Long> findParentIdsWithChildrenOutside(Collection<Long> parentIds, Collection<Long> excludedIds);
 
 	@EntityGraph(attributePaths = {"category", "author", "tags", "series", "parent"})
 	Optional<Post> findBySlug(String slug);

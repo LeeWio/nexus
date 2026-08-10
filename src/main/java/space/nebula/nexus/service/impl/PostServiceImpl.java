@@ -25,6 +25,7 @@ import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.payload.request.BatchDeleteRequest;
 import space.nebula.nexus.mapper.PostMapper;
 import space.nebula.nexus.payload.request.PostAutosaveRequest;
 import space.nebula.nexus.payload.request.PostArchiveRequest;
@@ -246,6 +247,82 @@ public class PostServiceImpl implements IPostService {
 		eventPublisher.publishEvent(new PostDeletedEvent(this, id, currentSlug));
 
 		return ApiResponse.success("Post deleted successfully", null);
+	}
+
+	@Override
+	@Transactional
+	@LogOperation("Batch Delete Blog Posts")
+	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
+			CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<Void> deletePosts(BatchDeleteRequest request) {
+		Assert.notNull(request, () -> new BusinessException(BusinessCode.BAD_REQUEST, "A delete request is required"));
+		List<Long> postIds = request.ids().stream().distinct().sorted().toList();
+		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		List<Post> posts = postRepository.findAllByIdInForUpdate(postIds);
+		Assert.isTrue(posts.size() == postIds.size(),
+				() -> new ResourceNotFoundException("Post", "ids", postIds));
+
+		for (Post post : posts) {
+			Assert.isTrue(canManagePost(currentUser, post), () -> new BusinessException(BusinessCode.FORBIDDEN,
+					"You do not have permission to delete one or more selected posts"));
+			Assert.isTrue(post.isDeletable(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
+					"Withdraw, cancel, or archive every selected post before deleting it"));
+		}
+
+		Set<Long> blockedParentIds = postRepository.findParentIdsWithChildrenOutside(postIds, postIds);
+		Assert.isTrue(blockedParentIds.isEmpty(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
+				"Move or include all child posts before deleting their parents"));
+
+		postRepository.deleteAll(posts);
+		posts.forEach(post -> eventPublisher.publishEvent(new PostDeletedEvent(this, post.getId(), post.getSlug())));
+		log.info("Deleted {} blog posts by {}", posts.size(), currentUser.getUsername());
+		return ApiResponse.success("Posts deleted successfully", null);
+	}
+
+	@Override
+	@Transactional
+	@LogOperation("Copy Blog Post")
+	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
+			CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<PostResponse> copyPost(Long id) {
+		Post source = findPostOrThrow(id);
+		User currentAuthor = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		String copiedTitle = copyTitle(source.getTitle());
+
+		Post copiedPost = new Post();
+		copiedPost.setTitle(copiedTitle);
+		copiedPost.setSlug(generateCopySlug(source, copiedTitle));
+		copiedPost.setCoverImage(source.getCoverImage());
+		copiedPost.setSummary(source.getSummary());
+		copiedPost.setContent(source.getContent());
+		copiedPost.setContentType(source.getContentType());
+		copiedPost.moveToDraft();
+		copiedPost.setIsFeatured(false);
+		copiedPost.setCategory(source.getCategory());
+		copiedPost.setTags(source.getTags() == null ? new HashSet<>() : new HashSet<>(source.getTags()));
+		copiedPost.setAuthor(currentAuthor);
+		copiedPost.setSeries(null);
+		copiedPost.setSeriesOrder(0);
+		copiedPost.setParent(null);
+		copiedPost.setViews(0L);
+		copiedPost.setLikesCount(0L);
+		copiedPost.setFavoritesCount(0L);
+		copiedPost.setPublishedAt(null);
+		copiedPost.setScheduledAt(null);
+		copiedPost.setReviewComment(null);
+		copiedPost.setReviewedAt(null);
+		copiedPost.setReviewedBy(null);
+		copiedPost.setArchiveReason(null);
+		copiedPost.setArchivedAt(null);
+		copiedPost.setArchivedBy(null);
+		refreshContentMetadata(copiedPost);
+
+		postRepository.save(copiedPost);
+		copiedPost.updatePath(null);
+		postRepository.save(copiedPost);
+		eventPublisher.publishEvent(new PostChangedEvent(this, copiedPost, PostChangeType.CREATED));
+		log.info("Post {} copied as {} by {}", source.getId(), copiedPost.getId(), currentAuthor.getUsername());
+		return ApiResponse.success("Post copied successfully", postMapper.toResponse(copiedPost));
 	}
 
 	@Override
@@ -822,6 +899,29 @@ public class PostServiceImpl implements IPostService {
 
 	private Post findPostForUpdateOrThrow(Long id) {
 		return postRepository.findByIdForUpdate(id).orElseThrow(() -> new ResourceNotFoundException("Post", "id", id));
+	}
+
+	private boolean canManagePost(User currentUser, Post post) {
+		return SecurityUtil.hasRole("ADMIN") || SecurityUtil.hasRole("EDITOR") || post.isAuthor(currentUser);
+	}
+
+	private String copyTitle(String sourceTitle) {
+		String suffix = " (Copy)";
+		int maxSourceTitleLength = 200 - suffix.length();
+		return sourceTitle.length() <= maxSourceTitleLength
+				? sourceTitle + suffix
+				: sourceTitle.substring(0, maxSourceTitleLength) + suffix;
+	}
+
+	private String generateCopySlug(Post source, String copiedTitle) {
+		String suffix = "-copy-" + UUID.randomUUID().toString().substring(0, 8);
+		String sourceSlug = StrUtil.blankToDefault(source.getSlug(), SlugUtil.toSlug(source.getTitle()));
+		int maxBaseLength = 200 - suffix.length();
+		String requestedSlug = sourceSlug.length() <= maxBaseLength
+				? sourceSlug + suffix
+				: sourceSlug.substring(0, maxBaseLength) + suffix;
+		return slugService.generateUniqueSlug(requestedSlug, copiedTitle,
+				candidate -> postRepository.findBySlug(candidate).isPresent());
 	}
 
 	private String validateAndGenerateSlug(String requestedSlug, String title) {

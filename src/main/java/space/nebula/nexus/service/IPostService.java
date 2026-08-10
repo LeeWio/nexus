@@ -4,6 +4,7 @@ import org.springframework.data.domain.Pageable;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.payload.request.BatchDeleteRequest;
 import space.nebula.nexus.payload.request.PostAutosaveRequest;
 import space.nebula.nexus.payload.request.PostArchiveRequest;
 import space.nebula.nexus.payload.request.PostRequest;
@@ -28,6 +29,10 @@ public interface IPostService {
 	ApiResponse<PostResponse> updatePost(Long id, PostRequest request);
 
 	ApiResponse<Void> deletePost(Long id);
+
+	ApiResponse<Void> deletePosts(BatchDeleteRequest request);
+
+	ApiResponse<PostResponse> copyPost(Long id);
 
 	/**
 	 * Submits a draft post for review.

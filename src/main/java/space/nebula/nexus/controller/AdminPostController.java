@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.enums.PostReportStatus;
+import space.nebula.nexus.payload.request.BatchDeleteRequest;
 import space.nebula.nexus.payload.request.PostAutosaveRequest;
 import space.nebula.nexus.payload.request.PostArchiveRequest;
 import space.nebula.nexus.payload.request.PostReportResolutionRequest;
@@ -112,6 +113,20 @@ public class AdminPostController {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Post deleted")
 	public ApiResponse<Void> deletePost(@Parameter(description = "ID of the post to delete") @PathVariable Long id) {
 		return postService.deletePost(id);
+	}
+
+	@DeleteMapping
+	@PreAuthorize("isAuthenticated()")
+	@Operation(summary = "Delete posts in batch", description = "Delete up to 100 draft, rejected, or archived posts in one atomic operation. A caller may only delete their own posts unless they are an editor or administrator.")
+	public ApiResponse<Void> deletePosts(@Valid @RequestBody BatchDeleteRequest request) {
+		return postService.deletePosts(request);
+	}
+
+	@PostMapping("/{id}/copy")
+	@PreAuthorize("hasPermission(#id, 'Post', 'EDIT')")
+	@Operation(summary = "Copy a post", description = "Create an independent draft from an editable post. Content, category, and tags are retained while publication and interaction data are reset.")
+	public ApiResponse<PostResponse> copyPost(@Parameter(description = "ID of the post to copy") @PathVariable Long id) {
+		return postService.copyPost(id);
 	}
 
 	@PostMapping("/{id}/submit")

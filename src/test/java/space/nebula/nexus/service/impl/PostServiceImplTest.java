@@ -21,6 +21,7 @@ import space.nebula.nexus.entity.Tag;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.payload.request.BatchDeleteRequest;
 import space.nebula.nexus.mapper.PostMapper;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.request.PostArchiveRequest;
@@ -43,6 +44,8 @@ import java.util.List;
 import java.util.Collections;
 import java.util.Optional;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -449,6 +452,117 @@ class PostServiceImplTest {
 
 		assertEquals("Only draft or rejected posts can be edited", exception.getMessage());
 		verify(postRepository, never()).save(post);
+	}
+
+	@Test
+	@DisplayName("Should batch delete owned posts after validating every target")
+	void deletePosts_Success() {
+		User author = new User();
+		author.setId(51L);
+		author.setUsername("author");
+		Post draft = post(41L, "Draft article");
+		draft.setStatus(PostStatus.DRAFT);
+		draft.setAuthor(author);
+		Post rejected = post(42L, "Rejected article");
+		rejected.setStatus(PostStatus.REJECTED);
+		rejected.setAuthor(author);
+		List<Long> postIds = List.of(41L, 42L);
+		when(postRepository.findAllByIdInForUpdate(postIds)).thenReturn(List.of(draft, rejected));
+		when(postRepository.findParentIdsWithChildrenOutside(postIds, postIds)).thenReturn(Set.of());
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(author);
+			mockedSecurity.when(() -> SecurityUtil.hasRole("ADMIN")).thenReturn(false);
+			mockedSecurity.when(() -> SecurityUtil.hasRole("EDITOR")).thenReturn(false);
+
+			ApiResponse<Void> response = postService.deletePosts(new BatchDeleteRequest(postIds));
+
+			assertEquals(200, response.code());
+			verify(postRepository).deleteAll(List.of(draft, rejected));
+			verify(eventPublisher, times(2)).publishEvent(any());
+		}
+	}
+
+	@Test
+	@DisplayName("Should keep a parent when a child outside the batch still exists")
+	void deletePosts_RejectsParentWithUnselectedChild() {
+		User author = new User();
+		author.setId(52L);
+		Post parent = post(43L, "Parent article");
+		parent.setStatus(PostStatus.DRAFT);
+		parent.setAuthor(author);
+		List<Long> postIds = List.of(43L);
+		when(postRepository.findAllByIdInForUpdate(postIds)).thenReturn(List.of(parent));
+		when(postRepository.findParentIdsWithChildrenOutside(postIds, postIds)).thenReturn(Set.of(43L));
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(author);
+			mockedSecurity.when(() -> SecurityUtil.hasRole("ADMIN")).thenReturn(false);
+			mockedSecurity.when(() -> SecurityUtil.hasRole("EDITOR")).thenReturn(false);
+
+			assertThrows(BusinessException.class, () -> postService.deletePosts(new BatchDeleteRequest(postIds)));
+
+			verify(postRepository, never()).deleteAll(any());
+		}
+	}
+
+	@Test
+	@DisplayName("Should copy content metadata while resetting publication state")
+	void copyPost_CreatesIndependentDraft() {
+		User author = new User();
+		author.setId(53L);
+		author.setUsername("author");
+		Category category = category(6L, "Engineering");
+		Tag tag = tag(7L, "Java");
+		Post source = post(44L, "Source article");
+		source.setSlug("source-article");
+		source.setContent("# Source");
+		source.setContentType(PostContentType.MDX);
+		source.setSummary("Source summary");
+		source.setCoverImage("https://example.com/cover.png");
+		source.setCategory(category);
+		source.setTags(new HashSet<>(Set.of(tag)));
+		source.setStatus(PostStatus.PUBLISHED);
+		source.setIsFeatured(true);
+		source.setViews(120L);
+		source.setLikesCount(8L);
+		source.setFavoritesCount(4L);
+		when(postRepository.findById(44L)).thenReturn(Optional.of(source));
+		when(slugService.generateUniqueSlug(anyString(), anyString(), any())).thenReturn("source-article-copy");
+		when(postRepository.save(any(Post.class))).thenAnswer(invocation -> {
+			Post savedPost = invocation.getArgument(0);
+			if (savedPost.getId() == null) {
+				savedPost.setId(45L);
+			}
+			return savedPost;
+		});
+		PostResponse copiedResponse = mock(PostResponse.class);
+		when(postMapper.toResponse(any(Post.class))).thenReturn(copiedResponse);
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(author);
+
+			ApiResponse<PostResponse> response = postService.copyPost(44L);
+
+			ArgumentCaptor<Post> copiedPostCaptor = ArgumentCaptor.forClass(Post.class);
+			verify(postRepository, times(2)).save(copiedPostCaptor.capture());
+			Post copiedPost = copiedPostCaptor.getAllValues().getFirst();
+			assertEquals(200, response.code());
+			assertSame(copiedResponse, response.data());
+			assertEquals("Source article (Copy)", copiedPost.getTitle());
+			assertEquals("source-article-copy", copiedPost.getSlug());
+			assertEquals(PostStatus.DRAFT, copiedPost.getStatus());
+			assertFalse(copiedPost.getIsFeatured());
+			assertEquals(0L, copiedPost.getViews());
+			assertEquals(0L, copiedPost.getLikesCount());
+			assertEquals(0L, copiedPost.getFavoritesCount());
+			assertSame(author, copiedPost.getAuthor());
+			assertSame(category, copiedPost.getCategory());
+			assertEquals(Set.of(tag), copiedPost.getTags());
+			assertNull(copiedPost.getSeries());
+			assertNull(copiedPost.getParent());
+			verify(eventPublisher).publishEvent(any());
+		}
 	}
 
 	@Test
