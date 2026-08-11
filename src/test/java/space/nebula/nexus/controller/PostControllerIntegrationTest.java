@@ -147,9 +147,9 @@ public class PostControllerIntegrationTest {
 		PostRequest updatedRequest = new PostRequest("Revision source updated", "revision-source", null,
 				"Updated summary", "Updated content", null, PostStatus.DRAFT, false, categoryId, null, null, null,
 				null);
-		mockMvc.perform(put("/api/v1/admin/posts/" + postId).with(csrf())
-				.header("If-Match", "\"revision-1\"").contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(updatedRequest))).andExpect(status().isOk());
+		mockMvc.perform(put("/api/v1/admin/posts/" + postId).with(csrf()).header("If-Match", "\"revision-1\"")
+				.contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(updatedRequest)))
+				.andExpect(status().isOk());
 
 		mockMvc.perform(put("/api/v1/admin/posts/" + postId).with(csrf()).header("If-Match", "revision-1")
 				.contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(updatedRequest)))
@@ -158,13 +158,13 @@ public class PostControllerIntegrationTest {
 		mockMvc.perform(get("/api/v1/admin/posts/" + postId + "/revisions/" + firstRevisionId))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.snapshot.content").value("Original content"));
 
-		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/revisions/" + firstRevisionId + "/revert")
-				.with(csrf()).header("If-Match", "revision-2")).andExpect(status().isOk())
+		mockMvc.perform(post("/api/v1/admin/posts/" + postId + "/revisions/" + firstRevisionId + "/revert").with(csrf())
+				.header("If-Match", "revision-2")).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.content").value("Original content"));
 
 		mockMvc.perform(get("/api/v1/admin/posts/" + postId + "/revisions/summary")).andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.length()").value(3)).andExpect(jsonPath("$.data[0].revisionKind")
-						.value("RESTORED"));
+				.andExpect(jsonPath("$.data.length()").value(3))
+				.andExpect(jsonPath("$.data[0].revisionKind").value("RESTORED"));
 	}
 
 	@Test
@@ -178,8 +178,7 @@ public class PostControllerIntegrationTest {
 				.andReturn().getResponse().getContentAsString();
 		Long sourceId = objectMapper.readTree(created).get("data").get("id").asLong();
 
-		String copied = mockMvc
-				.perform(post("/api/v1/admin/posts/" + sourceId + "/copy").with(csrf()))
+		String copied = mockMvc.perform(post("/api/v1/admin/posts/" + sourceId + "/copy").with(csrf()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.title").value("Copy Source (Copy)"))
 				.andExpect(jsonPath("$.data.status").value("DRAFT")).andReturn().getResponse().getContentAsString();
 		Long copiedId = objectMapper.readTree(copied).get("data").get("id").asLong();
