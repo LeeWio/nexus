@@ -143,6 +143,15 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(AccessDeniedException.class)
 	public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException e) {
 		log.warn("[TraceId: {}] Access denied: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
+		
+		var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || 
+				authentication instanceof org.springframework.security.authentication.AnonymousAuthenticationToken ||
+				!authentication.isAuthenticated()) {
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+					.body(ApiResponse.error(BusinessCode.UNAUTHORIZED));
+		}
+		
 		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(BusinessCode.FORBIDDEN));
 	}
 
