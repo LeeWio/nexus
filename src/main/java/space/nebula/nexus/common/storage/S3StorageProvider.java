@@ -8,7 +8,10 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.config.StorageProperties;
 
 import java.io.IOException;
@@ -50,6 +53,25 @@ public class S3StorageProvider implements StorageProvider {
 			client.deleteObject(deleteObjectRequest);
 		} catch (Exception e) {
 			log.error("Failed to delete file from S3: {}", filename, e);
+		}
+	}
+
+	@Override
+	public boolean exists(String filename) {
+		try (S3Client client = getClient()) {
+			HeadObjectRequest request = HeadObjectRequest.builder().bucket(config.getBucketName()).key(filename)
+					.build();
+			client.headObject(request);
+			return true;
+		} catch (S3Exception e) {
+			if (e.statusCode() == 404) {
+				return false;
+			}
+			log.error("Failed to inspect S3 object {}", filename, e);
+			throw new BusinessException(500, "Could not inspect S3 storage object");
+		} catch (Exception e) {
+			log.error("Failed to inspect S3 object {}", filename, e);
+			throw new BusinessException(500, "Could not inspect S3 storage object");
 		}
 	}
 

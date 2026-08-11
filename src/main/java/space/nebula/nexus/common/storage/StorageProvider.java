@@ -18,6 +18,13 @@ public interface StorageProvider {
 	void delete(String filename);
 
 	/**
+	 * Checks whether a stored object exists. Implementations must raise an error
+	 * when storage is unavailable rather than reporting an unknown object as
+	 * missing.
+	 */
+	boolean exists(String filename);
+
+	/**
 	 * Generates a public URL for the file.
 	 */
 	String getUrl(String filename);
