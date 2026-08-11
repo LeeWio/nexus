@@ -73,16 +73,15 @@ public class SecurityConfig {
 				// 1. Explicit CORS configuration
 				.cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-				// 2. Configure CSRF protection using a cookie-based repository
-				// This resolves CodeQL alerts while supporting SPA clients.
+				// 2. Keep CSRF protection for browser/session flows. REST APIs authenticate
+				// with an explicit Bearer token, so they are not vulnerable to ambient-cookie
+				// CSRF and must remain callable by the SPA without a CSRF cookie handshake.
 				.csrf(csrf -> csrf
 						.csrfTokenRepository(
 								org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse())
 						.csrfTokenRequestHandler(
 								new org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler())
-						// Ignore CSRF for OAuth2 paths and Auth APIs.
-						.ignoringRequestMatchers("/api/v1/auth/**", "/api/v1/public/**", "/oauth2/**",
-								"/login/oauth2/**"))
+						.ignoringRequestMatchers("/api/**", "/oauth2/**", "/login/oauth2/**"))
 
 				// 3. Enhance Security Headers
 				.headers(headers -> headers

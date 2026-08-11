@@ -82,8 +82,8 @@ public class PostControllerIntegrationTest {
 				"Content of test post", null, PostStatus.PUBLISHED, false, categoryId, null, null, null,
 				new HashSet<>());
 
-		// 1. Create Post
-		mockMvc.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+		// 1. Bearer-authenticated API writes must not require a cookie CSRF token.
+		mockMvc.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request))).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.title").value("Test Post Title"))
 				.andExpect(jsonPath("$.data.slug").value("test-post-slug"));
