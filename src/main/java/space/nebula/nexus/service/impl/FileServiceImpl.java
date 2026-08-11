@@ -22,6 +22,7 @@ import space.nebula.nexus.entity.User;
 import space.nebula.nexus.mapper.FileMapper;
 import space.nebula.nexus.payload.response.FileResponse;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.StorageInventoryResponse;
 import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
@@ -225,6 +226,21 @@ public class FileServiceImpl implements IFileService {
 			page = fileRepository.findAll(pageable);
 		}
 		return ApiResponse.success(PageResult.of(page.map(fileMapper::toResponse)));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<StorageInventoryResponse> getStorageInventory() {
+		var inventory = fileRepository.summarizeStorageInventory();
+		String providerType = StringUtils.hasText(storageProperties.getType()) ? storageProperties.getType() : "local";
+
+		return ApiResponse.success(new StorageInventoryResponse(providerType, numberOrZero(inventory.getAssetCount()),
+				numberOrZero(inventory.getLogicalBytes()), numberOrZero(inventory.getTotalReferences()),
+				inventory.getOldestAssetAt(), inventory.getNewestAssetAt()));
+	}
+
+	private long numberOrZero(Long value) {
+		return value == null ? 0L : value;
 	}
 
 	@Override

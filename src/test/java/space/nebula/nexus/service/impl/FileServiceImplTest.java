@@ -158,4 +158,29 @@ class FileServiceImplTest {
 		assertEquals("SVG file is rejected due to security risk (potential XSS/XXE scripts detected).",
 				ex.getMessage());
 	}
+
+	@Test
+	void getStorageInventory_ReturnsAggregateMetadata() {
+		FileRepository.StorageInventoryProjection inventory = mock(FileRepository.StorageInventoryProjection.class);
+		java.time.LocalDateTime oldest = java.time.LocalDateTime.of(2026, 1, 1, 8, 0);
+		java.time.LocalDateTime newest = java.time.LocalDateTime.of(2026, 8, 11, 8, 0);
+
+		when(fileRepository.summarizeStorageInventory()).thenReturn(inventory);
+		when(inventory.getAssetCount()).thenReturn(2L);
+		when(inventory.getLogicalBytes()).thenReturn(1_024L);
+		when(inventory.getTotalReferences()).thenReturn(3L);
+		when(inventory.getOldestAssetAt()).thenReturn(oldest);
+		when(inventory.getNewestAssetAt()).thenReturn(newest);
+		when(storageProperties.getType()).thenReturn("local");
+
+		var response = fileService.getStorageInventory();
+
+		assertEquals(200, response.code());
+		assertEquals("local", response.data().providerType());
+		assertEquals(2L, response.data().assetCount());
+		assertEquals(1_024L, response.data().logicalBytes());
+		assertEquals(3L, response.data().totalReferences());
+		assertEquals(oldest, response.data().oldestAssetAt());
+		assertEquals(newest, response.data().newestAssetAt());
+	}
 }
