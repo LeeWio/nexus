@@ -13,6 +13,7 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.payload.response.FileResponse;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.StorageInventoryResponse;
 import space.nebula.nexus.service.IFileService;
 
 import java.util.concurrent.TimeUnit;
@@ -36,6 +37,12 @@ public class AdminFileController {
 			@Parameter(description = "Keyword to search in original or unique filename") @RequestParam(required = false) String keyword,
 			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20) Pageable pageable) {
 		return fileService.searchFiles(keyword, pageable);
+	}
+
+	@GetMapping("/inventory")
+	@Operation(summary = "Get storage inventory", description = "Returns aggregate asset metadata for storage and backup verification.")
+	public ApiResponse<StorageInventoryResponse> getStorageInventory() {
+		return fileService.getStorageInventory();
 	}
 
 	@PostMapping("/upload")

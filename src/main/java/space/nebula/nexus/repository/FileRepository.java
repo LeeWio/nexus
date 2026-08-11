@@ -6,10 +6,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 import space.nebula.nexus.entity.FileMetadata;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Repository
@@ -21,6 +23,27 @@ public interface FileRepository extends JpaRepository<FileMetadata, Long>, JpaSp
 	Optional<FileMetadata> findByFileHash(String fileHash);
 
 	java.util.List<FileMetadata> findByCreatedAtBefore(java.time.LocalDateTime cutoff);
+
+	@Query("""
+			select count(file) as assetCount, coalesce(sum(file.fileSize), 0) as logicalBytes,
+			       coalesce(sum(file.referenceCount), 0) as totalReferences,
+			       min(file.createdAt) as oldestAssetAt, max(file.createdAt) as newestAssetAt
+			from FileMetadata file
+			where file.isDeleted = false
+			""")
+	StorageInventoryProjection summarizeStorageInventory();
+
+	interface StorageInventoryProjection {
+		Long getAssetCount();
+
+		Long getLogicalBytes();
+
+		Long getTotalReferences();
+
+		LocalDateTime getOldestAssetAt();
+
+		LocalDateTime getNewestAssetAt();
+	}
 
 	@Override
 	@EntityGraph(attributePaths = {"uploader"})

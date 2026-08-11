@@ -5,6 +5,7 @@ import org.springframework.web.multipart.MultipartFile;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.FileResponse;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.StorageInventoryResponse;
 
 public interface IFileService {
 	ApiResponse<FileResponse> uploadFile(MultipartFile file);
@@ -12,4 +13,6 @@ public interface IFileService {
 	ApiResponse<Void> deleteFile(String fileName);
 
 	ApiResponse<PageResult<FileResponse>> searchFiles(String keyword, Pageable pageable);
+
+	ApiResponse<StorageInventoryResponse> getStorageInventory();
 }
