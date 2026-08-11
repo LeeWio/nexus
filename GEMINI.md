@@ -1,5 +1,6 @@
 # Nexus Project
 
+
 ## Project Overview
 Nexus is a modern blog/CMS system backend built with Java and Spring Boot. It provides features for managing users, roles, categories, posts, and comments (including an approval workflow).
 
