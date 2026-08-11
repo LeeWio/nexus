@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
 import space.nebula.nexus.common.constant.BusinessCode;
@@ -22,6 +25,7 @@ import space.nebula.nexus.entity.User;
 import space.nebula.nexus.mapper.FileMapper;
 import space.nebula.nexus.payload.response.FileResponse;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.StorageIntegrityResponse;
 import space.nebula.nexus.payload.response.StorageInventoryResponse;
 import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.UserRepository;
@@ -46,6 +50,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Service
 @RequiredArgsConstructor
 public class FileServiceImpl implements IFileService {
+
+	private static final int MAX_INTEGRITY_PAGE_SIZE = 200;
 
 	private final StorageProvider storageProvider;
 	private final FileRepository fileRepository;
@@ -232,15 +238,45 @@ public class FileServiceImpl implements IFileService {
 	@Transactional(readOnly = true)
 	public ApiResponse<StorageInventoryResponse> getStorageInventory() {
 		var inventory = fileRepository.summarizeStorageInventory();
-		String providerType = StringUtils.hasText(storageProperties.getType()) ? storageProperties.getType() : "local";
 
-		return ApiResponse.success(new StorageInventoryResponse(providerType, numberOrZero(inventory.getAssetCount()),
-				numberOrZero(inventory.getLogicalBytes()), numberOrZero(inventory.getTotalReferences()),
-				inventory.getOldestAssetAt(), inventory.getNewestAssetAt()));
+		return ApiResponse.success(new StorageInventoryResponse(getConfiguredStorageProviderType(),
+				numberOrZero(inventory.getAssetCount()), numberOrZero(inventory.getLogicalBytes()),
+				numberOrZero(inventory.getTotalReferences()), inventory.getOldestAssetAt(),
+				inventory.getNewestAssetAt()));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<StorageIntegrityResponse> verifyStorageIntegrity(Pageable pageable) {
+		var verifiedPageable = PageRequest.of(pageable.getPageNumber(),
+				Math.min(pageable.getPageSize(), MAX_INTEGRITY_PAGE_SIZE), Sort.by("id").ascending());
+		var assets = fileRepository.findByIsDeletedFalse(verifiedPageable);
+		List<StorageIntegrityResponse.MissingObject> missingObjects = new ArrayList<>();
+
+		for (FileMetadata asset : assets.getContent()) {
+			if (!storageProvider.exists(asset.getFileName())) {
+				missingObjects.add(new StorageIntegrityResponse.MissingObject(asset.getId(), "original"));
+			}
+
+			if (StringUtils.hasText(asset.getThumbnailUrl())) {
+				String thumbnailName = extractFileNameFromUrl(asset.getThumbnailUrl());
+				if (!storageProvider.exists(thumbnailName)) {
+					missingObjects.add(new StorageIntegrityResponse.MissingObject(asset.getId(), "thumbnail"));
+				}
+			}
+		}
+
+		return ApiResponse.success(new StorageIntegrityResponse(getConfiguredStorageProviderType(),
+				assets.getNumberOfElements(), missingObjects.size(), assets.getTotalElements(), assets.getNumber() + 1,
+				assets.getSize(), assets.getTotalPages(), List.copyOf(missingObjects)));
 	}
 
 	private long numberOrZero(Long value) {
 		return value == null ? 0L : value;
+	}
+
+	private String getConfiguredStorageProviderType() {
+		return StringUtils.hasText(storageProperties.getType()) ? storageProperties.getType() : "local";
 	}
 
 	@Override

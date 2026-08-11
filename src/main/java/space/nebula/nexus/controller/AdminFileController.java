@@ -13,6 +13,7 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.payload.response.FileResponse;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.payload.response.StorageIntegrityResponse;
 import space.nebula.nexus.payload.response.StorageInventoryResponse;
 import space.nebula.nexus.service.IFileService;
 
@@ -43,6 +44,13 @@ public class AdminFileController {
 	@Operation(summary = "Get storage inventory", description = "Returns aggregate asset metadata for storage and backup verification.")
 	public ApiResponse<StorageInventoryResponse> getStorageInventory() {
 		return fileService.getStorageInventory();
+	}
+
+	@GetMapping("/integrity")
+	@Operation(summary = "Verify storage integrity", description = "Checks one stable page of active assets against the configured storage provider.")
+	public ApiResponse<StorageIntegrityResponse> verifyStorageIntegrity(
+			@Parameter(description = "Pagination parameters. At most 200 assets are checked per request.") @PageableDefault(size = 100) Pageable pageable) {
+		return fileService.verifyStorageIntegrity(pageable);
 	}
 
 	@PostMapping("/upload")

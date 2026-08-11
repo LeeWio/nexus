@@ -6,11 +6,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.mock.web.MockMultipartFile;
 import space.nebula.nexus.common.storage.StorageProvider;
 import space.nebula.nexus.config.StorageProperties;
 import space.nebula.nexus.entity.FileMetadata;
 import space.nebula.nexus.mapper.FileMapper;
+import space.nebula.nexus.payload.response.StorageIntegrityResponse;
 import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.utils.FileUtil;
@@ -182,5 +186,38 @@ class FileServiceImplTest {
 		assertEquals(3L, response.data().totalReferences());
 		assertEquals(oldest, response.data().oldestAssetAt());
 		assertEquals(newest, response.data().newestAssetAt());
+	}
+
+	@Test
+	void verifyStorageIntegrity_ReturnsMissingOriginalsAndThumbnails() {
+		FileMetadata healthyAsset = new FileMetadata();
+		healthyAsset.setId(1L);
+		healthyAsset.setFileName("healthy.jpg");
+
+		FileMetadata incompleteAsset = new FileMetadata();
+		incompleteAsset.setId(2L);
+		incompleteAsset.setFileName("missing.jpg");
+		incompleteAsset.setThumbnailUrl("/api/v1/public/files/thumb_missing.webp");
+
+		PageRequest pageable = PageRequest.of(0, 100);
+		when(fileRepository.findByIsDeletedFalse(any()))
+				.thenReturn(new PageImpl<>(java.util.List.of(healthyAsset, incompleteAsset), pageable, 2));
+		when(storageProvider.exists("healthy.jpg")).thenReturn(true);
+		when(storageProvider.exists("missing.jpg")).thenReturn(false);
+		when(storageProvider.exists("thumb_missing.webp")).thenReturn(false);
+		when(storageProperties.getType()).thenReturn("local");
+
+		var response = fileService.verifyStorageIntegrity(pageable);
+
+		assertEquals(200, response.code());
+		assertEquals("local", response.data().providerType());
+		assertEquals(2L, response.data().checkedAssetCount());
+		assertEquals(2L, response.data().missingObjectCount());
+		assertEquals(2L, response.data().totalActiveAssetCount());
+		assertEquals(1, response.data().page());
+		assertEquals(1, response.data().totalPages());
+		assertEquals(java.util.List.of(new StorageIntegrityResponse.MissingObject(2L, "original"),
+				new StorageIntegrityResponse.MissingObject(2L, "thumbnail")), response.data().missingObjects());
+		verify(fileRepository).findByIsDeletedFalse(PageRequest.of(0, 100, Sort.by("id").ascending()));
 	}
 }

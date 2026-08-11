@@ -8,9 +8,11 @@ import space.nebula.nexus.config.StorageProperties;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
 
 /**
  * Enhanced implementation for local filesystem storage.
@@ -54,6 +56,20 @@ public class LocalStorageProvider implements StorageProvider {
 			Files.deleteIfExists(file);
 		} catch (IOException e) {
 			log.error("Could not delete file {}", filename, e);
+		}
+	}
+
+	@Override
+	public boolean exists(String filename) {
+		try {
+			BasicFileAttributes attributes = Files.readAttributes(validateFilenameAndResolve(filename),
+					BasicFileAttributes.class);
+			return attributes.isRegularFile();
+		} catch (NoSuchFileException e) {
+			return false;
+		} catch (IOException e) {
+			log.error("Could not inspect local storage object {}", filename, e);
+			throw new BusinessException("Could not inspect local storage object");
 		}
 	}
 

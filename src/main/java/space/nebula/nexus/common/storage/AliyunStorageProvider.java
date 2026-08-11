@@ -68,6 +68,20 @@ public class AliyunStorageProvider implements StorageProvider {
 	}
 
 	@Override
+	public boolean exists(String fileName) {
+		OSS ossClient = new OSSClientBuilder().build(config.getEndpoint(), config.getAccessKeyId(),
+				config.getAccessKeySecret());
+		try {
+			return ossClient.doesObjectExist(config.getBucketName(), fileName);
+		} catch (Exception e) {
+			log.error("Failed to inspect Aliyun OSS object {}", fileName, e);
+			throw new BusinessException(500, "Could not inspect Aliyun OSS storage object");
+		} finally {
+			ossClient.shutdown();
+		}
+	}
+
+	@Override
 	public String getUrl(String fileName) {
 		if (fileName == null || fileName.isBlank())
 			return null;
