@@ -51,7 +51,6 @@ class FileServiceImplTest {
 	void setUp() throws java.io.IOException {
 		lenient().when(storageProperties.getMaxFileSize()).thenReturn(10485760L);
 		lenient().when(storageProperties.getAllowedMimeTypes()).thenReturn(Arrays.asList("image/jpeg", "image/png"));
-		lenient().when(fileUtil.convertToWebP(any())).thenAnswer(i -> i.getArgument(0));
 	}
 
 	@Test
@@ -80,6 +79,7 @@ class FileServiceImplTest {
 		when(fileUtil.detectMimeType(any(InputStream.class))).thenReturn("image/jpeg");
 		when(fileUtil.isImage("image/jpeg")).thenReturn(true);
 		when(fileUtil.getImageDimensions(any())).thenReturn(new FileUtil.ImageDimensions(100, 100));
+		when(fileUtil.supportsThumbnailGeneration("image/jpeg")).thenReturn(true);
 		when(fileUtil.generateThumbnail(any(), anyInt(), anyInt())).thenReturn("thumb content".getBytes());
 		when(storageProvider.getUrl(anyString())).thenReturn("http://example.com/file.jpg");
 		when(fileRepository.save(any(FileMetadata.class))).thenAnswer(i -> {
@@ -102,6 +102,7 @@ class FileServiceImplTest {
 		when(fileRepository.findByFileHash(anyString())).thenReturn(Optional.empty());
 		when(fileUtil.detectMimeType(any(InputStream.class))).thenReturn("image/jpeg");
 		when(fileUtil.isImage("image/jpeg")).thenReturn(true);
+		when(fileUtil.supportsThumbnailGeneration("image/jpeg")).thenReturn(true);
 		when(fileUtil.generateThumbnail(any(), anyInt(), anyInt())).thenReturn("thumb content".getBytes());
 		when(storageProvider.getUrl(anyString())).thenReturn("http://example.com/file.jpg");
 		when(fileRepository.save(any(FileMetadata.class))).thenAnswer(invocation -> invocation.getArgument(0));

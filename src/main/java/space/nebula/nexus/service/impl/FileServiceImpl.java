@@ -2,7 +2,6 @@ package space.nebula.nexus.service.impl;
 
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.IdUtil;
-import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
 import lombok.RequiredArgsConstructor;
@@ -126,48 +125,23 @@ public class FileServiceImpl implements IFileService {
 					fileBytes = stripImageMetadata(fileBytes, "png");
 				}
 
-				// Automatically convert to WebP for better performance
-				if (!"image/webp".equals(detectedMimeType)) {
-					try {
-						byte[] webpBytes = fileUtil.convertToWebP(fileBytes);
-						if (webpBytes.length < fileBytes.length) {
-							log.info("Converted image to WebP, size reduced from {} to {} bytes", fileBytes.length,
-									webpBytes.length);
-							fileBytes = webpBytes;
-							detectedMimeType = "image/webp";
-							uniqueName = IdUtil.fastSimpleUUID() + ".webp";
-
-							// Re-calculate hash for deduplication based on converted content
-							fileHash = SecureUtil.sha256(new ByteArrayInputStream(fileBytes));
-							var existingWebp = fileRepository.findByFileHash(fileHash);
-							if (existingWebp.isPresent()) {
-								FileMetadata metadata = existingWebp.get();
-								metadata.setReferenceCount(metadata.getReferenceCount() + 1);
-								fileRepository.save(metadata);
-								return ApiResponse.success("WebP version reused via deduplication",
-										fileMapper.toResponse(metadata));
-							}
-						}
-					} catch (Throwable t) {
-						log.warn("WebP conversion failed, falling back to original format: {}", t.getMessage());
-					}
-				}
-
 				var dimensions = fileUtil.getImageDimensions(fileBytes);
-				if (ObjectUtil.isNotNull(dimensions)) {
+				if (dimensions != null) {
 					width = dimensions.width();
 					height = dimensions.height();
 				}
 
-				try {
-					var thumbnailBytes = fileUtil.convertToWebP(fileUtil.generateThumbnail(fileBytes, 300, 300));
-					var thumbnailName = "thumb_" + uniqueName.substring(0, uniqueName.lastIndexOf('.')) + ".webp";
-					storageProvider.store(new ByteArrayInputStream(thumbnailBytes), thumbnailName);
-					newlyStoredFiles.add(thumbnailName);
-					thumbnailUrl = storageProvider.getUrl(thumbnailName);
-					log.info("Generated WebP thumbnail: {}", thumbnailName);
-				} catch (Throwable t) {
-					log.warn("Non-critical failure in thumbnail generation: {}", t.getMessage());
+				if (fileUtil.supportsThumbnailGeneration(detectedMimeType)) {
+					try {
+						var thumbnailBytes = fileUtil.generateThumbnail(fileBytes, 300, 300);
+						var thumbnailName = "thumb_" + fileStem(uniqueName) + ".jpg";
+						storageProvider.store(new ByteArrayInputStream(thumbnailBytes), thumbnailName);
+						newlyStoredFiles.add(thumbnailName);
+						thumbnailUrl = storageProvider.getUrl(thumbnailName);
+						log.info("Generated JPEG thumbnail: {}", thumbnailName);
+					} catch (IOException | RuntimeException e) {
+						log.warn("Non-critical failure in thumbnail generation: {}", e.getMessage());
+					}
 				}
 
 				// Final storage with potentially converted bytes
@@ -351,6 +325,11 @@ public class FileServiceImpl implements IFileService {
 	private String extractFileExtension(String filename) {
 		int dotIndex = filename.lastIndexOf('.');
 		return (dotIndex > 0) ? filename.substring(dotIndex) : "";
+	}
+
+	private String fileStem(String filename) {
+		int dotIndex = filename.lastIndexOf('.');
+		return dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
 	}
 
 	private String extractFileNameFromUrl(String url) {
