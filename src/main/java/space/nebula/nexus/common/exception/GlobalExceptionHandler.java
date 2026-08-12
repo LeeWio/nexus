@@ -15,6 +15,7 @@ import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -122,6 +123,16 @@ public class GlobalExceptionHandler {
 		log.warn("[TraceId: {}] Validation failed: {}", org.slf4j.MDC.get("traceId"), message);
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 				.body(ApiResponse.error(BusinessCode.VALIDATION_FAILED, "Validation failed: " + message));
+	}
+
+	/**
+	 * Handle missing or malformed JSON request bodies.
+	 */
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+		log.warn("[TraceId: {}] Request body could not be read: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+				.body(ApiResponse.error(BusinessCode.BAD_REQUEST, "Request body is missing or malformed"));
 	}
 
 	/**

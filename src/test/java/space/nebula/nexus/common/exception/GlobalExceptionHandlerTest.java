@@ -5,11 +5,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpInputMessage;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.utils.MessageUtil;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,5 +44,17 @@ class GlobalExceptionHandlerTest {
 
 		assertEquals(40010, response.getBody().code());
 		assertEquals("Post is already published", response.getBody().message());
+	}
+
+	@Test
+	void handleHttpMessageNotReadableException_ReturnsBadRequest() {
+		var exception = new HttpMessageNotReadableException("Required request body is missing",
+				mock(HttpInputMessage.class));
+
+		ResponseEntity<ApiResponse<Void>> response = exceptionHandler.handleHttpMessageNotReadableException(exception);
+
+		assertEquals(400, response.getStatusCode().value());
+		assertEquals(400, response.getBody().code());
+		assertEquals("Request body is missing or malformed", response.getBody().message());
 	}
 }
