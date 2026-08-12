@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import jakarta.persistence.LockModeType;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.payload.response.ColumnPostResponse;
 
 import java.util.Optional;
 import java.util.Collection;
@@ -43,6 +44,12 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 
 	@EntityGraph(attributePaths = {"category", "author", "tags", "series", "parent"})
 	Optional<Post> findBySlug(String slug);
+
+	@Query("SELECT new space.nebula.nexus.payload.response.ColumnPostResponse(post.id, post.title, post.slug, "
+			+ "post.coverImage, post.summary, COALESCE(post.author.nickname, post.author.username), post.views, "
+			+ "post.likesCount, post.publishedAt) FROM Post post WHERE post.series.id = :seriesId AND post.status = :status "
+			+ "ORDER BY post.seriesOrder ASC, post.publishedAt DESC, post.id DESC")
+	List<ColumnPostResponse> findPublishedColumnPosts(Long seriesId, PostStatus status);
 
 	@EntityGraph(attributePaths = {"category", "author", "series", "parent"})
 	Page<Post> findAllByStatus(PostStatus status, Pageable pageable);

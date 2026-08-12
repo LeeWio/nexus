@@ -3,6 +3,7 @@ package space.nebula.nexus.service;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.request.SeriesRequest;
 import space.nebula.nexus.payload.response.SeriesResponse;
+import space.nebula.nexus.payload.response.ColumnResponse;
 
 import java.util.List;
 
@@ -26,4 +27,8 @@ public interface IPostSeriesService {
 	ApiResponse<List<SeriesResponse>> retrievePublicSeriesList();
 
 	ApiResponse<SeriesResponse> retrieveSeriesWithPosts(String slug);
+
+	ApiResponse<List<ColumnResponse>> retrievePublicColumns();
+
+	ApiResponse<ColumnResponse> retrievePublicColumn(String slug);
 }

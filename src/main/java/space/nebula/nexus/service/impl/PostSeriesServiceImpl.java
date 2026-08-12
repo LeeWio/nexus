@@ -17,6 +17,9 @@ import space.nebula.nexus.entity.PostSeries;
 import space.nebula.nexus.mapper.PostSeriesMapper;
 import space.nebula.nexus.payload.request.SeriesRequest;
 import space.nebula.nexus.payload.response.PostResponse;
+import space.nebula.nexus.payload.response.ColumnResponse;
+import space.nebula.nexus.payload.response.ColumnPostResponse;
+import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.payload.response.SeriesResponse;
 import space.nebula.nexus.repository.PostSeriesRepository;
 import space.nebula.nexus.service.IPostSeriesService;
@@ -30,6 +33,7 @@ import java.util.List;
 public class PostSeriesServiceImpl implements IPostSeriesService {
 
 	private final PostSeriesRepository seriesRepository;
+	private final PostRepository postRepository;
 	private final PostSeriesMapper seriesMapper;
 	private final space.nebula.nexus.mapper.PostMapper postMapper;
 	private final RedisUtil redisUtil;
@@ -118,6 +122,33 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 				() -> new BusinessException(BusinessCode.FORBIDDEN, "This series is not public"));
 
 		return ApiResponse.success(seriesMapper.toResponseWithPosts(series));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<List<ColumnResponse>> retrievePublicColumns() {
+		List<ColumnResponse> columns = seriesRepository
+				.findPublicColumnSummaries(space.nebula.nexus.enums.PostStatus.PUBLISHED).stream()
+				.map(column -> new ColumnResponse(column.getId(), column.getName(), column.getSlug(),
+						column.getDescription(), column.getCoverImage(), true, Math.toIntExact(column.getPostsCount()),
+						null, column.getCreatedAt()))
+				.toList();
+		return ApiResponse.success(columns);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<ColumnResponse> retrievePublicColumn(String slug) {
+		PostSeries series = seriesRepository.findFirstBySlug(slug)
+				.orElseThrow(() -> new ResourceNotFoundException("Column", "slug", slug));
+
+		Assert.isTrue(series.getIsPublished(),
+				() -> new BusinessException(BusinessCode.FORBIDDEN, "This column is not public"));
+
+		List<ColumnPostResponse> posts = postRepository.findPublishedColumnPosts(series.getId(),
+				space.nebula.nexus.enums.PostStatus.PUBLISHED);
+		return ApiResponse.success(new ColumnResponse(series.getId(), series.getName(), series.getSlug(),
+				series.getDescription(), series.getCoverImage(), true, posts.size(), posts, series.getCreatedAt()));
 	}
 
 	@Override
