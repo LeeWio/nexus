@@ -127,10 +127,11 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 	@Override
 	@Transactional(readOnly = true)
 	public ApiResponse<List<ColumnResponse>> retrievePublicColumns() {
-		List<ColumnResponse> columns = seriesRepository.findPublicColumnSummaries(space.nebula.nexus.enums.PostStatus.PUBLISHED)
-				.stream().map(column -> new ColumnResponse(column.getId(), column.getName(), column.getSlug(),
-						column.getDescription(), column.getCoverImage(), true, Math.toIntExact(column.getPostsCount()), null,
-						column.getCreatedAt()))
+		List<ColumnResponse> columns = seriesRepository
+				.findPublicColumnSummaries(space.nebula.nexus.enums.PostStatus.PUBLISHED).stream()
+				.map(column -> new ColumnResponse(column.getId(), column.getName(), column.getSlug(),
+						column.getDescription(), column.getCoverImage(), true, Math.toIntExact(column.getPostsCount()),
+						null, column.getCreatedAt()))
 				.toList();
 		return ApiResponse.success(columns);
 	}
