@@ -68,7 +68,7 @@ public class MetricsServiceImpl implements IMetricsService {
 		double hitRate = (totalHits + totalMisses == 0) ? 0.0 : (double) totalHits / (totalHits + totalMisses);
 
 		return Dict.create().set("l1HitCount", totalHits).set("l1MissCount", totalMisses).set("l1HitRate",
-				Math.round(hitRate * 10000.0) / 100.0); //e.g. 95.55
+				Math.round(hitRate * 10000.0) / 100.0); // e.g. 95.55
 	}
 
 	private Dict getMqMetrics() {
