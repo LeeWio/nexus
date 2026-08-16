@@ -9,11 +9,13 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "sys_file")
+@BatchSize(size = 50)
 public class FileMetadata extends BaseEntity {
 	@Version
 	@Column(nullable = false)

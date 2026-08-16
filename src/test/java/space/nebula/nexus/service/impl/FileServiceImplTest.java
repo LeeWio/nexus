@@ -130,6 +130,24 @@ class FileServiceImplTest {
 	}
 
 	@Test
+	void deleteFile_RejectsAssetsAttachedToMoments() {
+		String fileName = "moment.jpg";
+		FileMetadata metadata = new FileMetadata();
+		metadata.setId(7L);
+		metadata.setFileName(fileName);
+		metadata.setReferenceCount(1);
+		when(fileRepository.findByFileName(fileName)).thenReturn(Optional.of(metadata));
+		when(fileRepository.isReferencedByMoment(7L)).thenReturn(true);
+
+		var exception = assertThrows(space.nebula.nexus.common.exception.BusinessException.class,
+				() -> fileService.deleteFile(fileName));
+
+		assertEquals("File is attached to a moment and cannot be deleted", exception.getMessage());
+		verify(fileRepository, never()).delete(any(FileMetadata.class));
+		verify(storageProvider, never()).delete(anyString());
+	}
+
+	@Test
 	void uploadFile_SizeExceeded_ThrowsException() {
 		MockMultipartFile file = new MockMultipartFile("file", "test.jpg", "image/jpeg", new byte[10485761]);
 

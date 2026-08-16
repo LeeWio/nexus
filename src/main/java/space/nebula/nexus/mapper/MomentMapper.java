@@ -6,7 +6,9 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import space.nebula.nexus.entity.Moment;
+import space.nebula.nexus.entity.MomentMedia;
 import space.nebula.nexus.payload.request.MomentRequest;
+import space.nebula.nexus.payload.response.MomentImageResponse;
 import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.mapper.config.CentralMapperConfig;
 
@@ -22,9 +24,23 @@ public interface MomentMapper {
 	@Mapping(target = "updatedAt", ignore = true)
 	@Mapping(target = "lastModifiedBy", ignore = true)
 	@Mapping(target = "isDeleted", ignore = true)
+	@Mapping(target = "images", ignore = true)
 	Moment toEntity(MomentRequest request);
 
-	MomentResponse toResponse(Moment moment);
+	default MomentResponse toResponse(Moment moment) {
+		List<MomentImageResponse> images = moment.getImages() == null
+				? List.of()
+				: moment.getImages().stream().sorted(java.util.Comparator.comparing(MomentMedia::getSortOrder))
+						.map(this::toImageResponse).toList();
+		return new MomentResponse(moment.getId(), moment.getContent(), moment.getLikesCount(), moment.getIsPublished(),
+				images, moment.getCreatedAt(), moment.getUpdatedAt());
+	}
+
+	default MomentImageResponse toImageResponse(MomentMedia media) {
+		var file = media.getFile();
+		return new MomentImageResponse(media.getId(), file.getId(), file.getOriginalName(), file.getFileUrl(),
+				file.getThumbnailUrl(), file.getWidth(), file.getHeight(), media.getAltText(), media.getSortOrder());
+	}
 
 	List<MomentResponse> toResponseList(List<Moment> moments);
 
@@ -36,5 +52,6 @@ public interface MomentMapper {
 	@Mapping(target = "updatedAt", ignore = true)
 	@Mapping(target = "lastModifiedBy", ignore = true)
 	@Mapping(target = "isDeleted", ignore = true)
+	@Mapping(target = "images", ignore = true)
 	void updateEntity(@MappingTarget Moment moment, MomentRequest request);
 }

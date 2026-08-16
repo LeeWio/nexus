@@ -16,19 +16,25 @@ import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
+import space.nebula.nexus.entity.FileMetadata;
 import space.nebula.nexus.entity.Moment;
+import space.nebula.nexus.entity.MomentMedia;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.mapper.MomentMapper;
 import space.nebula.nexus.payload.request.MomentRequest;
 import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.payload.response.PageResult;
+import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.MomentRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IMomentService;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Slf4j
@@ -39,6 +45,7 @@ public class MomentServiceImpl implements IMomentService {
 
 	private final MomentRepository momentRepository;
 	private final MomentMapper momentMapper;
+	private final FileRepository fileRepository;
 	private final UserRepository userRepository;
 	private final JdbcTemplate jdbcTemplate;
 
@@ -62,6 +69,7 @@ public class MomentServiceImpl implements IMomentService {
 	@LogOperation("Create Moment")
 	public ApiResponse<MomentResponse> createMoment(MomentRequest request) {
 		Moment moment = momentMapper.toEntity(request);
+		replaceImages(moment, request.images(), false);
 		momentRepository.save(moment);
 		log.info("Moment created");
 		return ApiResponse.success("Moment created successfully", momentMapper.toResponse(moment));
@@ -74,6 +82,9 @@ public class MomentServiceImpl implements IMomentService {
 	public ApiResponse<MomentResponse> updateMoment(Long id, MomentRequest request) {
 		Moment moment = findMomentOrThrow(id);
 		momentMapper.updateEntity(moment, request);
+		if (request.images() != null) {
+			replaceImages(moment, request.images(), true);
+		}
 		momentRepository.save(moment);
 
 		log.info("Moment updated: {}", id);
@@ -155,5 +166,53 @@ public class MomentServiceImpl implements IMomentService {
 		Assert.isTrue(Boolean.TRUE.equals(moment.getIsPublished()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only published moments can be interacted with"));
 		return moment;
+	}
+
+	private void replaceImages(Moment moment,
+			List<space.nebula.nexus.payload.request.MomentImageRequest> requestedImages, boolean flushExisting) {
+		List<space.nebula.nexus.payload.request.MomentImageRequest> images = requestedImages == null
+				? List.of()
+				: List.copyOf(requestedImages);
+		Assert.isTrue(images.size() <= 9,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "A moment can contain at most 9 images"));
+
+		Set<Long> requestedIds = new LinkedHashSet<>();
+		for (var image : images) {
+			Assert.notNull(image, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Moment image cannot be null"));
+			Assert.isTrue(org.springframework.util.StringUtils.hasText(image.altText()),
+					() -> new BusinessException(BusinessCode.BAD_REQUEST, "Moment image alt text is required"));
+			Assert.isTrue(requestedIds.add(image.fileId()),
+					() -> new BusinessException(BusinessCode.BAD_REQUEST, "Moment images must be unique"));
+		}
+
+		Map<Long, FileMetadata> filesById = new LinkedHashMap<>();
+		if (!requestedIds.isEmpty()) {
+			fileRepository.findAllById(requestedIds).forEach(file -> filesById.put(file.getId(), file));
+			Assert.isTrue(filesById.size() == requestedIds.size(),
+					() -> new BusinessException(BusinessCode.BAD_REQUEST, "One or more image files do not exist"));
+		}
+
+		List<MomentMedia> replacements = new ArrayList<>(images.size());
+		for (int index = 0; index < images.size(); index++) {
+			var image = images.get(index);
+			FileMetadata file = filesById.get(image.fileId());
+			Assert.isTrue(Boolean.FALSE.equals(file.getIsDeleted()),
+					() -> new BusinessException(BusinessCode.BAD_REQUEST, "Deleted files cannot be attached"));
+			Assert.isTrue(file.getFileType() != null && file.getFileType().startsWith("image/"),
+					() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only image files can be attached"));
+
+			MomentMedia media = new MomentMedia();
+			media.setMoment(moment);
+			media.setFile(file);
+			media.setSortOrder(index);
+			media.setAltText(image.altText().trim());
+			replacements.add(media);
+		}
+
+		moment.getImages().clear();
+		if (flushExisting && moment.getId() != null) {
+			momentRepository.flush();
+		}
+		moment.getImages().addAll(replacements);
 	}
 }

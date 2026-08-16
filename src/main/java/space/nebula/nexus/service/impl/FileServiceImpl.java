@@ -263,6 +263,9 @@ public class FileServiceImpl implements IFileService {
 
 		var metadata = fileRepository.findByFileName(sanitizedName)
 				.orElseThrow(() -> new ResourceNotFoundException("File", "name", sanitizedName));
+		Assert.isFalse(fileRepository.isReferencedByMoment(metadata.getId()),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"File is attached to a moment and cannot be deleted"));
 
 		// 1. Decrement reference count
 		metadata.setReferenceCount(metadata.getReferenceCount() - 1);

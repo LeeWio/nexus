@@ -56,7 +56,7 @@ public class AdminMomentController {
 	}
 
 	@DeleteMapping("/{id}")
-	@Operation(summary = "Delete moment", description = "Permanently remove a moment.")
+	@Operation(summary = "Delete moment", description = "Soft-delete a moment and remove it from public timelines.")
 	public ApiResponse<Void> deleteMoment(@Parameter(description = "Moment ID") @PathVariable Long id) {
 		return momentService.deleteMoment(id);
 	}

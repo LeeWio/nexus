@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 import space.nebula.nexus.entity.FileMetadata;
@@ -54,4 +55,7 @@ public interface FileRepository extends JpaRepository<FileMetadata, Long>, JpaSp
 			String fileName, Pageable pageable);
 
 	Page<FileMetadata> findByIsDeletedFalse(Pageable pageable);
+
+	@Query("select (count(media) > 0) from MomentMedia media where media.file.id = :fileId")
+	boolean isReferencedByMoment(@Param("fileId") Long fileId);
 }
