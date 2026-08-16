@@ -8,7 +8,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.GitHubStatsResponse;
+import space.nebula.nexus.payload.response.GitHubActivityResponse;
 import space.nebula.nexus.service.IGitHubService;
+
+import java.time.YearMonth;
+import java.time.ZoneOffset;
 
 @Tag(name = "Public GitHub", description = "Public endpoints for GitHub activity and stats")
 @RestController
@@ -22,5 +26,11 @@ public class PublicGitHubController {
 	@GetMapping("/stats")
 	public ApiResponse<GitHubStatsResponse> retrieveStats() {
 		return ApiResponse.success(githubService.retrieveGlobalStats());
+	}
+
+	@Operation(summary = "Retrieve current public GitHub activity", description = "Return public commit, pull request, issue, and review contributions for the current UTC month. Private repository details are never exposed. Values are cached for one hour.")
+	@GetMapping("/activity")
+	public ApiResponse<GitHubActivityResponse> retrieveActivity() {
+		return ApiResponse.success(githubService.retrieveActivity(YearMonth.now(ZoneOffset.UTC)));
 	}
 }

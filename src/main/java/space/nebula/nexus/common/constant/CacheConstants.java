@@ -76,6 +76,7 @@ public final class CacheConstants {
 
 	// GitHub
 	public static final String GITHUB_STATS_CACHE_KEY = "nexus:github:global_stats";
+	public static final String GITHUB_ACTIVITY_CACHE_PREFIX = "nexus:github:activity:";
 
 	// Locks
 	public static final String LOCK_KANBAN_COLUMN_PREFIX = "nexus:lock:kanban:column:";

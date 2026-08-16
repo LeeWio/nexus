@@ -91,7 +91,7 @@ app:
   jwt:
     secret: "4A614E645267556B58703273357638792F423F4528482B4D6251655468576D5A" # Dev only
   github:
-    token: "dev-token"
+    token: ${GITHUB_TOKEN:dev-token}
 
 springdoc:
   api-docs:
