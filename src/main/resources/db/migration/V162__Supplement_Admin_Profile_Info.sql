@@ -1,7 +1,8 @@
 -- V162: Supplement Admin Profile Info for just.vireo@gmail.com
 
 UPDATE `sys_user`
-SET nickname = 'wei.li',
+SET username = 'wei.li',
+    nickname = 'wei.li',
     github_username = 'LeeWio',
     website = 'https://github.com/LeeWio',
     avatar = 'https://github.com/LeeWio.png',
