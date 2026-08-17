@@ -17,6 +17,7 @@ import space.nebula.nexus.payload.request.MomentRequest;
 import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.MomentRepository;
 import space.nebula.nexus.repository.UserRepository;
+import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.security.util.SecurityUtil;
 
 import java.util.List;
@@ -63,7 +64,7 @@ class MomentServiceImplTest {
 	@Test
 	void createMomentAttachesValidatedImagesInRequestOrder() {
 		Moment moment = publishedMoment(null);
-		MomentRequest request = new MomentRequest("A small field note", true,
+		MomentRequest request = new MomentRequest("A small field note", MomentVisibility.PUBLIC,
 				List.of(new MomentImageRequest(12L, "Second view"), new MomentImageRequest(11L, "First view")));
 		FileMetadata first = image(11L, "first.jpg", "image/jpeg");
 		FileMetadata second = image(12L, "second.webp", "image/webp");
@@ -83,7 +84,7 @@ class MomentServiceImplTest {
 	@Test
 	void createMomentRejectsNonImageAssets() {
 		Moment moment = publishedMoment(null);
-		MomentRequest request = new MomentRequest("Attachment", true,
+		MomentRequest request = new MomentRequest("Attachment", MomentVisibility.PUBLIC,
 				List.of(new MomentImageRequest(13L, "A document")));
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 		when(fileRepository.findAllById(anyCollection()))
@@ -122,13 +123,16 @@ class MomentServiceImplTest {
 	}
 
 	@Test
-	void likeMomentRejectsUnpublishedMoment() {
-		Moment moment = publishedMoment(7L);
-		moment.setIsPublished(false);
+	void likeMomentRejectsInvisibleMoment() {
+		Moment moment = new Moment();
+		moment.setId(7L);
+		moment.setVisibility(MomentVisibility.PRIVATE);
+		moment.setCreatedBy("another_user");
 		when(momentRepository.findById(7L)).thenReturn(Optional.of(moment));
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(user);
+			mockedSecurity.when(SecurityUtil::getCurrentUsername).thenReturn("reader");
 
 			assertThrows(BusinessException.class, () -> momentService.likeMoment(7L));
 		}
@@ -159,7 +163,7 @@ class MomentServiceImplTest {
 	private static Moment publishedMoment(Long id) {
 		Moment moment = new Moment();
 		moment.setId(id);
-		moment.setIsPublished(true);
+		moment.setVisibility(MomentVisibility.PUBLIC);
 		return moment;
 	}
 

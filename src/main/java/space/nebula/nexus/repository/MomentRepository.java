@@ -8,15 +8,20 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import space.nebula.nexus.entity.Moment;
+import space.nebula.nexus.enums.MomentVisibility;
 
 import java.util.Collection;
 import java.util.List;
 
 @Repository
 public interface MomentRepository extends JpaRepository<Moment, Long> {
-	Page<Moment> findByIsPublishedTrueOrderByCreatedAtDesc(Pageable pageable);
+	@Query("SELECT m FROM Moment m WHERE m.visibility = :publicVisibility " +
+			"OR (:username IS NOT NULL AND m.createdBy = :username) " +
+			"ORDER BY m.createdAt DESC")
+	Page<Moment> findPublicTimeline(@Param("publicVisibility") MomentVisibility publicVisibility,
+			@Param("username") String username, Pageable pageable);
 
-	List<Moment> findByContentContainingIgnoreCaseAndIsPublishedTrue(String content);
+	List<Moment> findByContentContainingIgnoreCaseAndVisibility(String content, MomentVisibility visibility);
 
 	@Modifying
 	@Query("update Moment moment set moment.likesCount = case when coalesce(moment.likesCount, 0) + :delta < 0 then 0 else coalesce(moment.likesCount, 0) + :delta end where moment.id = :id")

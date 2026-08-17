@@ -7,6 +7,7 @@ import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import space.nebula.nexus.entity.Moment;
 import space.nebula.nexus.entity.MomentMedia;
+import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.payload.request.MomentRequest;
 import space.nebula.nexus.payload.response.MomentImageResponse;
 import space.nebula.nexus.payload.response.MomentResponse;
@@ -32,7 +33,7 @@ public interface MomentMapper {
 				? List.of()
 				: moment.getImages().stream().sorted(java.util.Comparator.comparing(MomentMedia::getSortOrder))
 						.map(this::toImageResponse).toList();
-		return new MomentResponse(moment.getId(), moment.getContent(), moment.getLikesCount(), moment.getIsPublished(),
+		return new MomentResponse(moment.getId(), moment.getContent(), moment.getLikesCount(), moment.getVisibility(),
 				images, moment.getCreatedAt(), moment.getUpdatedAt());
 	}
 

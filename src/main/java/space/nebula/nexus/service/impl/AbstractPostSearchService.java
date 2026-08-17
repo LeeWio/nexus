@@ -8,6 +8,7 @@ import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.Tag;
 import space.nebula.nexus.entity.document.PostDocument;
 import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.payload.response.QuickSearchResponse;
 import space.nebula.nexus.payload.response.UnifiedSearchResponse;
 import space.nebula.nexus.repository.CategoryRepository;
@@ -146,7 +147,7 @@ public abstract class AbstractPostSearchService implements IPostSearchService {
 
 	protected void searchMomentsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups) {
 		List<UnifiedSearchResponse.SearchResultItem> items = momentRepository
-				.findByContentContainingIgnoreCaseAndIsPublishedTrue(keyword).stream().limit(3)
+				.findByContentContainingIgnoreCaseAndVisibility(keyword, MomentVisibility.PUBLIC).stream().limit(3)
 				.map(m -> UnifiedSearchResponse.SearchResultItem.builder().id("moment:" + m.getId())
 						.title(truncateContent(m.getContent())).subtitle("Moment").url("/moment/" + m.getId())
 						.icon("message-square").iconColor("#6366f1").type("MOMENT").build())

@@ -20,6 +20,7 @@ import space.nebula.nexus.entity.FileMetadata;
 import space.nebula.nexus.entity.Moment;
 import space.nebula.nexus.entity.MomentMedia;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.mapper.MomentMapper;
 import space.nebula.nexus.payload.request.MomentRequest;
 import space.nebula.nexus.payload.response.MomentResponse;
@@ -104,9 +105,10 @@ public class MomentServiceImpl implements IMomentService {
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.MOMENTS, key = "#pageable.pageNumber + '-' + #pageable.pageSize")
+	@Cacheable(value = CacheConstants.MOMENTS, key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + T(space.nebula.nexus.security.util.SecurityUtil).getCurrentUsername()")
 	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(Pageable pageable) {
-		Page<MomentResponse> page = momentRepository.findByIsPublishedTrueOrderByCreatedAtDesc(pageable)
+		String currentUsername = SecurityUtil.getCurrentUsername();
+		Page<MomentResponse> page = momentRepository.findPublicTimeline(MomentVisibility.PUBLIC, currentUsername, pageable)
 				.map(momentMapper::toResponse);
 		return ApiResponse.success(PageResult.of(page));
 	}
@@ -163,8 +165,11 @@ public class MomentServiceImpl implements IMomentService {
 
 	private Moment findPublishedMomentOrThrow(Long id) {
 		Moment moment = findMomentOrThrow(id);
-		Assert.isTrue(Boolean.TRUE.equals(moment.getIsPublished()),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only published moments can be interacted with"));
+		String currentUsername = SecurityUtil.getCurrentUsername();
+		boolean isVisible = moment.getVisibility() == MomentVisibility.PUBLIC 
+				|| (currentUsername != null && currentUsername.equals(moment.getCreatedBy()));
+		Assert.isTrue(isVisible,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only visible moments can be interacted with"));
 		return moment;
 	}
 
