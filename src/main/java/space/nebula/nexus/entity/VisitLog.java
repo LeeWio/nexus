@@ -22,7 +22,9 @@ import java.time.LocalDateTime;
 @SQLRestriction("is_deleted = false")
 public class VisitLog extends BaseEntity {
 
-	/** HMAC-SHA-256 identifier; raw IP addresses are deliberately never persisted. */
+	/**
+	 * HMAC-SHA-256 identifier; raw IP addresses are deliberately never persisted.
+	 */
 	@Column(name = "visitor_hash", nullable = false, length = 64)
 	private String visitorHash;
 

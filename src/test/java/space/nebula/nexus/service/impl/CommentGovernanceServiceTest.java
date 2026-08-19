@@ -186,8 +186,7 @@ class CommentGovernanceServiceTest {
 				aryEq(new Object[]{42L, CommentModerationAction.STATUS_CHANGED.name(), 5, 0L}));
 	}
 
-	private void stubReportRow() throws Exception
-	{
+	private void stubReportRow() throws Exception {
 		when(resultSet.getLong("comment_id")).thenReturn(42L);
 		when(resultSet.getLong("reporter_id")).thenReturn(9L);
 		when(resultSet.getString("reporter_username")).thenReturn("reporter");
@@ -207,8 +206,7 @@ class CommentGovernanceServiceTest {
 		when(resultSet.getTimestamp("created_at")).thenReturn(Timestamp.valueOf(LocalDateTime.of(2026, 7, 23, 9, 0)));
 	}
 
-	private void stubModerationLogRow() throws Exception
-	{
+	private void stubModerationLogRow() throws Exception {
 		when(resultSet.getLong("id")).thenReturn(7L);
 		when(resultSet.getLong("comment_id")).thenReturn(42L);
 		when(resultSet.getLong("post_id")).thenReturn(5L);
@@ -226,8 +224,7 @@ class CommentGovernanceServiceTest {
 		when(resultSet.getTimestamp("created_at")).thenReturn(Timestamp.valueOf(LocalDateTime.of(2026, 7, 23, 9, 0)));
 	}
 
-	private void stubRiskRow() throws Exception
-	{
+	private void stubRiskRow() throws Exception {
 		when(resultSet.getLong("id")).thenReturn(42L);
 		when(resultSet.getLong("parent_id")).thenReturn(1L);
 		when(resultSet.getLong("post_id")).thenReturn(5L);

@@ -42,12 +42,17 @@ class OpenApiDocumentationIntegrationTest {
 				.andExpect(jsonPath("$.components.schemas.ApiError.properties.traceId").exists())
 				.andExpect(jsonPath("$.paths['/api/v1/public/blog/posts'].get.security").doesNotExist())
 				.andExpect(jsonPath("$.paths['/api/v1/user/notifications'].get.security[0].bearerAuth").isArray())
-				.andExpect(jsonPath("$.paths['/api/v1/public/interactions/posts/{postId}/like'].post.security[0].bearerAuth")
+				.andExpect(jsonPath(
+						"$.paths['/api/v1/public/interactions/posts/{postId}/like'].post.security[0].bearerAuth")
 						.isArray())
-				.andExpect(jsonPath("$.components.schemas.PostInteractionResponse.properties.liked.type").value("boolean"))
-				.andExpect(jsonPath("$.components.schemas.PostInteractionResponse.properties.favoritesCount.type").value("integer"))
-				.andExpect(jsonPath("$.components.schemas.CommentInteractionResponse.properties.liked.type").value("boolean"))
-				.andExpect(jsonPath("$.components.schemas.CommentInteractionResponse.properties.likesCount.type").value("integer"))
+				.andExpect(
+						jsonPath("$.components.schemas.PostInteractionResponse.properties.liked.type").value("boolean"))
+				.andExpect(jsonPath("$.components.schemas.PostInteractionResponse.properties.favoritesCount.type")
+						.value("integer"))
+				.andExpect(jsonPath("$.components.schemas.CommentInteractionResponse.properties.liked.type")
+						.value("boolean"))
+				.andExpect(jsonPath("$.components.schemas.CommentInteractionResponse.properties.likesCount.type")
+						.value("integer"))
 				.andExpect(jsonPath("$.paths['/api/v1/user/notifications'].get.responses['401']").exists())
 				.andExpect(jsonPath("$.paths['/api/v1/public/blog/posts'].get['x-response-envelope']")
 						.value("ApiResponse<T>"));

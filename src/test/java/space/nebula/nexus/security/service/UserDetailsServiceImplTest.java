@@ -48,9 +48,9 @@ class UserDetailsServiceImplTest {
 	}
 
 	@Test
-    void loadUserByUsername_NotFound() {
-        when(userRepository.findByUsernameOrEmail("unknown", "unknown")).thenReturn(Optional.empty());
+	void loadUserByUsername_NotFound() {
+		when(userRepository.findByUsernameOrEmail("unknown", "unknown")).thenReturn(Optional.empty());
 
-        assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByUsername("unknown"));
-    }
+		assertThrows(UsernameNotFoundException.class, () -> userDetailsService.loadUserByUsername("unknown"));
+	}
 }

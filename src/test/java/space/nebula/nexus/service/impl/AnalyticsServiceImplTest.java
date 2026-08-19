@@ -20,7 +20,6 @@ import space.nebula.nexus.enums.ContentAnalyticsAction;
 import space.nebula.nexus.payload.request.ContentAnalyticsEventRequest;
 
 import java.time.LocalDate;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

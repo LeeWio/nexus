@@ -44,7 +44,8 @@ public class AnalyticsBufferTask {
 		List<VisitLog> bufferedLogs = redisUtil.listPopLeft(CacheConstants.ANALYTICS_BUFFER_KEY, bufferSize,
 				VisitLog.class);
 		List<VisitLog> logsToPersist = bufferedLogs.stream()
-				.filter(log -> StringUtils.hasText(log.getVisitorHash()) && StringUtils.hasText(log.getSessionId())).toList();
+				.filter(log -> StringUtils.hasText(log.getVisitorHash()) && StringUtils.hasText(log.getSessionId()))
+				.toList();
 		if (logsToPersist.size() != bufferedLogs.size()) {
 			log.warn("Discarded {} legacy analytics buffer entries without anonymous identifiers",
 					bufferedLogs.size() - logsToPersist.size());

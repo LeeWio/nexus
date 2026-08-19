@@ -29,8 +29,9 @@ public class SecurityUtil {
 	}
 
 	/**
-	 * Get the currently authenticated User entity directly from the security context principal,
-	 * completely bypassing database lookups when authenticated via standard JWT/form.
+	 * Get the currently authenticated User entity directly from the security
+	 * context principal, completely bypassing database lookups when authenticated
+	 * via standard JWT/form.
 	 */
 	public User getCurrentUser() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

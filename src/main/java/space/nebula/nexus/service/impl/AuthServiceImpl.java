@@ -213,7 +213,8 @@ public class AuthServiceImpl implements IAuthService {
 		Map<String, Object> variables = Dict.create().set("otp", otp).set("expireMin",
 				PASSWORD_RESET_OTP_EXPIRATION_MINUTES);
 		TemplateMailMessage mailMessage = TemplateMailMessage.builder().to(email).subject("Nexus Password Reset")
-				.templateName("password-reset").variables(variables).type(TemplateMailMessage.MailType.TEMPLATE).build();
+				.templateName("password-reset").variables(variables).type(TemplateMailMessage.MailType.TEMPLATE)
+				.build();
 
 		try {
 			rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mailMessage);
@@ -225,8 +226,8 @@ public class AuthServiceImpl implements IAuthService {
 	}
 
 	private ApiResponse<Void> passwordResetRequestAccepted() {
-		return ApiResponse.success("If an account is associated with this email, password reset instructions have been sent.",
-				null);
+		return ApiResponse.success(
+				"If an account is associated with this email, password reset instructions have been sent.", null);
 	}
 
 	@Override
@@ -240,7 +241,8 @@ public class AuthServiceImpl implements IAuthService {
 		User user = userRepository.findByEmail(request.email())
 				.orElseThrow(() -> new BusinessException(BusinessCode.USER_NOT_FOUND));
 		Assert.isFalse(passwordEncoder.matches(request.newPassword(), user.getPassword()),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "New password must be different from the current password"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"New password must be different from the current password"));
 
 		user.setPassword(passwordEncoder.encode(request.newPassword()));
 		user.setTokenVersion(user.getTokenVersion() + 1);

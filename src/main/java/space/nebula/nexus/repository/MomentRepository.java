@@ -15,9 +15,8 @@ import java.util.List;
 
 @Repository
 public interface MomentRepository extends JpaRepository<Moment, Long> {
-	@Query("SELECT m FROM Moment m WHERE m.visibility = :publicVisibility " +
-			"OR (:username IS NOT NULL AND m.createdBy = :username) " +
-			"ORDER BY m.createdAt DESC")
+	@Query("SELECT m FROM Moment m WHERE m.visibility = :publicVisibility "
+			+ "OR (:username IS NOT NULL AND m.createdBy = :username) " + "ORDER BY m.createdAt DESC")
 	Page<Moment> findPublicTimeline(@Param("publicVisibility") MomentVisibility publicVisibility,
 			@Param("username") String username, Pageable pageable);
 

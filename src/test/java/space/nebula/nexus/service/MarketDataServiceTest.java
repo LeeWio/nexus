@@ -88,40 +88,41 @@ class MarketDataServiceTest {
 	}
 
 	@Test
-    void getIndices_Success() {
-        when(redisUtil.get(anyString(), eq(List.class))).thenReturn(java.util.Optional.empty());
+	void getIndices_Success() {
+		when(redisUtil.get(anyString(), eq(List.class))).thenReturn(java.util.Optional.empty());
 
-        // Mock RestClient fluent API
-        when(restClient.get()).thenReturn(requestHeadersUriSpec);
-        when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        
-        // Mock two calls: one for HQ data, others for K-line
-        when(responseSpec.body(byte[].class)).thenReturn(mockHqResponse);
-        when(responseSpec.body(String.class)).thenReturn("[]");
+		// Mock RestClient fluent API
+		when(restClient.get()).thenReturn(requestHeadersUriSpec);
+		when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
+		when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
+		when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
 
-        ApiResponse<List<MarketIndexResponse>> apiResponse = marketDataService.getIndices("1D");
+		// Mock two calls: one for HQ data, others for K-line
+		when(responseSpec.body(byte[].class)).thenReturn(mockHqResponse);
+		when(responseSpec.body(String.class)).thenReturn("[]");
 
-        assertNotNull(apiResponse);
-        assertEquals(200, apiResponse.code());
-        List<MarketIndexResponse> indices = apiResponse.data();
-        assertEquals(2, indices.size());
+		ApiResponse<List<MarketIndexResponse>> apiResponse = marketDataService.getIndices("1D");
 
-        MarketIndexResponse nasdaq = indices.stream().filter(i -> i.getSymbol().equals(".ixic")).findFirst().orElse(null);
-        assertNotNull(nasdaq);
-        assertEquals("NASDAQ", nasdaq.getName());
-        assertEquals(new BigDecimal("15000.50"), nasdaq.getCurrent());
+		assertNotNull(apiResponse);
+		assertEquals(200, apiResponse.code());
+		List<MarketIndexResponse> indices = apiResponse.data();
+		assertEquals(2, indices.size());
 
-        MarketIndexResponse sse = indices.stream().filter(i -> i.getSymbol().equals("sh000001")).findFirst().orElse(null);
-        assertNotNull(sse);
-        assertEquals("SSE Composite", sse.getName());
-        assertEquals(new BigDecimal("3050.00"), sse.getCurrent());
-    }
+		MarketIndexResponse nasdaq = indices.stream().filter(i -> i.getSymbol().equals(".ixic")).findFirst()
+				.orElse(null);
+		assertNotNull(nasdaq);
+		assertEquals("NASDAQ", nasdaq.getName());
+		assertEquals(new BigDecimal("15000.50"), nasdaq.getCurrent());
+
+		MarketIndexResponse sse = indices.stream().filter(i -> i.getSymbol().equals("sh000001")).findFirst()
+				.orElse(null);
+		assertNotNull(sse);
+		assertEquals("SSE Composite", sse.getName());
+		assertEquals(new BigDecimal("3050.00"), sse.getCurrent());
+	}
 
 	@Test
-	void refreshIndicesReplacesCacheWithFreshData()
-	{
+	void refreshIndicesReplacesCacheWithFreshData() {
 		when(restClient.get()).thenReturn(requestHeadersUriSpec);
 		when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
 		when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);

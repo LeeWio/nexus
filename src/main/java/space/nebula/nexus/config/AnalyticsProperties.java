@@ -20,7 +20,9 @@ public class AnalyticsProperties {
 	@NotBlank
 	private String hashSalt;
 
-	/** Number of days raw, anonymized request and engagement events are retained. */
+	/**
+	 * Number of days raw, anonymized request and engagement events are retained.
+	 */
 	@Min(1)
 	private int retentionDays = 90;
 

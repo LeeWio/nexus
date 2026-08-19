@@ -66,7 +66,7 @@ public class CommentModerationService {
 			Comment comment = commentRepository.findById(id)
 					.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
 			Assert.isFalse(comment.isDeletedPlaceholder(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Deleted comment placeholders cannot be moderated"));
+					"Deleted comment placeholders cannot be moderated"));
 			CommentStatus previousStatus = comment.getStatus();
 			if (applyModerationStatus(comment, status)) {
 				commentRepository.save(comment);
@@ -86,8 +86,8 @@ public class CommentModerationService {
 	public ApiResponse<Void> pinComment(Long id, boolean pinned) {
 		Comment comment = commentRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
-		Assert.isFalse(pinned && comment.isDeletedPlaceholder(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
-				"Deleted comment placeholders cannot be pinned"));
+		Assert.isFalse(pinned && comment.isDeletedPlaceholder(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Deleted comment placeholders cannot be pinned"));
 		comment.setPinned(pinned);
 		commentRepository.save(comment);
 		return ApiResponse.success(pinned ? "Comment pinned." : "Comment unpinned.", null);
@@ -97,9 +97,8 @@ public class CommentModerationService {
 	public ApiResponse<Void> featureComment(Long id, boolean featured) {
 		Comment comment = commentRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
-		Assert.isFalse(featured && comment.isDeletedPlaceholder(),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Deleted comment placeholders cannot be featured"));
+		Assert.isFalse(featured && comment.isDeletedPlaceholder(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
+				"Deleted comment placeholders cannot be featured"));
 		comment.setFeatured(featured);
 		commentRepository.save(comment);
 		return ApiResponse.success(featured ? "Comment featured." : "Comment unfeatured.", null);

@@ -47,15 +47,16 @@ class UserServiceImplTest {
 	}
 
 	@Test
-    void getCurrentUserInfo_Success() {
-        when(authService.getAuthenticatedUser()).thenReturn(ApiResponse.success(testUser));
-        when(userMapper.toInfoResponse(testUser)).thenReturn(new UserInfoResponse(1L, "testuser", null, null, Collections.emptySet(), Collections.emptySet()));
+	void getCurrentUserInfo_Success() {
+		when(authService.getAuthenticatedUser()).thenReturn(ApiResponse.success(testUser));
+		when(userMapper.toInfoResponse(testUser)).thenReturn(
+				new UserInfoResponse(1L, "testuser", null, null, Collections.emptySet(), Collections.emptySet()));
 
-        var response = userService.getCurrentUserInfo();
+		var response = userService.getCurrentUserInfo();
 
-        assertNotNull(response);
-        assertEquals("testuser", response.data().username());
-    }
+		assertNotNull(response);
+		assertEquals("testuser", response.data().username());
+	}
 
 	@Test
 	void updateProfile_Success() {

@@ -1,10 +1,8 @@
 package space.nebula.nexus.service.impl;
 
-import cn.hutool.core.lang.Dict;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -21,7 +19,6 @@ import space.nebula.nexus.service.WebhookDeliveryClient;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -64,8 +61,8 @@ class WebhookServiceImplTest {
 	@Test
 	void redeliverWebhookLog_Success() {
 		when(webhookLogRepository.findByDeliveryId("delivery-1")).thenReturn(Optional.of(testWebhookLog));
-		when(deliveryClient.post(eq("http://example.com/webhook"), eq("POST_PUBLISHED"), anyString(), eq("{\"postId\": 123}")))
-				.thenReturn(new WebhookDeliveryClient.DeliveryResult(200, "ok", true));
+		when(deliveryClient.post(eq("http://example.com/webhook"), eq("POST_PUBLISHED"), anyString(),
+				eq("{\"postId\": 123}"))).thenReturn(new WebhookDeliveryClient.DeliveryResult(200, "ok", true));
 
 		ApiResponse<Void> response = webhookService.redeliverWebhookLog("delivery-1");
 
@@ -108,7 +105,8 @@ class WebhookServiceImplTest {
 	@Test
 	void redeliverWebhookLog_DeliveryFails_SavesFailureAndThrowsException() {
 		when(webhookLogRepository.findByDeliveryId("delivery-1")).thenReturn(Optional.of(testWebhookLog));
-		when(deliveryClient.post(eq("http://example.com/webhook"), eq("POST_PUBLISHED"), anyString(), eq("{\"postId\": 123}")))
+		when(deliveryClient.post(eq("http://example.com/webhook"), eq("POST_PUBLISHED"), anyString(),
+				eq("{\"postId\": 123}")))
 				.thenReturn(new WebhookDeliveryClient.DeliveryResult(500, "Internal Server Error", false));
 
 		assertThrows(BusinessException.class, () -> webhookService.redeliverWebhookLog("delivery-1"));

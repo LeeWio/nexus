@@ -224,7 +224,8 @@ public class KanbanServiceImpl implements IKanbanService {
 
 	@Override
 	@Transactional
-	public ApiResponse<KanbanChecklistItemResponse> createChecklistItem(Long taskId, KanbanChecklistItemRequest request) {
+	public ApiResponse<KanbanChecklistItemResponse> createChecklistItem(Long taskId,
+			KanbanChecklistItemRequest request) {
 		KanbanItem task = findItemForUpdateOrThrow(taskId);
 		List<KanbanChecklistItem> checklistItems = checklistItemsForTask(taskId);
 		int insertIndex = request.orderIndex() == null
@@ -297,12 +298,13 @@ public class KanbanServiceImpl implements IKanbanService {
 		Assert.isTrue(checklistItemIds != null,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Checklist item IDs are required"));
 		Assert.isTrue(new HashSet<>(checklistItemIds).size() == checklistItemIds.size(),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Checklist item IDs must not contain duplicates"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Checklist item IDs must not contain duplicates"));
 		List<KanbanChecklistItem> checklistItems = checklistItemsForTask(taskId);
 		Assert.isTrue(
-				checklistItems.size() == checklistItemIds.size() && checklistItems.stream()
-						.map(KanbanChecklistItem::getId).collect(java.util.stream.Collectors.toSet())
-						.equals(new HashSet<>(checklistItemIds)),
+				checklistItems.size() == checklistItemIds.size()
+						&& checklistItems.stream().map(KanbanChecklistItem::getId)
+								.collect(java.util.stream.Collectors.toSet()).equals(new HashSet<>(checklistItemIds)),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST,
 						"Checklist sequence must contain every task checklist item exactly once"));
 		var checklistById = checklistItems.stream()
@@ -398,7 +400,8 @@ public class KanbanServiceImpl implements IKanbanService {
 
 	private KanbanChecklistItem findChecklistItemOrThrow(Long taskId, Long checklistItemId,
 			List<KanbanChecklistItem> checklistItems) {
-		return checklistItems.stream().filter(checklistItem -> checklistItem.getId().equals(checklistItemId)).findFirst()
+		return checklistItems.stream().filter(checklistItem -> checklistItem.getId().equals(checklistItemId))
+				.findFirst()
 				.orElseThrow(() -> new ResourceNotFoundException("KanbanChecklistItem", "id", checklistItemId));
 	}
 

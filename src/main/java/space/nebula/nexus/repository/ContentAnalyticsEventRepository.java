@@ -21,8 +21,7 @@ public interface ContentAnalyticsEventRepository extends JpaRepository<ContentAn
 			LocalDateTime end, Long postId);
 
 	@Query("SELECT COALESCE(AVG(event.activeSeconds), 0) FROM ContentAnalyticsEvent event "
-			+ "WHERE event.eventType = :eventType "
-			+ "AND event.createdAt >= :start AND event.createdAt <= :end "
+			+ "WHERE event.eventType = :eventType " + "AND event.createdAt >= :start AND event.createdAt <= :end "
 			+ "AND (:postId IS NULL OR event.postId = :postId)")
 	Double findAverageActiveSecondsByEventTypeAndPeriod(ContentAnalyticsEventType eventType, LocalDateTime start,
 			LocalDateTime end, Long postId);

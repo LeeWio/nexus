@@ -113,7 +113,9 @@ public class WebhookServiceImpl implements IWebhookService {
 		WebhookLog webhookLog = webhookLogRepository.findByDeliveryId(deliveryId)
 				.orElseThrow(() -> new ResourceNotFoundException("WebhookLog", "deliveryId", deliveryId));
 		Webhook webhook = webhookLog.getWebhook();
-		Assert.isTrue(webhook != null && Boolean.TRUE.equals(webhook.getIsActive()) && !Boolean.TRUE.equals(webhook.getIsDeleted()),
+		Assert.isTrue(
+				webhook != null && Boolean.TRUE.equals(webhook.getIsActive())
+						&& !Boolean.TRUE.equals(webhook.getIsDeleted()),
 				() -> new space.nebula.nexus.common.exception.BusinessException(
 						space.nebula.nexus.common.constant.BusinessCode.BAD_REQUEST,
 						"Webhook is inactive or has been deleted"));
@@ -124,20 +126,22 @@ public class WebhookServiceImpl implements IWebhookService {
 
 		String signature = "";
 		if (StrUtil.isNotBlank(webhook.getSecret())) {
-			cn.hutool.crypto.digest.HMac mac = cn.hutool.crypto.SecureUtil.hmac(cn.hutool.crypto.digest.HmacAlgorithm.HmacSHA256, webhook.getSecret().getBytes());
+			cn.hutool.crypto.digest.HMac mac = cn.hutool.crypto.SecureUtil
+					.hmac(cn.hutool.crypto.digest.HmacAlgorithm.HmacSHA256, webhook.getSecret().getBytes());
 			signature = mac.digestHex(webhookLog.getRequestPayload());
 		}
 
 		try {
-			WebhookDeliveryClient.DeliveryResult response = deliveryClient.post(webhook.getUrl(),
-					webhookLog.getEvent(), signature, webhookLog.getRequestPayload());
+			WebhookDeliveryClient.DeliveryResult response = deliveryClient.post(webhook.getUrl(), webhookLog.getEvent(),
+					signature, webhookLog.getRequestPayload());
 			webhookLog.setResponseCode(response.statusCode());
 			webhookLog.setResponsePayload(response.responseBody());
 			webhookLog.setIsSuccess(response.success());
 			webhookLog.setErrorMessage(null);
 			log.info("Successfully redelivered webhook {} to URL: {}", webhookLog.getEvent(), webhook.getUrl());
 		} catch (Exception e) {
-			log.error("Exception occurred while redelivering webhook {} to URL: {}", webhookLog.getEvent(), webhook.getUrl(), e);
+			log.error("Exception occurred while redelivering webhook {} to URL: {}", webhookLog.getEvent(),
+					webhook.getUrl(), e);
 			webhookLog.setIsSuccess(false);
 			webhookLog.setErrorMessage(StrUtil.maxLength(e.getMessage(), 450));
 		} finally {

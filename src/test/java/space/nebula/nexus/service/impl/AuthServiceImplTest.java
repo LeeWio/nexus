@@ -139,16 +139,17 @@ class AuthServiceImplTest {
 	}
 
 	@Test
-    @DisplayName("Should record failure on bad credentials during authentication")
-    void authenticate_BadCredentials() {
-        // Arrange
-        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
+	@DisplayName("Should record failure on bad credentials during authentication")
+	void authenticate_BadCredentials() {
+		// Arrange
+		when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
 
-        // Act & Assert
-        BusinessException exception = assertThrows(BusinessException.class, () -> authService.authenticate(loginRequest));
-        assertEquals(40102, exception.getCode());
-        verify(loginSecurityService).recordLoginFailure("testuser");
-    }
+		// Act & Assert
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> authService.authenticate(loginRequest));
+		assertEquals(40102, exception.getCode());
+		verify(loginSecurityService).recordLoginFailure("testuser");
+	}
 
 	@Test
 	@DisplayName("Should fail authentication if account is locked")
@@ -358,7 +359,8 @@ class AuthServiceImplTest {
 		when(redisUtil.consumeIfEquals(CacheConstants.PASSWORD_RESET_OTP + request.email(), request.code()))
 				.thenReturn(false);
 
-		BusinessException exception = assertThrows(BusinessException.class, () -> authService.confirmPasswordReset(request));
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> authService.confirmPasswordReset(request));
 
 		assertEquals(BusinessCode.INVALID_TOKEN.getCode(), exception.getCode());
 		verifyNoInteractions(userRepository, passwordEncoder);
@@ -376,7 +378,8 @@ class AuthServiceImplTest {
 		when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
 		when(passwordEncoder.matches(request.newPassword(), user.getPassword())).thenReturn(true);
 
-		BusinessException exception = assertThrows(BusinessException.class, () -> authService.confirmPasswordReset(request));
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> authService.confirmPasswordReset(request));
 
 		assertEquals(BusinessCode.BAD_REQUEST.getCode(), exception.getCode());
 		verify(userRepository, never()).save(any(User.class));

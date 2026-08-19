@@ -18,7 +18,9 @@ import java.util.HexFormat;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-/** Resolves anonymous analytics identities without persisting raw IP addresses. */
+/**
+ * Resolves anonymous analytics identities without persisting raw IP addresses.
+ */
 @Service
 @RequiredArgsConstructor
 public class AnalyticsPrivacyService {

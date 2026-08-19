@@ -885,8 +885,7 @@ class CommentServiceImplTest {
 	}
 
 	@Test
-	void countNewRootCommentsByPostValidatesPublishedPost()
-	{
+	void countNewRootCommentsByPostValidatesPublishedPost() {
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(commentRepository.countByPostIdAndParentIsNullAndStatusAndIdGreaterThan(1L, CommentStatus.APPROVED, 55L))
 				.thenReturn(3L);
@@ -911,8 +910,7 @@ class CommentServiceImplTest {
 	}
 
 	@Test
-	void countNewGuestbookRootCommentsUsesZeroWhenAfterIdMissing()
-	{
+	void countNewGuestbookRootCommentsUsesZeroWhenAfterIdMissing() {
 		when(commentRepository.countByPostIsNullAndParentIsNullAndStatusAndIdGreaterThan(CommentStatus.APPROVED, 0L))
 				.thenReturn(5L);
 

@@ -61,9 +61,11 @@ class PostContentAnalyzerTest {
 				}
 				""";
 
-		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze("Title", null, jsonContent, PostContentType.JSON);
+		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze("Title", null, jsonContent,
+				PostContentType.JSON);
 
-		// Clean words count should be: "Hello", "world", "from", "JSON", "block", "editor", "This", "is", "the", "second", "block" (11 words)
+		// Clean words count should be: "Hello", "world", "from", "JSON", "block",
+		// "editor", "This", "is", "the", "second", "block" (11 words)
 		// It should NOT include blocks, time, type, data, paragraph, id, version etc.
 		assertEquals(11, metadata.wordCount());
 		assertEquals("Hello world from JSON block editor. This is the second block.", metadata.autoSummary());

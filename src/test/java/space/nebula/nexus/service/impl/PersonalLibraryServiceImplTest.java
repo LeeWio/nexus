@@ -171,8 +171,7 @@ class PersonalLibraryServiceImplTest {
 	}
 
 	@Test
-	void hidingRecommendationIsIdempotentAndRequiresPublishedPost()
-	{
+	void hidingRecommendationIsIdempotentAndRequiresPublishedPost() {
 		when(postRepository.findById(9L)).thenReturn(Optional.of(publishedPost(9L)));
 		when(hiddenRecommendationRepository.insertIgnore(42L, 9L)).thenReturn(1, 0);
 
@@ -251,10 +250,8 @@ class PersonalLibraryServiceImplTest {
 	}
 
 	@Test
-	void foreignCollectionIsNotExposed()
-	{
-		when(collectionRepository.findByIdAndUserIdAndIsDeletedFalse(7L, 42L))
-				.thenReturn(Optional.empty());
+	void foreignCollectionIsNotExposed() {
+		when(collectionRepository.findByIdAndUserIdAndIsDeletedFalse(7L, 42L)).thenReturn(Optional.empty());
 
 		assertThrows(ResourceNotFoundException.class,
 				() -> personalLibraryService.getCollectionPosts(7L, PageRequest.of(0, 20)));
@@ -262,20 +259,18 @@ class PersonalLibraryServiceImplTest {
 	}
 
 	@Test
-	void collectionNamesAreNormalizedBeforePersistence()
-	{
+	void collectionNamesAreNormalizedBeforePersistence() {
 		when(collectionRepository.countByUserIdAndIsDeletedFalse(42L)).thenReturn(0L);
 		when(collectionRepository.existsByUserIdAndNameIgnoreCaseAndIsDeletedFalse(42L, "Backend Notes"))
 				.thenReturn(false);
-		when(collectionRepository.save(any(PostCollection.class))).thenAnswer(invocation ->
-		{
+		when(collectionRepository.save(any(PostCollection.class))).thenAnswer(invocation -> {
 			PostCollection collection = invocation.getArgument(0);
 			collection.setId(7L);
 			return collection;
 		});
 
-		var response = personalLibraryService.createCollection(
-				new PostCollectionRequest("  Backend   Notes  ", "  Architecture references  "));
+		var response = personalLibraryService
+				.createCollection(new PostCollectionRequest("  Backend   Notes  ", "  Architecture references  "));
 
 		assertEquals("Backend Notes", response.data().name());
 		assertEquals("Architecture references", response.data().description());

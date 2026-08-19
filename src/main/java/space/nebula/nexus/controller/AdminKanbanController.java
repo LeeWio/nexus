@@ -121,7 +121,8 @@ public class AdminKanbanController {
 
 	@PutMapping("/tasks/{id}/assignees")
 	@Operation(summary = "Assign task users", description = "Replace the active users assigned to a task.")
-	public ApiResponse<KanbanItemResponse> assignTaskAssignees(@Parameter(description = "Task ID") @PathVariable Long id,
+	public ApiResponse<KanbanItemResponse> assignTaskAssignees(
+			@Parameter(description = "Task ID") @PathVariable Long id,
 			@Valid @RequestBody KanbanTaskAssigneeRequest request) {
 		return kanbanService.assignTaskAssignees(id, request);
 	}

@@ -83,8 +83,8 @@ public class NotificationServiceImpl implements INotificationService {
 	@Transactional
 	public ApiResponse<NotificationPreferenceResponse> updateMyPreferences(NotificationPreferenceRequest request) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
-		NotificationPreference preference = notificationPreferenceRepository
-				.findByUserId(currentUser.getId()).orElseGet(() -> {
+		NotificationPreference preference = notificationPreferenceRepository.findByUserId(currentUser.getId())
+				.orElseGet(() -> {
 					NotificationPreference created = new NotificationPreference();
 					created.setUser(currentUser);
 					return created;
@@ -181,7 +181,8 @@ public class NotificationServiceImpl implements INotificationService {
 
 	private NotificationPreferenceResponse toPreferenceResponse(NotificationPreference preference) {
 		return new NotificationPreferenceResponse(Boolean.TRUE.equals(preference.getCommentEnabled()),
-				Boolean.TRUE.equals(preference.getCategoryPostEnabled()), Boolean.TRUE.equals(preference.getSystemEnabled()));
+				Boolean.TRUE.equals(preference.getCategoryPostEnabled()),
+				Boolean.TRUE.equals(preference.getSystemEnabled()));
 	}
 
 	private static NotificationPreferenceResponse defaultPreferenceResponse() {
@@ -189,8 +190,6 @@ public class NotificationServiceImpl implements INotificationService {
 	}
 
 	private enum NotificationCategory {
-		COMMENT,
-		CATEGORY_POST,
-		SYSTEM
+		COMMENT, CATEGORY_POST, SYSTEM
 	}
 }

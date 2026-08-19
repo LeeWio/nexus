@@ -50,8 +50,9 @@ class RateLimitAspectTest {
 
 		ArgumentCaptor<String> timestampCaptor = ArgumentCaptor.forClass(String.class);
 		ArgumentCaptor<String> requestMemberCaptor = ArgumentCaptor.forClass(String.class);
-		verify(redisTemplate).execute(any(), eq(List.of(CacheConstants.RATE_LIMIT_PREFIX + "test:203.0.113.42:TestHandler.handle(..)")),
-				anyString(), anyString(), timestampCaptor.capture(), requestMemberCaptor.capture());
+		verify(redisTemplate).execute(any(),
+				eq(List.of(CacheConstants.RATE_LIMIT_PREFIX + "test:203.0.113.42:TestHandler.handle(..)")), anyString(),
+				anyString(), timestampCaptor.capture(), requestMemberCaptor.capture());
 		assertNotEquals(timestampCaptor.getValue(), requestMemberCaptor.getValue());
 		assertTrue(requestMemberCaptor.getValue().startsWith(timestampCaptor.getValue() + ":"));
 		assertTrue(RateLimitAspect.RATE_LIMIT_LUA.contains("redis.call('zadd', key, now, request_id)"));

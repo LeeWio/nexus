@@ -114,7 +114,8 @@ public class PersonalLibraryController {
 	 */
 	@PutMapping("/preferences/hidden-posts/{postId}")
 	@Operation(summary = "Hide a post from recommendations", description = "Hide one published post from future recommendation results for the current user. It does not affect favorites, likes, or normal public browsing.")
-	public ApiResponse<Void> hideRecommendation(@Parameter(description = "Published post ID") @PathVariable Long postId) {
+	public ApiResponse<Void> hideRecommendation(
+			@Parameter(description = "Published post ID") @PathVariable Long postId) {
 		return personalLibraryService.hideRecommendation(postId);
 	}
 
@@ -127,7 +128,8 @@ public class PersonalLibraryController {
 	 */
 	@DeleteMapping("/preferences/hidden-posts/{postId}")
 	@Operation(summary = "Restore a hidden recommendation", description = "Allow one previously hidden post to appear in future recommendations again.")
-	public ApiResponse<Void> restoreRecommendation(@Parameter(description = "Published post ID") @PathVariable Long postId) {
+	public ApiResponse<Void> restoreRecommendation(
+			@Parameter(description = "Published post ID") @PathVariable Long postId) {
 		return personalLibraryService.restoreRecommendation(postId);
 	}
 
@@ -178,7 +180,8 @@ public class PersonalLibraryController {
 	/** Removes one post from reading history. */
 	@DeleteMapping("/history/{postId}")
 	@Operation(summary = "Remove reading history entry", description = "Delete the current user's saved progress for one post without affecting favorites, likes, or recommendations.")
-	public ApiResponse<Void> deleteReadingHistory(@Parameter(description = "Published post ID") @PathVariable Long postId) {
+	public ApiResponse<Void> deleteReadingHistory(
+			@Parameter(description = "Published post ID") @PathVariable Long postId) {
 		return personalLibraryService.deleteReadingHistory(postId);
 	}
 
@@ -215,7 +218,8 @@ public class PersonalLibraryController {
 	/** Deletes a personal collection. */
 	@DeleteMapping("/collections/{collectionId}")
 	@Operation(summary = "Delete personal collection", description = "Permanently delete a collection owned by the current user and its memberships. The underlying posts are unaffected.")
-	public ApiResponse<Void> deleteCollection(@Parameter(description = "Collection ID") @PathVariable Long collectionId) {
+	public ApiResponse<Void> deleteCollection(
+			@Parameter(description = "Collection ID") @PathVariable Long collectionId) {
 		return personalLibraryService.deleteCollection(collectionId);
 	}
 
@@ -231,7 +235,8 @@ public class PersonalLibraryController {
 	/** Adds a published post to a personal collection. */
 	@PostMapping("/collections/{collectionId}/posts/{postId}")
 	@Operation(summary = "Add post to personal collection", description = "Add one published post to a collection owned by the current user. Repeating the request does not duplicate membership.")
-	public ApiResponse<Void> addPostToCollection(@Parameter(description = "Collection ID") @PathVariable Long collectionId,
+	public ApiResponse<Void> addPostToCollection(
+			@Parameter(description = "Collection ID") @PathVariable Long collectionId,
 			@Parameter(description = "Published post ID") @PathVariable Long postId) {
 		return personalLibraryService.addPostToCollection(collectionId, postId);
 	}
@@ -239,7 +244,8 @@ public class PersonalLibraryController {
 	/** Removes a post from a personal collection. */
 	@DeleteMapping("/collections/{collectionId}/posts/{postId}")
 	@Operation(summary = "Remove post from personal collection", description = "Remove one post from a collection owned by the current user. The post and the collection remain available.")
-	public ApiResponse<Void> removePostFromCollection(@Parameter(description = "Collection ID") @PathVariable Long collectionId,
+	public ApiResponse<Void> removePostFromCollection(
+			@Parameter(description = "Collection ID") @PathVariable Long collectionId,
 			@Parameter(description = "Published post ID") @PathVariable Long postId) {
 		return personalLibraryService.removePostFromCollection(collectionId, postId);
 	}

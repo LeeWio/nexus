@@ -29,9 +29,8 @@ public final class MomentTopicPolicy {
 			return List.of();
 		}
 
-		Assert.isTrue(topicSlugs.size() <= MAX_TOPICS_PER_MOMENT,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"A moment can contain at most " + MAX_TOPICS_PER_MOMENT + " topics"));
+		Assert.isTrue(topicSlugs.size() <= MAX_TOPICS_PER_MOMENT, () -> new BusinessException(BusinessCode.BAD_REQUEST,
+				"A moment can contain at most " + MAX_TOPICS_PER_MOMENT + " topics"));
 
 		List<String> normalizedSlugs = new ArrayList<>(topicSlugs.size());
 		Set<String> uniqueSlugs = new LinkedHashSet<>();
@@ -49,9 +48,8 @@ public final class MomentTopicPolicy {
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Moment topic cannot be blank"));
 
 		String normalized = Normalizer.normalize(value, Normalizer.Form.NFKC).trim().replaceFirst("^#+", "")
-				.toLowerCase(Locale.ROOT).replaceAll("[\\s_]+", "-")
-				.replaceAll("[^\\p{L}\\p{N}\\p{M}-]+", "-").replaceAll("-{2,}", "-")
-				.replaceAll("^-+|-+$", "");
+				.toLowerCase(Locale.ROOT).replaceAll("[\\s_]+", "-").replaceAll("[^\\p{L}\\p{N}\\p{M}-]+", "-")
+				.replaceAll("-{2,}", "-").replaceAll("^-+|-+$", "");
 		Assert.isTrue(StringUtils.hasText(normalized),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Moment topic must contain letters or numbers"));
 		Assert.isTrue(normalized.codePointCount(0, normalized.length()) <= MAX_SLUG_CODE_POINTS,

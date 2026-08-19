@@ -36,20 +36,22 @@ public class OpenApiConfig {
 
 	@Bean
 	OpenAPI nexusOpenApi() {
-		return new OpenAPI().info(new Info().title("Nexus API").version("v1")
-				.description("""
-						## Frontend integration contract
-						- Every JSON endpoint returns the `ApiResponse<T>` envelope: `code`, `message`, `data`, and `traceId`.
-						- Supply the access token as `Authorization: Bearer <accessToken>`. Only operations marked with the lock require it.
-						- Spring page requests use a zero-based `page` query parameter. `PageResult.page` in the response is one-based for display.
-						- Cursor responses return `nextCursor`; pass it back as `cursor` until `hasMore` is `false`.
-						- Handle `401` by renewing or clearing credentials, `403` as an authorization failure, `429` by backing off, and use `traceId` when reporting an unexpected error.
-						""")
-				.contact(new Contact().name("Nebula Space Team").url("https://nebula.space"))
-				.license(new License().name("MIT License").url("https://opensource.org/licenses/MIT")))
-				.components(new Components().addSecuritySchemes(BEARER_AUTH,
-						new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")
-								.description("JWT access token returned by `/api/v1/auth/login` or `/api/v1/auth/otp/login`.")));
+		return new OpenAPI()
+				.info(new Info().title("Nexus API").version("v1")
+						.description(
+								"""
+										## Frontend integration contract
+										- Every JSON endpoint returns the `ApiResponse<T>` envelope: `code`, `message`, `data`, and `traceId`.
+										- Supply the access token as `Authorization: Bearer <accessToken>`. Only operations marked with the lock require it.
+										- Spring page requests use a zero-based `page` query parameter. `PageResult.page` in the response is one-based for display.
+										- Cursor responses return `nextCursor`; pass it back as `cursor` until `hasMore` is `false`.
+										- Handle `401` by renewing or clearing credentials, `403` as an authorization failure, `429` by backing off, and use `traceId` when reporting an unexpected error.
+										""")
+						.contact(new Contact().name("Nebula Space Team").url("https://nebula.space"))
+						.license(new License().name("MIT License").url("https://opensource.org/licenses/MIT")))
+				.components(new Components().addSecuritySchemes(BEARER_AUTH, new SecurityScheme()
+						.type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT").description(
+								"JWT access token returned by `/api/v1/auth/login` or `/api/v1/auth/otp/login`.")));
 	}
 
 	/**
@@ -73,7 +75,8 @@ public class OpenApiConfig {
 		addErrorResponse(operation, "400", "Validation failed or a business rule rejected the request.");
 		addErrorResponse(operation, "404", "The referenced resource does not exist or is not visible to this caller.");
 		addErrorResponse(operation, "429", "The operation is rate limited. Retry after backing off.");
-		addErrorResponse(operation, "500", "An unexpected server error occurred. Include `traceId` when contacting support.");
+		addErrorResponse(operation, "500",
+				"An unexpected server error occurred. Include `traceId` when contacting support.");
 		operation.addExtension("x-response-envelope", "ApiResponse<T>");
 
 		if (requiresAuthentication(path, operation)) {
@@ -81,7 +84,8 @@ public class OpenApiConfig {
 				operation.addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH));
 			}
 			addErrorResponse(operation, "401", "A valid JWT access token is required.");
-			addErrorResponse(operation, "403", "The authenticated user lacks the required permission for this operation.");
+			addErrorResponse(operation, "403",
+					"The authenticated user lacks the required permission for this operation.");
 			appendAccessNote(operation, path.startsWith("/api/v1/admin/")
 					? "**Access:** Requires an authenticated staff account. The backend enforces the operation's ADMIN or EDITOR role."
 					: "**Access:** Requires a valid JWT access token. User-owned resources are scoped to the current account.");
@@ -99,14 +103,19 @@ public class OpenApiConfig {
 		if (components.getSchemas() == null) {
 			components.setSchemas(new LinkedHashMap<>());
 		}
-		components.getSchemas().putIfAbsent(API_ERROR, new ObjectSchema().description("Standard failed API response envelope")
-				.addProperty("code", new IntegerSchema().description("Application error code; normally matches the HTTP status.")
-						.example(400))
-				.addProperty("message", new StringSchema().description("Human-readable failure reason.")
-						.example("Validation failed: title is required"))
-				.addProperty("data", new Schema<>().nullable(true).description("Always null for an error response."))
-				.addProperty("traceId", new StringSchema().nullable(true)
-						.description("Request correlation ID for support and server logs.").example("7e8f6a1cf4cc4d0fa2eec6d85a7c9f31")));
+		components.getSchemas().putIfAbsent(API_ERROR,
+				new ObjectSchema().description("Standard failed API response envelope")
+						.addProperty("code", new IntegerSchema()
+								.description("Application error code; normally matches the HTTP status.").example(400))
+						.addProperty("message",
+								new StringSchema().description("Human-readable failure reason.")
+										.example("Validation failed: title is required"))
+						.addProperty("data",
+								new Schema<>().nullable(true).description("Always null for an error response."))
+						.addProperty("traceId",
+								new StringSchema().nullable(true)
+										.description("Request correlation ID for support and server logs.")
+										.example("7e8f6a1cf4cc4d0fa2eec6d85a7c9f31")));
 	}
 
 	private boolean requiresAuthentication(String path, Operation operation) {
@@ -114,8 +123,8 @@ public class OpenApiConfig {
 	}
 
 	private boolean usesBearerAuth(Operation operation) {
-		return operation.getSecurity() != null && operation.getSecurity().stream()
-				.anyMatch(requirement -> requirement.containsKey(BEARER_AUTH));
+		return operation.getSecurity() != null
+				&& operation.getSecurity().stream().anyMatch(requirement -> requirement.containsKey(BEARER_AUTH));
 	}
 
 	private void addErrorResponse(Operation operation, String responseCode, String description) {
@@ -124,9 +133,8 @@ public class OpenApiConfig {
 			responses = new ApiResponses();
 			operation.setResponses(responses);
 		}
-		responses.putIfAbsent(responseCode,
-				new ApiResponse().description(description).content(new Content().addMediaType("application/json",
-						new MediaType().schema(new Schema<>().$ref(API_ERROR_REF)))));
+		responses.putIfAbsent(responseCode, new ApiResponse().description(description).content(new Content()
+				.addMediaType("application/json", new MediaType().schema(new Schema<>().$ref(API_ERROR_REF)))));
 	}
 
 	private void appendAccessNote(Operation operation, String note) {

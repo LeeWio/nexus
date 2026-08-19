@@ -46,13 +46,11 @@ public class RateLimitAspect {
 	// ARGV[4]: unique request member so concurrent requests in the same millisecond
 	// do not overwrite each other in the sorted set.
 	static final String RATE_LIMIT_LUA = "local key = KEYS[1] " + "local window = tonumber(ARGV[1]) "
-			+ "local limit = tonumber(ARGV[2]) " + "local now = tonumber(ARGV[3]) "
-			+ "local request_id = ARGV[4] "
+			+ "local limit = tonumber(ARGV[2]) " + "local now = tonumber(ARGV[3]) " + "local request_id = ARGV[4] "
 			+ "redis.call('zremrangebyscore', key, 0, now - window) "
 			+ "local current_count = redis.call('zcard', key) " + "if current_count < limit then "
-			+ "  redis.call('zadd', key, now, request_id) " + "  redis.call('pexpire', key, window) "
-			+ "  return 1 " + "else "
-			+ "  return 0 " + "end";
+			+ "  redis.call('zadd', key, now, request_id) " + "  redis.call('pexpire', key, window) " + "  return 1 "
+			+ "else " + "  return 0 " + "end";
 
 	@Before("@annotation(rateLimit)")
 	public void doBefore(JoinPoint joinPoint, RateLimit rateLimit) {
@@ -77,7 +75,8 @@ public class RateLimitAspect {
 		// 3. Execute Lua script atomically
 		DefaultRedisScript<Long> script = new DefaultRedisScript<>(RATE_LIMIT_LUA, Long.class);
 		Long result = stringRedisTemplate.execute(script, Collections.singletonList(combinedKey),
-				String.valueOf(windowSizeMillis), String.valueOf(maxRequests), String.valueOf(nowMillis), requestMember);
+				String.valueOf(windowSizeMillis), String.valueOf(maxRequests), String.valueOf(nowMillis),
+				requestMember);
 
 		// 4. Handle result
 		if (result == null || result == 0) {

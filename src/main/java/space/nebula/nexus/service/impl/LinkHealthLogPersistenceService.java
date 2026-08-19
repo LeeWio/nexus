@@ -71,9 +71,9 @@ public class LinkHealthLogPersistenceService {
 						Collectors.mapping(LinkCheckLogUpdate::sourceId, Collectors.toSet())));
 
 		Map<LogKey, LinkCheckLog> existingLogs = new HashMap<>();
-		sourceIdsByType.forEach((sourceType, sourceIds) -> linkCheckLogRepository
-				.findBySourceTypeAndSourceIdIn(sourceType, sourceIds)
-				.forEach(log -> existingLogs.putIfAbsent(LogKey.from(log), log)));
+		sourceIdsByType.forEach(
+				(sourceType, sourceIds) -> linkCheckLogRepository.findBySourceTypeAndSourceIdIn(sourceType, sourceIds)
+						.forEach(log -> existingLogs.putIfAbsent(LogKey.from(log), log)));
 		return existingLogs;
 	}
 

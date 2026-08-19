@@ -94,7 +94,9 @@ public class PostReportServiceImpl implements IPostReportService {
 				""", this::mapReport, dataArgs.toArray());
 
 		long totalItems = total == null ? 0L : total;
-		int totalPages = pageable.getPageSize() == 0 ? 0 : (int) Math.ceil((double) totalItems / pageable.getPageSize());
+		int totalPages = pageable.getPageSize() == 0
+				? 0
+				: (int) Math.ceil((double) totalItems / pageable.getPageSize());
 		return ApiResponse.success(new PageResult<>(reports, totalItems, pageable.getPageNumber() + 1,
 				pageable.getPageSize(), totalPages));
 	}
@@ -103,7 +105,8 @@ public class PostReportServiceImpl implements IPostReportService {
 	@Transactional
 	public ApiResponse<Void> resolveReport(Long postId, Long reporterId, PostReportResolutionRequest request) {
 		Assert.notNull(request, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Report resolution is required"));
-		Assert.notNull(request.status(), () -> new BusinessException(BusinessCode.BAD_REQUEST, "Report status is required"));
+		Assert.notNull(request.status(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Report status is required"));
 		Assert.isTrue(request.status() != PostReportStatus.OPEN,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Reports must be actioned or dismissed"));
 		User moderator = SecurityUtil.getCurrentUserOrThrow(userRepository);
@@ -111,8 +114,8 @@ public class PostReportServiceImpl implements IPostReportService {
 				UPDATE blog_post_report
 				SET status = ?, resolution_note = ?, handled_by = ?, handled_at = CURRENT_TIMESTAMP(3)
 				WHERE post_id = ? AND reporter_id = ? AND status = ?
-				""", request.status().name(), normalize(request.resolutionNote()), moderator.getUsername(), postId, reporterId,
-				PostReportStatus.OPEN.name());
+				""", request.status().name(), normalize(request.resolutionNote()), moderator.getUsername(), postId,
+				reporterId, PostReportStatus.OPEN.name());
 		if (updated > 0) {
 			return ApiResponse.success("Post report resolved.", null);
 		}

@@ -114,8 +114,7 @@ class InteractionServiceImplTest {
 	void duplicateCommentUnlikeOnlyDecrementsCounterOnce() {
 		when(jdbcTemplate.update(anyString(), eq(10L), eq(1L))).thenReturn(1, 0);
 
-		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class))
-		{
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(user);
 
 			interactionService.unlikeComment(10L);

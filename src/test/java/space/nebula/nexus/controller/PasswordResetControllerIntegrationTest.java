@@ -69,8 +69,8 @@ class PasswordResetControllerIntegrationTest {
 
 		mockMvc.perform(post("/api/v1/auth/password/reset/request").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request))).andExpect(status().isOk())
-				.andExpect(jsonPath("$.code").value(200)).andExpect(jsonPath("$.message")
-						.value("If an account is associated with this email, password reset instructions have been sent."));
+				.andExpect(jsonPath("$.code").value(200)).andExpect(jsonPath("$.message").value(
+						"If an account is associated with this email, password reset instructions have been sent."));
 	}
 
 	@Test

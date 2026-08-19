@@ -37,7 +37,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** First-party analytics backed by anonymous sessions and durable event milestones. */
+/**
+ * First-party analytics backed by anonymous sessions and durable event
+ * milestones.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -97,7 +100,8 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 
 		List<Map<String, Object>> todayContent = visitLogRepository.findTopContentRawByRange(todayStart, todayEnd);
 		Map<String, Long> yesterdayCounts = visitLogRepository.findTopContentRawByRange(yesterdayStart, yesterdayEnd)
-				.stream().collect(Collectors.toMap(row -> String.valueOf(row.get("url")), this::rowCount, (left, right) -> left));
+				.stream().collect(
+						Collectors.toMap(row -> String.valueOf(row.get("url")), this::rowCount, (left, right) -> left));
 
 		List<TopPageResponse> topPages = todayContent.stream().map(row -> {
 			String url = String.valueOf(row.get("url"));
@@ -108,7 +112,8 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 			double averageSeconds = numberOrZero(
 					visitLogRepository.findAverageSessionDurationSecondsForPath(url, todayStart, todayEnd));
 			return TopPageResponse.builder().path(url).views(views).avgTime(formatDuration(averageSeconds))
-					.bounceRate(percentage(bouncedSessions, sessions)).trend(formatGrowth(views, previousViews)).build();
+					.bounceRate(percentage(bouncedSessions, sessions)).trend(formatGrowth(views, previousViews))
+					.build();
 		}).limit(20).toList();
 
 		return ApiResponse.success(topPages);
@@ -116,11 +121,13 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 
 	@Override
 	@Transactional
-	public ApiResponse<Void> recordContentEvent(ContentAnalyticsEventRequest request, String sessionId, String visitorHash) {
+	public ApiResponse<Void> recordContentEvent(ContentAnalyticsEventRequest request, String sessionId,
+			String visitorHash) {
 		Post post = postRepository.findById(request.postId())
-				.orElseThrow(() -> new space.nebula.nexus.common.exception.ResourceNotFoundException("Post", "id", request.postId()));
-		Assert.isTrue(post.isPublished(), () -> new BusinessException(BusinessCode.BAD_REQUEST,
-				"Only published posts can be tracked"));
+				.orElseThrow(() -> new space.nebula.nexus.common.exception.ResourceNotFoundException("Post", "id",
+						request.postId()));
+		Assert.isTrue(post.isPublished(),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only published posts can be tracked"));
 
 		if (request.action() == ContentAnalyticsAction.IMPRESSION) {
 			recordOnce(sessionId, visitorHash, post.getId(), ContentAnalyticsEventType.POST_IMPRESSION, null, null);
@@ -151,8 +158,9 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 				? subscriberRepository.countByStatusAndVerifiedAtBetween(SubscriberStatus.ACTIVE, start, end)
 				: 0L;
 		long returningVisitors = postId == null ? visitLogRepository.countReturningVisitors(start, end) : 0L;
-		double averageReadSeconds = numberOrZero(contentAnalyticsEventRepository
-				.findAverageActiveSecondsByEventTypeAndPeriod(ContentAnalyticsEventType.READ_COMPLETE, start, end, postId));
+		double averageReadSeconds = numberOrZero(
+				contentAnalyticsEventRepository.findAverageActiveSecondsByEventTypeAndPeriod(
+						ContentAnalyticsEventType.READ_COMPLETE, start, end, postId));
 
 		return ApiResponse.success(ContentFunnelResponse.builder().postId(postId).start(start).end(end)
 				.impressions(impressions).clicks(clicks).readers25Percent(readers25).readers50Percent(readers50)
@@ -208,18 +216,22 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 				visitLogRepository.findAverageSessionDurationSeconds(previousStart, start));
 
 		TrafficStatsResponse.SummaryMetrics summary = TrafficStatsResponse.SummaryMetrics.builder()
-				.sessions(metric(currentSessions, growth(currentSessions, previousSessions), String.format("%,d", currentSessions)))
+				.sessions(metric(currentSessions, growth(currentSessions, previousSessions),
+						String.format("%,d", currentSessions)))
 				.users(metric(currentUsers, growth(currentUsers, previousUsers), String.format("%,d", currentUsers)))
-				.returningVisitors(metric(currentReturningVisitors, growth(currentReturningVisitors, previousReturningVisitors),
-						String.format("%,d", currentReturningVisitors)))
+				.returningVisitors(
+						metric(currentReturningVisitors, growth(currentReturningVisitors, previousReturningVisitors),
+								String.format("%,d", currentReturningVisitors)))
 				.bounceRate(metric(currentBounce, growth(currentBounce, previousBounce), formatPercent(currentBounce)))
 				.avgSession(metric(currentAverageSeconds, growth(currentAverageSeconds, previousAverageSeconds),
 						formatDuration(currentAverageSeconds)))
 				.build();
 
-		List<TrafficStatsResponse.TimeSeriesItem> timeSeries = visitLogRepository.findDailySessionTrendRaw(start).stream()
+		List<TrafficStatsResponse.TimeSeriesItem> timeSeries = visitLogRepository.findDailySessionTrendRaw(start)
+				.stream()
 				.map(row -> TrafficStatsResponse.TimeSeriesItem.builder()
-						.date(LocalDate.parse(String.valueOf(row.get("visitDate"))).format(DateTimeFormatter.ofPattern("MMM dd")))
+						.date(LocalDate.parse(String.valueOf(row.get("visitDate")))
+								.format(DateTimeFormatter.ofPattern("MMM dd")))
 						.sessions(rowCount(row, "sessions")).users(rowCount(row, "users")).build())
 				.toList();
 
@@ -241,7 +253,8 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 			return ApiResponse.success(List.of());
 		}
 		List<Post> posts = new java.util.ArrayList<>(postRepository.findAllBySlugIn(topSlugs));
-		posts.sort((left, right) -> Integer.compare(topSlugs.indexOf(left.getSlug()), topSlugs.indexOf(right.getSlug())));
+		posts.sort(
+				(left, right) -> Integer.compare(topSlugs.indexOf(left.getSlug()), topSlugs.indexOf(right.getSlug())));
 		return ApiResponse.success(postMapper.toResponseList(posts));
 	}
 
@@ -262,13 +275,16 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 				"activeSeconds is required for a reading progress event"));
 		int progress = request.progressPercent();
 		if (progress >= 25) {
-			recordOnce(sessionId, visitorHash, postId, ContentAnalyticsEventType.READ_25, progress, request.activeSeconds());
+			recordOnce(sessionId, visitorHash, postId, ContentAnalyticsEventType.READ_25, progress,
+					request.activeSeconds());
 		}
 		if (progress >= 50) {
-			recordOnce(sessionId, visitorHash, postId, ContentAnalyticsEventType.READ_50, progress, request.activeSeconds());
+			recordOnce(sessionId, visitorHash, postId, ContentAnalyticsEventType.READ_50, progress,
+					request.activeSeconds());
 		}
 		if (progress >= 75) {
-			recordOnce(sessionId, visitorHash, postId, ContentAnalyticsEventType.READ_75, progress, request.activeSeconds());
+			recordOnce(sessionId, visitorHash, postId, ContentAnalyticsEventType.READ_75, progress,
+					request.activeSeconds());
 		}
 		if (progress >= 90) {
 			recordOnce(sessionId, visitorHash, postId, ContentAnalyticsEventType.READ_COMPLETE, progress,
@@ -292,7 +308,8 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 		contentAnalyticsEventRepository.save(event);
 	}
 
-	private long countMilestone(ContentAnalyticsEventType eventType, LocalDateTime start, LocalDateTime end, Long postId) {
+	private long countMilestone(ContentAnalyticsEventType eventType, LocalDateTime start, LocalDateTime end,
+			Long postId) {
 		return contentAnalyticsEventRepository.countDistinctSessionsByEventTypeAndPeriod(eventType, start, end, postId);
 	}
 
@@ -326,22 +343,31 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 			String channel = sourceChannel(referer, url);
 			channels.merge(channel, rowCount(row), Long::sum);
 		}
-		return channels.entrySet().stream().map(entry -> new TrafficStatsResponse.TrafficMetric(entry.getKey(),
-				entry.getValue(), percentage(entry.getValue(), totalRequests))).sorted((left, right) -> Long
-				.compare(right.views(), left.views())).toList();
+		return channels.entrySet().stream()
+				.map(entry -> new TrafficStatsResponse.TrafficMetric(entry.getKey(), entry.getValue(),
+						percentage(entry.getValue(), totalRequests)))
+				.sorted((left, right) -> Long.compare(right.views(), left.views())).toList();
 	}
 
 	private String sourceChannel(String referer, String url) {
-		if (url.contains("utm_medium=cpc") || url.contains("utm_source=ad")) return "Paid Search";
-		if (url.contains("utm_medium=email")) return "Email";
-		if (url.contains("utm_medium=display")) return "Display Ads";
-		if (url.contains("utm_medium=affiliate")) return "Affiliate";
-		if (url.contains("utm_source=newsletter")) return "Newsletter";
-		if (url.contains("utm_medium=video") || referer.contains("youtube.com")) return "Video";
+		if (url.contains("utm_medium=cpc") || url.contains("utm_source=ad"))
+			return "Paid Search";
+		if (url.contains("utm_medium=email"))
+			return "Email";
+		if (url.contains("utm_medium=display"))
+			return "Display Ads";
+		if (url.contains("utm_medium=affiliate"))
+			return "Affiliate";
+		if (url.contains("utm_source=newsletter"))
+			return "Newsletter";
+		if (url.contains("utm_medium=video") || referer.contains("youtube.com"))
+			return "Video";
 		if (referer.contains("facebook.com") || referer.contains("twitter.com") || referer.contains("linkedin.com")
-				|| referer.contains("t.co")) return "Social";
+				|| referer.contains("t.co"))
+			return "Social";
 		if (referer.contains("google.") || referer.contains("bing.com") || referer.contains("baidu.com")
-				|| referer.contains("yahoo.com")) return "Organic Search";
+				|| referer.contains("yahoo.com"))
+			return "Organic Search";
 		return referer.isBlank() || referer.equals("null") ? "Direct" : "Referral";
 	}
 
@@ -385,7 +411,8 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	}
 
 	private String formatGrowth(long current, long previous) {
-		if (previous == 0) return current > 0 ? "+100%" : "0%";
+		if (previous == 0)
+			return current > 0 ? "+100%" : "0%";
 		double value = growth(current, previous);
 		return (value > 0 ? "+" : "") + String.format("%.1f%%", value);
 	}
@@ -396,7 +423,6 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 
 	private String formatDuration(double seconds) {
 		long totalSeconds = Math.max(0, Math.round(seconds));
-		return String.format("%02d:%02d:%02d", totalSeconds / 3600, (totalSeconds % 3600) / 60,
-				totalSeconds % 60);
+		return String.format("%02d:%02d:%02d", totalSeconds / 3600, (totalSeconds % 3600) / 60, totalSeconds % 60);
 	}
 }

@@ -55,8 +55,8 @@ class PostReportServiceImplTest {
 	@Test
 	void reportPublishedPostCreatesOneOpenReport() {
 		when(postRepository.findById(7L)).thenReturn(Optional.of(publishedPost));
-		when(jdbcTemplate.update(contains("INSERT IGNORE INTO blog_post_report"), eq(7L), eq(42L), eq("spam"),
-				isNull(), eq(PostReportStatus.OPEN.name()))).thenReturn(1);
+		when(jdbcTemplate.update(contains("INSERT IGNORE INTO blog_post_report"), eq(7L), eq(42L), eq("spam"), isNull(),
+				eq(PostReportStatus.OPEN.name()))).thenReturn(1);
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(reader);
@@ -86,8 +86,8 @@ class PostReportServiceImplTest {
 	@Test
 	void duplicatePostReportRemainsSuccessfulWithoutCreatingAnotherRecord() {
 		when(postRepository.findById(7L)).thenReturn(Optional.of(publishedPost));
-		when(jdbcTemplate.update(contains("INSERT IGNORE INTO blog_post_report"), eq(7L), eq(42L), eq("spam"),
-				isNull(), eq(PostReportStatus.OPEN.name()))).thenReturn(0);
+		when(jdbcTemplate.update(contains("INSERT IGNORE INTO blog_post_report"), eq(7L), eq(42L), eq("spam"), isNull(),
+				eq(PostReportStatus.OPEN.name()))).thenReturn(0);
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(reader);
@@ -132,9 +132,8 @@ class PostReportServiceImplTest {
 
 	@Test
 	void resolveReportRejectsOpenAsAFinalStatus() {
-		BusinessException exception = assertThrows(BusinessException.class,
-				() -> postReportService.resolveReport(7L, 42L,
-						new PostReportResolutionRequest(PostReportStatus.OPEN, null)));
+		BusinessException exception = assertThrows(BusinessException.class, () -> postReportService.resolveReport(7L,
+				42L, new PostReportResolutionRequest(PostReportStatus.OPEN, null)));
 
 		assertEquals(400, exception.getCode());
 		verifyNoInteractions(jdbcTemplate);

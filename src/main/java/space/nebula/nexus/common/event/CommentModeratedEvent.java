@@ -40,8 +40,8 @@ public class CommentModeratedEvent extends ApplicationEvent {
 	 * @param link
 	 *            frontend link to the approved comment, or {@code null}
 	 */
-	public CommentModeratedEvent(Object source, Long commentId, Long authorId, Long replyRecipientId,
-			Long postAuthorId, String authorUsername, String postTitle, CommentStatus status, String link) {
+	public CommentModeratedEvent(Object source, Long commentId, Long authorId, Long replyRecipientId, Long postAuthorId,
+			String authorUsername, String postTitle, CommentStatus status, String link) {
 		super(source);
 		this.commentId = commentId;
 		this.authorId = authorId;

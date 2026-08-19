@@ -154,7 +154,8 @@ public class InteractionServiceImpl implements IInteractionService {
 				FROM blog_comment c
 				WHERE c.id = ?
 				""", userId, commentId);
-		return new CommentInteractionResponse(commentId, booleanValue(row.get("liked")), longValue(row.get("likesCount")));
+		return new CommentInteractionResponse(commentId, booleanValue(row.get("liked")),
+				longValue(row.get("likesCount")));
 	}
 
 	private boolean booleanValue(Object value) {
@@ -191,8 +192,8 @@ public class InteractionServiceImpl implements IInteractionService {
 					"SELECT EXISTS(SELECT 1 FROM blog_post_like WHERE post_id = ? AND user_id = ?)", Boolean.class,
 					postId, userId);
 			Boolean isFavorited = jdbcTemplate.queryForObject(
-					"SELECT EXISTS(SELECT 1 FROM blog_post_favorite WHERE post_id = ? AND user_id = ?)",
-					Boolean.class, postId, userId);
+					"SELECT EXISTS(SELECT 1 FROM blog_post_favorite WHERE post_id = ? AND user_id = ?)", Boolean.class,
+					postId, userId);
 
 			builder.isLiked(isLiked != null ? isLiked : false);
 			builder.isFavorited(isFavorited != null ? isFavorited : false);

@@ -131,8 +131,7 @@ class KanbanServiceImplTest {
 
 		when(taskRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(source));
 		when(columnRepository.findAllByIdForUpdate(List.of(1L))).thenReturn(List.of(column));
-		when(taskRepository.findByColumnIdOrderByOrderIndexAscIdAsc(1L))
-				.thenReturn(List.of(first, source, following));
+		when(taskRepository.findByColumnIdOrderByOrderIndexAscIdAsc(1L)).thenReturn(List.of(first, source, following));
 
 		kanbanService.duplicateTask(2L);
 

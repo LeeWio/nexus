@@ -88,8 +88,9 @@ public class LinkHealthServiceImpl implements ILinkHealthService {
 		if (targets.isEmpty())
 			return;
 		List<CompletableFuture<LinkHealthLogPersistenceService.LinkCheckLogUpdate>> futures = targets.stream()
-				.map(target -> checkLinkAsync(target.url(),
-				target.sourceType(), target.sourceId(), target.sourceTitle(), brokenCount)).toList();
+				.map(target -> checkLinkAsync(target.url(), target.sourceType(), target.sourceId(),
+						target.sourceTitle(), brokenCount))
+				.toList();
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 		linkHealthLogPersistenceService.saveBatch(futures.stream().map(CompletableFuture::join).toList());
 	}
@@ -116,8 +117,7 @@ public class LinkHealthServiceImpl implements ILinkHealthService {
 	}
 
 	private CompletableFuture<LinkHealthLogPersistenceService.LinkCheckLogUpdate> checkLinkAsync(String url,
-			String sourceType, Long sourceId,
-			String sourceTitle, AtomicInteger brokenCount) {
+			String sourceType, Long sourceId, String sourceTitle, AtomicInteger brokenCount) {
 		return CompletableFuture.supplyAsync(() -> {
 			try {
 				outboundUrlValidator.validate(url);
@@ -143,12 +143,12 @@ public class LinkHealthServiceImpl implements ILinkHealthService {
 					boolean isBroken = status >= 400;
 					if (isBroken)
 						brokenCount.incrementAndGet();
-					return new LinkHealthLogPersistenceService.LinkCheckLogUpdate(url, sourceType, sourceId, sourceTitle,
-							status, isBroken, null);
+					return new LinkHealthLogPersistenceService.LinkCheckLogUpdate(url, sourceType, sourceId,
+							sourceTitle, status, isBroken, null);
 				} catch (Exception ex) {
 					brokenCount.incrementAndGet();
-					return new LinkHealthLogPersistenceService.LinkCheckLogUpdate(url, sourceType, sourceId, sourceTitle,
-							null, true, ex.getMessage());
+					return new LinkHealthLogPersistenceService.LinkCheckLogUpdate(url, sourceType, sourceId,
+							sourceTitle, null, true, ex.getMessage());
 				}
 			}
 		}, outboundExecutor);

@@ -48,10 +48,10 @@ class LinkHealthLogPersistenceServiceTest {
 						"New post", 404, true, "Not found")));
 
 		verify(linkCheckLogRepository).findBySourceTypeAndSourceIdIn("POST", Set.of(11L, 12L));
-		verify(linkCheckLogRepository, never()).findByUrlAndSourceTypeAndSourceId(
-				eq("https://example.com/existing"), eq("POST"), eq(11L));
+		verify(linkCheckLogRepository, never()).findByUrlAndSourceTypeAndSourceId(eq("https://example.com/existing"),
+				eq("POST"), eq(11L));
 
-		@SuppressWarnings({ "unchecked", "rawtypes" })
+		@SuppressWarnings({"unchecked", "rawtypes"})
 		ArgumentCaptor<Iterable<LinkCheckLog>> logsCaptor = ArgumentCaptor.forClass((Class) Iterable.class);
 		verify(linkCheckLogRepository).saveAll(logsCaptor.capture());
 		List<LinkCheckLog> savedLogs = StreamSupport.stream(logsCaptor.getValue().spliterator(), false).toList();

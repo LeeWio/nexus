@@ -124,8 +124,7 @@ class NotificationServiceImplTest {
 	}
 
 	@Test
-	void deleteNotificationRejectsMissingOrForeignNotification()
-	{
+	void deleteNotificationRejectsMissingOrForeignNotification() {
 		when(notificationRepository.deleteOwnedById(7L, 42L)).thenReturn(0);
 
 		assertThrows(ResourceNotFoundException.class, () -> notificationService.deleteNotification(7L));
@@ -155,8 +154,7 @@ class NotificationServiceImplTest {
 		when(notificationPreferenceRepository.save(any(NotificationPreference.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 
-		var response = notificationService
-				.updateMyPreferences(new NotificationPreferenceRequest(false, true, false));
+		var response = notificationService.updateMyPreferences(new NotificationPreferenceRequest(false, true, false));
 
 		assertTrue(!response.data().commentNotificationsEnabled());
 		assertTrue(response.data().categoryPostNotificationsEnabled());

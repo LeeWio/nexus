@@ -10,7 +10,8 @@ public interface IAnalyticsService {
 	ApiResponse<AnalyticsOverviewResponse> retrieveOverviewStats();
 
 	/**
-	 * Retrieves top pages statistics with measured session duration and bounce rate.
+	 * Retrieves top pages statistics with measured session duration and bounce
+	 * rate.
 	 */
 	ApiResponse<java.util.List<space.nebula.nexus.payload.response.TopPageResponse>> getTopPages();
 

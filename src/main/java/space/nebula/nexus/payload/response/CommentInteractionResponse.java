@@ -13,6 +13,7 @@ public record CommentInteractionResponse(@Schema(description = "Comment ID") Lon
 		@Schema(description = "Whether the authenticated user currently likes the comment") boolean liked,
 
 		@Schema(description = "Current total number of comment likes", example = "7") long likesCount)
-		implements Serializable {
+		implements
+			Serializable {
 	private static final long serialVersionUID = 1L;
 }
