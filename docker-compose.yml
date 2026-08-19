@@ -1,6 +1,7 @@
 services:
   nexus-app:
-    image: crpi-jljp0dhu73tl5aot.cn-shenzhen.personal.cr.aliyuncs.com/wei_li/nexus-api:latest
+    image: nexus-api:local
+    pull_policy: never
     container_name: nexus-app
     logging:
       driver: "json-file"
