@@ -121,8 +121,8 @@ public class MomentServiceImpl implements IMomentService {
 	@Cacheable(value = CacheConstants.MOMENTS, key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + T(space.nebula.nexus.security.util.SecurityUtil).getCurrentUsername()")
 	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(Pageable pageable) {
 		String currentUsername = SecurityUtil.getCurrentUsername();
-		Page<MomentResponse> page = momentRepository.findPublicTimeline(MomentVisibility.PUBLIC, currentUsername, pageable)
-				.map(momentMapper::toResponse);
+		Page<MomentResponse> page = momentRepository
+				.findPublicTimeline(MomentVisibility.PUBLIC, currentUsername, pageable).map(momentMapper::toResponse);
 		return ApiResponse.success(PageResult.of(page));
 	}
 
@@ -188,9 +188,9 @@ public class MomentServiceImpl implements IMomentService {
 
 	private void validateMomentContent(String content, List<?> images) {
 		int characterCount = MomentContentPolicy.visibleCharacterCount(content);
-		Assert.isTrue(characterCount <= MomentContentPolicy.MAX_VISIBLE_CHARACTERS,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Moment content must not exceed " + MomentContentPolicy.MAX_VISIBLE_CHARACTERS + " characters"));
+		Assert.isTrue(characterCount <= MomentContentPolicy.MAX_VISIBLE_CHARACTERS, () -> new BusinessException(
+				BusinessCode.BAD_REQUEST,
+				"Moment content must not exceed " + MomentContentPolicy.MAX_VISIBLE_CHARACTERS + " characters"));
 		Assert.isTrue(MomentContentPolicy.hasVisibleText(content) || (images != null && !images.isEmpty()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST,
 						"A moment must include text or at least one image"));

@@ -59,8 +59,8 @@ class MomentServiceImplTest {
 
 	@BeforeEach
 	void setUp() {
-		momentService = new MomentServiceImpl(momentRepository, momentTopicRepository, momentMapper, fileRepository, userRepository,
-				jdbcTemplate);
+		momentService = new MomentServiceImpl(momentRepository, momentTopicRepository, momentMapper, fileRepository,
+				userRepository, jdbcTemplate);
 		user = new User();
 		user.setId(4L);
 		user.setUsername("reader");
@@ -70,7 +70,8 @@ class MomentServiceImplTest {
 	void createMomentAttachesValidatedImagesInRequestOrder() {
 		Moment moment = publishedMoment(null);
 		MomentRequest request = new MomentRequest("A small field note", MomentVisibility.PUBLIC,
-				List.of(new MomentImageRequest(12L, "Second view"), new MomentImageRequest(11L, "First view")), List.of());
+				List.of(new MomentImageRequest(12L, "Second view"), new MomentImageRequest(11L, "First view")),
+				List.of());
 		FileMetadata first = image(11L, "first.jpg", "image/jpeg");
 		FileMetadata second = image(12L, "second.webp", "image/webp");
 		when(momentMapper.toEntity(request)).thenReturn(moment);
@@ -92,7 +93,8 @@ class MomentServiceImplTest {
 		MomentRequest request = new MomentRequest("", MomentVisibility.PUBLIC,
 				List.of(new MomentImageRequest(12L, "A field note photo")), List.of());
 		when(momentMapper.toEntity(request)).thenReturn(moment);
-		when(fileRepository.findAllById(anyCollection())).thenReturn(List.of(image(12L, "field-note.jpg", "image/jpeg")));
+		when(fileRepository.findAllById(anyCollection()))
+				.thenReturn(List.of(image(12L, "field-note.jpg", "image/jpeg")));
 
 		withAuthenticatedUser(() -> momentService.createMoment(request));
 

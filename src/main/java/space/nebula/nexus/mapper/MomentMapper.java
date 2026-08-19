@@ -8,7 +8,6 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 import space.nebula.nexus.entity.Moment;
 import space.nebula.nexus.entity.MomentMedia;
 import space.nebula.nexus.entity.MomentTopicRelation;
-import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.payload.request.MomentRequest;
 import space.nebula.nexus.payload.response.MomentImageResponse;
 import space.nebula.nexus.payload.response.MomentResponse;
@@ -42,14 +41,16 @@ public interface MomentMapper {
 				: moment.getTopicRelations().stream()
 						.sorted(java.util.Comparator.comparing(MomentTopicRelation::getSortOrder))
 						.map(this::toTopicResponse).toList();
-						
+
 		String authorName = null;
 		String authorAvatar = null;
 		if (moment.getUser() != null) {
-			authorName = moment.getUser().getNickname() != null ? moment.getUser().getNickname() : moment.getUser().getUsername();
+			authorName = moment.getUser().getNickname() != null
+					? moment.getUser().getNickname()
+					: moment.getUser().getUsername();
 			authorAvatar = moment.getUser().getAvatar();
 		}
-		
+
 		return new MomentResponse(moment.getId(), moment.getContent(), moment.getLikesCount(), moment.getVisibility(),
 				authorName, authorAvatar, images, topics, moment.getCreatedAt(), moment.getUpdatedAt());
 	}
