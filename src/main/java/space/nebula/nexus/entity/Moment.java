@@ -7,6 +7,9 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.FetchType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.DynamicUpdate;
@@ -35,6 +38,10 @@ public class Moment extends BaseEntity {
 	@Enumerated(EnumType.STRING)
 	@Column(name = "visibility", nullable = false, length = 20)
 	private MomentVisibility visibility = MomentVisibility.PUBLIC;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "user_id")
+	private User user;
 
 	@OneToMany(mappedBy = "moment", cascade = CascadeType.ALL, orphanRemoval = true)
 	@org.hibernate.annotations.BatchSize(size = 50)

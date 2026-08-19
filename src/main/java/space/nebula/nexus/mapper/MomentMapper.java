@@ -29,6 +29,7 @@ public interface MomentMapper {
 	@Mapping(target = "isDeleted", ignore = true)
 	@Mapping(target = "images", ignore = true)
 	@Mapping(target = "topicRelations", ignore = true)
+	@Mapping(target = "user", ignore = true)
 	Moment toEntity(MomentRequest request);
 
 	default MomentResponse toResponse(Moment moment) {
@@ -41,8 +42,16 @@ public interface MomentMapper {
 				: moment.getTopicRelations().stream()
 						.sorted(java.util.Comparator.comparing(MomentTopicRelation::getSortOrder))
 						.map(this::toTopicResponse).toList();
+						
+		String authorName = null;
+		String authorAvatar = null;
+		if (moment.getUser() != null) {
+			authorName = moment.getUser().getNickname() != null ? moment.getUser().getNickname() : moment.getUser().getUsername();
+			authorAvatar = moment.getUser().getAvatar();
+		}
+		
 		return new MomentResponse(moment.getId(), moment.getContent(), moment.getLikesCount(), moment.getVisibility(),
-				images, topics, moment.getCreatedAt(), moment.getUpdatedAt());
+				authorName, authorAvatar, images, topics, moment.getCreatedAt(), moment.getUpdatedAt());
 	}
 
 	default MomentImageResponse toImageResponse(MomentMedia media) {
@@ -68,5 +77,6 @@ public interface MomentMapper {
 	@Mapping(target = "isDeleted", ignore = true)
 	@Mapping(target = "images", ignore = true)
 	@Mapping(target = "topicRelations", ignore = true)
+	@Mapping(target = "user", ignore = true)
 	void updateEntity(@MappingTarget Moment moment, MomentRequest request);
 }

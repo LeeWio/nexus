@@ -7,6 +7,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record MomentResponse(Long id, String content, Long likesCount, MomentVisibility visibility,
-		List<MomentImageResponse> images, List<MomentTopicResponse> topics, LocalDateTime createdAt,
-		LocalDateTime updatedAt) implements Serializable {
+		String authorName, String authorAvatar, List<MomentImageResponse> images, List<MomentTopicResponse> topics,
+		LocalDateTime createdAt, LocalDateTime updatedAt) implements Serializable {
 }

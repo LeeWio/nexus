@@ -76,7 +76,7 @@ class MomentServiceImplTest {
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 		when(fileRepository.findAllById(anyCollection())).thenReturn(List.of(first, second));
 
-		momentService.createMoment(request);
+		withAuthenticatedUser(() -> momentService.createMoment(request));
 
 		assertEquals(2, moment.getImages().size());
 		assertSame(second, moment.getImages().get(0).getFile());
@@ -94,7 +94,7 @@ class MomentServiceImplTest {
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 		when(fileRepository.findAllById(anyCollection())).thenReturn(List.of(image(12L, "field-note.jpg", "image/jpeg")));
 
-		momentService.createMoment(request);
+		withAuthenticatedUser(() -> momentService.createMoment(request));
 
 		verify(momentRepository).save(moment);
 	}
@@ -124,7 +124,9 @@ class MomentServiceImplTest {
 		when(fileRepository.findAllById(anyCollection()))
 				.thenReturn(List.of(image(13L, "notes.pdf", "application/pdf")));
 
-		assertThrows(BusinessException.class, () -> momentService.createMoment(request));
+		withAuthenticatedUser(() -> {
+			assertThrows(BusinessException.class, () -> momentService.createMoment(request));
+		});
 		verifyNoInteractions(momentRepository);
 	}
 
@@ -139,7 +141,7 @@ class MomentServiceImplTest {
 		when(momentTopicRepository.findBySlug("observability")).thenReturn(Optional.empty());
 		when(momentTopicRepository.save(any(MomentTopic.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		momentService.createMoment(request);
+		withAuthenticatedUser(() -> momentService.createMoment(request));
 
 		assertEquals(2, moment.getTopicRelations().size());
 		assertEquals("frontend-architecture", moment.getTopicRelations().get(0).getTopic().getSlug());

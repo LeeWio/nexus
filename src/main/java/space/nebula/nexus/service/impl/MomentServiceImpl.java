@@ -77,6 +77,7 @@ public class MomentServiceImpl implements IMomentService {
 	public ApiResponse<MomentResponse> createMoment(MomentRequest request) {
 		validateMomentContent(request.content(), request.images());
 		Moment moment = momentMapper.toEntity(request);
+		moment.setUser(SecurityUtil.getCurrentUserOrThrow(userRepository));
 		replaceImages(moment, request.images(), false);
 		replaceTopics(moment, request.topicSlugs(), false);
 		momentRepository.save(moment);
