@@ -2,13 +2,15 @@ package space.nebula.nexus.service;
 
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.AnalyticsOverviewResponse;
+import space.nebula.nexus.payload.request.ContentAnalyticsEventRequest;
+import space.nebula.nexus.payload.response.ContentFunnelResponse;
 
 public interface IAnalyticsService {
 
 	ApiResponse<AnalyticsOverviewResponse> retrieveOverviewStats();
 
 	/**
-	 * Retrieves top pages statistics including mocked average time and bounce rate.
+	 * Retrieves top pages statistics with measured session duration and bounce rate.
 	 */
 	ApiResponse<java.util.List<space.nebula.nexus.payload.response.TopPageResponse>> getTopPages();
 
@@ -26,6 +28,12 @@ public interface IAnalyticsService {
 	 * Retrieves top trending posts based on recent views.
 	 */
 	ApiResponse<java.util.List<space.nebula.nexus.payload.response.PostResponse>> getTrendingPosts(int limit);
+
+	/** Records a privacy-preserving, de-duplicated post engagement milestone. */
+	ApiResponse<Void> recordContentEvent(ContentAnalyticsEventRequest request, String sessionId, String visitorHash);
+
+	/** Retrieves the discovery-to-conversion funnel for all content or one post. */
+	ApiResponse<ContentFunnelResponse> getContentFunnel(int days, Long postId);
 	/**
 	 * Purges old visit logs that have already been aggregated. Typically keeps logs
 	 * for the last 90 days.

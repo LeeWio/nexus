@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.entity.VisitLog;
 import space.nebula.nexus.repository.VisitLogRepository;
@@ -40,8 +41,14 @@ public class AnalyticsBufferTask {
 		}
 
 		// Pop in batches to reduce network roundtrips
-		List<VisitLog> logsToPersist = redisUtil.listPopLeft(CacheConstants.ANALYTICS_BUFFER_KEY, bufferSize,
+		List<VisitLog> bufferedLogs = redisUtil.listPopLeft(CacheConstants.ANALYTICS_BUFFER_KEY, bufferSize,
 				VisitLog.class);
+		List<VisitLog> logsToPersist = bufferedLogs.stream()
+				.filter(log -> StringUtils.hasText(log.getVisitorHash()) && StringUtils.hasText(log.getSessionId())).toList();
+		if (logsToPersist.size() != bufferedLogs.size()) {
+			log.warn("Discarded {} legacy analytics buffer entries without anonymous identifiers",
+					bufferedLogs.size() - logsToPersist.size());
+		}
 
 		if (!logsToPersist.isEmpty()) {
 			// Process in sub-batches if the total size is very large

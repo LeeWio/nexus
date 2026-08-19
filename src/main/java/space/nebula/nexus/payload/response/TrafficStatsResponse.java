@@ -21,6 +21,7 @@ public record TrafficStatsResponse(
 	@Builder
 	public record SummaryMetrics(@Schema(description = "Total sessions and its growth rate") Metric sessions,
 			@Schema(description = "Total unique users and its growth rate") Metric users,
+			@Schema(description = "Visitors who also visited before this reporting window") Metric returningVisitors,
 			@Schema(description = "Bounce rate and its growth rate") Metric bounceRate,
 			@Schema(description = "Average session duration (e.g. 3m 42s) and its growth rate") Metric avgSession)
 			implements

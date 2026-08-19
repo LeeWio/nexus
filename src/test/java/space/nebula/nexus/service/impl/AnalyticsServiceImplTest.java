@@ -12,6 +12,12 @@ import space.nebula.nexus.repository.CommentRepository;
 import space.nebula.nexus.repository.DailyAnalyticsRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.VisitLogRepository;
+import space.nebula.nexus.repository.ContentAnalyticsEventRepository;
+import space.nebula.nexus.repository.PostFavoriteRepository;
+import space.nebula.nexus.repository.PostLikeRepository;
+import space.nebula.nexus.repository.SubscriberRepository;
+import space.nebula.nexus.enums.ContentAnalyticsAction;
+import space.nebula.nexus.payload.request.ContentAnalyticsEventRequest;
 
 import java.time.LocalDate;
 import java.util.Collections;
@@ -36,6 +42,14 @@ class AnalyticsServiceImplTest {
 	private PostRepository postRepository;
 	@Mock
 	private PostMapper postMapper;
+	@Mock
+	private ContentAnalyticsEventRepository contentAnalyticsEventRepository;
+	@Mock
+	private PostLikeRepository postLikeRepository;
+	@Mock
+	private PostFavoriteRepository postFavoriteRepository;
+	@Mock
+	private SubscriberRepository subscriberRepository;
 
 	@InjectMocks
 	private AnalyticsServiceImpl analyticsService;
@@ -47,7 +61,6 @@ class AnalyticsServiceImplTest {
 		when(visitLogRepository.countPv(any(), any())).thenReturn(100L);
 		when(visitLogRepository.countUv(any(), any())).thenReturn(50L);
 		when(commentRepository.countByCreatedAtBetween(any(), any())).thenReturn(5L);
-		when(visitLogRepository.findDailyTrendRaw(any())).thenReturn(Collections.emptyList());
 		when(dailyAnalyticsRepository.findByStatDate(date)).thenReturn(Optional.empty());
 
 		analyticsService.aggregateDailyData(date);
@@ -68,5 +81,22 @@ class AnalyticsServiceImplTest {
 
 		assertNotNull(response);
 		assertEquals(200, response.code());
+	}
+
+	@Test
+	void recordContentEvent_RecordsEachReadingMilestoneOnce() {
+		Post post = new Post();
+		post.setId(42L);
+		post.setStatus(space.nebula.nexus.enums.PostStatus.PUBLISHED);
+		when(postRepository.findById(42L)).thenReturn(Optional.of(post));
+		when(contentAnalyticsEventRepository.existsBySessionIdAndPostIdAndEventTypeAndIsDeletedFalse(any(), any(),
+				any())).thenReturn(false);
+
+		var response = analyticsService.recordContentEvent(
+				new ContentAnalyticsEventRequest(ContentAnalyticsAction.READING_PROGRESS, 42L, 90, 180),
+				"2f4093b5-f1fb-4b9f-86ce-1fc5f7e10c71", "visitor-hash");
+
+		assertEquals(200, response.code());
+		verify(contentAnalyticsEventRepository, times(4)).save(any());
 	}
 }

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.entity.VisitLog;
-import space.nebula.nexus.utils.IpUtil;
+import space.nebula.nexus.service.AnalyticsPrivacyService;
 
 import java.time.LocalDateTime;
 
@@ -23,15 +23,18 @@ import java.time.LocalDateTime;
 public class AnalyticsInterceptor implements HandlerInterceptor {
 
 	private final RedisTemplate<String, Object> redisTemplate;
+	private final AnalyticsPrivacyService analyticsPrivacyService;
 
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
 		try {
 			String url = request.getRequestURL().toString();
 			// Only track public API requests, excluding static assets or documentation
-			if (url.contains("/api/v1/public/") && !url.contains("/seo/")) {
+			if ("GET".equalsIgnoreCase(request.getMethod()) && url.contains("/api/v1/public/")
+					&& !url.contains("/seo/")) {
 				VisitLog visitLog = new VisitLog();
-				visitLog.setIpAddress(IpUtil.getIpAddress(request));
+				visitLog.setVisitorHash(analyticsPrivacyService.hashVisitor(request));
+				visitLog.setSessionId(analyticsPrivacyService.resolveSessionId(request, response));
 				visitLog.setUserAgent(request.getHeader("User-Agent"));
 				visitLog.setReferer(request.getHeader("Referer"));
 				visitLog.setRequestUrl(request.getRequestURI());

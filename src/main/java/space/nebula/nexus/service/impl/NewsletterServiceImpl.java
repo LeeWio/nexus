@@ -70,6 +70,7 @@ public class NewsletterServiceImpl implements INewsletterService {
 						&& subscriber.getVerificationExpiresAt().isAfter(LocalDateTime.now()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Verification token is invalid or expired"));
 		subscriber.setStatus(SubscriberStatus.ACTIVE);
+		subscriber.setVerifiedAt(LocalDateTime.now());
 		subscriber.setVerificationToken(null);
 		subscriber.setVerificationExpiresAt(null);
 		subscriberRepository.save(subscriber);

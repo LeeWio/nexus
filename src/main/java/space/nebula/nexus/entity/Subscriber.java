@@ -28,4 +28,7 @@ public class Subscriber extends BaseEntity {
 
 	@Column(name = "unsubscribe_token", length = 100)
 	private String unsubscribeToken;
+
+	@Column(name = "verified_at")
+	private LocalDateTime verifiedAt;
 }

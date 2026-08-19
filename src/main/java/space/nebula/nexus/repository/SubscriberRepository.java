@@ -8,6 +8,7 @@ import space.nebula.nexus.entity.Subscriber;
 import space.nebula.nexus.enums.SubscriberStatus;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 @Repository
 public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
@@ -15,4 +16,6 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
 	Optional<Subscriber> findByVerificationToken(String token);
 	Optional<Subscriber> findByUnsubscribeToken(String token);
 	Page<Subscriber> findAllByStatus(SubscriberStatus status, Pageable pageable);
+
+	long countByStatusAndVerifiedAtBetween(SubscriberStatus status, LocalDateTime start, LocalDateTime end);
 }

@@ -11,6 +11,7 @@ import space.nebula.nexus.entity.PostLikeId;
 import space.nebula.nexus.enums.PostStatus;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 /**
  * Provides read access to durable post likes without coupling library queries
@@ -30,4 +31,8 @@ public interface PostLikeRepository extends JpaRepository<PostLike, PostLikeId> 
 			+ "GROUP BY postLike.post.category.id ORDER BY COUNT(postLike.post.id) DESC, "
 			+ "MAX(postLike.createdAt) DESC")
 	List<Long> findPreferredCategoryIds(Long userId, PostStatus status, Pageable pageable);
+
+	@Query("SELECT COUNT(postLike) FROM PostLike postLike WHERE postLike.createdAt >= :start "
+			+ "AND postLike.createdAt <= :end AND (:postId IS NULL OR postLike.post.id = :postId)")
+	long countCreatedBetween(LocalDateTime start, LocalDateTime end, Long postId);
 }

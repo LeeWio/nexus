@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
+import space.nebula.nexus.config.AnalyticsProperties;
 import space.nebula.nexus.service.IAnalyticsService;
 
 import java.time.LocalDate;
@@ -15,6 +16,7 @@ import java.time.LocalDate;
 public class DailyAnalyticsTask {
 
 	private final IAnalyticsService analyticsService;
+	private final AnalyticsProperties analyticsProperties;
 
 	/**
 	 * Runs every day at 00:05 AM to aggregate data for the previous day.
@@ -26,7 +28,6 @@ public class DailyAnalyticsTask {
 		log.info("Executing scheduled daily analytics aggregation for {}", yesterday);
 		analyticsService.aggregateDailyData(yesterday);
 
-		// After aggregation, purge logs older than 90 days
-		analyticsService.purgeOldLogs(90);
+		analyticsService.purgeOldLogs(analyticsProperties.getRetentionDays());
 	}
 }

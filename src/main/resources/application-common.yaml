@@ -133,6 +133,10 @@ logging:
     org.hibernate.SQL: INFO
 
 app:
+  analytics:
+    hash-salt: ${ANALYTICS_HASH_SALT:development-only-analytics-salt}
+    retention-days: ${ANALYTICS_RETENTION_DAYS:90}
+    session-cookie-max-age-days: ${ANALYTICS_SESSION_COOKIE_MAX_AGE_DAYS:30}
   friend-link:
     moderation-email: ${FRIEND_LINK_MODERATION_EMAIL:}
   newsletter:

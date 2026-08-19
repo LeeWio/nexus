@@ -11,6 +11,7 @@ import space.nebula.nexus.entity.PostFavoriteId;
 import space.nebula.nexus.enums.PostStatus;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 /**
  * Provides read access to durable post favorites.
@@ -48,4 +49,8 @@ public interface PostFavoriteRepository extends JpaRepository<PostFavorite, Post
 			+ "AND favorite.post.status = :status AND favorite.post.category IS NOT NULL "
 			+ "GROUP BY favorite.post.category.id ORDER BY COUNT(favorite.id) DESC, MAX(favorite.createdAt) DESC")
 	List<Long> findPreferredCategoryIds(Long userId, PostStatus status, Pageable pageable);
+
+	@Query("SELECT COUNT(favorite) FROM PostFavorite favorite WHERE favorite.createdAt >= :start "
+			+ "AND favorite.createdAt <= :end AND (:postId IS NULL OR favorite.post.id = :postId)")
+	long countCreatedBetween(LocalDateTime start, LocalDateTime end, Long postId);
 }

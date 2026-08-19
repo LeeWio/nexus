@@ -85,6 +85,8 @@ server:
   forward-headers-strategy: framework
 
 app:
+  analytics:
+    hash-salt: ${ANALYTICS_HASH_SALT}
   newsletter:
     base-url: ${APP_BASE_URL:https://easylove.top}
   oauth2:
