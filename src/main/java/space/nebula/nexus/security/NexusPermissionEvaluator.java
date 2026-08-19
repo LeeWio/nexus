@@ -49,8 +49,27 @@ public class NexusPermissionEvaluator implements PermissionEvaluator {
 			return false;
 		}
 
+		Set<String> roles = authentication.getAuthorities().stream().map(GrantedAuthority::getAuthority)
+				.collect(Collectors.toSet());
+
+		// 1. ADMIN always has full access - check first to completely bypass database fetch!
+		if (roles.contains("ROLE_ADMIN")) {
+			return true;
+		}
+
 		if ("Post".equalsIgnoreCase(targetType)) {
 			Long postId = Long.valueOf(targetId.toString());
+
+			// 2. EDITOR has global read/edit/delete/approval access on posts - bypass DB fetch!
+			String permUpper = permString.toUpperCase();
+			boolean isEditor = roles.contains("ROLE_EDITOR");
+			if (isEditor) {
+				if ("READ".equals(permUpper) || "EDIT".equals(permUpper) || "DELETE".equals(permUpper)
+						|| "APPROVE".equals(permUpper) || "REJECT".equals(permUpper)) {
+					return true;
+				}
+			}
+
 			Post post = postRepository.findById(postId)
 					.orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
 			return hasPrivilegeForPost(authentication, post, permString);

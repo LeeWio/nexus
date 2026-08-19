@@ -31,7 +31,7 @@ spring:
       time-to-live: 3600000ms
       use-key-prefix: true
       key-prefix: "nexus:cache:"
-      cache-null-values: false
+      cache-null-values: true
 
   rabbitmq:
     listener:

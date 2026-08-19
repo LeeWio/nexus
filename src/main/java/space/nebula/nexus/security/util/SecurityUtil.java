@@ -8,6 +8,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.repository.UserRepository;
+import space.nebula.nexus.security.model.SecurityUser;
 
 /**
  * Utility class for Spring Security related operations.
@@ -28,12 +29,32 @@ public class SecurityUtil {
 	}
 
 	/**
+	 * Get the currently authenticated User entity directly from the security context principal,
+	 * completely bypassing database lookups when authenticated via standard JWT/form.
+	 */
+	public User getCurrentUser() {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (ObjectUtil.isNull(authentication) || !authentication.isAuthenticated()) {
+			return null;
+		}
+		Object principal = authentication.getPrincipal();
+		if (principal instanceof SecurityUser securityUser) {
+			return securityUser.getUser();
+		}
+		return null;
+	}
+
+	/**
 	 * Get the currently authenticated user entity.
 	 * 
 	 * @throws BusinessException
 	 *             if user is not authenticated or not found in database.
 	 */
 	public User getCurrentUserOrThrow(UserRepository userRepository) {
+		User currentUser = getCurrentUser();
+		if (currentUser != null) {
+			return currentUser;
+		}
 		String username = getCurrentUsername();
 		Assert.notNull(username, () -> new BusinessException(401, "Authentication required"));
 		return userRepository.findByUsername(username)

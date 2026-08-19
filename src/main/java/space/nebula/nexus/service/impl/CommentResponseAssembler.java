@@ -3,6 +3,7 @@ package space.nebula.nexus.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import space.nebula.nexus.entity.Comment;
+import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.CommentStatus;
 import space.nebula.nexus.mapper.CommentMapper;
 import space.nebula.nexus.payload.response.CommentResponse;
@@ -47,6 +48,11 @@ public class CommentResponseAssembler {
 	}
 
 	private Set<Long> loadLikedCommentIds(List<Long> commentIds) {
+		User currentUser = SecurityUtil.getCurrentUser();
+		if (currentUser != null) {
+			return Set.copyOf(commentRepository.findLikedCommentIds(currentUser.getId(), commentIds));
+		}
+
 		String username = SecurityUtil.getCurrentUsername();
 		if (username == null) {
 			return Set.of();

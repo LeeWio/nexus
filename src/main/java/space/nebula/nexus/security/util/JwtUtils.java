@@ -92,12 +92,21 @@ public class JwtUtils {
 	 * Validates the token against the user details and checks expiration.
 	 */
 	public boolean isTokenValid(String token, UserDetails userDetails) {
-		final String username = extractUsername(token);
-		Number versionClaim = extractClaim(token, claims -> claims.get("token_version", Number.class));
-		return username.equals(userDetails.getUsername()) && versionClaim != null
-				&& versionClaim.intValue() == tokenVersion(userDetails) && userDetails.isEnabled()
-				&& userDetails.isAccountNonLocked() && userDetails.isAccountNonExpired()
-				&& userDetails.isCredentialsNonExpired() && !isTokenExpired(token);
+		try {
+			final Claims claims = extractAllClaims(token);
+			final String username = claims.getSubject();
+			Number versionClaim = claims.get("token_version", Number.class);
+			Date expiration = claims.getExpiration();
+			boolean isExpired = expiration != null && expiration.before(new Date());
+
+			return username != null && username.equals(userDetails.getUsername()) && versionClaim != null
+					&& versionClaim.intValue() == tokenVersion(userDetails) && userDetails.isEnabled()
+					&& userDetails.isAccountNonLocked() && userDetails.isAccountNonExpired()
+					&& userDetails.isCredentialsNonExpired() && !isExpired;
+		} catch (Exception e) {
+			log.error("Token validation failed: {}", e.getMessage());
+			return false;
+		}
 	}
 
 	private int tokenVersion(UserDetails userDetails) {

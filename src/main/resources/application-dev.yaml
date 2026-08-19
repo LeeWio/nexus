@@ -15,7 +15,7 @@ spring:
       mail.smtp.connectiontimeout: 5000
 
   datasource:
-    url: jdbc:mysql://${DEV_DB_HOST:localhost}:${DEV_DB_PORT:3307}/${DEV_DB_NAME:nexus_db}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC
+    url: jdbc:mysql://${DEV_DB_HOST:localhost}:${DEV_DB_PORT:3307}/${DEV_DB_NAME:nexus_db}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC&rewriteBatchedStatements=true&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useServerPrepStmts=true
     username: ${DEV_DB_USERNAME:root}
     password: ${DEV_DB_PASSWORD:nexus_password}
     driver-class-name: com.mysql.cj.jdbc.Driver

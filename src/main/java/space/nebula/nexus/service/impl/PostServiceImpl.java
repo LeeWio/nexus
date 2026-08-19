@@ -671,6 +671,7 @@ public class PostServiceImpl implements IPostService {
 
 	@Override
 	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.BLOG_POSTS, key = "'related:' + #slug + ':' + #pageable.pageNumber + '-' + #pageable.pageSize", sync = true)
 	public ApiResponse<List<PostDigestResponse>> retrieveRelatedPosts(String slug, Pageable pageable) {
 		Post source = postRepository.findBySlug(slug)
 				.orElseThrow(() -> new ResourceNotFoundException("Post", "slug", slug));

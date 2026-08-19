@@ -8,6 +8,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * Custom Multi-Level Cache implementation (L1 Caffeine + L2 Redis).
  */
@@ -20,7 +22,7 @@ public class MultiLevelCache implements Cache {
 	private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
 	private final String instanceId;
 	private final String topic;
-	private final ConcurrentMap<Object, Object> loadingLocks = new ConcurrentHashMap<>();
+	private final ConcurrentMap<Object, ReentrantLock> loadingLocks = new ConcurrentHashMap<>();
 
 	public MultiLevelCache(String name, Cache l1Cache, RedisCache l2Cache,
 			org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate, String instanceId,
@@ -85,20 +87,20 @@ public class MultiLevelCache implements Cache {
 			return (T) wrapper.get();
 		}
 
-		Object lock = loadingLocks.computeIfAbsent(key, ignored -> new Object());
+		ReentrantLock lock = loadingLocks.computeIfAbsent(key, ignored -> new ReentrantLock());
+		lock.lock();
 		try {
-			synchronized (lock) {
-				wrapper = get(key);
-				if (wrapper != null) {
-					return (T) wrapper.get();
-				}
-				T value = valueLoader.call();
-				put(key, value);
-				return value;
+			wrapper = get(key);
+			if (wrapper != null) {
+				return (T) wrapper.get();
 			}
+			T value = valueLoader.call();
+			put(key, value);
+			return value;
 		} catch (Exception e) {
 			throw new ValueRetrievalException(key, valueLoader, e);
 		} finally {
+			lock.unlock();
 			loadingLocks.remove(key, lock);
 		}
 	}

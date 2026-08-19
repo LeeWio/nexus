@@ -24,7 +24,7 @@ WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
 # Application configurations
-ENV JAVA_OPTS="-Xms512m -Xmx512m -Djava.security.egd=file:/dev/./urandom"
+ENV JAVA_OPTS="-Xms400m -Xmx400m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:InitiatingHeapOccupancyPercent=45 -XX:G1ReservePercent=15 -Djava.security.egd=file:/dev/./urandom"
 ENV SPRING_PROFILES_ACTIVE=prod
 
 EXPOSE 8080
@@ -46,7 +46,7 @@ WORKDIR /app
 COPY target/*.jar app.jar
 
 # 应用程序运行配置
-ENV JAVA_OPTS="-Xms512m -Xmx512m -Djava.security.egd=file:/dev/./urandom"
+ENV JAVA_OPTS="-Xms400m -Xmx400m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:InitiatingHeapOccupancyPercent=45 -XX:G1ReservePercent=15 -Djava.security.egd=file:/dev/./urandom"
 ENV SPRING_PROFILES_ACTIVE=prod
 
 EXPOSE 8080

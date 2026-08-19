@@ -174,22 +174,28 @@ public class InteractionServiceImpl implements IInteractionService {
 	@Override
 	public void populateInteractionData(space.nebula.nexus.payload.response.PostResponse.PostResponseBuilder builder,
 			Long postId) {
-		String username = SecurityUtil.getCurrentUsername();
-		if (username != null) {
-			userRepository.findByUsername(username).ifPresent(user -> {
-				String likeKey = CacheConstants.POST_LIKES_SET + postId;
-				String favKey = CacheConstants.POST_FAVORITES_SET + postId;
+		User user = SecurityUtil.getCurrentUser();
+		if (user == null) {
+			String username = SecurityUtil.getCurrentUsername();
+			if (username != null) {
+				user = userRepository.findByUsername(username).orElse(null);
+			}
+		}
 
-				Boolean isLiked = jdbcTemplate.queryForObject(
-						"SELECT EXISTS(SELECT 1 FROM blog_post_like WHERE post_id = ? AND user_id = ?)", Boolean.class,
-						postId, user.getId());
-				Boolean isFavorited = jdbcTemplate.queryForObject(
-						"SELECT EXISTS(SELECT 1 FROM blog_post_favorite WHERE post_id = ? AND user_id = ?)",
-						Boolean.class, postId, user.getId());
+		if (user != null) {
+			final Long userId = user.getId();
+			String likeKey = CacheConstants.POST_LIKES_SET + postId;
+			String favKey = CacheConstants.POST_FAVORITES_SET + postId;
 
-				builder.isLiked(isLiked != null ? isLiked : false);
-				builder.isFavorited(isFavorited != null ? isFavorited : false);
-			});
+			Boolean isLiked = jdbcTemplate.queryForObject(
+					"SELECT EXISTS(SELECT 1 FROM blog_post_like WHERE post_id = ? AND user_id = ?)", Boolean.class,
+					postId, userId);
+			Boolean isFavorited = jdbcTemplate.queryForObject(
+					"SELECT EXISTS(SELECT 1 FROM blog_post_favorite WHERE post_id = ? AND user_id = ?)",
+					Boolean.class, postId, userId);
+
+			builder.isLiked(isLiked != null ? isLiked : false);
+			builder.isFavorited(isFavorited != null ? isFavorited : false);
 		} else {
 			builder.isLiked(false);
 			builder.isFavorited(false);
