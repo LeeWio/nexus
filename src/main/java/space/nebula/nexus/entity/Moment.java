@@ -5,7 +5,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -27,7 +26,6 @@ import java.util.List;
 @SQLRestriction("is_deleted = false")
 public class Moment extends BaseEntity {
 
-	@Lob
 	@Column(nullable = false, columnDefinition = "TEXT")
 	private String content;
 

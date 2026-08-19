@@ -5,8 +5,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
+import space.nebula.nexus.entity.Moment;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.repository.CategoryRepository;
@@ -58,6 +60,21 @@ class DatabasePostSearchServiceDataJpaTest {
 		assertEquals(1, response.data().getTotalHits());
 		assertTrue(response.data().getGroups().stream().anyMatch(
 				group -> group.getItems().stream().anyMatch(item -> item.getId().equals("post:" + post.getId()))));
+	}
+
+	@Test
+	void unifiedSearchMatchesMomentTextContentIgnoringCase() {
+		Moment moment = new Moment();
+		moment.setContent("A moment about MomentTextCaseRegression.");
+		moment.setVisibility(MomentVisibility.PUBLIC);
+		moment.setCreatedAt(LocalDateTime.now());
+		momentRepository.save(moment);
+
+		var response = searchService.unifiedSearch("momenttextcaseregression");
+
+		assertEquals(1, response.data().getTotalHits());
+		assertTrue(response.data().getGroups().stream().anyMatch(
+				group -> group.getItems().stream().anyMatch(item -> item.getId().equals("moment:" + moment.getId()))));
 	}
 
 	private User user() {
