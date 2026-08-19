@@ -10,12 +10,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.entity.FileMetadata;
 import space.nebula.nexus.entity.Moment;
+import space.nebula.nexus.entity.MomentTopic;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.mapper.MomentMapper;
 import space.nebula.nexus.payload.request.MomentImageRequest;
 import space.nebula.nexus.payload.request.MomentRequest;
 import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.MomentRepository;
+import space.nebula.nexus.repository.MomentTopicRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.security.util.SecurityUtil;
@@ -29,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
@@ -40,6 +43,8 @@ class MomentServiceImplTest {
 
 	@Mock
 	private MomentRepository momentRepository;
+	@Mock
+	private MomentTopicRepository momentTopicRepository;
 	@Mock
 	private MomentMapper momentMapper;
 	@Mock
@@ -54,7 +59,7 @@ class MomentServiceImplTest {
 
 	@BeforeEach
 	void setUp() {
-		momentService = new MomentServiceImpl(momentRepository, momentMapper, fileRepository, userRepository,
+		momentService = new MomentServiceImpl(momentRepository, momentTopicRepository, momentMapper, fileRepository, userRepository,
 				jdbcTemplate);
 		user = new User();
 		user.setId(4L);
@@ -65,7 +70,7 @@ class MomentServiceImplTest {
 	void createMomentAttachesValidatedImagesInRequestOrder() {
 		Moment moment = publishedMoment(null);
 		MomentRequest request = new MomentRequest("A small field note", MomentVisibility.PUBLIC,
-				List.of(new MomentImageRequest(12L, "Second view"), new MomentImageRequest(11L, "First view")));
+				List.of(new MomentImageRequest(12L, "Second view"), new MomentImageRequest(11L, "First view")), List.of());
 		FileMetadata first = image(11L, "first.jpg", "image/jpeg");
 		FileMetadata second = image(12L, "second.webp", "image/webp");
 		when(momentMapper.toEntity(request)).thenReturn(moment);
@@ -82,16 +87,65 @@ class MomentServiceImplTest {
 	}
 
 	@Test
+	void createMomentAllowsAnImageWithoutText() {
+		Moment moment = publishedMoment(null);
+		MomentRequest request = new MomentRequest("", MomentVisibility.PUBLIC,
+				List.of(new MomentImageRequest(12L, "A field note photo")), List.of());
+		when(momentMapper.toEntity(request)).thenReturn(moment);
+		when(fileRepository.findAllById(anyCollection())).thenReturn(List.of(image(12L, "field-note.jpg", "image/jpeg")));
+
+		momentService.createMoment(request);
+
+		verify(momentRepository).save(moment);
+	}
+
+	@Test
+	void createMomentRejectsAnEmptyTextOnlyRequest() {
+		MomentRequest request = new MomentRequest("", MomentVisibility.PUBLIC, List.of(), List.of());
+
+		assertThrows(BusinessException.class, () -> momentService.createMoment(request));
+		verifyNoInteractions(momentMapper, fileRepository, momentRepository);
+	}
+
+	@Test
+	void createMomentRejectsVisibleTextOverTheComposerLimit() {
+		MomentRequest request = new MomentRequest("a".repeat(2001), MomentVisibility.PUBLIC, List.of(), List.of());
+
+		assertThrows(BusinessException.class, () -> momentService.createMoment(request));
+		verifyNoInteractions(momentMapper, fileRepository, momentRepository);
+	}
+
+	@Test
 	void createMomentRejectsNonImageAssets() {
 		Moment moment = publishedMoment(null);
 		MomentRequest request = new MomentRequest("Attachment", MomentVisibility.PUBLIC,
-				List.of(new MomentImageRequest(13L, "A document")));
+				List.of(new MomentImageRequest(13L, "A document")), List.of());
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 		when(fileRepository.findAllById(anyCollection()))
 				.thenReturn(List.of(image(13L, "notes.pdf", "application/pdf")));
 
 		assertThrows(BusinessException.class, () -> momentService.createMoment(request));
 		verifyNoInteractions(momentRepository);
+	}
+
+	@Test
+	void createMomentNormalizesTopicsAndPreservesTheirSelectionOrder() {
+		Moment moment = publishedMoment(null);
+		MomentTopic existingTopic = topic(8L, "frontend-architecture");
+		MomentRequest request = new MomentRequest("A small field note", MomentVisibility.PUBLIC, List.of(),
+				List.of("#Frontend Architecture", "Observability"));
+		when(momentMapper.toEntity(request)).thenReturn(moment);
+		when(momentTopicRepository.findBySlug("frontend-architecture")).thenReturn(Optional.of(existingTopic));
+		when(momentTopicRepository.findBySlug("observability")).thenReturn(Optional.empty());
+		when(momentTopicRepository.save(any(MomentTopic.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		momentService.createMoment(request);
+
+		assertEquals(2, moment.getTopicRelations().size());
+		assertEquals("frontend-architecture", moment.getTopicRelations().get(0).getTopic().getSlug());
+		assertEquals(0, moment.getTopicRelations().get(0).getSortOrder());
+		assertEquals("observability", moment.getTopicRelations().get(1).getTopic().getSlug());
+		assertEquals(1, moment.getTopicRelations().get(1).getSortOrder());
 	}
 
 	@Test
@@ -174,5 +228,12 @@ class MomentServiceImplTest {
 		file.setFileType(type);
 		file.setIsDeleted(false);
 		return file;
+	}
+
+	private static MomentTopic topic(Long id, String slug) {
+		MomentTopic topic = new MomentTopic();
+		topic.setId(id);
+		topic.setSlug(slug);
+		return topic;
 	}
 }

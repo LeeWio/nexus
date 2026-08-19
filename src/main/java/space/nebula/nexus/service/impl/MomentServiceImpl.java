@@ -19,6 +19,8 @@ import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.FileMetadata;
 import space.nebula.nexus.entity.Moment;
 import space.nebula.nexus.entity.MomentMedia;
+import space.nebula.nexus.entity.MomentTopic;
+import space.nebula.nexus.entity.MomentTopicRelation;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.mapper.MomentMapper;
@@ -27,9 +29,12 @@ import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.MomentRepository;
+import space.nebula.nexus.repository.MomentTopicRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IMomentService;
+import space.nebula.nexus.utils.MomentContentPolicy;
+import space.nebula.nexus.utils.MomentTopicPolicy;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -45,6 +50,7 @@ public class MomentServiceImpl implements IMomentService {
 	private static final int MAX_LIKED_MOMENT_IDS = 100;
 
 	private final MomentRepository momentRepository;
+	private final MomentTopicRepository momentTopicRepository;
 	private final MomentMapper momentMapper;
 	private final FileRepository fileRepository;
 	private final UserRepository userRepository;
@@ -69,8 +75,10 @@ public class MomentServiceImpl implements IMomentService {
 	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
 	@LogOperation("Create Moment")
 	public ApiResponse<MomentResponse> createMoment(MomentRequest request) {
+		validateMomentContent(request.content(), request.images());
 		Moment moment = momentMapper.toEntity(request);
 		replaceImages(moment, request.images(), false);
+		replaceTopics(moment, request.topicSlugs(), false);
 		momentRepository.save(moment);
 		log.info("Moment created");
 		return ApiResponse.success("Moment created successfully", momentMapper.toResponse(moment));
@@ -82,9 +90,13 @@ public class MomentServiceImpl implements IMomentService {
 	@LogOperation("Update Moment")
 	public ApiResponse<MomentResponse> updateMoment(Long id, MomentRequest request) {
 		Moment moment = findMomentOrThrow(id);
+		validateMomentContent(request.content(), request.images() == null ? moment.getImages() : request.images());
 		momentMapper.updateEntity(moment, request);
 		if (request.images() != null) {
 			replaceImages(moment, request.images(), true);
+		}
+		if (request.topicSlugs() != null) {
+			replaceTopics(moment, request.topicSlugs(), true);
 		}
 		momentRepository.save(moment);
 
@@ -166,11 +178,21 @@ public class MomentServiceImpl implements IMomentService {
 	private Moment findPublishedMomentOrThrow(Long id) {
 		Moment moment = findMomentOrThrow(id);
 		String currentUsername = SecurityUtil.getCurrentUsername();
-		boolean isVisible = moment.getVisibility() == MomentVisibility.PUBLIC 
+		boolean isVisible = moment.getVisibility() == MomentVisibility.PUBLIC
 				|| (currentUsername != null && currentUsername.equals(moment.getCreatedBy()));
 		Assert.isTrue(isVisible,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only visible moments can be interacted with"));
 		return moment;
+	}
+
+	private void validateMomentContent(String content, List<?> images) {
+		int characterCount = MomentContentPolicy.visibleCharacterCount(content);
+		Assert.isTrue(characterCount <= MomentContentPolicy.MAX_VISIBLE_CHARACTERS,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"Moment content must not exceed " + MomentContentPolicy.MAX_VISIBLE_CHARACTERS + " characters"));
+		Assert.isTrue(MomentContentPolicy.hasVisibleText(content) || (images != null && !images.isEmpty()),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST,
+						"A moment must include text or at least one image"));
 	}
 
 	private void replaceImages(Moment moment,
@@ -219,5 +241,29 @@ public class MomentServiceImpl implements IMomentService {
 			momentRepository.flush();
 		}
 		moment.getImages().addAll(replacements);
+	}
+
+	private void replaceTopics(Moment moment, List<String> requestedSlugs, boolean flushExisting) {
+		List<String> topicSlugs = MomentTopicPolicy.normalizeTopicSlugs(requestedSlugs);
+		moment.getTopicRelations().clear();
+		if (flushExisting && moment.getId() != null) {
+			momentRepository.flush();
+		}
+
+		for (int index = 0; index < topicSlugs.size(); index++) {
+			MomentTopicRelation relation = new MomentTopicRelation();
+			relation.setMoment(moment);
+			relation.setTopic(findOrCreateTopic(topicSlugs.get(index)));
+			relation.setSortOrder(index);
+			moment.getTopicRelations().add(relation);
+		}
+	}
+
+	private MomentTopic findOrCreateTopic(String slug) {
+		return momentTopicRepository.findBySlug(slug).orElseGet(() -> {
+			MomentTopic topic = new MomentTopic();
+			topic.setSlug(slug);
+			return momentTopicRepository.save(topic);
+		});
 	}
 }
