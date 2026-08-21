@@ -3,6 +3,8 @@ package space.nebula.nexus.task;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,6 +13,7 @@ import space.nebula.nexus.entity.FileMetadata;
 import space.nebula.nexus.repository.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -65,20 +68,23 @@ public class AbandonedAssetsCleanupTask {
 			boolean referencedInComments = commentContents.stream().anyMatch(content -> content.contains(fileName));
 			boolean referencedInAvatars = userAvatars.stream().anyMatch(avatar -> avatar.contains(fileName));
 			boolean referencedInProjects = projectCovers.stream().anyMatch(cover -> cover.contains(fileName));
+			boolean referencedInMoments = fileRepository.isReferencedByMoment(file.getId());
 
-			if (!referencedInPosts && !referencedInComments && !referencedInAvatars && !referencedInProjects) {
+			if (!referencedInPosts && !referencedInComments && !referencedInAvatars && !referencedInProjects
+					&& !referencedInMoments) {
 				try {
-					// 1. Delete physical file from storage
-					storageProvider.delete(fileName);
+					// Delete metadata in the transaction first. Physical objects are removed only
+					// after commit so a database rollback cannot leave a live row without a file.
+					fileRepository.delete(file);
+					List<String> filesToDelete = new ArrayList<>();
+					filesToDelete.add(fileName);
 
-					// 2. Delete thumbnail if present
+					// Delete thumbnail if present
 					if (file.getThumbnailUrl() != null) {
 						String thumbnailName = "thumb_" + fileName;
-						storageProvider.delete(thumbnailName);
+						filesToDelete.add(thumbnailName);
 					}
-
-					// 3. Purge metadata row
-					fileRepository.delete(file);
+					registerStorageDeletionAfterCommit(filesToDelete);
 
 					purgedCount++;
 					spaceSavedBytes += file.getFileSize();
@@ -96,6 +102,29 @@ public class AbandonedAssetsCleanupTask {
 					purgedCount, spaceSavedMb);
 		} else {
 			log.info("Cleanup completed. No abandoned media assets were found.");
+		}
+	}
+
+	private void registerStorageDeletionAfterCommit(List<String> fileNames) {
+		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			deleteStorageObjects(fileNames);
+			return;
+		}
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				deleteStorageObjects(fileNames);
+			}
+		});
+	}
+
+	private void deleteStorageObjects(List<String> fileNames) {
+		for (String fileName : fileNames) {
+			try {
+				storageProvider.delete(fileName);
+			} catch (RuntimeException e) {
+				log.error("Failed to delete committed storage object {}", fileName, e);
+			}
 		}
 	}
 }
