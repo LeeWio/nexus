@@ -49,6 +49,8 @@ services:
       start_period: 30s
     networks:
       - nexus-network
+    volumes:
+      - ./uploads:/app/uploads
     restart: always
 
   nexus-mail:

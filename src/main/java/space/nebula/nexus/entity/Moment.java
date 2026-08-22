@@ -32,6 +32,9 @@ public class Moment extends BaseEntity {
 	@Column(nullable = false, columnDefinition = "TEXT")
 	private String content;
 
+	@Column(name = "stock_symbol", length = 20)
+	private String stockSymbol;
+
 	@Column(name = "likes_count")
 	private Long likesCount = 0L;
 

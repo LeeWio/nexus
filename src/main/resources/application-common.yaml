@@ -165,6 +165,12 @@ app:
   upload:
     location: "uploads"
     max-size: 10485760
+  storage:
+    type: "local"
+    max-file-size: 10485760
+    local:
+      location: "uploads"
+      baseUrl: "/api/v1/public/files/"
   auth:
     max-login-failures: 5
     lock-duration-minutes: 15

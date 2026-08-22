@@ -21,7 +21,7 @@ public interface FileRepository extends JpaRepository<FileMetadata, Long>, JpaSp
 	@EntityGraph(attributePaths = {"uploader"})
 	Optional<FileMetadata> findByFileName(String fileName);
 
-	Optional<FileMetadata> findByFileHash(String fileHash);
+	Optional<FileMetadata> findFirstByFileHash(String fileHash);
 
 	java.util.List<FileMetadata> findByCreatedAtBefore(java.time.LocalDateTime cutoff);
 

@@ -51,6 +51,7 @@ class FileServiceImplTest {
 	void setUp() throws java.io.IOException {
 		lenient().when(storageProperties.getMaxFileSize()).thenReturn(10485760L);
 		lenient().when(storageProperties.getAllowedMimeTypes()).thenReturn(Arrays.asList("image/jpeg", "image/png"));
+		org.springframework.test.util.ReflectionTestUtils.setField(fileService, "self", fileService);
 	}
 
 	@Test
@@ -60,7 +61,7 @@ class FileServiceImplTest {
 		existingMetadata.setId(1L);
 		existingMetadata.setReferenceCount(1);
 
-		when(fileRepository.findByFileHash(anyString())).thenReturn(Optional.of(existingMetadata));
+		when(fileRepository.findFirstByFileHash(anyString())).thenReturn(Optional.of(existingMetadata));
 		when(fileMapper.toResponse(any())).thenReturn(null);
 
 		var response = fileService.uploadFile(file);
@@ -75,7 +76,7 @@ class FileServiceImplTest {
 	void uploadFile_NewFile_Success() throws IOException {
 		MockMultipartFile file = new MockMultipartFile("file", "test.jpg", "image/jpeg", "test content".getBytes());
 
-		when(fileRepository.findByFileHash(anyString())).thenReturn(Optional.empty());
+		when(fileRepository.findFirstByFileHash(anyString())).thenReturn(Optional.empty());
 		when(fileUtil.detectMimeType(any(InputStream.class))).thenReturn("image/jpeg");
 		when(fileUtil.isImage("image/jpeg")).thenReturn(true);
 		when(fileUtil.getImageDimensions(any())).thenReturn(new FileUtil.ImageDimensions(100, 100));
@@ -99,7 +100,7 @@ class FileServiceImplTest {
 	@Test
 	void uploadFile_DatabaseFailure_CleansUpStoredObjects() throws IOException {
 		MockMultipartFile file = new MockMultipartFile("file", "test.jpg", "image/jpeg", "test content".getBytes());
-		when(fileRepository.findByFileHash(anyString())).thenReturn(Optional.empty());
+		when(fileRepository.findFirstByFileHash(anyString())).thenReturn(Optional.empty());
 		when(fileUtil.detectMimeType(any(InputStream.class))).thenReturn("image/jpeg");
 		when(fileUtil.isImage("image/jpeg")).thenReturn(true);
 		when(fileUtil.supportsThumbnailGeneration("image/jpeg")).thenReturn(true);
@@ -161,7 +162,7 @@ class FileServiceImplTest {
 	void uploadFile_MimeNotAllowed_ThrowsException() throws IOException {
 		MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", "content".getBytes());
 
-		when(fileRepository.findByFileHash(anyString())).thenReturn(Optional.empty());
+		when(fileRepository.findFirstByFileHash(anyString())).thenReturn(Optional.empty());
 		when(fileUtil.detectMimeType(any(InputStream.class))).thenReturn("text/plain");
 
 		var ex = assertThrows(space.nebula.nexus.common.exception.BusinessException.class,

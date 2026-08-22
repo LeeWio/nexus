@@ -1,0 +1,1 @@
+ALTER TABLE blog_moment ADD COLUMN stock_symbol VARCHAR(20) DEFAULT NULL;

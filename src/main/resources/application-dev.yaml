@@ -20,6 +20,9 @@ spring:
     password: ${DEV_DB_PASSWORD:nexus_password}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  cache:
+    type: none
+
   jpa:
     hibernate:
       ddl-auto: update

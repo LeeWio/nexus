@@ -40,6 +40,9 @@ import java.util.Objects;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+
 /**
  * Professional implementation of File Management Service. Enhanced with deep
  * MIME detection, security validation, automated image processing, and
@@ -59,9 +62,11 @@ public class FileServiceImpl implements IFileService {
 	private final FileUtil fileUtil;
 	private final space.nebula.nexus.config.StorageProperties storageProperties;
 
+	@Autowired
+	@Lazy
+	private IFileService self;
+
 	@Override
-	@Transactional
-	@LogOperation(value = "Upload File", logArgs = false)
 	public ApiResponse<FileResponse> uploadFile(MultipartFile file) {
 		Assert.isFalse(file.isEmpty(),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Cannot process empty file payload"));
@@ -71,15 +76,29 @@ public class FileServiceImpl implements IFileService {
 					formatFileSize(storageProperties.getMaxFileSize()));
 		}
 
+		String fileHash;
+		try (var is = file.getInputStream()) {
+			fileHash = SecureUtil.sha256(is);
+		} catch (IOException e) {
+			log.error("Fatal I/O error during hash generation", e);
+			throw new BusinessException(BusinessCode.ERROR, "System failed to process the file");
+		}
+
+		// JVM-local locking to serialize concurrent uploads of the same file content.
+		// Since lock is acquired outside transaction, transaction is guaranteed to commit before next thread enters.
+		synchronized (fileHash.intern()) {
+			return self.doUploadFile(file, fileHash);
+		}
+	}
+
+	@Override
+	@Transactional
+	@LogOperation(value = "Upload File", logArgs = false)
+	public ApiResponse<FileResponse> doUploadFile(MultipartFile file, String fileHash) {
 		List<String> newlyStoredFiles = new ArrayList<>();
 		try {
 			// 1. Content-based Deduplication (SHA-256) - Streaming approach
-			String fileHash;
-			try (var is = file.getInputStream()) {
-				fileHash = SecureUtil.sha256(is);
-			}
-
-			var existingFile = fileRepository.findByFileHash(fileHash);
+			var existingFile = fileRepository.findFirstByFileHash(fileHash);
 			if (existingFile.isPresent()) {
 				FileMetadata metadata = existingFile.get();
 				metadata.setReferenceCount(metadata.getReferenceCount() + 1);

@@ -11,6 +11,8 @@ import space.nebula.nexus.payload.response.StorageInventoryResponse;
 public interface IFileService {
 	ApiResponse<FileResponse> uploadFile(MultipartFile file);
 
+	ApiResponse<FileResponse> doUploadFile(MultipartFile file, String fileHash);
+
 	ApiResponse<Void> deleteFile(String fileName);
 
 	ApiResponse<PageResult<FileResponse>> searchFiles(String keyword, Pageable pageable);

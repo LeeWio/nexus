@@ -71,7 +71,7 @@ class MomentServiceImplTest {
 		Moment moment = publishedMoment(null);
 		MomentRequest request = new MomentRequest("A small field note", MomentVisibility.PUBLIC,
 				List.of(new MomentImageRequest(12L, "Second view"), new MomentImageRequest(11L, "First view")),
-				List.of());
+				List.of(), null);
 		FileMetadata first = image(11L, "first.jpg", "image/jpeg");
 		FileMetadata second = image(12L, "second.webp", "image/webp");
 		when(momentMapper.toEntity(request)).thenReturn(moment);
@@ -91,7 +91,7 @@ class MomentServiceImplTest {
 	void createMomentAllowsAnImageWithoutText() {
 		Moment moment = publishedMoment(null);
 		MomentRequest request = new MomentRequest("", MomentVisibility.PUBLIC,
-				List.of(new MomentImageRequest(12L, "A field note photo")), List.of());
+				List.of(new MomentImageRequest(12L, "A field note photo")), List.of(), null);
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 		when(fileRepository.findAllById(anyCollection()))
 				.thenReturn(List.of(image(12L, "field-note.jpg", "image/jpeg")));
@@ -103,7 +103,7 @@ class MomentServiceImplTest {
 
 	@Test
 	void createMomentRejectsAnEmptyTextOnlyRequest() {
-		MomentRequest request = new MomentRequest("", MomentVisibility.PUBLIC, List.of(), List.of());
+		MomentRequest request = new MomentRequest("", MomentVisibility.PUBLIC, List.of(), List.of(), null);
 
 		assertThrows(BusinessException.class, () -> momentService.createMoment(request));
 		verifyNoInteractions(momentMapper, fileRepository, momentRepository);
@@ -111,17 +111,30 @@ class MomentServiceImplTest {
 
 	@Test
 	void createMomentRejectsVisibleTextOverTheComposerLimit() {
-		MomentRequest request = new MomentRequest("a".repeat(2001), MomentVisibility.PUBLIC, List.of(), List.of());
+		MomentRequest request = new MomentRequest("a".repeat(2001), MomentVisibility.PUBLIC, List.of(), List.of(), null);
 
 		assertThrows(BusinessException.class, () -> momentService.createMoment(request));
 		verifyNoInteractions(momentMapper, fileRepository, momentRepository);
 	}
 
 	@Test
+	void createMomentSavesAttachedStockSymbol() {
+		Moment moment = publishedMoment(null);
+		moment.setStockSymbol("AAPL");
+		MomentRequest request = new MomentRequest("Check AAPL trend!", MomentVisibility.PUBLIC, List.of(), List.of(), "AAPL");
+		when(momentMapper.toEntity(request)).thenReturn(moment);
+
+		withAuthenticatedUser(() -> momentService.createMoment(request));
+
+		assertEquals("AAPL", moment.getStockSymbol());
+		verify(momentRepository).save(moment);
+	}
+
+	@Test
 	void createMomentRejectsNonImageAssets() {
 		Moment moment = publishedMoment(null);
 		MomentRequest request = new MomentRequest("Attachment", MomentVisibility.PUBLIC,
-				List.of(new MomentImageRequest(13L, "A document")), List.of());
+				List.of(new MomentImageRequest(13L, "A document")), List.of(), null);
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 		when(fileRepository.findAllById(anyCollection()))
 				.thenReturn(List.of(image(13L, "notes.pdf", "application/pdf")));
@@ -137,7 +150,7 @@ class MomentServiceImplTest {
 		Moment moment = publishedMoment(null);
 		MomentTopic existingTopic = topic(8L, "frontend-architecture");
 		MomentRequest request = new MomentRequest("A small field note", MomentVisibility.PUBLIC, List.of(),
-				List.of("#Frontend Architecture", "Observability"));
+				List.of("#Frontend Architecture", "Observability"), null);
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 		when(momentTopicRepository.findBySlug("frontend-architecture")).thenReturn(Optional.of(existingTopic));
 		when(momentTopicRepository.findBySlug("observability")).thenReturn(Optional.empty());

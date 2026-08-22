@@ -53,6 +53,9 @@ public class WebConfig implements WebMvcConfigurer {
 		String baseUrl = storageProperties.getLocal().getBaseUrl();
 
 		String path = Paths.get(location).toAbsolutePath().toUri().toString();
+		if (!path.endsWith("/")) {
+			path += "/";
+		}
 
 		registry.addResourceHandler(baseUrl + "**").addResourceLocations(path);
 

@@ -26,4 +26,18 @@ class LocalStorageProviderTest {
 		assertTrue(provider.exists("present.txt"));
 		assertFalse(provider.exists("missing.txt"));
 	}
+
+	@Test
+	void storeAndExists_WithNestedDirectory_Success() throws IOException {
+		StorageProperties properties = new StorageProperties();
+		properties.getLocal().setLocation(storageDirectory.toString());
+		LocalStorageProvider provider = new LocalStorageProvider(properties);
+
+		String nestedFilename = "static/posts/nested-present.html";
+		java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream("nested content".getBytes());
+		provider.store(bais, nestedFilename);
+
+		assertTrue(provider.exists(nestedFilename));
+		assertTrue(Files.exists(storageDirectory.resolve("static/posts/nested-present.html")));
+	}
 }

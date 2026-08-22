@@ -51,7 +51,7 @@ public interface MomentMapper {
 			authorAvatar = moment.getUser().getAvatar();
 		}
 
-		return new MomentResponse(moment.getId(), moment.getContent(), moment.getLikesCount(), moment.getVisibility(),
+		return new MomentResponse(moment.getId(), moment.getContent(), moment.getStockSymbol(), moment.getLikesCount(), moment.getVisibility(),
 				authorName, authorAvatar, images, topics, moment.getCreatedAt(), moment.getUpdatedAt());
 	}
 
