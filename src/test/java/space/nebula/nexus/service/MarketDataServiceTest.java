@@ -11,6 +11,8 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.config.MarketProperties;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
+import space.nebula.nexus.payload.response.StockSearchResponse;
+import space.nebula.nexus.payload.response.StockTrendResponse;
 import space.nebula.nexus.service.impl.MarketDataServiceImpl;
 import space.nebula.nexus.utils.RedisUtil;
 
@@ -135,5 +137,107 @@ class MarketDataServiceTest {
 		assertEquals(2, refreshedCount);
 		verify(redisUtil).set(eq(CacheConstants.buildFullKey(CacheConstants.MARKET_INDICES, CacheConstants.MARKET_1D)),
 				anyList(), eq(1L), eq(java.util.concurrent.TimeUnit.MINUTES));
+	}
+
+	@Test
+	void searchStocks_Success() throws Exception {
+		when(redisUtil.get(anyString(), eq(List.class))).thenReturn(java.util.Optional.empty());
+
+		// Mock RestClient for Suggest API
+		when(restClient.get()).thenReturn(requestHeadersUriSpec);
+		when(requestHeadersUriSpec.uri(contains("suggest"))).thenReturn(requestHeadersSpec);
+		when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
+		when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+
+		String mockSuggest = "var suggestdata_123=\"贵州茅台,11,600519,sh600519,贵州茅台,gzmt,贵州茅台,99,1;Apple,41,AAPL,gb_aapl,Apple Inc.,aapl,Apple,0\";";
+		when(responseSpec.body(byte[].class)).thenReturn(mockSuggest.getBytes("GBK"));
+
+		ApiResponse<List<StockSearchResponse>> response = marketDataService.searchStocks("茅台");
+
+		assertNotNull(response);
+		assertEquals(200, response.code());
+		List<StockSearchResponse> results = response.data();
+		assertEquals(2, results.size());
+
+		assertEquals("贵州茅台", results.get(0).getName());
+		assertEquals("sh600519", results.get(0).getSymbol());
+		assertEquals("CN", results.get(0).getMarket());
+
+		assertEquals("Apple Inc.", results.get(1).getName());
+		assertEquals("gb_aapl", results.get(1).getSymbol());
+		assertEquals("US", results.get(1).getMarket());
+	}
+
+	@Test
+	void getStockTrend_Success_Cn() throws Exception {
+		when(redisUtil.get(anyString(), eq(StockTrendResponse.class))).thenReturn(java.util.Optional.empty());
+
+		// Mock RestClient for CN HQ and CN K-Line
+		when(restClient.get()).thenReturn(requestHeadersUriSpec);
+		when(requestHeadersUriSpec.uri(contains("list=sh600519"))).thenReturn(requestHeadersSpec);
+		when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
+		when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+
+		String mockHq = "var hq_str_sh600519=\"贵州茅台,1600.00,1590.00,1610.00,1612.00,1588.00,1610.00,1610.10,...\";";
+		when(responseSpec.body(byte[].class)).thenReturn(mockHq.getBytes("GBK"));
+
+		// Mock K-line call
+		RestClient.RequestHeadersSpec klineHeaderSpec = mock(RestClient.RequestHeadersSpec.class);
+		when(requestHeadersUriSpec.uri(contains("getKLineData"))).thenReturn(klineHeaderSpec);
+		when(klineHeaderSpec.header(anyString(), anyString())).thenReturn(klineHeaderSpec);
+		when(klineHeaderSpec.retrieve()).thenReturn(responseSpec);
+
+		String mockKline = "[{\"day\":\"2026-08-20 15:00:00\",\"open\":\"1580.00\",\"high\":\"1595.00\",\"low\":\"1575.00\",\"close\":\"1590.00\",\"volume\":\"12345\"},"
+				+ "{\"day\":\"2026-08-21 15:00:00\",\"open\":\"1590.00\",\"high\":\"1612.00\",\"low\":\"1588.00\",\"close\":\"1610.00\",\"volume\":\"15000\"}]";
+		when(responseSpec.body(String.class)).thenReturn(mockKline);
+
+		ApiResponse<StockTrendResponse> response = marketDataService.getStockTrend("sh600519", "1M");
+
+		assertNotNull(response);
+		assertEquals(200, response.code());
+		StockTrendResponse trend = response.data();
+		assertEquals("贵州茅台", trend.getName());
+		assertEquals("sh600519", trend.getSymbol());
+		assertEquals(new BigDecimal("1610.00"), trend.getCurrent());
+		assertEquals(new BigDecimal("1.26"), trend.getChangePct()); // (1610.00 - 1590.00) / 1590.00 * 100 = 1.2578... -> 1.26
+		assertEquals(2, trend.getTrendPoints().size());
+		assertEquals("2026-08-20", trend.getTrendPoints().get(0).getDate());
+		assertEquals(new BigDecimal("1590.00"), trend.getTrendPoints().get(0).getPrice());
+	}
+
+	@Test
+	void getStockTrend_Success_Us() throws Exception {
+		when(redisUtil.get(anyString(), eq(StockTrendResponse.class))).thenReturn(java.util.Optional.empty());
+
+		// Mock RestClient for US HQ and US K-Line
+		when(restClient.get()).thenReturn(requestHeadersUriSpec);
+		when(requestHeadersUriSpec.uri(contains("list=gb_aapl"))).thenReturn(requestHeadersSpec);
+		when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
+		when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+
+		String mockHq = "var hq_str_gb_aapl=\"苹果,175.50,-1.25,2026-08-21 16:00:00,...\";";
+		when(responseSpec.body(byte[].class)).thenReturn(mockHq.getBytes("GBK"));
+
+		// Mock K-line call
+		RestClient.RequestHeadersSpec klineHeaderSpec = mock(RestClient.RequestHeadersSpec.class);
+		when(requestHeadersUriSpec.uri(contains("getDailyK"))).thenReturn(klineHeaderSpec);
+		when(klineHeaderSpec.header(anyString(), anyString())).thenReturn(klineHeaderSpec);
+		when(klineHeaderSpec.retrieve()).thenReturn(responseSpec);
+
+		String mockKline = "[{\"d\":\"2026-08-20\",\"c\":\"176.00\"},{\"d\":\"2026-08-21\",\"c\":\"175.50\"}]";
+		when(responseSpec.body(String.class)).thenReturn(mockKline);
+
+		ApiResponse<StockTrendResponse> response = marketDataService.getStockTrend("AAPL", "1M");
+
+		assertNotNull(response);
+		assertEquals(200, response.code());
+		StockTrendResponse trend = response.data();
+		assertEquals("苹果", trend.getName());
+		assertEquals("aapl", trend.getSymbol());
+		assertEquals(new BigDecimal("175.50"), trend.getCurrent());
+		assertEquals(new BigDecimal("-1.25"), trend.getChangePct());
+		assertEquals(2, trend.getTrendPoints().size());
+		assertEquals("2026-08-20", trend.getTrendPoints().get(0).getDate());
+		assertEquals(new BigDecimal("176.00"), trend.getTrendPoints().get(0).getPrice());
 	}
 }

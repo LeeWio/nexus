@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
+import space.nebula.nexus.payload.response.StockSearchResponse;
+import space.nebula.nexus.payload.response.StockTrendResponse;
 import space.nebula.nexus.service.IMarketDataService;
 
 import java.util.List;
@@ -33,5 +35,18 @@ public class PublicMarketController {
 	public ApiResponse<MarketIndexResponse> getIndex(@PathVariable String symbol,
 			@RequestParam(defaultValue = "1D") String period) {
 		return marketDataService.getIndex(symbol, period);
+	}
+
+	@Operation(summary = "Search stocks", description = "Searches matching stocks by code, name, or pinyin using Sina Suggest")
+	@GetMapping("/stocks/search")
+	public ApiResponse<List<StockSearchResponse>> searchStocks(@RequestParam String keyword) {
+		return marketDataService.searchStocks(keyword);
+	}
+
+	@Operation(summary = "Get stock trend", description = "Fetches details and trend points for a given stock symbol and period")
+	@GetMapping("/stocks/{symbol}/trend")
+	public ApiResponse<StockTrendResponse> getStockTrend(@PathVariable String symbol,
+			@RequestParam(defaultValue = "1M") String period) {
+		return marketDataService.getStockTrend(symbol, period);
 	}
 }

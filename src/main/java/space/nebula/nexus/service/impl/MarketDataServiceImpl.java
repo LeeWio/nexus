@@ -1,6 +1,7 @@
 package space.nebula.nexus.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -13,6 +14,8 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.config.MarketProperties;
 import space.nebula.nexus.payload.response.MarketIndexResponse;
+import space.nebula.nexus.payload.response.StockSearchResponse;
+import space.nebula.nexus.payload.response.StockTrendResponse;
 import space.nebula.nexus.service.IMarketDataService;
 import space.nebula.nexus.utils.RedisUtil;
 
@@ -373,5 +376,265 @@ public class MarketDataServiceImpl implements IMarketDataService {
 		boolean isAmOpen = !time.isBefore(amOpen) && !time.isAfter(amClose);
 		boolean isPmOpen = !time.isBefore(pmOpen) && !time.isAfter(pmClose);
 		return isAmOpen || isPmOpen;
+	}
+
+	@Override
+	public ApiResponse<List<StockSearchResponse>> searchStocks(String keyword) {
+		if (StrUtil.isBlank(keyword)) {
+			return ApiResponse.success(new ArrayList<>());
+		}
+
+		String cleanKeyword = keyword.trim().toLowerCase();
+		String cacheKey = CacheConstants.buildFullKey("stockSearch", cleanKeyword);
+		Optional<List> cachedData = redisUtil.get(cacheKey, List.class);
+		if (cachedData.isPresent()) {
+			return ApiResponse.success((List<StockSearchResponse>) cachedData.get());
+		}
+
+		List<StockSearchResponse> results = new ArrayList<>();
+		try {
+			// Query Sina Suggest API
+			String url = "http://suggest3.sinajs.cn/suggest/key=" + cleanKeyword;
+			byte[] responseBytes = restClient.get().uri(url)
+					.header("Referer", "http://finance.sina.com.cn")
+					.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+					.retrieve().body(byte[].class);
+
+			if (responseBytes != null) {
+				String body = new String(responseBytes, Charset.forName("GBK"));
+				Pattern pattern = Pattern.compile("\"([^\"]*)\"");
+				Matcher matcher = pattern.matcher(body);
+				if (matcher.find()) {
+					String rawResults = matcher.group(1);
+					if (StrUtil.isNotBlank(rawResults)) {
+						String[] items = rawResults.split(";");
+						for (String item : items) {
+							String[] fields = item.split(",");
+							if (fields.length >= 6) {
+								String marketType = fields[1];
+								String market = null;
+								if ("11".equals(marketType) || "111".equals(marketType) || "12".equals(marketType)) {
+									market = "CN";
+								} else if ("41".equals(marketType)) {
+									market = "US";
+								}
+
+								if (market != null) {
+									results.add(StockSearchResponse.builder()
+											.name(fields[4])
+											.code(fields[2])
+											.symbol(fields[3])
+											.market(market)
+											.build());
+								}
+							}
+						}
+					}
+				}
+			}
+		} catch (Exception e) {
+			log.error("Failed to search stocks for keyword: {}", keyword, e);
+			return ApiResponse.error(500, "Failed to search stocks due to upstream/network issue: " + e.getMessage());
+		}
+
+		if (!results.isEmpty()) {
+			redisUtil.set(cacheKey, results, 10, TimeUnit.MINUTES);
+		}
+		return ApiResponse.success(results);
+	}
+
+	@Override
+	public ApiResponse<StockTrendResponse> getStockTrend(String symbol, String period) {
+		if (StrUtil.isBlank(symbol)) {
+			return ApiResponse.error(400, "Stock symbol must not be empty");
+		}
+
+		String cleanPeriod = period != null ? period.toUpperCase() : "1M";
+		if (!List.of("1W", "1M", "1Y").contains(cleanPeriod)) {
+			cleanPeriod = "1M";
+		}
+
+		String cleanSymbol = symbol.toLowerCase().trim();
+		String cacheKey = CacheConstants.buildFullKey("stockTrend", cleanSymbol + ":" + cleanPeriod);
+		Optional<StockTrendResponse> cachedData = redisUtil.get(cacheKey, StockTrendResponse.class);
+		if (cachedData.isPresent()) {
+			return ApiResponse.success(cachedData.get());
+		}
+
+		boolean isCn = (cleanSymbol.startsWith("sh") || cleanSymbol.startsWith("sz"))
+				&& cleanSymbol.length() > 2
+				&& Character.isDigit(cleanSymbol.charAt(2));
+
+		// Get real-time stock details from Sina HQ
+		String hqKey;
+		if (isCn) {
+			hqKey = cleanSymbol;
+		} else {
+			hqKey = cleanSymbol.startsWith("gb_") ? cleanSymbol : "gb_" + cleanSymbol;
+		}
+
+		String hqUrl = marketProperties.getUrls().getHq() + hqKey;
+		String name = null;
+		BigDecimal currentPrice = BigDecimal.ZERO;
+		BigDecimal changePct = BigDecimal.ZERO;
+
+		try {
+			byte[] responseBytes = restClient.get().uri(hqUrl)
+					.header("Referer", "http://finance.sina.com.cn")
+					.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+					.retrieve().body(byte[].class);
+
+			if (responseBytes == null) {
+				return ApiResponse.error(404, "Failed to fetch stock info for " + symbol);
+			}
+
+			String hqBody = new String(responseBytes, Charset.forName("GBK"));
+			Pattern pattern = Pattern.compile("var hq_str_" + hqKey + "=\"([^\"]+)\";");
+			Matcher matcher = pattern.matcher(hqBody);
+
+			if (matcher.find()) {
+				String[] parts = matcher.group(1).split(",");
+				if (isCn && parts.length > 3) {
+					name = parts[0];
+					currentPrice = new BigDecimal(parts[3]);
+					BigDecimal yesterdayClose = new BigDecimal(parts[2]);
+					if (yesterdayClose.compareTo(BigDecimal.ZERO) != 0) {
+						changePct = currentPrice.subtract(yesterdayClose)
+								.divide(yesterdayClose, 4, RoundingMode.HALF_UP)
+								.multiply(new BigDecimal("100"))
+								.setScale(2, RoundingMode.HALF_UP);
+					}
+				} else if (!isCn && parts.length > 2) {
+					name = parts[0];
+					currentPrice = new BigDecimal(parts[1]);
+					changePct = new BigDecimal(parts[2]).setScale(2, RoundingMode.HALF_UP);
+				}
+			}
+		} catch (Exception e) {
+			log.error("Failed to fetch real-time quote for symbol: {}", symbol, e);
+			return ApiResponse.error(500, "Failed to fetch real-time quote for " + symbol);
+		}
+
+		if (name == null) {
+			return ApiResponse.error(404, "Stock data not found or parse failed for " + symbol);
+		}
+
+		// Fetch historical K-line points
+		List<StockTrendResponse.TrendPoint> trendPoints = new ArrayList<>();
+		if (isCn) {
+			String scale = "240"; // Daily
+			int datalen = 22;
+
+			switch (cleanPeriod) {
+				case "1W":
+					scale = "240";
+					datalen = 5;
+					break;
+				case "1Y":
+					scale = "240";
+					datalen = 250;
+					break;
+				case "1M":
+				default:
+					scale = "240";
+					datalen = 22;
+					break;
+			}
+
+			try {
+				String url = String.format(marketProperties.getUrls().getKlineCn(), cleanSymbol, scale, datalen);
+				String json = restClient.get().uri(url)
+						.header("Referer", "https://finance.sina.com.cn")
+						.retrieve().body(String.class);
+
+				if (json != null) {
+					JsonNode root = objectMapper.readTree(json);
+					if (root.isArray()) {
+						for (JsonNode node : root) {
+							String date = node.get("day").asText();
+							if (date.contains(" ")) {
+								date = date.split(" ")[0];
+							}
+							BigDecimal close = new BigDecimal(node.get("close").asText());
+							trendPoints.add(new StockTrendResponse.TrendPoint(date, close.setScale(2, RoundingMode.HALF_UP)));
+						}
+					}
+				}
+			} catch (Exception e) {
+				log.warn("Failed to fetch CN trend for {}", symbol, e);
+			}
+		} else {
+			int datalen = 22;
+			switch (cleanPeriod) {
+				case "1W":
+					datalen = 5;
+					break;
+				case "1Y":
+					datalen = 250;
+					break;
+				case "1M":
+				default:
+					datalen = 22;
+					break;
+			}
+
+			try {
+				String ticker = cleanSymbol.startsWith("gb_") ? cleanSymbol.substring(3) : cleanSymbol;
+				String url = String.format(marketProperties.getUrls().getKlineUsDaily(), ticker);
+				String json = restClient.get().uri(url)
+						.header("Referer", "https://finance.sina.com.cn")
+						.retrieve().body(String.class);
+
+				if (json != null) {
+					JsonNode root = objectMapper.readTree(json);
+					if (root.isArray()) {
+						int start = Math.max(0, root.size() - datalen);
+						for (int i = start; i < root.size(); i++) {
+							JsonNode node = root.get(i);
+							if (node.has("c") && node.has("d")) {
+								String date = node.get("d").asText();
+								BigDecimal close = new BigDecimal(node.get("c").asText());
+								trendPoints.add(new StockTrendResponse.TrendPoint(date, close.setScale(2, RoundingMode.HALF_UP)));
+							}
+						}
+					}
+				}
+			} catch (Exception e) {
+				log.warn("Failed to fetch US trend for {}", symbol, e);
+			}
+		}
+
+		boolean isOpen = isCn ? isCnMarketOpen() : isUsMarketOpen();
+
+		StockTrendResponse response = StockTrendResponse.builder()
+				.name(name)
+				.symbol(cleanSymbol)
+				.current(currentPrice.setScale(2, RoundingMode.HALF_UP))
+				.changePct(changePct)
+				.isOpen(isOpen)
+				.trendPoints(trendPoints)
+				.build();
+
+		redisUtil.set(cacheKey, response, getStockTrendCacheTtl(cleanPeriod), getStockTrendCacheTtlUnit(cleanPeriod));
+		return ApiResponse.success(response);
+	}
+
+	private long getStockTrendCacheTtl(String period) {
+		switch (period.toUpperCase()) {
+			case "1W":
+				return 5;
+			case "1Y":
+				return 4;
+			case "1M":
+			default:
+				return 30;
+		}
+	}
+
+	private TimeUnit getStockTrendCacheTtlUnit(String period) {
+		if ("1Y".equalsIgnoreCase(period)) {
+			return TimeUnit.HOURS;
+		}
+		return TimeUnit.MINUTES;
 	}
 }
