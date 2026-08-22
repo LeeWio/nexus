@@ -395,9 +395,9 @@ public class MarketDataServiceImpl implements IMarketDataService {
 		try {
 			// Query Sina Suggest API
 			String url = "http://suggest3.sinajs.cn/suggest/key=" + cleanKeyword;
-			byte[] responseBytes = restClient.get().uri(url)
-					.header("Referer", "http://finance.sina.com.cn")
-					.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+			byte[] responseBytes = restClient.get().uri(url).header("Referer", "http://finance.sina.com.cn").header(
+					"User-Agent",
+					"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 					.retrieve().body(byte[].class);
 
 			if (responseBytes != null) {
@@ -420,12 +420,8 @@ public class MarketDataServiceImpl implements IMarketDataService {
 								}
 
 								if (market != null) {
-									results.add(StockSearchResponse.builder()
-											.name(fields[4])
-											.code(fields[2])
-											.symbol(fields[3])
-											.market(market)
-											.build());
+									results.add(StockSearchResponse.builder().name(fields[4]).code(fields[2])
+											.symbol(fields[3]).market(market).build());
 								}
 							}
 						}
@@ -461,8 +457,7 @@ public class MarketDataServiceImpl implements IMarketDataService {
 			return ApiResponse.success(cachedData.get());
 		}
 
-		boolean isCn = (cleanSymbol.startsWith("sh") || cleanSymbol.startsWith("sz"))
-				&& cleanSymbol.length() > 2
+		boolean isCn = (cleanSymbol.startsWith("sh") || cleanSymbol.startsWith("sz")) && cleanSymbol.length() > 2
 				&& Character.isDigit(cleanSymbol.charAt(2));
 
 		// Get real-time stock details from Sina HQ
@@ -479,9 +474,9 @@ public class MarketDataServiceImpl implements IMarketDataService {
 		BigDecimal changePct = BigDecimal.ZERO;
 
 		try {
-			byte[] responseBytes = restClient.get().uri(hqUrl)
-					.header("Referer", "http://finance.sina.com.cn")
-					.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+			byte[] responseBytes = restClient.get().uri(hqUrl).header("Referer", "http://finance.sina.com.cn").header(
+					"User-Agent",
+					"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 					.retrieve().body(byte[].class);
 
 			if (responseBytes == null) {
@@ -500,8 +495,7 @@ public class MarketDataServiceImpl implements IMarketDataService {
 					BigDecimal yesterdayClose = new BigDecimal(parts[2]);
 					if (yesterdayClose.compareTo(BigDecimal.ZERO) != 0) {
 						changePct = currentPrice.subtract(yesterdayClose)
-								.divide(yesterdayClose, 4, RoundingMode.HALF_UP)
-								.multiply(new BigDecimal("100"))
+								.divide(yesterdayClose, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
 								.setScale(2, RoundingMode.HALF_UP);
 					}
 				} else if (!isCn && parts.length > 2) {
@@ -526,16 +520,16 @@ public class MarketDataServiceImpl implements IMarketDataService {
 			int datalen = 22;
 
 			switch (cleanPeriod) {
-				case "1W":
+				case "1W" :
 					scale = "240";
 					datalen = 5;
 					break;
-				case "1Y":
+				case "1Y" :
 					scale = "240";
 					datalen = 250;
 					break;
-				case "1M":
-				default:
+				case "1M" :
+				default :
 					scale = "240";
 					datalen = 22;
 					break;
@@ -543,9 +537,8 @@ public class MarketDataServiceImpl implements IMarketDataService {
 
 			try {
 				String url = String.format(marketProperties.getUrls().getKlineCn(), cleanSymbol, scale, datalen);
-				String json = restClient.get().uri(url)
-						.header("Referer", "https://finance.sina.com.cn")
-						.retrieve().body(String.class);
+				String json = restClient.get().uri(url).header("Referer", "https://finance.sina.com.cn").retrieve()
+						.body(String.class);
 
 				if (json != null) {
 					JsonNode root = objectMapper.readTree(json);
@@ -556,7 +549,8 @@ public class MarketDataServiceImpl implements IMarketDataService {
 								date = date.split(" ")[0];
 							}
 							BigDecimal close = new BigDecimal(node.get("close").asText());
-							trendPoints.add(new StockTrendResponse.TrendPoint(date, close.setScale(2, RoundingMode.HALF_UP)));
+							trendPoints.add(
+									new StockTrendResponse.TrendPoint(date, close.setScale(2, RoundingMode.HALF_UP)));
 						}
 					}
 				}
@@ -566,14 +560,14 @@ public class MarketDataServiceImpl implements IMarketDataService {
 		} else {
 			int datalen = 22;
 			switch (cleanPeriod) {
-				case "1W":
+				case "1W" :
 					datalen = 5;
 					break;
-				case "1Y":
+				case "1Y" :
 					datalen = 250;
 					break;
-				case "1M":
-				default:
+				case "1M" :
+				default :
 					datalen = 22;
 					break;
 			}
@@ -581,9 +575,8 @@ public class MarketDataServiceImpl implements IMarketDataService {
 			try {
 				String ticker = cleanSymbol.startsWith("gb_") ? cleanSymbol.substring(3) : cleanSymbol;
 				String url = String.format(marketProperties.getUrls().getKlineUsDaily(), ticker);
-				String json = restClient.get().uri(url)
-						.header("Referer", "https://finance.sina.com.cn")
-						.retrieve().body(String.class);
+				String json = restClient.get().uri(url).header("Referer", "https://finance.sina.com.cn").retrieve()
+						.body(String.class);
 
 				if (json != null) {
 					JsonNode root = objectMapper.readTree(json);
@@ -594,7 +587,8 @@ public class MarketDataServiceImpl implements IMarketDataService {
 							if (node.has("c") && node.has("d")) {
 								String date = node.get("d").asText();
 								BigDecimal close = new BigDecimal(node.get("c").asText());
-								trendPoints.add(new StockTrendResponse.TrendPoint(date, close.setScale(2, RoundingMode.HALF_UP)));
+								trendPoints.add(new StockTrendResponse.TrendPoint(date,
+										close.setScale(2, RoundingMode.HALF_UP)));
 							}
 						}
 					}
@@ -606,14 +600,9 @@ public class MarketDataServiceImpl implements IMarketDataService {
 
 		boolean isOpen = isCn ? isCnMarketOpen() : isUsMarketOpen();
 
-		StockTrendResponse response = StockTrendResponse.builder()
-				.name(name)
-				.symbol(cleanSymbol)
-				.current(currentPrice.setScale(2, RoundingMode.HALF_UP))
-				.changePct(changePct)
-				.isOpen(isOpen)
-				.trendPoints(trendPoints)
-				.build();
+		StockTrendResponse response = StockTrendResponse.builder().name(name).symbol(cleanSymbol)
+				.current(currentPrice.setScale(2, RoundingMode.HALF_UP)).changePct(changePct).isOpen(isOpen)
+				.trendPoints(trendPoints).build();
 
 		redisUtil.set(cacheKey, response, getStockTrendCacheTtl(cleanPeriod), getStockTrendCacheTtlUnit(cleanPeriod));
 		return ApiResponse.success(response);
@@ -621,12 +610,12 @@ public class MarketDataServiceImpl implements IMarketDataService {
 
 	private long getStockTrendCacheTtl(String period) {
 		switch (period.toUpperCase()) {
-			case "1W":
+			case "1W" :
 				return 5;
-			case "1Y":
+			case "1Y" :
 				return 4;
-			case "1M":
-			default:
+			case "1M" :
+			default :
 				return 30;
 		}
 	}

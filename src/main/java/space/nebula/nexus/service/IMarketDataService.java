@@ -42,7 +42,8 @@ public interface IMarketDataService {
 	/**
 	 * Searches stocks matching the given keyword using Sina Suggest API.
 	 *
-	 * @param keyword stock code, name or pinyin
+	 * @param keyword
+	 *            stock code, name or pinyin
 	 * @return API response containing the list of matching stocks
 	 */
 	ApiResponse<List<StockSearchResponse>> searchStocks(String keyword);
@@ -50,8 +51,10 @@ public interface IMarketDataService {
 	/**
 	 * Retrieves a stock's historical trend and real-time details.
 	 *
-	 * @param symbol stock symbol (e.g., sh600519, AAPL)
-	 * @param period requested period (1W, 1M, 1Y)
+	 * @param symbol
+	 *            stock symbol (e.g., sh600519, AAPL)
+	 * @param period
+	 *            requested period (1W, 1M, 1Y)
 	 * @return API response containing the stock trend and real-time data
 	 */
 	ApiResponse<StockTrendResponse> getStockTrend(String symbol, String period);

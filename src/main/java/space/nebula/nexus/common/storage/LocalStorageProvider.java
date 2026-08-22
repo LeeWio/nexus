@@ -74,10 +74,11 @@ public class LocalStorageProvider implements StorageProvider {
 	}
 
 	private Path validateFilenameAndResolve(String filename) throws IOException {
-		// Strict check: No parent directory references allowed to prevent traversal attacks,
-		// but allow subfolders/separators for structured paths (e.g., static/posts/file.html)
-		Assert.isFalse(filename.contains(".."),
-				() -> new BusinessException("Invalid filename format"));
+		// Strict check: No parent directory references allowed to prevent traversal
+		// attacks,
+		// but allow subfolders/separators for structured paths (e.g.,
+		// static/posts/file.html)
+		Assert.isFalse(filename.contains(".."), () -> new BusinessException("Invalid filename format"));
 
 		Path resolved = rootLocation.resolve(filename).normalize().toAbsolutePath();
 

@@ -85,7 +85,8 @@ public class FileServiceImpl implements IFileService {
 		}
 
 		// JVM-local locking to serialize concurrent uploads of the same file content.
-		// Since lock is acquired outside transaction, transaction is guaranteed to commit before next thread enters.
+		// Since lock is acquired outside transaction, transaction is guaranteed to
+		// commit before next thread enters.
 		synchronized (fileHash.intern()) {
 			return self.doUploadFile(file, fileHash);
 		}

@@ -111,7 +111,8 @@ class MomentServiceImplTest {
 
 	@Test
 	void createMomentRejectsVisibleTextOverTheComposerLimit() {
-		MomentRequest request = new MomentRequest("a".repeat(2001), MomentVisibility.PUBLIC, List.of(), List.of(), null);
+		MomentRequest request = new MomentRequest("a".repeat(2001), MomentVisibility.PUBLIC, List.of(), List.of(),
+				null);
 
 		assertThrows(BusinessException.class, () -> momentService.createMoment(request));
 		verifyNoInteractions(momentMapper, fileRepository, momentRepository);
@@ -121,7 +122,8 @@ class MomentServiceImplTest {
 	void createMomentSavesAttachedStockSymbol() {
 		Moment moment = publishedMoment(null);
 		moment.setStockSymbol("AAPL");
-		MomentRequest request = new MomentRequest("Check AAPL trend!", MomentVisibility.PUBLIC, List.of(), List.of(), "AAPL");
+		MomentRequest request = new MomentRequest("Check AAPL trend!", MomentVisibility.PUBLIC, List.of(), List.of(),
+				"AAPL");
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 
 		withAuthenticatedUser(() -> momentService.createMoment(request));

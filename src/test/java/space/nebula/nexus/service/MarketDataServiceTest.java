@@ -199,7 +199,8 @@ class MarketDataServiceTest {
 		assertEquals("贵州茅台", trend.getName());
 		assertEquals("sh600519", trend.getSymbol());
 		assertEquals(new BigDecimal("1610.00"), trend.getCurrent());
-		assertEquals(new BigDecimal("1.26"), trend.getChangePct()); // (1610.00 - 1590.00) / 1590.00 * 100 = 1.2578... -> 1.26
+		assertEquals(new BigDecimal("1.26"), trend.getChangePct()); // (1610.00 - 1590.00) / 1590.00 * 100 = 1.2578...
+																	// -> 1.26
 		assertEquals(2, trend.getTrendPoints().size());
 		assertEquals("2026-08-20", trend.getTrendPoints().get(0).getDate());
 		assertEquals(new BigDecimal("1590.00"), trend.getTrendPoints().get(0).getPrice());
