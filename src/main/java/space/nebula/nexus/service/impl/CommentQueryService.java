@@ -271,10 +271,18 @@ public class CommentQueryService {
 			treeNode.setParentId(commentResponse.parentId());
 			treeNode.putExtra("content", commentResponse.content());
 			treeNode.putExtra("username", commentResponse.username());
+			treeNode.putExtra("nickname", commentResponse.nickname());
 			treeNode.putExtra("avatar", commentResponse.avatar());
+			treeNode.putExtra("status", commentResponse.status());
+			treeNode.putExtra("postId", commentResponse.postId());
+			treeNode.putExtra("postTitle", commentResponse.postTitle());
 			treeNode.putExtra("likesCount", commentResponse.likesCount());
+			treeNode.putExtra("reportsCount", commentResponse.reportsCount());
 			treeNode.putExtra("replyCount", commentResponse.replyCount());
 			treeNode.putExtra("likedByCurrentUser", commentResponse.likedByCurrentUser());
+			treeNode.putExtra("pinned", commentResponse.pinned());
+			treeNode.putExtra("featured", commentResponse.featured());
+			treeNode.putExtra("deletedPlaceholder", commentResponse.deletedPlaceholder());
 			treeNode.putExtra("createdAt", commentResponse.createdAt());
 			treeNode.putExtra("editedAt", commentResponse.editedAt());
 		});
