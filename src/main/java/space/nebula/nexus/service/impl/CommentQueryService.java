@@ -66,7 +66,8 @@ public class CommentQueryService {
 						limit)
 				: commentRepository.findAllByPostIdAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(postId,
 						CommentStatus.APPROVED, cursor, limit);
-		return ApiResponse.success(toCursorResponse(comments, size));
+		long total = commentRepository.countByPostIdAndParentIsNullAndStatus(postId, CommentStatus.APPROVED);
+		return ApiResponse.success(toCursorResponse(comments, size, total));
 	}
 
 	@Transactional(readOnly = true)
@@ -86,7 +87,8 @@ public class CommentQueryService {
 				? commentRepository.findAllByParentIdAndStatusOrderByIdAsc(parentId, CommentStatus.APPROVED, limit)
 				: commentRepository.findAllByParentIdAndStatusAndIdGreaterThanOrderByIdAsc(parentId,
 						CommentStatus.APPROVED, cursor, limit);
-		return ApiResponse.success(toCursorResponse(replies, size));
+		long total = commentRepository.countByParentIdAndStatus(parentId, CommentStatus.APPROVED);
+		return ApiResponse.success(toCursorResponse(replies, size, total));
 	}
 
 	@Transactional(readOnly = true)
@@ -109,7 +111,8 @@ public class CommentQueryService {
 						limit)
 				: commentRepository.findAllByPostIsNullAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(
 						CommentStatus.APPROVED, cursor, limit);
-		return ApiResponse.success(toCursorResponse(comments, size));
+		long total = commentRepository.countByPostIsNullAndParentIsNullAndStatus(CommentStatus.APPROVED);
+		return ApiResponse.success(toCursorResponse(comments, size, total));
 	}
 
 	@Transactional(readOnly = true)
@@ -126,7 +129,9 @@ public class CommentQueryService {
 		validatePublishedPost(postId);
 		List<Comment> comments = commentRepository.findNewRootCommentsByPost(postId, CommentStatus.APPROVED,
 				normalizeCursor(afterId), cursorLimit(size));
-		return ApiResponse.success(toForwardCursorResponse(comments, size));
+		long total = commentRepository.countByPostIdAndParentIsNullAndStatusAndIdGreaterThan(postId,
+				CommentStatus.APPROVED, normalizeCursor(afterId));
+		return ApiResponse.success(toForwardCursorResponse(comments, size, total));
 	}
 
 	@Transactional(readOnly = true)
@@ -169,7 +174,9 @@ public class CommentQueryService {
 	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveNewGuestbookRootComments(Long afterId, int size) {
 		List<Comment> comments = commentRepository.findNewGuestbookRootComments(CommentStatus.APPROVED,
 				normalizeCursor(afterId), cursorLimit(size));
-		return ApiResponse.success(toForwardCursorResponse(comments, size));
+		long total = commentRepository.countByPostIsNullAndParentIsNullAndStatusAndIdGreaterThan(
+				CommentStatus.APPROVED, normalizeCursor(afterId));
+		return ApiResponse.success(toForwardCursorResponse(comments, size, total));
 	}
 
 	@Transactional(readOnly = true)
@@ -231,20 +238,20 @@ public class CommentQueryService {
 		return cursor == null ? 0L : cursor;
 	}
 
-	private CursorPageResponse<CommentResponse> toCursorResponse(List<Comment> comments, int size) {
+	private CursorPageResponse<CommentResponse> toCursorResponse(List<Comment> comments, int size, long total) {
 		boolean hasMore = comments.size() > size;
 		List<Comment> window = hasMore ? comments.subList(0, size) : comments;
 		Long nextCursor = hasMore && !window.isEmpty() ? window.getLast().getId() : null;
 		return CursorPageResponse.<CommentResponse>builder().list(commentResponseAssembler.toResponseList(window))
-				.nextCursor(nextCursor).hasMore(hasMore).build();
+				.nextCursor(nextCursor).hasMore(hasMore).total(total).build();
 	}
 
-	private CursorPageResponse<CommentResponse> toForwardCursorResponse(List<Comment> comments, int size) {
+	private CursorPageResponse<CommentResponse> toForwardCursorResponse(List<Comment> comments, int size, long total) {
 		boolean hasMore = comments.size() > size;
 		List<Comment> window = hasMore ? comments.subList(0, size) : comments;
 		Long nextCursor = hasMore && !window.isEmpty() ? window.getLast().getId() : null;
 		return CursorPageResponse.<CommentResponse>builder().list(commentResponseAssembler.toResponseList(window))
-				.nextCursor(nextCursor).hasMore(hasMore).build();
+				.nextCursor(nextCursor).hasMore(hasMore).total(total).build();
 	}
 
 	private Comment resolveRootComment(Comment comment) {

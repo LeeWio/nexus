@@ -12,7 +12,9 @@ public record CursorPageResponse<T>(@Schema(description = "Items returned for th
 
 		@Schema(description = "Cursor for the next request. Null when there is no next page.") Long nextCursor,
 
-		@Schema(description = "Whether more items are available after this window") boolean hasMore)
+		@Schema(description = "Whether more items are available after this window") boolean hasMore,
+
+		@Schema(description = "Total number of items matching the current filter") long total)
 		implements
 			Serializable {
 }
