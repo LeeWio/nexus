@@ -12,6 +12,7 @@ import space.nebula.nexus.payload.request.CommentReportRequest;
 import space.nebula.nexus.payload.request.CommentUpdateRequest;
 import space.nebula.nexus.payload.response.CommentAnchorContextResponse;
 import space.nebula.nexus.payload.response.CommentResponse;
+import space.nebula.nexus.payload.response.CommentPublishResponse;
 import space.nebula.nexus.payload.response.CommentGovernanceOverviewResponse;
 import space.nebula.nexus.payload.response.CommentModerationLogResponse;
 import space.nebula.nexus.payload.response.CommentRiskResponse;
@@ -26,7 +27,7 @@ public interface ICommentService {
 	/**
 	 * Publishes a new comment. Performs auto-moderation.
 	 */
-	ApiResponse<Void> publishComment(CommentRequest request, HttpServletRequest servletRequest);
+	ApiResponse<CommentPublishResponse> publishComment(CommentRequest request, HttpServletRequest servletRequest);
 
 	/**
 	 * Retrieves approved comments for a specific post as a tree.

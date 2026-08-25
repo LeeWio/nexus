@@ -14,6 +14,7 @@ import space.nebula.nexus.payload.request.CommentReportRequest;
 import space.nebula.nexus.payload.request.CommentUpdateRequest;
 import space.nebula.nexus.payload.response.CommentAnchorContextResponse;
 import space.nebula.nexus.payload.response.CommentResponse;
+import space.nebula.nexus.payload.response.CommentPublishResponse;
 import space.nebula.nexus.payload.response.CommentGovernanceOverviewResponse;
 import space.nebula.nexus.payload.response.CommentModerationLogResponse;
 import space.nebula.nexus.payload.response.CommentRiskResponse;
@@ -34,7 +35,7 @@ public class CommentServiceImpl implements ICommentService {
 	private final CommentGovernanceService governanceService;
 
 	@Override
-	public ApiResponse<Void> publishComment(CommentRequest request, HttpServletRequest servletRequest) {
+	public ApiResponse<CommentPublishResponse> publishComment(CommentRequest request, HttpServletRequest servletRequest) {
 		return commandService.publishComment(request, servletRequest);
 	}
 

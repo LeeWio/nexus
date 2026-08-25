@@ -27,6 +27,7 @@ import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.payload.request.CommentRequest;
 import space.nebula.nexus.payload.request.CommentReportRequest;
 import space.nebula.nexus.payload.request.CommentUpdateRequest;
+import space.nebula.nexus.payload.response.CommentPublishResponse;
 import space.nebula.nexus.repository.CommentRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
@@ -57,7 +58,7 @@ public class CommentCommandService {
 
 	@Transactional
 	@LogOperation("Publish Comment")
-	public ApiResponse<Void> publishComment(CommentRequest request, HttpServletRequest servletRequest) {
+	public ApiResponse<CommentPublishResponse> publishComment(CommentRequest request, HttpServletRequest servletRequest) {
 		Post targetPost = resolveTargetPost(request.postId());
 		String filteredContent = sensitiveWordService.filter(request.content());
 		boolean hasViolation = request.content() != null && !request.content().equals(filteredContent);
@@ -68,7 +69,7 @@ public class CommentCommandService {
 		String requestHash = idempotencyService.hashSubmission(request.postId(), request.parentId(), filteredContent);
 		var replayedResponse = idempotencyService.begin(author.getId(), clientRequestId, requestHash);
 		if (replayedResponse.isPresent()) {
-			return replayedResponse.get();
+			return restoreReplayResponse(replayedResponse.get(), author, clientRequestId);
 		}
 		if (clientRequestId != null) {
 			var existingComment = commentRepository.findByUserIdAndClientRequestId(author.getId(), clientRequestId);
@@ -76,7 +77,8 @@ public class CommentCommandService {
 				Assert.isTrue(isSameSubmission(existingComment.get(), targetPost, parentComment, filteredContent),
 						() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 								"Idempotency-Key was already used for a different comment"));
-				return ApiResponse.success("Comment submission already received.", null);
+				return ApiResponse.success("Comment submission already received.",
+						new CommentPublishResponse(existingComment.getId(), existingComment.getStatus()));
 			}
 		}
 
@@ -106,13 +108,14 @@ public class CommentCommandService {
 			eventPublisher.publishEvent(buildSubmittedEvent(comment));
 			metricsService.incrementPublished(comment.getStatus());
 
-			ApiResponse<Void> response;
+			ApiResponse<CommentPublishResponse> response;
+			CommentPublishResponse result = new CommentPublishResponse(comment.getId(), comment.getStatus());
 			if (isAdmin) {
-				response = ApiResponse.success("Comment published successfully.", null);
+				response = ApiResponse.success("Comment published successfully.", result);
 			} else {
 				response = hasViolation
-						? ApiResponse.success("Comment received and flagged for moderation.", null)
-						: ApiResponse.success("Comment submitted successfully. It is awaiting moderation.", null);
+						? ApiResponse.success("Comment received and flagged for moderation.", result)
+						: ApiResponse.success("Comment submitted successfully. It is awaiting moderation.", result);
 			}
 			idempotencyService.complete(author.getId(), clientRequestId, requestHash, response, comment.getId());
 			return response;
@@ -270,14 +273,28 @@ public class CommentCommandService {
 		return normalized;
 	}
 
-	private ApiResponse<Void> recoverIdempotentSubmission(Long userId, String clientRequestId, String requestHash,
+	private ApiResponse<CommentPublishResponse> recoverIdempotentSubmission(Long userId, String clientRequestId,
+			String requestHash,
 			DataIntegrityViolationException ex) {
 		if (clientRequestId == null) {
 			throw ex;
 		}
 		return idempotencyService.findCompletedCommentId(userId, clientRequestId, requestHash)
-				.map(commentId -> ApiResponse.<Void>success("Comment submission already received.", null))
+			.flatMap(commentRepository::findById)
+			.map(comment -> ApiResponse.success("Comment submission already received.",
+					new CommentPublishResponse(comment.getId(), comment.getStatus())))
 				.orElseThrow(() -> ex);
+	}
+
+	private ApiResponse<CommentPublishResponse> restoreReplayResponse(ApiResponse<Void> replayedResponse, User author,
+			String clientRequestId) {
+		if (clientRequestId == null) {
+			return ApiResponse.success(replayedResponse.message(), null);
+		}
+		return commentRepository.findByUserIdAndClientRequestId(author.getId(), clientRequestId)
+				.map(comment -> ApiResponse.success(replayedResponse.message(),
+						new CommentPublishResponse(comment.getId(), comment.getStatus())))
+				.orElseGet(() -> ApiResponse.success(replayedResponse.message(), null));
 	}
 
 	private boolean isSameSubmission(Comment existingComment, Post targetPost, Comment parentComment,

@@ -18,6 +18,7 @@ import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.payload.request.CommentRequest;
 import space.nebula.nexus.payload.request.GuestbookRequest;
 import space.nebula.nexus.payload.response.CommentResponse;
+import space.nebula.nexus.payload.response.CommentPublishResponse;
 import space.nebula.nexus.payload.response.CursorPageResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.service.ICommentService;
@@ -85,7 +86,7 @@ public class PublicGuestbookController {
 	@Operation(summary = "Post to guestbook", description = "Submit a new message to the global guestbook. Requires authentication.")
 	@SecurityRequirement(name = "bearerAuth")
 	@RateLimit(count = 3, time = 10, unit = TimeUnit.MINUTES, message = "Too many guestbook posts. Please try again later.")
-	public ApiResponse<Void> publishComment(@Valid @RequestBody GuestbookRequest request,
+	public ApiResponse<CommentPublishResponse> publishComment(@Valid @RequestBody GuestbookRequest request,
 			HttpServletRequest servletRequest) {
 		// Ensure postId is null for guestbook entries
 		CommentRequest guestbookRequest = new CommentRequest(request.content(), null, request.parentId());

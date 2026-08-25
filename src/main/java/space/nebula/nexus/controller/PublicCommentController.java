@@ -19,6 +19,7 @@ import space.nebula.nexus.payload.request.CommentRequest;
 import space.nebula.nexus.payload.request.CommentReportRequest;
 import space.nebula.nexus.payload.response.CommentAnchorContextResponse;
 import space.nebula.nexus.payload.response.CommentResponse;
+import space.nebula.nexus.payload.response.CommentPublishResponse;
 import space.nebula.nexus.payload.response.CursorPageResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.service.ICommentService;
@@ -43,7 +44,7 @@ public class PublicCommentController {
 	@SecurityRequirement(name = "bearerAuth")
 	@PreAuthorize("isAuthenticated()")
 	@RateLimit(count = 5, time = 15, unit = TimeUnit.MINUTES, message = "Too many comments. Please wait a moment.")
-	public ApiResponse<Void> publishComment(@Valid @RequestBody CommentRequest request,
+	public ApiResponse<CommentPublishResponse> publishComment(@Valid @RequestBody CommentRequest request,
 			HttpServletRequest servletRequest) {
 		return commentService.publishComment(request, servletRequest);
 	}

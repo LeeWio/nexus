@@ -53,7 +53,7 @@ public class CommentIdempotencyService {
 		return Optional.of(ApiResponse.success(existing.responseMessage(), null));
 	}
 
-	public void complete(Long userId, String idempotencyKey, String requestHash, ApiResponse<Void> response,
+	public void complete(Long userId, String idempotencyKey, String requestHash, ApiResponse<?> response,
 			Long commentId) {
 		if (idempotencyKey == null) {
 			return;
