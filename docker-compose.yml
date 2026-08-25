@@ -14,7 +14,7 @@ services:
       - .env
     environment:
       - SPRING_PROFILES_ACTIVE=common,dev
-      - APP_SEARCH_TYPE=database
+      - SEARCH_TYPE=database
       - SPRING_DATASOURCE_URL=jdbc:mysql://nexus-db:3306/nexus_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=nexus_password
