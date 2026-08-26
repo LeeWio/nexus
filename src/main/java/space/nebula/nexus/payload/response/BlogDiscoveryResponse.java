@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -13,21 +14,33 @@ import java.util.List;
 public record BlogDiscoveryResponse(@Schema(description = "Primary editorial post") PostDigestResponse spotlight,
 		@Schema(description = "Curated prominent posts selected by editorial and engagement score") List<PostDigestResponse> curated,
 		@Schema(description = "Recently published posts") List<PostDigestResponse> latest,
+		@Schema(description = "Posts with the strongest recent discovery signals") List<PostDigestResponse> trending,
 		@Schema(description = "Most-read posts not already shown") List<PostDigestResponse> mostRead,
-		@Schema(description = "High-signal post groups by category") List<CategoryGroup> categoryGroups)
+		@Schema(description = "Published series selected for the discovery page") List<SeriesSummaryResponse> series,
+		@Schema(description = "High-signal post groups by category") List<CategoryGroup> categoryGroups,
+		@Schema(description = "UTC time when this discovery snapshot was generated") Instant generatedAt,
+		@Schema(description = "Ranking algorithm version used to generate this snapshot") String algorithmVersion)
 		implements
 			Serializable {
 	private static final long serialVersionUID = 1L;
 
 	public BlogDiscoveryResponse(PostDigestResponse spotlight, List<PostDigestResponse> latest,
 			List<PostDigestResponse> mostRead) {
-		this(spotlight, List.of(), latest, mostRead, List.of());
+			this(spotlight, List.of(), latest, List.of(), mostRead, List.of(), List.of(), null, null);
+	}
+
+	public BlogDiscoveryResponse(PostDigestResponse spotlight, List<PostDigestResponse> curated,
+			List<PostDigestResponse> latest, List<PostDigestResponse> mostRead,
+			List<CategoryGroup> categoryGroups) {
+			this(spotlight, curated, latest, List.of(), mostRead, List.of(), categoryGroups, null, null);
 	}
 
 	public BlogDiscoveryResponse {
 		curated = List.copyOf(curated);
 		latest = List.copyOf(latest);
+		trending = List.copyOf(trending);
 		mostRead = List.copyOf(mostRead);
+		series = List.copyOf(series);
 		categoryGroups = List.copyOf(categoryGroups);
 	}
 

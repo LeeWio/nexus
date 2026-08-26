@@ -78,7 +78,7 @@ public class CommentCommandService {
 						() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 								"Idempotency-Key was already used for a different comment"));
 				return ApiResponse.success("Comment submission already received.",
-						new CommentPublishResponse(existingComment.getId(), existingComment.getStatus()));
+						new CommentPublishResponse(existingComment.get().getId(), existingComment.get().getStatus()));
 			}
 		}
 

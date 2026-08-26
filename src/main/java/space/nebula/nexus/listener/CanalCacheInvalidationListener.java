@@ -112,11 +112,17 @@ public class CanalCacheInvalidationListener {
 	private void handlePostCacheInvalidation(CanalMessage message) {
 		// 1. Clear L2 (Redis)
 		redisUtil.deleteByPattern(CacheConstants.buildFullKey(CacheConstants.BLOG_POSTS, "list:*"));
+		redisUtil.deleteByPattern(CacheConstants.buildFullKey(CacheConstants.BLOG_DISCOVERY, "*"));
+		redisUtil.deleteByPattern(CacheConstants.buildFullKey(CacheConstants.BLOG_SERIES, "*"));
+		redisUtil.deleteByPattern(CacheConstants.buildFullKey(CacheConstants.BLOG_RELATED, "*"));
 		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.SITEMAP_KEY));
 		redisUtil.delete(CacheConstants.buildFullKey(CacheConstants.SEO, CacheConstants.RSS_FEED_KEY));
 
 		// 2. Broadcast L1 (Caffeine) Invalidation
 		broadcastL1Invalidation(CacheConstants.BLOG_POSTS, null, true);
+		broadcastL1Invalidation(CacheConstants.BLOG_DISCOVERY, null, true);
+		broadcastL1Invalidation(CacheConstants.BLOG_SERIES, null, true);
+		broadcastL1Invalidation(CacheConstants.BLOG_RELATED, null, true);
 
 		if (CollUtil.isNotEmpty(message.getData())) {
 			for (Map<String, String> row : message.getData()) {

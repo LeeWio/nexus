@@ -10,11 +10,14 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "app.blog.discovery")
 public class BlogDiscoveryProperties {
+	private String algorithmVersion = "v2";
 	private int sectionSize = 6;
 	private int categoryGroupSize = 3;
 	private int categoryPostSize = 4;
+	private int seriesSize = 4;
 	private int candidateSize = 48;
 	private int freshnessWindowDays = 90;
+	private int freshnessHalfLifeDays = 30;
 	private double featuredWeight = 1_000;
 	private double viewWeight = 18;
 	private double likeWeight = 4;
@@ -23,4 +26,7 @@ public class BlogDiscoveryProperties {
 	private double summaryWeight = 8;
 	private double coverWeight = 6;
 	private double categoryWeight = 4;
+	private double contentWeight = 8;
+	private double tagWeight = 2;
+	private double seriesWeight = 3;
 }

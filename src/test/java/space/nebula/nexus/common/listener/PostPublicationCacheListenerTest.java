@@ -1,6 +1,7 @@
 package space.nebula.nexus.common.listener;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -14,6 +15,7 @@ import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.enums.PostStatus;
 
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -31,8 +33,24 @@ class PostPublicationCacheListenerTest {
 	@Mock
 	private Cache seoCache;
 
+	@Mock
+	private Cache discoveryCache;
+
+	@Mock
+	private Cache seriesCache;
+
+	@Mock
+	private Cache relatedCache;
+
 	@InjectMocks
 	private PostPublicationCacheListener listener;
+
+	@BeforeEach
+	void stubPublicCaches() {
+		lenient().when(cacheManager.getCache(CacheConstants.BLOG_DISCOVERY)).thenReturn(discoveryCache);
+		lenient().when(cacheManager.getCache(CacheConstants.BLOG_SERIES)).thenReturn(seriesCache);
+		lenient().when(cacheManager.getCache(CacheConstants.BLOG_RELATED)).thenReturn(relatedCache);
+	}
 
 	@Test
 	void clearsPublicCachesForPublishedPost() {

@@ -9,6 +9,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.common.event.PostChangedEvent;
+import space.nebula.nexus.common.event.PostDeletedEvent;
 import space.nebula.nexus.enums.PostStatus;
 
 /**
@@ -32,11 +33,18 @@ public class PostPublicationCacheListener {
 		if (!requiresPublicCacheInvalidation(event)) {
 			return;
 		}
-		clear(CacheConstants.BLOG_POSTS);
-		clear(CacheConstants.SEO);
+		clearPublicCaches();
+	}
+
+	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	public void onPostDeleted(PostDeletedEvent event) {
+		clearPublicCaches();
 	}
 
 	private boolean requiresPublicCacheInvalidation(PostChangedEvent event) {
+		if (event.getChangeType() == PostChangeType.CREATED && event.getPost().getStatus() == PostStatus.PUBLISHED) {
+			return true;
+		}
 		if (event.getChangeType() == PostChangeType.PUBLISHED || event.getChangeType() == PostChangeType.ARCHIVED
 				|| event.getChangeType() == PostChangeType.RESTORED_TO_DRAFT
 				|| event.getChangeType() == PostChangeType.SCHEDULE_CANCELED) {
@@ -44,6 +52,14 @@ public class PostPublicationCacheListener {
 		}
 		return event.getChangeType() == PostChangeType.UPDATED && (event.getPost().getStatus() == PostStatus.PUBLISHED
 				|| event.getPreviousStatus() == PostStatus.PUBLISHED);
+	}
+
+	private void clearPublicCaches() {
+		clear(CacheConstants.BLOG_POSTS);
+		clear(CacheConstants.BLOG_DISCOVERY);
+		clear(CacheConstants.BLOG_SERIES);
+		clear(CacheConstants.BLOG_RELATED);
+		clear(CacheConstants.SEO);
 	}
 
 	private void clear(String cacheName) {

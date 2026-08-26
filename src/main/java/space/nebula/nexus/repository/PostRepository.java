@@ -63,7 +63,7 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	 * ranking. Featured posts win first, then stronger interaction signals, then
 	 * recency.
 	 */
-	@EntityGraph(attributePaths = {"category", "author"})
+	@EntityGraph(attributePaths = {"category", "author", "tags", "series"})
 	@Query("SELECT p FROM Post p WHERE p.status = :status "
 			+ "ORDER BY CASE WHEN p.isFeatured = true THEN 1 ELSE 0 END DESC, "
 			+ "(p.favoritesCount * 6 + p.likesCount * 4 + p.views) DESC, " + "p.publishedAt DESC, p.id DESC")
@@ -72,7 +72,7 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	/**
 	 * Candidate pool for in-memory discovery grouping and score explanation.
 	 */
-	@EntityGraph(attributePaths = {"category", "author"})
+	@EntityGraph(attributePaths = {"category", "author", "tags", "series"})
 	@Query("SELECT p FROM Post p WHERE p.status = :status "
 			+ "ORDER BY CASE WHEN p.isFeatured = true THEN 1 ELSE 0 END DESC, "
 			+ "(p.favoritesCount * 6 + p.likesCount * 4 + p.views) DESC, " + "p.publishedAt DESC, p.id DESC")
@@ -185,7 +185,7 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	Page<Post> findAll(Pageable pageable);
 
 	@Override
-	@EntityGraph(attributePaths = {"category", "author", "series", "parent"})
+	@EntityGraph(attributePaths = {"category", "author", "tags", "series", "parent"})
 	Page<Post> findAll(@Nullable Specification<Post> spec, Pageable pageable);
 
 	@Modifying

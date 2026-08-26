@@ -1,6 +1,8 @@
 package space.nebula.nexus.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
@@ -39,6 +41,7 @@ import space.nebula.nexus.payload.response.CategoryResponse;
 import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostResponse;
+import space.nebula.nexus.payload.response.SeriesSummaryResponse;
 import space.nebula.nexus.repository.CategoryRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.PostSeriesRepository;
@@ -59,6 +62,7 @@ import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 
 import java.util.HashSet;
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ArrayList;
@@ -91,6 +95,7 @@ public class PostServiceImpl implements IPostService {
 	private final PostRankingService postRankingService;
 	private final space.nebula.nexus.common.validator.PostValidator postValidator;
 	private final BlogDiscoveryProperties discoveryProperties;
+	private final ObjectProvider<MeterRegistry> meterRegistryProvider;
 
 	private final space.nebula.nexus.repository.ConfigRepository configRepository;
 	@Override
@@ -604,10 +609,18 @@ public class PostServiceImpl implements IPostService {
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.BLOG_POSTS, key = CacheConstants.BLOG_DISCOVERY_KEY, sync = true)
+	@Cacheable(value = CacheConstants.BLOG_DISCOVERY, key = CacheConstants.BLOG_DISCOVERY_KEY, sync = true)
 	public ApiResponse<BlogDiscoveryResponse> retrievePublicDiscovery() {
 		List<Post> discoveryCandidates = postRepository.findDiscoveryCandidates(PostStatus.PUBLISHED,
 				PageRequest.of(0, candidateSize()));
+		MeterRegistry meterRegistry = meterRegistryProvider == null ? null : meterRegistryProvider.getIfAvailable();
+		if (meterRegistry != null) {
+			meterRegistry.counter("nexus.blog.discovery.snapshots").increment();
+			meterRegistry.counter("nexus.blog.discovery.candidates").increment(discoveryCandidates.size());
+			if (discoveryCandidates.isEmpty()) {
+				meterRegistry.counter("nexus.blog.discovery.empty").increment();
+			}
+		}
 		List<Post> scoredCandidates = discoveryCandidates.stream()
 				.sorted(Comparator.comparingDouble(postRankingService::discoveryScore).reversed()
 						.thenComparing(Post::getId, Comparator.nullsLast(Comparator.reverseOrder())))
@@ -628,6 +641,11 @@ public class PostServiceImpl implements IPostService {
 
 		List<PostDigestResponse> curated = selectDistinctDigests(scoredCandidates, selectedPostIds, sectionSize());
 		List<PostDigestResponse> latest = selectDistinctDigests(latestCandidates, selectedPostIds, sectionSize());
+		List<PostDigestResponse> trending = selectDistinctDigests(scoredCandidates.stream()
+				.sorted(Comparator.comparingDouble(postRankingService::trendingScore).reversed()
+						.thenComparing(Post::getPublishedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+						.thenComparing(Post::getId, Comparator.nullsLast(Comparator.reverseOrder())))
+				.toList(), selectedPostIds, sectionSize());
 
 		Sort mostReadFirst = Sort.by(Sort.Order.desc("views"), Sort.Order.desc("likesCount"),
 				Sort.Order.desc("publishedAt"), Sort.Order.desc("id"));
@@ -636,8 +654,9 @@ public class PostServiceImpl implements IPostService {
 		List<PostDigestResponse> mostRead = selectDistinctDigests(mostReadCandidates, selectedPostIds, sectionSize());
 
 		PostDigestResponse spotlightResponse = spotlight == null ? null : postMapper.toDigestResponse(spotlight);
-		return ApiResponse.success(new BlogDiscoveryResponse(spotlightResponse, curated, latest, mostRead,
-				buildCategoryGroups(scoredCandidates, selectedPostIds)));
+		return ApiResponse.success(new BlogDiscoveryResponse(spotlightResponse, curated, latest, trending, mostRead,
+				buildPublicSeriesSummaries(), buildCategoryGroups(scoredCandidates, selectedPostIds), Instant.now(),
+				discoveryProperties.getAlgorithmVersion()));
 	}
 
 	@Override
@@ -671,7 +690,7 @@ public class PostServiceImpl implements IPostService {
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.BLOG_POSTS, key = "'related:' + #slug + ':' + #pageable.pageNumber + '-' + #pageable.pageSize", sync = true)
+	@Cacheable(value = CacheConstants.BLOG_RELATED, key = "'related:v2:' + #slug + ':' + #pageable.pageNumber + '-' + #pageable.pageSize", sync = true)
 	public ApiResponse<List<PostDigestResponse>> retrieveRelatedPosts(String slug, Pageable pageable) {
 		Post source = postRepository.findBySlug(slug)
 				.orElseThrow(() -> new ResourceNotFoundException("Post", "slug", slug));
@@ -856,8 +875,22 @@ public class PostServiceImpl implements IPostService {
 		return positive(discoveryProperties.getCategoryPostSize(), 4);
 	}
 
+	private int seriesSize() {
+		return positive(discoveryProperties.getSeriesSize(), 4);
+	}
+
 	private int candidateSize() {
 		return positive(discoveryProperties.getCandidateSize(), 48);
+	}
+
+	private List<SeriesSummaryResponse> buildPublicSeriesSummaries() {
+		return java.util.Optional.ofNullable(
+				seriesRepository.findPublicColumnSummaries(PostStatus.PUBLISHED)).orElseGet(List::of).stream()
+				.limit(seriesSize())
+				.map(series -> new SeriesSummaryResponse(series.getId(), series.getName(), series.getSlug(),
+						series.getDescription(), series.getCoverImage(), Math.toIntExact(series.getPostsCount()),
+						series.getCreatedAt()))
+				.toList();
 	}
 
 	private int positive(int configured, int fallback) {

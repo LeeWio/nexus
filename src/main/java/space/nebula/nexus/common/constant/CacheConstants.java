@@ -14,6 +14,9 @@ public final class CacheConstants {
 
 	// --- Domain Names (Used in @Cacheable value) ---
 	public static final String BLOG_POSTS = "blog_posts";
+	public static final String BLOG_DISCOVERY = "blog_discovery";
+	public static final String BLOG_SERIES = "blog_series";
+	public static final String BLOG_RELATED = "blog_related";
 	public static final String CATEGORIES = "categories";
 	public static final String TAGS = "tags";
 	public static final String USERS = "users";
@@ -32,7 +35,12 @@ public final class CacheConstants {
 
 	// Blog related
 	public static final String POST_LIST_KEY = "'list:' + #categoryId + ':' + #tagId + ':' + #keyword + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort";
-	public static final String BLOG_DISCOVERY_KEY = "'discovery'";
+	public static final String BLOG_DISCOVERY_KEY = "'discovery:v2'";
+	public static final String PUBLIC_SERIES_KEY = "'public_series'";
+	public static final String PUBLIC_COLUMNS_KEY = "'public_columns'";
+	public static final String PUBLIC_COLUMN_KEY = "'public_column:' + #slug";
+	public static final String PUBLIC_SERIES_DETAIL_KEY = "'series_detail:' + #slug";
+	public static final String PUBLIC_SERIES_TREE_KEY = "'series_tree:' + #slug";
 	public static final String POST_SLUG_KEY = "'slug:' + #slug";
 	public static final String POST_SLUG_PREFIX = "nexus:post:slug:";
 	public static final String POST_AUTOSAVE_PREFIX = "nexus:post:autosave:";

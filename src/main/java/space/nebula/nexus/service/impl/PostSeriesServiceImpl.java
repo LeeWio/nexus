@@ -4,6 +4,7 @@ import cn.hutool.core.lang.Assert;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
@@ -54,7 +55,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 	@Override
 	@Transactional
 	@LogOperation("Create Post Series")
-	@CacheEvict(value = {CacheConstants.PROJECTS, CacheConstants.SEO}, allEntries = true)
+	@CacheEvict(value = {CacheConstants.PROJECTS, CacheConstants.BLOG_SERIES, CacheConstants.SEO}, allEntries = true)
 	public ApiResponse<SeriesResponse> createSeries(SeriesRequest request) {
 		Assert.isFalse(seriesRepository.existsBySlug(request.slug()),
 				() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
@@ -71,7 +72,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 	@Override
 	@Transactional
 	@LogOperation("Update Post Series")
-	@CacheEvict(value = {CacheConstants.PROJECTS, CacheConstants.SEO}, allEntries = true)
+	@CacheEvict(value = {CacheConstants.PROJECTS, CacheConstants.BLOG_SERIES, CacheConstants.SEO}, allEntries = true)
 	public ApiResponse<SeriesResponse> updateSeries(Long id, SeriesRequest request) {
 		PostSeries series = findSeriesOrThrow(id);
 
@@ -90,7 +91,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 	@Override
 	@Transactional
 	@LogOperation("Delete Post Series")
-	@CacheEvict(value = {CacheConstants.PROJECTS, CacheConstants.SEO}, allEntries = true)
+	@CacheEvict(value = {CacheConstants.PROJECTS, CacheConstants.BLOG_SERIES, CacheConstants.SEO}, allEntries = true)
 	public ApiResponse<Void> deleteSeries(Long id) {
 		PostSeries series = findSeriesOrThrow(id);
 
@@ -107,6 +108,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 
 	@Override
 	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.BLOG_SERIES, key = CacheConstants.PUBLIC_SERIES_KEY, sync = true)
 	public ApiResponse<List<SeriesResponse>> retrievePublicSeriesList() {
 		List<PostSeries> publicSeries = seriesRepository.findByIsPublishedTrueOrderByCreatedAtDesc();
 		return ApiResponse.success(seriesMapper.toResponseList(publicSeries));
@@ -114,6 +116,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 
 	@Override
 	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.BLOG_SERIES, key = CacheConstants.PUBLIC_SERIES_DETAIL_KEY, sync = true)
 	public ApiResponse<SeriesResponse> retrieveSeriesWithPosts(String slug) {
 		PostSeries series = seriesRepository.findBySlug(slug)
 				.orElseThrow(() -> new ResourceNotFoundException("Series", "slug", slug));
@@ -121,11 +124,15 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 		Assert.isTrue(series.getIsPublished(),
 				() -> new BusinessException(BusinessCode.FORBIDDEN, "This series is not public"));
 
+		// A published series may contain drafts or scheduled posts. Never expose
+		// those workflow states through a public series endpoint.
+		series.setPosts(series.getPosts().stream().filter(Post::isPublished).toList());
 		return ApiResponse.success(seriesMapper.toResponseWithPosts(series));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.BLOG_SERIES, key = CacheConstants.PUBLIC_COLUMNS_KEY, sync = true)
 	public ApiResponse<List<ColumnResponse>> retrievePublicColumns() {
 		List<ColumnResponse> columns = seriesRepository
 				.findPublicColumnSummaries(space.nebula.nexus.enums.PostStatus.PUBLISHED).stream()
@@ -138,6 +145,7 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 
 	@Override
 	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.BLOG_SERIES, key = CacheConstants.PUBLIC_COLUMN_KEY, sync = true)
 	public ApiResponse<ColumnResponse> retrievePublicColumn(String slug) {
 		PostSeries series = seriesRepository.findFirstBySlug(slug)
 				.orElseThrow(() -> new ResourceNotFoundException("Column", "slug", slug));
@@ -153,11 +161,12 @@ public class PostSeriesServiceImpl implements IPostSeriesService {
 
 	@Override
 	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.BLOG_SERIES, key = CacheConstants.PUBLIC_SERIES_TREE_KEY, sync = true)
 	public ApiResponse<List<cn.hutool.core.lang.tree.Tree<Long>>> retrieveSeriesTree(String slug) {
 		PostSeries series = seriesRepository.findBySlug(slug)
 				.orElseThrow(() -> new ResourceNotFoundException("Series", "slug", slug));
 
-		List<Post> posts = series.getPosts();
+		List<Post> posts = series.getPosts().stream().filter(Post::isPublished).toList();
 		List<PostResponse> postResponses = postMapper.toResponseList(posts);
 
 		cn.hutool.core.lang.tree.TreeNodeConfig config = new cn.hutool.core.lang.tree.TreeNodeConfig();

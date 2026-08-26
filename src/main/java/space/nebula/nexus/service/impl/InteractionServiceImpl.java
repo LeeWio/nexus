@@ -213,6 +213,14 @@ public class InteractionServiceImpl implements IInteractionService {
 		if (cache != null) {
 			cache.clear();
 		}
+		org.springframework.cache.Cache discoveryCache = cacheManager.getCache(CacheConstants.BLOG_DISCOVERY);
+		if (discoveryCache != null) {
+			discoveryCache.clear();
+		}
+		org.springframework.cache.Cache relatedCache = cacheManager.getCache(CacheConstants.BLOG_RELATED);
+		if (relatedCache != null) {
+			relatedCache.clear();
+		}
 	}
 
 	private Post validatePostExists(Long postId) {

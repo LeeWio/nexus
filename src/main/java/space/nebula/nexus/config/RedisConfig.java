@@ -58,12 +58,20 @@ public class RedisConfig {
 				config.entryTtl(Duration.ofHours(6)));
 
 		// Short-term caches (10 minutes)
+		initialConfigurations.put(space.nebula.nexus.common.constant.CacheConstants.BLOG_DISCOVERY,
+				config.entryTtl(Duration.ofMinutes(10)));
 		initialConfigurations.put(space.nebula.nexus.common.constant.CacheConstants.ANALYTICS,
 				config.entryTtl(Duration.ofMinutes(10)));
 		initialConfigurations.put(space.nebula.nexus.common.constant.CacheConstants.SITE_STATS,
 				config.entryTtl(Duration.ofMinutes(10)));
 		initialConfigurations.put(space.nebula.nexus.common.constant.CacheConstants.MARKET_INDICES,
 				config.entryTtl(Duration.ofMinutes(10)));
+
+		// Public series metadata changes less frequently than ranked discovery data.
+		initialConfigurations.put(space.nebula.nexus.common.constant.CacheConstants.BLOG_SERIES,
+				config.entryTtl(Duration.ofHours(1)));
+		initialConfigurations.put(space.nebula.nexus.common.constant.CacheConstants.BLOG_RELATED,
+				config.entryTtl(Duration.ofHours(1)));
 
 		return RedisCacheManager.builder(factory).cacheDefaults(config)
 				.withInitialCacheConfigurations(initialConfigurations).build();
