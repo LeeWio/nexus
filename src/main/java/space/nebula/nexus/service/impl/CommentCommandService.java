@@ -58,7 +58,8 @@ public class CommentCommandService {
 
 	@Transactional
 	@LogOperation("Publish Comment")
-	public ApiResponse<CommentPublishResponse> publishComment(CommentRequest request, HttpServletRequest servletRequest) {
+	public ApiResponse<CommentPublishResponse> publishComment(CommentRequest request,
+			HttpServletRequest servletRequest) {
 		Post targetPost = resolveTargetPost(request.postId());
 		String filteredContent = sensitiveWordService.filter(request.content());
 		boolean hasViolation = request.content() != null && !request.content().equals(filteredContent);
@@ -274,15 +275,14 @@ public class CommentCommandService {
 	}
 
 	private ApiResponse<CommentPublishResponse> recoverIdempotentSubmission(Long userId, String clientRequestId,
-			String requestHash,
-			DataIntegrityViolationException ex) {
+			String requestHash, DataIntegrityViolationException ex) {
 		if (clientRequestId == null) {
 			throw ex;
 		}
 		return idempotencyService.findCompletedCommentId(userId, clientRequestId, requestHash)
-			.flatMap(commentRepository::findById)
-			.map(comment -> ApiResponse.success("Comment submission already received.",
-					new CommentPublishResponse(comment.getId(), comment.getStatus())))
+				.flatMap(commentRepository::findById)
+				.map(comment -> ApiResponse.success("Comment submission already received.",
+						new CommentPublishResponse(comment.getId(), comment.getStatus())))
 				.orElseThrow(() -> ex);
 	}
 

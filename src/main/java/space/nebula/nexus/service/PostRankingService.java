@@ -44,7 +44,8 @@ public class PostRankingService {
 			return 0;
 		}
 
-		// Discovery popularity is only a tie-breaker here; semantic relevance stays dominant.
+		// Discovery popularity is only a tie-breaker here; semantic relevance stays
+		// dominant.
 		double score = discoveryScore(candidate) * 0.2;
 		if (sameCategory(source, candidate)) {
 			score += 120;
@@ -68,12 +69,10 @@ public class PostRankingService {
 			return 0;
 		}
 
-		double score = Math.log1p(nullToZero(post.getViews()))
-				* positive(discoveryProperties.getViewWeight(), 18);
-		score += Math.log1p(nullToZero(post.getLikesCount()))
-				* positive(discoveryProperties.getLikeWeight(), 4) * 1.5;
-		score += Math.log1p(nullToZero(post.getFavoritesCount()))
-				* positive(discoveryProperties.getFavoriteWeight(), 6) * 1.5;
+		double score = Math.log1p(nullToZero(post.getViews())) * positive(discoveryProperties.getViewWeight(), 18);
+		score += Math.log1p(nullToZero(post.getLikesCount())) * positive(discoveryProperties.getLikeWeight(), 4) * 1.5;
+		score += Math.log1p(nullToZero(post.getFavoritesCount())) * positive(discoveryProperties.getFavoriteWeight(), 6)
+				* 1.5;
 		return score + freshnessBoost(post) * 1.5 + contentCompletenessBoost(post) * 0.5;
 	}
 
@@ -88,7 +87,8 @@ public class PostRankingService {
 			return 0;
 		}
 
-		// Smoothly rewards freshness without letting a single new post dominate for 90 days.
+		// Smoothly rewards freshness without letting a single new post dominate for 90
+		// days.
 		double decay = Math.exp(-Math.log(2) * ageDays / halfLifeDays);
 		return windowDays * positive(discoveryProperties.getFreshnessWeight(), 0.8) * decay;
 	}

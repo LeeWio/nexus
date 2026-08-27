@@ -7,10 +7,8 @@ import java.time.LocalDateTime;
 
 /** Lightweight public series data for homepage and discovery surfaces. */
 @Schema(description = "Compact published series information for discovery surfaces")
-public record SeriesSummaryResponse(
-		@Schema(description = "Series ID") Long id,
-		@Schema(description = "Series name") String name,
-		@Schema(description = "Series slug") String slug,
+public record SeriesSummaryResponse(@Schema(description = "Series ID") Long id,
+		@Schema(description = "Series name") String name, @Schema(description = "Series slug") String slug,
 		@Schema(description = "Series description") String description,
 		@Schema(description = "Series cover image URL") String coverImage,
 		@Schema(description = "Number of published posts") Integer postsCount,

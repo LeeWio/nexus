@@ -641,11 +641,13 @@ public class PostServiceImpl implements IPostService {
 
 		List<PostDigestResponse> curated = selectDistinctDigests(scoredCandidates, selectedPostIds, sectionSize());
 		List<PostDigestResponse> latest = selectDistinctDigests(latestCandidates, selectedPostIds, sectionSize());
-		List<PostDigestResponse> trending = selectDistinctDigests(scoredCandidates.stream()
-				.sorted(Comparator.comparingDouble(postRankingService::trendingScore).reversed()
-						.thenComparing(Post::getPublishedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-						.thenComparing(Post::getId, Comparator.nullsLast(Comparator.reverseOrder())))
-				.toList(), selectedPostIds, sectionSize());
+		List<PostDigestResponse> trending = selectDistinctDigests(
+				scoredCandidates.stream()
+						.sorted(Comparator.comparingDouble(postRankingService::trendingScore).reversed()
+								.thenComparing(Post::getPublishedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+								.thenComparing(Post::getId, Comparator.nullsLast(Comparator.reverseOrder())))
+						.toList(),
+				selectedPostIds, sectionSize());
 
 		Sort mostReadFirst = Sort.by(Sort.Order.desc("views"), Sort.Order.desc("likesCount"),
 				Sort.Order.desc("publishedAt"), Sort.Order.desc("id"));
@@ -884,9 +886,8 @@ public class PostServiceImpl implements IPostService {
 	}
 
 	private List<SeriesSummaryResponse> buildPublicSeriesSummaries() {
-		return java.util.Optional.ofNullable(
-				seriesRepository.findPublicColumnSummaries(PostStatus.PUBLISHED)).orElseGet(List::of).stream()
-				.limit(seriesSize())
+		return java.util.Optional.ofNullable(seriesRepository.findPublicColumnSummaries(PostStatus.PUBLISHED))
+				.orElseGet(List::of).stream().limit(seriesSize())
 				.map(series -> new SeriesSummaryResponse(series.getId(), series.getName(), series.getSlug(),
 						series.getDescription(), series.getCoverImage(), Math.toIntExact(series.getPostsCount()),
 						series.getCreatedAt()))

@@ -26,13 +26,12 @@ public record BlogDiscoveryResponse(@Schema(description = "Primary editorial pos
 
 	public BlogDiscoveryResponse(PostDigestResponse spotlight, List<PostDigestResponse> latest,
 			List<PostDigestResponse> mostRead) {
-			this(spotlight, List.of(), latest, List.of(), mostRead, List.of(), List.of(), null, null);
+		this(spotlight, List.of(), latest, List.of(), mostRead, List.of(), List.of(), null, null);
 	}
 
 	public BlogDiscoveryResponse(PostDigestResponse spotlight, List<PostDigestResponse> curated,
-			List<PostDigestResponse> latest, List<PostDigestResponse> mostRead,
-			List<CategoryGroup> categoryGroups) {
-			this(spotlight, curated, latest, List.of(), mostRead, List.of(), categoryGroups, null, null);
+			List<PostDigestResponse> latest, List<PostDigestResponse> mostRead, List<CategoryGroup> categoryGroups) {
+		this(spotlight, curated, latest, List.of(), mostRead, List.of(), categoryGroups, null, null);
 	}
 
 	public BlogDiscoveryResponse {
