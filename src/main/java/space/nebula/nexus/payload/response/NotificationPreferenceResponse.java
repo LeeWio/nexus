@@ -9,5 +9,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record NotificationPreferenceResponse(
 		@Schema(description = "Whether comment, reply, and moderation notifications are delivered") boolean commentNotificationsEnabled,
 		@Schema(description = "Whether posts in followed categories create notifications") boolean categoryPostNotificationsEnabled,
-		@Schema(description = "Whether system and operational notifications are delivered") boolean systemNotificationsEnabled) {
+		@Schema(description = "Whether system and operational notifications are delivered") boolean systemNotificationsEnabled,
+		@Schema(description = "Whether comment, reply, and moderation notifications are also delivered by email") boolean commentEmailNotificationsEnabled,
+		@Schema(description = "Whether followed-category posts are also delivered by email") boolean categoryPostEmailNotificationsEnabled,
+		@Schema(description = "Whether system and operational notifications are also delivered by email") boolean systemEmailNotificationsEnabled) {
 }

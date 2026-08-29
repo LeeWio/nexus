@@ -28,8 +28,17 @@ public class Notification extends BaseEntity {
 	@Column(name = "is_read", nullable = false)
 	private Boolean isRead = false;
 
+	@Column(name = "is_visible", nullable = false)
+	private Boolean isVisible = true;
+
+	@Column(name = "is_saved", nullable = false)
+	private Boolean isSaved = false;
+
 	@Column(name = "read_at")
 	private LocalDateTime readAt;
+
+	@Column(name = "completed_at")
+	private LocalDateTime completedAt;
 
 	@Column(length = 500)
 	private String link; // Optional link to the relevant page

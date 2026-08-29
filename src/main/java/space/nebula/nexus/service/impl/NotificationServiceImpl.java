@@ -21,6 +21,7 @@ import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.INotificationService;
+import space.nebula.nexus.service.NotificationDeliveryService;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -34,6 +35,7 @@ public class NotificationServiceImpl implements INotificationService {
 	private final NotificationPreferenceRepository notificationPreferenceRepository;
 	private final UserRepository userRepository;
 	private final PostRepository postRepository;
+	private final NotificationDeliveryService notificationDeliveryService;
 
 	private static final Set<String> COMMENT_NOTIFICATION_TYPES = Set.of("COMMENT_APPROVED", "COMMENT_REJECTED",
 			"COMMENT_REPLY", "POST_COMMENT");
@@ -41,8 +43,10 @@ public class NotificationServiceImpl implements INotificationService {
 	@Override
 	@Transactional
 	public void send(User recipient, String title, String content, String type, String link) {
-		if (!isNotificationEnabled(recipient.getId(), type)) {
-			log.debug("Notification suppressed by preference for user {}: {}", recipient.getUsername(), type);
+		boolean inAppEnabled = isInAppNotificationEnabled(recipient.getId(), type);
+		boolean emailEnabled = isEmailNotificationEnabled(recipient.getId(), type);
+		if (!inAppEnabled && !emailEnabled) {
+			log.debug("Notification suppressed by delivery preference for user {}: {}", recipient.getUsername(), type);
 			return;
 		}
 		Notification notification = new Notification();
@@ -51,7 +55,9 @@ public class NotificationServiceImpl implements INotificationService {
 		notification.setContent(content);
 		notification.setType(type);
 		notification.setLink(link);
+		notification.setIsVisible(inAppEnabled);
 		notificationRepository.save(notification);
+		if (emailEnabled) dispatchEmail(notification, recipient, title, content, link);
 		log.debug("Notification sent to user {}: {}", recipient.getUsername(), title);
 	}
 
@@ -67,6 +73,9 @@ public class NotificationServiceImpl implements INotificationService {
 		String content = "\"" + post.getTitle() + "\" is now available in a category you follow.";
 		int inserted = notificationRepository.insertCategoryPublicationNotifications(post.getCategory().getId(),
 				post.getAuthor().getId(), post.getId(), title, content, "/post/" + post.getSlug());
+		notificationRepository.findCategoryPublicationEmailNotifications("CATEGORY_POST:" + post.getId() + ":")
+				.forEach(notification -> dispatchEmail(notification, notification.getRecipient(), notification.getTitle(),
+						notification.getContent(), notification.getLink()));
 		log.info("Created {} category publication notifications for post {}", inserted, postId);
 		return inserted;
 	}
@@ -93,16 +102,27 @@ public class NotificationServiceImpl implements INotificationService {
 		preference.setCommentEnabled(request.commentNotificationsEnabled());
 		preference.setCategoryPostEnabled(request.categoryPostNotificationsEnabled());
 		preference.setSystemEnabled(request.systemNotificationsEnabled());
+		if (request.commentEmailNotificationsEnabled() != null) {
+			preference.setCommentEmailEnabled(request.commentEmailNotificationsEnabled());
+		}
+		if (request.categoryPostEmailNotificationsEnabled() != null) {
+			preference.setCategoryPostEmailEnabled(request.categoryPostEmailNotificationsEnabled());
+		}
+		if (request.systemEmailNotificationsEnabled() != null) {
+			preference.setSystemEmailEnabled(request.systemEmailNotificationsEnabled());
+		}
 		return ApiResponse.success(toPreferenceResponse(notificationPreferenceRepository.save(preference)));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<NotificationResponse>> getMyNotifications(boolean unreadOnly, Pageable pageable) {
+	public ApiResponse<PageResult<NotificationResponse>> getMyNotifications(boolean unreadOnly, String view, Pageable pageable) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
-		var notifications = unreadOnly
-				? notificationRepository.findByRecipientIdAndIsReadFalse(currentUser.getId(), pageable)
-				: notificationRepository.findByRecipientId(currentUser.getId(), pageable);
+		var notifications = switch (view.toLowerCase(java.util.Locale.ROOT)) {
+			case "saved" -> notificationRepository.findSavedByRecipientId(currentUser.getId(), unreadOnly, pageable);
+			case "done" -> notificationRepository.findDoneByRecipientId(currentUser.getId(), unreadOnly, pageable);
+			default -> notificationRepository.findInboxByRecipientId(currentUser.getId(), unreadOnly, pageable);
+		};
 		return ApiResponse.success(PageResult.of(notifications.map(this::toResponse)));
 	}
 
@@ -131,10 +151,43 @@ public class NotificationServiceImpl implements INotificationService {
 	}
 
 	@Override
+	@Transactional
+	public ApiResponse<Void> markAsDone(Long id) {
+		Notification notification = findOwnedNotification(id);
+		if (notification.getCompletedAt() == null) {
+			notification.setCompletedAt(LocalDateTime.now());
+			notification.setIsRead(true);
+			if (notification.getReadAt() == null) notification.setReadAt(LocalDateTime.now());
+			notificationRepository.save(notification);
+		}
+		return ApiResponse.success("Notification completed", null);
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<Void> reopen(Long id) {
+		Notification notification = findOwnedNotification(id);
+		if (notification.getCompletedAt() != null) {
+			notification.setCompletedAt(null);
+			notificationRepository.save(notification);
+		}
+		return ApiResponse.success("Notification reopened", null);
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<Void> setSaved(Long id, boolean saved) {
+		Notification notification = findOwnedNotification(id);
+		notification.setIsSaved(saved);
+		notificationRepository.save(notification);
+		return ApiResponse.success(saved ? "Notification saved" : "Notification unsaved", null);
+	}
+
+	@Override
 	@Transactional(readOnly = true)
 	public ApiResponse<Long> getUnreadCount() {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
-		long count = notificationRepository.countByRecipientIdAndIsReadFalse(currentUser.getId());
+		long count = notificationRepository.countByRecipientIdAndIsVisibleTrueAndIsReadFalse(currentUser.getId());
 		return ApiResponse.success(count);
 	}
 
@@ -159,17 +212,36 @@ public class NotificationServiceImpl implements INotificationService {
 
 	private NotificationResponse toResponse(Notification notification) {
 		return new NotificationResponse(notification.getId(), notification.getTitle(), notification.getContent(),
-				notification.getType(), notification.getIsRead(), notification.getReadAt(), notification.getLink(),
+				notification.getType(), notification.getIsRead(), notification.getIsSaved(), notification.getReadAt(), notification.getCompletedAt(), notification.getLink(),
 				notification.getCreatedAt());
 	}
 
-	private boolean isNotificationEnabled(Long recipientId, String type) {
+	private Notification findOwnedNotification(Long id) {
+		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		return notificationRepository.findByIdAndRecipientId(id, currentUser.getId())
+				.orElseThrow(() -> new ResourceNotFoundException("Notification", "id", id));
+	}
+
+	private boolean isInAppNotificationEnabled(Long recipientId, String type) {
 		return notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(recipientId)
 				.map(preference -> switch (notificationCategory(type)) {
 					case COMMENT -> Boolean.TRUE.equals(preference.getCommentEnabled());
 					case CATEGORY_POST -> Boolean.TRUE.equals(preference.getCategoryPostEnabled());
 					case SYSTEM -> Boolean.TRUE.equals(preference.getSystemEnabled());
-				}).orElse(true);
+		}).orElse(true);
+	}
+
+	private boolean isEmailNotificationEnabled(Long recipientId, String type) {
+		return notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(recipientId)
+				.map(preference -> switch (notificationCategory(type)) {
+					case COMMENT -> Boolean.TRUE.equals(preference.getCommentEmailEnabled());
+					case CATEGORY_POST -> Boolean.TRUE.equals(preference.getCategoryPostEmailEnabled());
+					case SYSTEM -> Boolean.TRUE.equals(preference.getSystemEmailEnabled());
+				}).orElse(false);
+	}
+
+	private void dispatchEmail(Notification notification, User recipient, String title, String content, String link) {
+		notificationDeliveryService.queueEmail(notification, recipient.getEmail(), title, content, link);
 	}
 
 	private NotificationCategory notificationCategory(String type) {
@@ -182,11 +254,14 @@ public class NotificationServiceImpl implements INotificationService {
 	private NotificationPreferenceResponse toPreferenceResponse(NotificationPreference preference) {
 		return new NotificationPreferenceResponse(Boolean.TRUE.equals(preference.getCommentEnabled()),
 				Boolean.TRUE.equals(preference.getCategoryPostEnabled()),
-				Boolean.TRUE.equals(preference.getSystemEnabled()));
+				Boolean.TRUE.equals(preference.getSystemEnabled()),
+				Boolean.TRUE.equals(preference.getCommentEmailEnabled()),
+				Boolean.TRUE.equals(preference.getCategoryPostEmailEnabled()),
+				Boolean.TRUE.equals(preference.getSystemEmailEnabled()));
 	}
 
 	private static NotificationPreferenceResponse defaultPreferenceResponse() {
-		return new NotificationPreferenceResponse(true, true, true);
+		return new NotificationPreferenceResponse(true, true, true, false, false, false);
 	}
 
 	private enum NotificationCategory {

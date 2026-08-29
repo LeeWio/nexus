@@ -23,6 +23,7 @@ public class TemplateMailMessage implements Serializable {
 	private String templateName; // For template-based emails
 	private Map<String, Object> variables; // For template-based emails
 	private MailType type;
+	private Long notificationDeliveryId;
 
 	public enum MailType {
 		SIMPLE, HTML, TEMPLATE

@@ -60,7 +60,7 @@ public interface INotificationService {
 	 *            pagination and sorting parameters
 	 * @return paginated notifications owned by the current user
 	 */
-	ApiResponse<PageResult<NotificationResponse>> getMyNotifications(boolean unreadOnly, Pageable pageable);
+	ApiResponse<PageResult<NotificationResponse>> getMyNotifications(boolean unreadOnly, String view, Pageable pageable);
 
 	/**
 	 * Marks a specific notification as read.
@@ -77,6 +77,12 @@ public interface INotificationService {
 	 * @return successful response after unread notifications are updated
 	 */
 	ApiResponse<Void> markAllAsRead();
+
+	ApiResponse<Void> markAsDone(Long id);
+
+	ApiResponse<Void> reopen(Long id);
+
+	ApiResponse<Void> setSaved(Long id, boolean saved);
 
 	/**
 	 * Gets the count of unread notifications for the current user.

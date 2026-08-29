@@ -26,9 +26,18 @@ public class NotificationPreference extends BaseEntity {
 	@Column(name = "comment_enabled", nullable = false)
 	private Boolean commentEnabled = true;
 
+	@Column(name = "comment_email_enabled", nullable = false)
+	private Boolean commentEmailEnabled = false;
+
 	@Column(name = "category_post_enabled", nullable = false)
 	private Boolean categoryPostEnabled = true;
 
+	@Column(name = "category_post_email_enabled", nullable = false)
+	private Boolean categoryPostEmailEnabled = false;
+
 	@Column(name = "system_enabled", nullable = false)
 	private Boolean systemEnabled = true;
+
+	@Column(name = "system_email_enabled", nullable = false)
+	private Boolean systemEmailEnabled = false;
 }
