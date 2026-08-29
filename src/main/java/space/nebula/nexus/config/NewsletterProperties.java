@@ -15,7 +15,7 @@ import java.time.Duration;
 public class NewsletterProperties {
 
 	/** Public application URL used to generate email links. */
-	private String baseUrl = "http://localhost:8080";
+	private String baseUrl = "http://localhost:3000";
 
 	/** Maximum lifetime of a subscription verification link. */
 	private Duration verificationTtl = Duration.ofHours(24);

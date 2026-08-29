@@ -112,7 +112,7 @@ public class NewsletterServiceImpl implements INewsletterService {
 			for (Subscriber sub : page.getContent()) {
 				Map<String, Object> variables = Map.of("posts", trendingResponse.data(), "baseUrl",
 						newsletterProperties.getBaseUrl(), "unsubscribeUrl", newsletterProperties.getBaseUrl()
-								+ "/api/v1/public/newsletter/unsubscribe?token=" + sub.getUnsubscribeToken());
+								+ "/newsletter/unsubscribe?token=" + sub.getUnsubscribeToken());
 
 				TemplateMailMessage mail = TemplateMailMessage.builder().to(sub.getEmail())
 						.subject("Nexus Weekly: Hot Articles You Might Like").templateName("weekly-newsletter")
@@ -130,7 +130,7 @@ public class NewsletterServiceImpl implements INewsletterService {
 	}
 
 	private void sendVerificationEmail(Subscriber subscriber) {
-		String verifyUrl = newsletterProperties.getBaseUrl() + "/api/v1/public/newsletter/verify?token="
+		String verifyUrl = newsletterProperties.getBaseUrl() + "/newsletter/verify?token="
 				+ subscriber.getVerificationToken();
 
 		Map<String, Object> variables = Map.of("verifyUrl", verifyUrl, "email", subscriber.getEmail(), "baseUrl",

@@ -140,7 +140,7 @@ app:
   friend-link:
     moderation-email: ${FRIEND_LINK_MODERATION_EMAIL:}
   newsletter:
-    base-url: ${APP_BASE_URL:http://localhost:8080}
+    base-url: ${APP_BASE_URL:http://localhost:3000}
     verification-ttl: ${NEWSLETTER_VERIFICATION_TTL:24h}
     batch-size: ${NEWSLETTER_BATCH_SIZE:200}
   web-security:

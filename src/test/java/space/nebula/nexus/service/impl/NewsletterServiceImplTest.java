@@ -16,6 +16,7 @@ import space.nebula.nexus.service.IAnalyticsService;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -86,5 +87,20 @@ class NewsletterServiceImplTest {
 		assertEquals(SubscriberStatus.ACTIVE, subscriber.getStatus());
 		assertEquals(null, subscriber.getVerificationToken());
 		assertEquals(null, subscriber.getVerificationExpiresAt());
+	}
+
+	@Test
+	void subscriptionVerificationEmailLinksToTheFrontendConfirmationPage() {
+		when(subscriberRepository.findByEmail("reader@example.com")).thenReturn(Optional.empty());
+
+		service.subscribe("reader@example.com");
+
+		var messageCaptor = org.mockito.ArgumentCaptor
+				.forClass(space.nebula.nexus.payload.request.TemplateMailMessage.class);
+		verify(rabbitTemplate).convertAndSend(org.mockito.ArgumentMatchers.anyString(),
+				org.mockito.ArgumentMatchers.anyString(), messageCaptor.capture());
+		Map<String, Object> variables = messageCaptor.getValue().getVariables();
+		assertEquals(true, String.valueOf(variables.get("verifyUrl"))
+				.startsWith("https://nexus.example/newsletter/verify?token="));
 	}
 }
