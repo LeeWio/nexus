@@ -13,9 +13,11 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.response.DashboardStatsResponse;
 import space.nebula.nexus.payload.response.ContentOperationsOverviewResponse;
 import space.nebula.nexus.payload.response.EditorialCalendarResponse;
+import space.nebula.nexus.payload.response.ContentWorkflowResponse;
 import space.nebula.nexus.service.IDashboardService;
 import space.nebula.nexus.service.IContentOperationsService;
 import space.nebula.nexus.service.IEditorialCalendarService;
+import space.nebula.nexus.service.IContentWorkflowService;
 
 import java.time.LocalDate;
 
@@ -32,6 +34,7 @@ public class AdminDashboardController {
 	private final IDashboardService dashboardService;
 	private final IContentOperationsService contentOperationsService;
 	private final IEditorialCalendarService editorialCalendarService;
+	private final IContentWorkflowService contentWorkflowService;
 
 	@GetMapping("/stats")
 	@Operation(summary = "Get Dashboard Statistics", description = "Retrieve overall statistics including post counts, user activity, and system status.")
@@ -54,5 +57,12 @@ public class AdminDashboardController {
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 		return editorialCalendarService.getCalendar(from, to);
+	}
+
+	@GetMapping("/content-workflow")
+	@Operation(summary = "Get content workflow", description = "Retrieve actionable editorial work grouped by publishing state.")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ApiResponse<ContentWorkflowResponse> getContentWorkflow() {
+		return contentWorkflowService.getWorkflow();
 	}
 }
