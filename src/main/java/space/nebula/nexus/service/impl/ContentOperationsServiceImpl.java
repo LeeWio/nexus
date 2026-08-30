@@ -1,8 +1,6 @@
 package space.nebula.nexus.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
@@ -64,16 +62,17 @@ public class ContentOperationsServiceImpl implements IContentOperationsService {
 		List<ActivityItem> recentActivity = new ArrayList<>();
 		recentPosts.stream().map(this::toPostActivity).forEach(recentActivity::add);
 		recentMoments.stream().map(this::toMomentActivity).forEach(recentActivity::add);
-		recentActivity.sort(Comparator.comparing(ActivityItem::occurredAt,
-				Comparator.nullsLast(Comparator.reverseOrder())));
+		recentActivity
+				.sort(Comparator.comparing(ActivityItem::occurredAt, Comparator.nullsLast(Comparator.reverseOrder())));
 
 		List<AttentionItem> attentionItems = new ArrayList<>();
 		addAttention(attentionItems, "pending-comments", "Comments", "Comments are waiting for moderation.",
 				"/comments", pendingComments, AttentionSeverity.WARNING);
 		addAttention(attentionItems, "unread-notifications", "Notifications", "Unread workspace events need a look.",
 				"/notifications", unreadNotifications, AttentionSeverity.INFO);
-		addAttention(attentionItems, "pending-review", "Editorial review", "Posts are waiting for a publishing decision.",
-				"/posts?status=PENDING_REVIEW", summary.pendingReview(), AttentionSeverity.WARNING);
+		addAttention(attentionItems, "pending-review", "Editorial review",
+				"Posts are waiting for a publishing decision.", "/posts?status=PENDING_REVIEW", summary.pendingReview(),
+				AttentionSeverity.WARNING);
 
 		ContentOperationsOverviewResponse overview = new ContentOperationsOverviewResponse(summary, attentionItems,
 				editorialQueue, recentActivity.stream().limit(ACTIVITY_LIMIT).toList(), LocalDateTime.now());
@@ -81,8 +80,9 @@ public class ContentOperationsServiceImpl implements IContentOperationsService {
 	}
 
 	private QueueItem toQueueItem(Post post) {
-		return new QueueItem("post-" + post.getId(), "POST", post.getTitle(), firstNonBlank(post.getSummary(),
-				post.getAutoSummary()), post.getStatus(), post.getUpdatedAt(), "/posts?id=" + post.getId());
+		return new QueueItem("post-" + post.getId(), "POST", post.getTitle(),
+				firstNonBlank(post.getSummary(), post.getAutoSummary()), post.getStatus(), post.getUpdatedAt(),
+				"/posts?id=" + post.getId());
 	}
 
 	private ActivityItem toPostActivity(Post post) {

@@ -247,8 +247,12 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 
 	long countByStatus(PostStatus status);
 
-	@EntityGraph(attributePaths = { "category", "author" })
+	@EntityGraph(attributePaths = {"category", "author"})
 	List<Post> findTop10ByOrderByUpdatedAtDesc();
+
+	List<Post> findByScheduledAtBetweenOrderByScheduledAtAsc(java.time.LocalDateTime from, java.time.LocalDateTime to);
+
+	List<Post> findByPublishedAtBetweenOrderByPublishedAtAsc(java.time.LocalDateTime from, java.time.LocalDateTime to);
 
 	@Query("SELECT p.category.id, p.category.name, p.category.slug, COUNT(p.id) "
 			+ "FROM Post p WHERE p.status = :status AND p.category IS NOT NULL "

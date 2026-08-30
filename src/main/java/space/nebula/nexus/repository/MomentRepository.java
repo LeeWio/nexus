@@ -24,6 +24,8 @@ public interface MomentRepository extends JpaRepository<Moment, Long> {
 
 	List<Moment> findTop10ByOrderByCreatedAtDesc();
 
+	List<Moment> findByCreatedAtBetweenOrderByCreatedAtAsc(java.time.LocalDateTime from, java.time.LocalDateTime to);
+
 	@Modifying
 	@Query("update Moment moment set moment.likesCount = case when coalesce(moment.likesCount, 0) + :delta < 0 then 0 else coalesce(moment.likesCount, 0) + :delta end where moment.id = :id")
 	void incrementLikes(@Param("id") Long id, @Param("delta") Long delta);

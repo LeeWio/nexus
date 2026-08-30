@@ -9,8 +9,10 @@ import java.util.List;
 /**
  * Content-first overview for the administrative workspace.
  *
- * <p>This response intentionally stays compact so the dashboard can render one
- * coherent snapshot instead of orchestrating several independent requests.</p>
+ * <p>
+ * This response intentionally stays compact so the dashboard can render one
+ * coherent snapshot instead of orchestrating several independent requests.
+ * </p>
  */
 @Schema(description = "Content operations overview for the administrative workspace")
 public record ContentOperationsOverviewResponse(
