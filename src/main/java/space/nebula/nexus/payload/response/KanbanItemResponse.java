@@ -3,6 +3,7 @@ package space.nebula.nexus.payload.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import space.nebula.nexus.enums.KanbanPriority;
+import space.nebula.nexus.enums.KanbanTaskSize;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +23,12 @@ public class KanbanItemResponse {
 
 	@Schema(description = "Priority level")
 	private KanbanPriority priority;
+
+	@Schema(description = "Workstream or epic that owns the task")
+	private String epic;
+
+	@Schema(description = "Relative task size")
+	private KanbanTaskSize size;
 
 	@Schema(description = "Display order within column")
 	private Integer orderIndex;

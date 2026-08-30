@@ -120,6 +120,12 @@ public class KanbanServiceImpl implements IKanbanService {
 		newTask.setTitle(request.getTitle());
 		newTask.setContent(request.getContent());
 		newTask.setPriority(request.getPriority());
+		if (request.getEpic() != null && !request.getEpic().isBlank()) {
+			newTask.setEpic(request.getEpic().trim());
+		}
+		if (request.getSize() != null) {
+			newTask.setSize(request.getSize());
+		}
 		newTask.setReminderAt(request.getReminderAt());
 		newTask.setColumn(column);
 
@@ -191,6 +197,8 @@ public class KanbanServiceImpl implements IKanbanService {
 		duplicate.setTitle(StrUtil.subPre(StrUtil.format("Copy of {}", sourceTask.getTitle()), 255));
 		duplicate.setContent(sourceTask.getContent());
 		duplicate.setPriority(sourceTask.getPriority());
+		duplicate.setEpic(sourceTask.getEpic());
+		duplicate.setSize(sourceTask.getSize());
 		duplicate.setReminderAt(sourceTask.getReminderAt());
 		duplicate.setColumn(column);
 		duplicate.setTags(new HashSet<>(sourceTask.getTags()));

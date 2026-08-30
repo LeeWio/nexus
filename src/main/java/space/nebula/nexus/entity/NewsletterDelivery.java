@@ -42,7 +42,7 @@ public class NewsletterDelivery extends BaseEntity {
 	private String templateName;
 
 	@Lob
-	@Column(name = "template_variables", nullable = false)
+	@Column(name = "template_variables", nullable = false, columnDefinition = "TEXT")
 	private String templateVariables;
 
 	@Column(name = "last_error", length = 1000)

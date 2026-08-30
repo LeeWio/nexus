@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import space.nebula.nexus.enums.KanbanPriority;
+import space.nebula.nexus.enums.KanbanTaskSize;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -26,6 +27,13 @@ public class KanbanItemRequest {
 	@Schema(description = "Task priority level", example = "HIGH")
 	@NotNull(message = "Priority is required")
 	private KanbanPriority priority;
+
+	@Schema(description = "Workstream or epic that owns the task", example = "Pro Native (Alpha)")
+	@Size(max = 255, message = "Epic must not exceed 255 characters")
+	private String epic;
+
+	@Schema(description = "Relative task size", example = "M")
+	private KanbanTaskSize size;
 
 	@Schema(description = "ID of the column this task belongs to", example = "1")
 	@NotNull(message = "Column ID is required")

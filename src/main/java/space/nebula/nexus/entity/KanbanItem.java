@@ -20,6 +20,7 @@ import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 import space.nebula.nexus.enums.KanbanPriority;
+import space.nebula.nexus.enums.KanbanTaskSize;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -45,6 +46,13 @@ public class KanbanItem extends BaseEntity {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
 	private KanbanPriority priority = KanbanPriority.MEDIUM;
+
+	@Column(nullable = false, length = 255)
+	private String epic = "Odyssey workspace";
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 2)
+	private KanbanTaskSize size = KanbanTaskSize.M;
 
 	@Column(name = "order_index", nullable = false)
 	private Integer orderIndex = 0;

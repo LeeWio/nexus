@@ -1,0 +1,3 @@
+ALTER TABLE kanban_item
+    ADD COLUMN epic VARCHAR(255) NOT NULL DEFAULT 'Odyssey workspace',
+    ADD COLUMN size VARCHAR(2) NOT NULL DEFAULT 'M';
