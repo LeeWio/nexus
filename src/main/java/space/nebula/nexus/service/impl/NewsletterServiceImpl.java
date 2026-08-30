@@ -5,7 +5,9 @@ import cn.hutool.core.util.IdUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
@@ -19,6 +21,10 @@ import space.nebula.nexus.payload.request.TemplateMailMessage;
 import space.nebula.nexus.repository.SubscriberRepository;
 import space.nebula.nexus.service.IAnalyticsService;
 import space.nebula.nexus.service.INewsletterService;
+import space.nebula.nexus.service.NewsletterDeliveryService;
+import space.nebula.nexus.payload.response.NewsletterAudienceOverviewResponse;
+import space.nebula.nexus.payload.response.NewsletterSubscriberResponse;
+import space.nebula.nexus.payload.response.PageResult;
 
 import java.util.Map;
 import java.time.LocalDateTime;
@@ -34,6 +40,7 @@ public class NewsletterServiceImpl implements INewsletterService {
 	private final RabbitTemplate rabbitTemplate;
 	private final IAnalyticsService analyticsService;
 	private final NewsletterProperties newsletterProperties;
+	private final NewsletterDeliveryService newsletterDeliveryService;
 
 	@Override
 	@Transactional
@@ -95,6 +102,40 @@ public class NewsletterServiceImpl implements INewsletterService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<NewsletterAudienceOverviewResponse> getAudienceOverview() {
+		LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+		NewsletterAudienceOverviewResponse overview = new NewsletterAudienceOverviewResponse(
+				subscriberRepository.countByStatus(SubscriberStatus.ACTIVE),
+				subscriberRepository.countByStatus(SubscriberStatus.PENDING),
+				subscriberRepository.countByStatus(SubscriberStatus.UNSUBSCRIBED),
+				subscriberRepository.countByStatusAndVerifiedAtBetween(SubscriberStatus.ACTIVE, thirtyDaysAgo,
+						LocalDateTime.now()));
+		return ApiResponse.success(overview);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<NewsletterSubscriberResponse>> getSubscribers(SubscriberStatus status, String query,
+			Pageable pageable) {
+		String normalizedQuery = query == null ? "" : query.trim();
+		Page<Subscriber> subscribers;
+		if (status != null && !normalizedQuery.isBlank()) {
+			subscribers = subscriberRepository.findByStatusAndEmailContainingIgnoreCase(status, normalizedQuery,
+					pageable);
+		} else if (status != null) {
+			subscribers = subscriberRepository.findAllByStatus(status, pageable);
+		} else if (!normalizedQuery.isBlank()) {
+			subscribers = subscriberRepository.findByEmailContainingIgnoreCase(normalizedQuery, pageable);
+		} else {
+			subscribers = subscriberRepository.findAll(pageable);
+		}
+
+		Page<NewsletterSubscriberResponse> responsePage = subscribers.map(this::toAudienceResponse);
+		return ApiResponse.success(PageResult.of(responsePage));
+	}
+
+	@Override
 	public void sendWeeklyNewsletter() {
 		log.info("Generating weekly newsletter...");
 		var trendingResponse = analyticsService.getTrendingPosts(5);
@@ -103,8 +144,9 @@ public class NewsletterServiceImpl implements INewsletterService {
 			return;
 		}
 
+		var batch = newsletterDeliveryService.startBatch();
 		int pageNumber = 0;
-		long delivered = 0;
+		long queued = 0;
 		org.springframework.data.domain.Page<Subscriber> page;
 		do {
 			page = subscriberRepository.findAllByStatus(SubscriberStatus.ACTIVE,
@@ -117,16 +159,20 @@ public class NewsletterServiceImpl implements INewsletterService {
 				TemplateMailMessage mail = TemplateMailMessage.builder().to(sub.getEmail())
 						.subject("Nexus Weekly: Hot Articles You Might Like").templateName("weekly-newsletter")
 						.variables(variables).type(TemplateMailMessage.MailType.TEMPLATE).build();
+				var delivery = newsletterDeliveryService.queue(batch, sub, mail);
+				mail.setNewsletterDeliveryId(delivery.getId());
 
 				try {
 					rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, mail);
-					delivered++;
+					queued++;
 				} catch (Exception e) {
+					newsletterDeliveryService.markFailed(delivery.getId(), e);
 					log.error("Failed to enqueue newsletter for subscriber id {}", sub.getId(), e);
 				}
 			}
 		} while (page.hasNext());
-		log.info("Newsletter broadcast queued for {} subscribers", delivered);
+		newsletterDeliveryService.completeQueueing(batch);
+		log.info("Newsletter broadcast queued for {} subscribers", queued);
 	}
 
 	private void sendVerificationEmail(Subscriber subscriber) {
@@ -149,5 +195,10 @@ public class NewsletterServiceImpl implements INewsletterService {
 		subscriber.setVerificationExpiresAt(LocalDateTime.now().plus(newsletterProperties.getVerificationTtl()));
 		// A new consent flow invalidates every unsubscribe link from an older flow.
 		subscriber.setUnsubscribeToken(IdUtil.fastSimpleUUID());
+	}
+
+	private NewsletterSubscriberResponse toAudienceResponse(Subscriber subscriber) {
+		return new NewsletterSubscriberResponse(subscriber.getId(), subscriber.getEmail(), subscriber.getStatus(),
+				subscriber.getCreatedAt(), subscriber.getVerifiedAt());
 	}
 }

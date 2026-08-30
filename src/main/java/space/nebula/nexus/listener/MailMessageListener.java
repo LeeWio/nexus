@@ -8,6 +8,7 @@ import space.nebula.nexus.config.RabbitMQConfig;
 import space.nebula.nexus.payload.request.TemplateMailMessage;
 import space.nebula.nexus.utils.MailUtil;
 import space.nebula.nexus.service.NotificationDeliveryService;
+import space.nebula.nexus.service.NewsletterDeliveryService;
 
 /**
  * Asynchronous consumer for sending emails.
@@ -19,6 +20,7 @@ public class MailMessageListener {
 
 	private final MailUtil mailUtil;
 	private final NotificationDeliveryService notificationDeliveryService;
+	private final NewsletterDeliveryService newsletterDeliveryService;
 
 	@RabbitListener(queues = RabbitMQConfig.MAIL_QUEUE)
 	public void processMailMessage(TemplateMailMessage message) {
@@ -31,9 +33,11 @@ public class MailMessageListener {
 						message.getTemplateName(), message.getVariables());
 			}
 			notificationDeliveryService.markDelivered(message.getNotificationDeliveryId());
+			newsletterDeliveryService.markDelivered(message.getNewsletterDeliveryId());
 			log.info("Async email successfully sent to: {}", message.getTo());
 		} catch (Exception e) {
 			notificationDeliveryService.markFailed(message.getNotificationDeliveryId(), e);
+			newsletterDeliveryService.markFailed(message.getNewsletterDeliveryId(), e);
 			log.error("Failed to send async email to: {}. Reason: {}", message.getTo(), e.getMessage(), e);
 			// Rethrow exception to trigger RabbitMQ listener retry mechanism and eventual
 			// DLQ routing

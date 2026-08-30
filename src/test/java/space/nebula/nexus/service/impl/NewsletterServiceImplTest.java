@@ -7,6 +7,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.config.NewsletterProperties;
 import space.nebula.nexus.entity.Subscriber;
@@ -18,6 +20,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -102,5 +105,41 @@ class NewsletterServiceImplTest {
 		Map<String, Object> variables = messageCaptor.getValue().getVariables();
 		assertEquals(true, String.valueOf(variables.get("verifyUrl"))
 				.startsWith("https://nexus.example/newsletter/verify?token="));
+	}
+
+	@Test
+	void audienceListFiltersByStatusAndNeverExposesSubscriptionTokens() {
+		Subscriber subscriber = new Subscriber();
+		subscriber.setId(42L);
+		subscriber.setEmail("reader@example.com");
+		subscriber.setStatus(SubscriberStatus.ACTIVE);
+		subscriber.setVerificationToken("must-not-leak");
+		subscriber.setUnsubscribeToken("must-not-leak");
+		PageRequest pageable = PageRequest.of(0, 20);
+		when(subscriberRepository.findAllByStatus(SubscriberStatus.ACTIVE, pageable))
+				.thenReturn(new PageImpl<>(List.of(subscriber), pageable, 1));
+
+		var response = service.getSubscribers(SubscriberStatus.ACTIVE, null, pageable);
+
+		assertEquals(1, response.data().getTotal());
+		assertEquals("reader@example.com", response.data().getList().getFirst().email());
+		assertEquals(SubscriberStatus.ACTIVE, response.data().getList().getFirst().status());
+	}
+
+	@Test
+	void audienceOverviewUsesLifecycleCountsAndRecentVerificationWindow() {
+		when(subscriberRepository.countByStatus(SubscriberStatus.ACTIVE)).thenReturn(12L);
+		when(subscriberRepository.countByStatus(SubscriberStatus.PENDING)).thenReturn(3L);
+		when(subscriberRepository.countByStatus(SubscriberStatus.UNSUBSCRIBED)).thenReturn(4L);
+		when(subscriberRepository.countByStatusAndVerifiedAtBetween(
+				org.mockito.ArgumentMatchers.eq(SubscriberStatus.ACTIVE), org.mockito.ArgumentMatchers.any(),
+				org.mockito.ArgumentMatchers.any())).thenReturn(5L);
+
+		var response = service.getAudienceOverview();
+
+		assertEquals(12, response.data().activeSubscribers());
+		assertEquals(3, response.data().pendingSubscribers());
+		assertEquals(4, response.data().unsubscribedSubscribers());
+		assertEquals(5, response.data().verifiedLast30Days());
 	}
 }

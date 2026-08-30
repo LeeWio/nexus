@@ -24,6 +24,7 @@ public class TemplateMailMessage implements Serializable {
 	private Map<String, Object> variables; // For template-based emails
 	private MailType type;
 	private Long notificationDeliveryId;
+	private Long newsletterDeliveryId;
 
 	public enum MailType {
 		SIMPLE, HTML, TEMPLATE
