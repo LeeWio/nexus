@@ -34,7 +34,6 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=2m --retries=6 \
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 
-
 # ========================================================
 # 🌟 Stage 3: runner-prebuilt (专为 GitHub Actions 宿主机编译打造的极速精简运行层)
 # ========================================================
@@ -55,3 +54,9 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=2m --retries=6 \
     CMD wget --quiet --spider --tries=1 --timeout=5 http://127.0.0.1:8080/readyz || exit 1
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+
+# Local `docker build .` must use the self-contained build path above.
+# `runner-prebuilt` remains available for CI jobs that intentionally provide
+# a host-built JAR, but it cannot be the default stage because target/ is
+# excluded from the Docker build context.
+FROM runner AS default
