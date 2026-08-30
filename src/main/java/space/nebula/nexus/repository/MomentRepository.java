@@ -22,6 +22,8 @@ public interface MomentRepository extends JpaRepository<Moment, Long> {
 
 	List<Moment> findByContentContainingIgnoreCaseAndVisibility(String content, MomentVisibility visibility);
 
+	List<Moment> findTop10ByOrderByCreatedAtDesc();
+
 	@Modifying
 	@Query("update Moment moment set moment.likesCount = case when coalesce(moment.likesCount, 0) + :delta < 0 then 0 else coalesce(moment.likesCount, 0) + :delta end where moment.id = :id")
 	void incrementLikes(@Param("id") Long id, @Param("delta") Long delta);
