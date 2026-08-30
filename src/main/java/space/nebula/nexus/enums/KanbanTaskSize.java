@@ -2,8 +2,5 @@ package space.nebula.nexus.enums;
 
 public enum KanbanTaskSize {
 
-	S,
-	M,
-	L,
-	XL
+	S, M, L, XL
 }
