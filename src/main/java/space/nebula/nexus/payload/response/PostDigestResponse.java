@@ -17,6 +17,7 @@ public record PostDigestResponse(@Schema(description = "Post ID") Long id,
 		@Schema(description = "Author avatar URL") String authorAvatar,
 		@Schema(description = "Post category") CategoryResponse category,
 		@Schema(description = "Total view count") Long views, @Schema(description = "Total like count") Long likesCount,
+		@Schema(description = "Total approved top-level comment count") Long commentsCount,
 		@Schema(description = "Publication time") LocalDateTime publishedAt) implements Serializable {
 	private static final long serialVersionUID = 1L;
 }

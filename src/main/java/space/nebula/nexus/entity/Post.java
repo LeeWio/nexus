@@ -15,6 +15,7 @@ import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 import space.nebula.nexus.enums.PostContentType;
@@ -70,6 +71,10 @@ public class Post extends BaseEntity {
 
 	@Column(name = "favorites_count", nullable = false)
 	private Long favoritesCount = 0L;
+
+	@Formula("(select count(*) from blog_comment comment where comment.post_id = id "
+			+ "and comment.parent_id is null and comment.status = 'APPROVED' and comment.is_deleted = false)")
+	private Long commentsCount = 0L;
 
 	@Column(name = "word_count", nullable = false)
 	private Integer wordCount = 0;
