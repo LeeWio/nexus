@@ -18,7 +18,7 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 
 import java.util.List;
 
-@Mapper(config = CentralMapperConfig.class, uses = {TagMapper.class})
+@Mapper(config = CentralMapperConfig.class, uses = {TagMapper.class, UserAvatarMapper.class})
 public interface KanbanMapper {
 
 	KanbanColumnResponse toResponse(KanbanColumn column);
@@ -35,6 +35,7 @@ public interface KanbanMapper {
 
 	List<KanbanChecklistItemResponse> toChecklistItemResponseList(List<KanbanChecklistItem> items);
 
+	@Mapping(target = "avatar", source = ".", qualifiedByName = "resolveUserAvatar")
 	KanbanAssigneeResponse toAssigneeResponse(User user);
 
 	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

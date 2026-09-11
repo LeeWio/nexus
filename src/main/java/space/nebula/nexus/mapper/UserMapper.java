@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Mapper(config = CentralMapperConfig.class, uses = {RoleMapper.class})
+@Mapper(config = CentralMapperConfig.class, uses = {RoleMapper.class, UserAvatarMapper.class})
 public interface UserMapper {
 
 	@Mapping(target = "roles", source = "roles", qualifiedByName = "mapRoleCodes")
@@ -27,6 +27,7 @@ public interface UserMapper {
 
 	@Mapping(target = "roles", source = "roles", qualifiedByName = "mapRoleCodes")
 	@Mapping(target = "permissions", source = "roles", qualifiedByName = "mapPermissions")
+	@Mapping(target = "avatar", source = ".", qualifiedByName = "resolveUserAvatar")
 	UserInfoResponse toInfoResponse(User user);
 
 	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

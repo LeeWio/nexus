@@ -15,6 +15,7 @@ import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.repository.RoleRepository;
 import space.nebula.nexus.repository.UserRepository;
+import space.nebula.nexus.utils.UserAvatars;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -106,14 +107,19 @@ public class OAuthAccountResolver {
 		if (profile.displayName() != null && !profile.displayName().isBlank()) {
 			user.setNickname(profile.displayName());
 		}
-		if (profile.avatar() != null && !profile.avatar().isBlank()) {
-			user.setAvatar(profile.avatar());
+		if ((user.getEmail() == null || user.getEmail().isBlank()) && profile.email() != null) {
+			user.setEmail(profile.email());
+		}
+		if (user.getAvatar() == null || user.getAvatar().isBlank()) {
+			String resolvedAvatar = profile.avatar() != null && !profile.avatar().isBlank()
+					? profile.avatar()
+					: UserAvatars.resolve(null, user.getEmail(), user.getGithubUsername());
+			if (resolvedAvatar != null) {
+				user.setAvatar(resolvedAvatar);
+			}
 		}
 		if (profile.bio() != null && !profile.bio().isBlank()) {
 			user.setBio(profile.bio());
-		}
-		if ((user.getEmail() == null || user.getEmail().isBlank()) && profile.email() != null) {
-			user.setEmail(profile.email());
 		}
 	}
 

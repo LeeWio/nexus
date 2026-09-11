@@ -79,6 +79,24 @@ class OAuthAccountResolverTest {
 
 		assertEquals("99", existing.getGithubId());
 		assertEquals("octocat", existing.getGithubUsername());
+		assertEquals("https://example.com/avatar.png", existing.getAvatar());
+		verify(userRepository).save(existing);
+	}
+
+	@Test
+	void oauthLoginPreservesCustomAvatar() {
+		OAuth2User oauth2User = oauthUser(Map.of("id", 99, "login", "octocat", "email", "reader@example.com",
+				"avatar_url", "https://example.com/github.png"));
+		User existing = new User();
+		existing.setId(10L);
+		existing.setUsername("reader");
+		existing.setStatus(UserStatus.ACTIVE);
+		existing.setAvatar("https://cdn.example/custom.png");
+		when(userRepository.findByGithubId("99")).thenReturn(Optional.of(existing));
+
+		resolver.resolve("github", oauth2User);
+
+		assertEquals("https://cdn.example/custom.png", existing.getAvatar());
 		verify(userRepository).save(existing);
 	}
 

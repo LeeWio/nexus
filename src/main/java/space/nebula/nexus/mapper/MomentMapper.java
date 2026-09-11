@@ -13,6 +13,7 @@ import space.nebula.nexus.payload.response.MomentImageResponse;
 import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.payload.response.MomentTopicResponse;
 import space.nebula.nexus.mapper.config.CentralMapperConfig;
+import space.nebula.nexus.utils.UserAvatars;
 
 import java.util.List;
 
@@ -48,7 +49,8 @@ public interface MomentMapper {
 			authorName = moment.getUser().getNickname() != null
 					? moment.getUser().getNickname()
 					: moment.getUser().getUsername();
-			authorAvatar = moment.getUser().getAvatar();
+			authorAvatar = UserAvatars.resolve(moment.getUser().getAvatar(), moment.getUser().getEmail(),
+					moment.getUser().getGithubUsername());
 		}
 
 		return new MomentResponse(moment.getId(), moment.getContent(), moment.getStockSymbol(), moment.getLikesCount(),

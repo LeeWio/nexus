@@ -15,11 +15,12 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 
 import java.util.List;
 
-@Mapper(config = CentralMapperConfig.class, uses = {CategoryMapper.class, TagMapper.class, PostSeriesMapper.class})
+@Mapper(config = CentralMapperConfig.class, uses = {CategoryMapper.class, TagMapper.class, PostSeriesMapper.class,
+		UserAvatarMapper.class})
 public interface PostMapper {
 
 	@Mapping(target = "authorName", source = "author", qualifiedByName = "mapAuthorName")
-	@Mapping(target = "authorAvatar", source = "author.avatar")
+	@Mapping(target = "authorAvatar", source = "author", qualifiedByName = "resolveUserAvatar")
 	@Mapping(target = "series", source = "series", qualifiedByName = "toResponse")
 	@Mapping(target = "parentId", source = "parent.id")
 	@Mapping(target = "reviewerName", source = "reviewedBy", qualifiedByName = "mapAuthorName")
@@ -34,7 +35,7 @@ public interface PostMapper {
 	List<PostResponse> toResponseList(List<Post> posts);
 
 	@Mapping(target = "authorName", source = "author", qualifiedByName = "mapAuthorName")
-	@Mapping(target = "authorAvatar", source = "author.avatar")
+	@Mapping(target = "authorAvatar", source = "author", qualifiedByName = "resolveUserAvatar")
 	PostDigestResponse toDigestResponse(Post post);
 
 	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
