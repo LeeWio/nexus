@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 public interface UserMapper {
 
 	@Mapping(target = "roles", source = "roles", qualifiedByName = "mapRoleCodes")
+	@Mapping(target = "avatar", source = ".", qualifiedByName = "resolveUserAvatar")
 	UserResponse toResponse(User user);
 
 	List<UserResponse> toResponseList(List<User> users);
