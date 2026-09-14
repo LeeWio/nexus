@@ -1,6 +1,6 @@
 
 # Build stage
-FROM public.ecr.aws/docker/library/maven:3.9.15-amazoncorretto-21 AS build
+FROM public.ecr.aws/docker/library/maven:3.9.15-amazoncorretto-25 AS build
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
