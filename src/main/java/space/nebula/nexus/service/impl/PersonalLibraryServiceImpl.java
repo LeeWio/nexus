@@ -97,8 +97,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 		List<FavoritePostResponse> recentFavorites = favoriteRepository
 				.findVisibleFavorites(user.getId(), PostStatus.PUBLISHED, sectionCandidates).stream()
 				.filter(favorite -> selectedPostIds.add(favorite.getPost().getId())).limit(OVERVIEW_SECTION_SIZE)
-				.map(favorite -> new FavoritePostResponse(toDigest(favorite.getPost()),
-						favorite.getCreatedAt()))
+				.map(favorite -> new FavoritePostResponse(toDigest(favorite.getPost()), favorite.getCreatedAt()))
 				.toList();
 
 		List<Long> followedCategoryIds = categoryFollowRepository.findCategoryIdsByUserId(user.getId());
@@ -183,8 +182,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	public ApiResponse<PageResult<FavoritePostResponse>> getFavorites(Pageable pageable) {
 		User user = currentUser();
 		var favorites = favoriteRepository.findVisibleFavorites(user.getId(), PostStatus.PUBLISHED, pageable)
-				.map(favorite -> new FavoritePostResponse(toDigest(favorite.getPost()),
-						favorite.getCreatedAt()));
+				.map(favorite -> new FavoritePostResponse(toDigest(favorite.getPost()), favorite.getCreatedAt()));
 		return ApiResponse.success(PageResult.of(favorites));
 	}
 
@@ -193,8 +191,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	public ApiResponse<PageResult<LikedPostResponse>> getLikedPosts(Pageable pageable) {
 		User user = currentUser();
 		var likedPosts = likeRepository.findVisibleLikes(user.getId(), PostStatus.PUBLISHED, pageable)
-				.map(postLike -> new LikedPostResponse(toDigest(postLike.getPost()),
-						postLike.getCreatedAt()));
+				.map(postLike -> new LikedPostResponse(toDigest(postLike.getPost()), postLike.getCreatedAt()));
 		return ApiResponse.success(PageResult.of(likedPosts));
 	}
 
@@ -291,8 +288,8 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	public ApiResponse<PageResult<CollectionPostResponse>> getCollectionPosts(Long collectionId, Pageable pageable) {
 		User user = currentUser();
 		findOwnedCollection(collectionId, user.getId());
-		var items = collectionItemRepository.findVisibleItems(collectionId, PostStatus.PUBLISHED, pageable).map(
-				item -> new CollectionPostResponse(toDigest(item.getPost()), item.getCreatedAt()));
+		var items = collectionItemRepository.findVisibleItems(collectionId, PostStatus.PUBLISHED, pageable)
+				.map(item -> new CollectionPostResponse(toDigest(item.getPost()), item.getCreatedAt()));
 		return ApiResponse.success(PageResult.of(items));
 	}
 
@@ -389,16 +386,16 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 		}
 		if (categoryBased && post.getCategory() != null) {
 			if (followedCategoryIds.contains(post.getCategory().getId())) {
-				recommendations.add(new RecommendedPostResponse(toDigest(post),
-						FOLLOWED_CATEGORY_REASON, "Because you follow " + post.getCategory().getName() + "."));
+				recommendations.add(new RecommendedPostResponse(toDigest(post), FOLLOWED_CATEGORY_REASON,
+						"Because you follow " + post.getCategory().getName() + "."));
 				return;
 			}
 			recommendations.add(new RecommendedPostResponse(toDigest(post), CATEGORY_INTEREST_REASON,
 					"Recommended because you often read " + post.getCategory().getName() + "."));
 			return;
 		}
-		recommendations.add(new RecommendedPostResponse(toDigest(post), COMMUNITY_POPULAR_REASON,
-				"Popular across the community."));
+		recommendations.add(
+				new RecommendedPostResponse(toDigest(post), COMMUNITY_POPULAR_REASON, "Popular across the community."));
 	}
 
 	private PostCollectionResponse toCollectionResponse(PostCollection collection, Long itemCount) {

@@ -13,8 +13,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Loads approved root-comment totals onto posts without Hibernate {@code @Formula}.
- * Formula fields break paginated/joined SQL on H2 and some dialect subquery rewrites.
+ * Loads approved root-comment totals onto posts without Hibernate
+ * {@code @Formula}. Formula fields break paginated/joined SQL on H2 and some
+ * dialect subquery rewrites.
  */
 @Component
 @RequiredArgsConstructor

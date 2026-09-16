@@ -73,8 +73,9 @@ public class Post extends BaseEntity {
 	private Long favoritesCount = 0L;
 
 	/**
-	 * Approved top-level comment total. Populated by {@code PostCommentCountSupport}
-	 * instead of {@code @Formula}, which breaks Hibernate SQL for paginated joins.
+	 * Approved top-level comment total. Populated by
+	 * {@code PostCommentCountSupport} instead of {@code @Formula}, which breaks
+	 * Hibernate SQL for paginated joins.
 	 */
 	@Transient
 	private Long commentsCount = 0L;
