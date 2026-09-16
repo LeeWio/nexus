@@ -50,6 +50,7 @@ public interface PostMapper {
 	@Mapping(target = "views", ignore = true)
 	@Mapping(target = "likesCount", ignore = true)
 	@Mapping(target = "favoritesCount", ignore = true)
+	@Mapping(target = "commentsCount", ignore = true)
 	@Mapping(target = "autoSummary", ignore = true)
 	@Mapping(target = "wordCount", ignore = true)
 	@Mapping(target = "readingTimeMinutes", ignore = true)
