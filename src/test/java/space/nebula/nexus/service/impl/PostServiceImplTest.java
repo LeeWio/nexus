@@ -252,8 +252,7 @@ class PostServiceImplTest {
 				.thenReturn(new PageImpl<>(List.of(featured)));
 		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
 			Post post = invocation.getArgument(0);
-			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null,
-					null, post.getViews(), post.getLikesCount(), post.getPublishedAt());
+			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null, null, post.getViews(), post.getLikesCount(), post.getCommentsCount(), post.getPublishedAt());
 		});
 
 		ApiResponse<BlogDiscoveryResponse> response = postService.retrievePublicDiscovery();
@@ -282,8 +281,7 @@ class PostServiceImplTest {
 				.thenReturn(new PageImpl<>(List.of(featured)));
 		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
 			Post post = invocation.getArgument(0);
-			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null,
-					null, post.getViews(), post.getLikesCount(), post.getPublishedAt());
+			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null, null, post.getViews(), post.getLikesCount(), post.getCommentsCount(), post.getPublishedAt());
 		});
 
 		ApiResponse<BlogDiscoveryResponse> response = postService.retrievePublicDiscovery();
@@ -300,7 +298,7 @@ class PostServiceImplTest {
 		when(postRepository.findProminentPublicPosts(PostStatus.PUBLISHED, pageable))
 				.thenReturn(new PageImpl<>(List.of(featured)));
 		when(postMapper.toDigestResponse(featured)).thenReturn(
-				new PostDigestResponse(1L, "Featured", "featured", null, null, null, null, null, 0L, 0L, null));
+				new PostDigestResponse(1L, "Featured", "featured", null, null, null, null, null, 0L, 0L, 0L, null));
 
 		ApiResponse<PageResult<PostDigestResponse>> response = postService.retrieveFeaturedPublicPosts(pageable);
 
@@ -341,8 +339,7 @@ class PostServiceImplTest {
 				.thenReturn(new PageImpl<>(List.of(categoryOnly, sameSeriesAndTags)));
 		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
 			Post post = invocation.getArgument(0);
-			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null,
-					null, post.getViews(), post.getLikesCount(), post.getPublishedAt());
+			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null, null, post.getViews(), post.getLikesCount(), post.getCommentsCount(), post.getPublishedAt());
 		});
 
 		ApiResponse<List<PostDigestResponse>> response = postService.retrieveRelatedPosts("source",
@@ -360,8 +357,7 @@ class PostServiceImplTest {
 		archivedPost.setPublishedAt(LocalDateTime.of(2026, 7, 1, 10, 0));
 		when(postRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
 				.thenReturn(new PageImpl<>(List.of(archivedPost)));
-		when(postMapper.toDigestResponse(archivedPost)).thenReturn(new PostDigestResponse(13L, "Archived by month",
-				"archived-by-month", null, null, null, null, null, 0L, 0L, archivedPost.getPublishedAt()));
+		when(postMapper.toDigestResponse(archivedPost)).thenReturn(new PostDigestResponse(13L, "Archived by month", "archived-by-month", null, null, null, null, null, 0L, 0L, 0L, archivedPost.getPublishedAt()));
 
 		ApiResponse<PageResult<PostDigestResponse>> response = postService.retrievePublicArchive(2026, 7,
 				org.springframework.data.domain.PageRequest.of(0, 10));

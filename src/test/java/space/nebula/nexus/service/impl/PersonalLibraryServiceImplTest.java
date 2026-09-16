@@ -312,6 +312,6 @@ class PersonalLibraryServiceImplTest {
 	}
 
 	private PostDigestResponse digest(Long id) {
-		return new PostDigestResponse(id, "Post", "post-" + id, null, null, "Author", null, null, 0L, 0L, null);
+		return new PostDigestResponse(id, "Post", "post-" + id, null, null, "Author", null, null, 0L, 0L, 0L, null);
 	}
 }
