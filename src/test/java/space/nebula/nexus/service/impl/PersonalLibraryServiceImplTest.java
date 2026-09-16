@@ -75,6 +75,8 @@ class PersonalLibraryServiceImplTest {
 	private PostMapper postMapper;
 	@Mock
 	private CategoryMapper categoryMapper;
+	@Mock
+	private space.nebula.nexus.service.support.PostCommentCountSupport postCommentCountSupport;
 
 	@InjectMocks
 	private PersonalLibraryServiceImpl personalLibraryService;

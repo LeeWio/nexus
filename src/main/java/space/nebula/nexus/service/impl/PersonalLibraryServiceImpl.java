@@ -43,6 +43,7 @@ import space.nebula.nexus.repository.ReadingHistoryRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IPersonalLibraryService;
+import space.nebula.nexus.service.support.PostCommentCountSupport;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -78,6 +79,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	private final PostCollectionRepository collectionRepository;
 	private final PostCollectionItemRepository collectionItemRepository;
 	private final PostMapper postMapper;
+	private final PostCommentCountSupport postCommentCountSupport;
 	private final CategoryMapper categoryMapper;
 
 	@Override
@@ -95,7 +97,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 		List<FavoritePostResponse> recentFavorites = favoriteRepository
 				.findVisibleFavorites(user.getId(), PostStatus.PUBLISHED, sectionCandidates).stream()
 				.filter(favorite -> selectedPostIds.add(favorite.getPost().getId())).limit(OVERVIEW_SECTION_SIZE)
-				.map(favorite -> new FavoritePostResponse(postMapper.toDigestResponse(favorite.getPost()),
+				.map(favorite -> new FavoritePostResponse(toDigest(favorite.getPost()),
 						favorite.getCreatedAt()))
 				.toList();
 
@@ -112,7 +114,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	public ApiResponse<PageResult<PostDigestResponse>> getFollowingFeed(Pageable pageable) {
 		User user = currentUser();
 		var feed = postRepository.findFollowedCategoryFeed(user.getId(), PostStatus.PUBLISHED, pageable)
-				.map(postMapper::toDigestResponse);
+				.map(this::toDigest);
 		return ApiResponse.success(PageResult.of(feed));
 	}
 
@@ -181,7 +183,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	public ApiResponse<PageResult<FavoritePostResponse>> getFavorites(Pageable pageable) {
 		User user = currentUser();
 		var favorites = favoriteRepository.findVisibleFavorites(user.getId(), PostStatus.PUBLISHED, pageable)
-				.map(favorite -> new FavoritePostResponse(postMapper.toDigestResponse(favorite.getPost()),
+				.map(favorite -> new FavoritePostResponse(toDigest(favorite.getPost()),
 						favorite.getCreatedAt()));
 		return ApiResponse.success(PageResult.of(favorites));
 	}
@@ -191,7 +193,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	public ApiResponse<PageResult<LikedPostResponse>> getLikedPosts(Pageable pageable) {
 		User user = currentUser();
 		var likedPosts = likeRepository.findVisibleLikes(user.getId(), PostStatus.PUBLISHED, pageable)
-				.map(postLike -> new LikedPostResponse(postMapper.toDigestResponse(postLike.getPost()),
+				.map(postLike -> new LikedPostResponse(toDigest(postLike.getPost()),
 						postLike.getCreatedAt()));
 		return ApiResponse.success(PageResult.of(likedPosts));
 	}
@@ -290,7 +292,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 		User user = currentUser();
 		findOwnedCollection(collectionId, user.getId());
 		var items = collectionItemRepository.findVisibleItems(collectionId, PostStatus.PUBLISHED, pageable).map(
-				item -> new CollectionPostResponse(postMapper.toDigestResponse(item.getPost()), item.getCreatedAt()));
+				item -> new CollectionPostResponse(toDigest(item.getPost()), item.getCreatedAt()));
 		return ApiResponse.success(PageResult.of(items));
 	}
 
@@ -347,7 +349,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	}
 
 	private ReadingHistoryResponse toReadingHistoryResponse(ReadingHistory history) {
-		return new ReadingHistoryResponse(postMapper.toDigestResponse(history.getPost()), history.getProgressPercent(),
+		return new ReadingHistoryResponse(toDigest(history.getPost()), history.getProgressPercent(),
 				history.getPositionAnchor(), history.getLastReadAt(), history.getCompletedAt());
 	}
 
@@ -387,15 +389,15 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 		}
 		if (categoryBased && post.getCategory() != null) {
 			if (followedCategoryIds.contains(post.getCategory().getId())) {
-				recommendations.add(new RecommendedPostResponse(postMapper.toDigestResponse(post),
+				recommendations.add(new RecommendedPostResponse(toDigest(post),
 						FOLLOWED_CATEGORY_REASON, "Because you follow " + post.getCategory().getName() + "."));
 				return;
 			}
-			recommendations.add(new RecommendedPostResponse(postMapper.toDigestResponse(post), CATEGORY_INTEREST_REASON,
+			recommendations.add(new RecommendedPostResponse(toDigest(post), CATEGORY_INTEREST_REASON,
 					"Recommended because you often read " + post.getCategory().getName() + "."));
 			return;
 		}
-		recommendations.add(new RecommendedPostResponse(postMapper.toDigestResponse(post), COMMUNITY_POPULAR_REASON,
+		recommendations.add(new RecommendedPostResponse(toDigest(post), COMMUNITY_POPULAR_REASON,
 				"Popular across the community."));
 	}
 
@@ -418,5 +420,10 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 			return null;
 		}
 		return value.trim();
+	}
+
+	private PostDigestResponse toDigest(Post post) {
+		postCommentCountSupport.attachApprovedRootCounts(List.of(post));
+		return postMapper.toDigestResponse(post);
 	}
 }

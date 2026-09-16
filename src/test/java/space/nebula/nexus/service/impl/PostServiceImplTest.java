@@ -88,6 +88,8 @@ class PostServiceImplTest {
 	private space.nebula.nexus.common.validator.PostValidator postValidator;
 	@Mock
 	private space.nebula.nexus.repository.ConfigRepository configRepository;
+	@Mock
+	private space.nebula.nexus.service.support.PostCommentCountSupport postCommentCountSupport;
 	@Spy
 	private BlogDiscoveryProperties discoveryProperties = new BlogDiscoveryProperties();
 	@Spy

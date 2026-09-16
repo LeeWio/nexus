@@ -77,6 +77,16 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 
 	long countByPostIsNullAndParentIsNullAndStatus(CommentStatus status);
 
+	@Query("""
+			select c.post.id, count(c)
+			from Comment c
+			where c.post.id in :postIds
+			  and c.parent is null
+			  and c.status = :status
+			group by c.post.id
+			""")
+	List<Object[]> countRootCommentsByPostIds(Collection<Long> postIds, CommentStatus status);
+
 	@EntityGraph(attributePaths = {"user", "post"})
 	@Query("select c from Comment c where c.post.id = :postId and c.parent is null and c.status = :status and c.id > :afterId order by c.id asc")
 	List<Comment> findNewRootCommentsByPost(Long postId, CommentStatus status, Long afterId, Pageable pageable);

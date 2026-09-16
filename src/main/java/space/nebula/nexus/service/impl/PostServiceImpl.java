@@ -54,6 +54,7 @@ import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostService;
 import space.nebula.nexus.service.ISlugService;
 import space.nebula.nexus.service.PostRankingService;
+import space.nebula.nexus.service.support.PostCommentCountSupport;
 import space.nebula.nexus.utils.RedisUtil;
 import space.nebula.nexus.utils.PostContentAnalyzer;
 import space.nebula.nexus.utils.SlugUtil;
@@ -96,6 +97,7 @@ public class PostServiceImpl implements IPostService {
 	private final space.nebula.nexus.common.validator.PostValidator postValidator;
 	private final BlogDiscoveryProperties discoveryProperties;
 	private final ObjectProvider<MeterRegistry> meterRegistryProvider;
+	private final PostCommentCountSupport postCommentCountSupport;
 
 	private final space.nebula.nexus.repository.ConfigRepository configRepository;
 	@Override
@@ -558,6 +560,7 @@ public class PostServiceImpl implements IPostService {
 			String keyword, Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable) {
 		var spec = PostSpecification.filterPublicPosts(categoryId, tagId, keyword, featuredOnly, hasCover, contentType);
 		Page<Post> publishedPosts = postRepository.findAll(spec, pageable);
+		postCommentCountSupport.attachApprovedRootCounts(publishedPosts.getContent());
 		return ApiResponse.success(PageResult.of(publishedPosts.map(postMapper::toDigestResponse)));
 	}
 
@@ -569,8 +572,9 @@ public class PostServiceImpl implements IPostService {
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Archive month requires a year"));
 		Assert.isTrue(month == null || (month >= 1 && month <= 12),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Archive month must be between 1 and 12"));
-		Page<PostDigestResponse> archivePage = postRepository.findAll(archiveSpec(year, month), pageable)
-				.map(postMapper::toDigestResponse);
+		Page<Post> archivePosts = postRepository.findAll(archiveSpec(year, month), pageable);
+		postCommentCountSupport.attachApprovedRootCounts(archivePosts.getContent());
+		Page<PostDigestResponse> archivePage = archivePosts.map(postMapper::toDigestResponse);
 		return ApiResponse.success(PageResult.of(archivePage));
 	}
 
@@ -602,8 +606,9 @@ public class PostServiceImpl implements IPostService {
 	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.BLOG_POSTS, key = "'featured-' + #pageable.pageNumber + '-' + #pageable.pageSize", sync = true)
 	public ApiResponse<PageResult<PostDigestResponse>> retrieveFeaturedPublicPosts(Pageable pageable) {
-		Page<PostDigestResponse> page = postRepository.findProminentPublicPosts(PostStatus.PUBLISHED, pageable)
-				.map(postMapper::toDigestResponse);
+		Page<Post> featuredPosts = postRepository.findProminentPublicPosts(PostStatus.PUBLISHED, pageable);
+		postCommentCountSupport.attachApprovedRootCounts(featuredPosts.getContent());
+		Page<PostDigestResponse> page = featuredPosts.map(postMapper::toDigestResponse);
 		return ApiResponse.success(PageResult.of(page));
 	}
 
@@ -655,6 +660,9 @@ public class PostServiceImpl implements IPostService {
 				.findAllByStatus(PostStatus.PUBLISHED, PageRequest.of(0, candidateSize(), mostReadFirst)).getContent();
 		List<PostDigestResponse> mostRead = selectDistinctDigests(mostReadCandidates, selectedPostIds, sectionSize());
 
+		if (spotlight != null) {
+			postCommentCountSupport.attachApprovedRootCounts(List.of(spotlight));
+		}
 		PostDigestResponse spotlightResponse = spotlight == null ? null : postMapper.toDigestResponse(spotlight);
 		return ApiResponse.success(new BlogDiscoveryResponse(spotlightResponse, curated, latest, trending, mostRead,
 				buildPublicSeriesSummaries(), buildCategoryGroups(scoredCandidates, selectedPostIds), Instant.now(),
@@ -702,13 +710,15 @@ public class PostServiceImpl implements IPostService {
 		int requestedSize = pageable.isPaged() ? pageable.getPageSize() : sectionSize();
 		int candidateLimit = Math.max(requestedSize * 6, candidateSize());
 		Pageable candidatePage = PageRequest.of(0, candidateLimit);
-		List<PostDigestResponse> relatedPosts = postRepository.findAll(relatedPostsSpec(source), candidatePage)
-				.getContent().stream()
+		List<Post> relatedCandidates = postRepository.findAll(relatedPostsSpec(source), candidatePage).getContent()
+				.stream()
 				.sorted(Comparator
 						.comparingDouble((Post candidate) -> postRankingService.relatedScore(source, candidate))
 						.reversed().thenComparing(Post::getPublishedAt, Comparator.nullsLast(Comparator.reverseOrder()))
 						.thenComparing(Post::getId, Comparator.nullsLast(Comparator.reverseOrder())))
-				.limit(requestedSize).map(postMapper::toDigestResponse).toList();
+				.limit(requestedSize).toList();
+		postCommentCountSupport.attachApprovedRootCounts(relatedCandidates);
+		List<PostDigestResponse> relatedPosts = relatedCandidates.stream().map(postMapper::toDigestResponse).toList();
 		return ApiResponse.success(relatedPosts);
 	}
 
@@ -833,8 +843,10 @@ public class PostServiceImpl implements IPostService {
 
 	private List<PostDigestResponse> selectDistinctDigests(List<Post> candidates, Set<Long> selectedPostIds,
 			int limit) {
-		return candidates.stream().filter(post -> post.getId() != null && selectedPostIds.add(post.getId()))
-				.limit(limit).map(postMapper::toDigestResponse).toList();
+		List<Post> selected = candidates.stream()
+				.filter(post -> post.getId() != null && selectedPostIds.add(post.getId())).limit(limit).toList();
+		postCommentCountSupport.attachApprovedRootCounts(selected);
+		return selected.stream().map(postMapper::toDigestResponse).toList();
 	}
 
 	private List<BlogDiscoveryResponse.CategoryGroup> buildCategoryGroups(List<Post> candidates,
@@ -851,6 +863,7 @@ public class PostServiceImpl implements IPostService {
 			if (rankedPosts.isEmpty()) {
 				continue;
 			}
+			postCommentCountSupport.attachApprovedRootCounts(rankedPosts);
 			double score = rankedPosts.stream().mapToDouble(postRankingService::discoveryScore).sum();
 			groups.add(new BlogDiscoveryResponse.CategoryGroup(toCategoryResponse(rankedPosts.getFirst()),
 					rankedPosts.stream().map(postMapper::toDigestResponse).toList(), score));
