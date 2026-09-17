@@ -3,8 +3,8 @@ package space.nebula.nexus.security.handler;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -27,7 +27,6 @@ import java.io.IOException;
  * Referer headers.
  */
 @Component
-@RequiredArgsConstructor
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
 	private final UserRepository userRepository;
@@ -36,6 +35,13 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
 	@Value("${app.oauth2.redirect-uri:http://localhost:3000/oauth2/redirect}")
 	private String redirectUri;
+
+	public OAuth2AuthenticationSuccessHandler(UserRepository userRepository, @Lazy IAuthService authService,
+			OAuthLoginCodeStore oauthLoginCodeStore) {
+		this.userRepository = userRepository;
+		this.authService = authService;
+		this.oauthLoginCodeStore = oauthLoginCodeStore;
+	}
 
 	@Override
 	public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
