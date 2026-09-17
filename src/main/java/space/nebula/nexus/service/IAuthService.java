@@ -8,6 +8,7 @@ import space.nebula.nexus.payload.request.PasswordResetConfirmRequest;
 import space.nebula.nexus.payload.request.PasswordResetRequest;
 import space.nebula.nexus.payload.request.RegisterRequest;
 import space.nebula.nexus.payload.response.AuthResponse;
+import space.nebula.nexus.security.model.SecurityUser;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -60,4 +61,15 @@ public interface IAuthService {
 	 * Refreshes an access token using a refresh token.
 	 */
 	ApiResponse<AuthResponse> refreshToken(String refreshToken);
+
+	/**
+	 * Issues a fresh access/refresh token pair for an already-authenticated user
+	 * (used by OAuth success handling).
+	 */
+	AuthResponse issueTokens(SecurityUser securityUser);
+
+	/**
+	 * Exchanges a one-time OAuth login code for an auth response.
+	 */
+	ApiResponse<AuthResponse> exchangeOAuthLoginCode(String code);
 }

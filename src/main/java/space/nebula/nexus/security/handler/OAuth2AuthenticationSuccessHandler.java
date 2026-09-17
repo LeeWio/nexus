@@ -11,19 +11,28 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.payload.response.AuthResponse;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.model.SecurityUser;
-import space.nebula.nexus.security.util.JwtUtils;
 import space.nebula.nexus.security.service.OAuthAccountResolver;
+import space.nebula.nexus.security.token.OAuthLoginCodeStore;
+import space.nebula.nexus.service.IAuthService;
 
 import java.io.IOException;
 
+/**
+ * Completes OAuth2 login by issuing tokens server-side and redirecting the
+ * browser with a short-lived opaque {@code code}. The SPA exchanges that code
+ * for tokens over HTTPS JSON so JWTs never appear in query strings, history, or
+ * Referer headers.
+ */
 @Component
 @RequiredArgsConstructor
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-	private final JwtUtils jwtUtils;
 	private final UserRepository userRepository;
+	private final IAuthService authService;
+	private final OAuthLoginCodeStore oauthLoginCodeStore;
 
 	@Value("${app.oauth2.redirect-uri:http://localhost:3000/oauth2/redirect}")
 	private String redirectUri;
@@ -40,9 +49,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 		User user = userRepository.findById(Long.valueOf(String.valueOf(localUserId)))
 				.orElseThrow(() -> new ServletException("User not found after OAuth login"));
 
-		String token = jwtUtils.generateAccessToken(new SecurityUser(user));
+		AuthResponse authResponse = authService.issueTokens(new SecurityUser(user));
+		String loginCode = oauthLoginCodeStore.issue(authResponse);
 
-		String targetUrl = UriComponentsBuilder.fromUriString(redirectUri).queryParam("token", token).build()
+		String targetUrl = UriComponentsBuilder.fromUriString(redirectUri).queryParam("code", loginCode).build()
 				.toUriString();
 		if (request.getSession(false) != null) {
 			request.getSession(false).invalidate();

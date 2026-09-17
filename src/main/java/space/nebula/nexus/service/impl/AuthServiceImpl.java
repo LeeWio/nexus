@@ -30,6 +30,7 @@ import space.nebula.nexus.payload.response.AuthResponse;
 import space.nebula.nexus.repository.RoleRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.model.SecurityUser;
+import space.nebula.nexus.security.token.OAuthLoginCodeStore;
 import space.nebula.nexus.security.token.RevokedTokenStore;
 import space.nebula.nexus.security.token.RefreshTokenStore;
 import space.nebula.nexus.security.service.LoginSecurityService;
@@ -70,6 +71,7 @@ public class AuthServiceImpl implements IAuthService {
 	private final RedisUtil redisUtil;
 	private final RevokedTokenStore revokedTokenStore;
 	private final RefreshTokenStore refreshTokenStore;
+	private final OAuthLoginCodeStore oauthLoginCodeStore;
 	private final RabbitTemplate rabbitTemplate;
 	private final space.nebula.nexus.config.AuthProperties authProperties;
 	private final space.nebula.nexus.security.config.JwtProperties jwtProperties;
@@ -294,6 +296,20 @@ public class AuthServiceImpl implements IAuthService {
 		}
 
 		throw new BusinessException(BusinessCode.INVALID_TOKEN, "Refresh token is invalid or expired");
+	}
+
+	@Override
+	public AuthResponse issueTokens(SecurityUser securityUser) {
+		return createAuthResponse(securityUser);
+	}
+
+	@Override
+	@LogOperation(value = "OAuth Login Code Exchange", logArgs = false)
+	public ApiResponse<AuthResponse> exchangeOAuthLoginCode(String code) {
+		Assert.notBlank(code, () -> new BusinessException(BusinessCode.INVALID_TOKEN, "OAuth login code is required"));
+		AuthResponse authResponse = oauthLoginCodeStore.consume(code).orElseThrow(
+				() -> new BusinessException(BusinessCode.INVALID_TOKEN, "OAuth login code is invalid or expired"));
+		return ApiResponse.success("OAuth login successful", authResponse);
 	}
 
 	private AuthResponse createAuthResponse(SecurityUser securityUser) {

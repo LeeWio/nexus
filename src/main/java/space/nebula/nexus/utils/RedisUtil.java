@@ -1,6 +1,7 @@
 package space.nebula.nexus.utils;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.json.JSONUtil;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -84,15 +85,37 @@ public class RedisUtil {
 	 */
 	public <T> Optional<T> get(String key, Class<T> clazz) {
 		try {
-			Object value = redisTemplate.opsForValue().get(key);
-
-			if (value == null || !clazz.isInstance(value)) {
-				return Optional.empty();
-			} else {
-				return Optional.of(clazz.cast(value));
-			}
+			return convertValue(redisTemplate.opsForValue().get(key), clazz);
 		} catch (Exception e) {
 			log.error("Error getting value for key: {}", key, e);
+			return Optional.empty();
+		}
+	}
+
+	/**
+	 * Atomically reads and deletes a key, converting the payload to {@code clazz}.
+	 * Jackson Redis payloads that arrive as maps are converted via Hutool JSON.
+	 */
+	public <T> Optional<T> getAndDelete(String key, Class<T> clazz) {
+		try {
+			return convertValue(redisTemplate.opsForValue().getAndDelete(key), clazz);
+		} catch (Exception e) {
+			log.error("Error getting and deleting value for key: {}", key, e);
+			return Optional.empty();
+		}
+	}
+
+	private <T> Optional<T> convertValue(Object value, Class<T> clazz) {
+		if (value == null) {
+			return Optional.empty();
+		}
+		if (clazz.isInstance(value)) {
+			return Optional.of(clazz.cast(value));
+		}
+		try {
+			return Optional.of(JSONUtil.toBean(JSONUtil.parseObj(value), clazz));
+		} catch (Exception e) {
+			log.error("Error converting Redis value to {}: {}", clazz.getSimpleName(), e.getMessage());
 			return Optional.empty();
 		}
 	}

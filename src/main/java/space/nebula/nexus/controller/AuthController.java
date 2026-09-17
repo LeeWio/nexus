@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.payload.request.LoginRequest;
+import space.nebula.nexus.payload.request.OAuthExchangeRequest;
 import space.nebula.nexus.payload.request.OtpLoginRequest;
 import space.nebula.nexus.payload.request.OtpSendRequest;
 import space.nebula.nexus.payload.request.PasswordResetConfirmRequest;
@@ -110,6 +111,16 @@ public class AuthController {
 			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")})
 	public ApiResponse<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
 		return authService.refreshToken(request.refreshToken());
+	}
+
+	@PostMapping("/oauth2/exchange")
+	@Operation(summary = "Exchange OAuth login code", description = "Exchanges a short-lived opaque OAuth login code for access and refresh tokens. Codes are single-use and expire quickly.")
+	@ApiResponses({
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "OAuth login successful", content = @Content(schema = @Schema(implementation = AuthResponse.class))),
+			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid or expired OAuth login code")})
+	@RateLimit(count = 20, time = 1, unit = TimeUnit.MINUTES, message = "Too many OAuth exchange attempts. Please try again later.")
+	public ApiResponse<AuthResponse> exchangeOAuthCode(@Valid @RequestBody OAuthExchangeRequest request) {
+		return authService.exchangeOAuthLoginCode(request.code());
 	}
 
 	@PostMapping("/logout")

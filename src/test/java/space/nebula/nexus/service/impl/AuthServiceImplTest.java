@@ -34,6 +34,7 @@ import space.nebula.nexus.repository.RoleRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.model.SecurityUser;
 import space.nebula.nexus.security.service.LoginSecurityService;
+import space.nebula.nexus.security.token.OAuthLoginCodeStore;
 import space.nebula.nexus.security.token.RevokedTokenStore;
 import space.nebula.nexus.security.token.RefreshTokenStore;
 import space.nebula.nexus.security.util.JwtUtils;
@@ -72,6 +73,8 @@ class AuthServiceImplTest {
 	private RevokedTokenStore revokedTokenStore;
 	@Mock
 	private RefreshTokenStore refreshTokenStore;
+	@Mock
+	private OAuthLoginCodeStore oauthLoginCodeStore;
 	@Mock
 	private RabbitTemplate rabbitTemplate;
 	@Mock
@@ -384,5 +387,30 @@ class AuthServiceImplTest {
 		assertEquals(BusinessCode.BAD_REQUEST.getCode(), exception.getCode());
 		verify(userRepository, never()).save(any(User.class));
 		verify(passwordEncoder, never()).encode(anyString());
+	}
+
+	@Test
+	@DisplayName("Should exchange a one-time OAuth login code for tokens")
+	void exchangeOAuthLoginCode_Success() {
+		AuthResponse authResponse = AuthResponse.builder().accessToken("access").refreshToken("refresh")
+				.username("alice").email("alice@example.com").roles(java.util.Set.of("ROLE_USER")).build();
+		when(oauthLoginCodeStore.consume("opaque-code")).thenReturn(Optional.of(authResponse));
+
+		ApiResponse<AuthResponse> response = authService.exchangeOAuthLoginCode("opaque-code");
+
+		assertEquals(200, response.code());
+		assertEquals(authResponse, response.data());
+		verify(oauthLoginCodeStore).consume("opaque-code");
+	}
+
+	@Test
+	@DisplayName("Should reject an invalid or expired OAuth login code")
+	void exchangeOAuthLoginCode_RejectsInvalidCode() {
+		when(oauthLoginCodeStore.consume("expired")).thenReturn(Optional.empty());
+
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> authService.exchangeOAuthLoginCode("expired"));
+
+		assertEquals(BusinessCode.INVALID_TOKEN.getCode(), exception.getCode());
 	}
 }
