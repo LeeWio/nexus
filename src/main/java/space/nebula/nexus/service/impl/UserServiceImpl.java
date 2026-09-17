@@ -3,6 +3,7 @@ package space.nebula.nexus.service.impl;
 import cn.hutool.core.lang.Assert;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,13 +12,17 @@ import space.nebula.nexus.common.annotation.LogOperation;
 import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.mapper.UserMapper;
 import space.nebula.nexus.payload.request.PasswordChangeRequest;
 import space.nebula.nexus.payload.request.UserProfileRequest;
 import space.nebula.nexus.payload.response.UserInfoResponse;
+import space.nebula.nexus.payload.response.UserMentionResponse;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.IAuthService;
 import space.nebula.nexus.service.IUserService;
+
+import java.util.List;
 
 /**
  * Implementation of user self-service operations.
@@ -67,5 +72,20 @@ public class UserServiceImpl implements IUserService {
 
 		log.info("User {} changed password", currentUser.getUsername());
 		return ApiResponse.success("Password changed successfully.", null);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<List<UserMentionResponse>> searchMentionableUsers(String query, int limit) {
+		String normalizedQuery = query == null ? "" : query.trim();
+		int pageSize = Math.clamp(limit <= 0 ? 20 : limit, 1, 50);
+
+		List<UserMentionResponse> mentions = userRepository
+				.searchMentionableUsers(UserStatus.ACTIVE, normalizedQuery, PageRequest.of(0, pageSize)).stream()
+				.map(user -> new UserMentionResponse(user.getId(), user.getUsername(), user.getNickname(),
+						user.getAvatar()))
+				.toList();
+
+		return ApiResponse.success(mentions);
 	}
 }

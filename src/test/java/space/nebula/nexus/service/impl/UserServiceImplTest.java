@@ -3,22 +3,28 @@ package space.nebula.nexus.service.impl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.mapper.UserMapper;
 import space.nebula.nexus.payload.request.PasswordChangeRequest;
 import space.nebula.nexus.payload.request.UserProfileRequest;
 import space.nebula.nexus.payload.response.UserInfoResponse;
+import space.nebula.nexus.payload.response.UserMentionResponse;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.IAuthService;
 
 import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -83,5 +89,44 @@ class UserServiceImplTest {
 		assertEquals("encodedNewPassword", testUser.getPassword());
 		assertEquals(1, testUser.getTokenVersion());
 		verify(userRepository).save(testUser);
+	}
+
+	@Test
+	void searchMentionableUsers_ReturnsPublicSafeSummaries() {
+		User alice = new User();
+		alice.setId(7L);
+		alice.setUsername("alice");
+		alice.setNickname("Alice");
+		alice.setAvatar("/avatars/a.png");
+		alice.setEmail("alice@example.com");
+
+		when(userRepository.searchMentionableUsers(eq(UserStatus.ACTIVE), eq("ali"), any(Pageable.class)))
+				.thenReturn(List.of(alice));
+
+		ApiResponse<List<UserMentionResponse>> response = userService.searchMentionableUsers("ali", 20);
+
+		assertEquals(200, response.code());
+		assertEquals(1, response.data().size());
+		UserMentionResponse mention = response.data().getFirst();
+		assertEquals(7L, mention.id());
+		assertEquals("alice", mention.username());
+		assertEquals("Alice", mention.nickname());
+		assertEquals("/avatars/a.png", mention.avatar());
+
+		ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+		verify(userRepository).searchMentionableUsers(eq(UserStatus.ACTIVE), eq("ali"), pageableCaptor.capture());
+		assertEquals(20, pageableCaptor.getValue().getPageSize());
+	}
+
+	@Test
+	void searchMentionableUsers_ClampsLimitAndTrimsQuery() {
+		when(userRepository.searchMentionableUsers(eq(UserStatus.ACTIVE), eq("bob"), any(Pageable.class)))
+				.thenReturn(List.of());
+
+		userService.searchMentionableUsers("  bob  ", 999);
+
+		ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+		verify(userRepository).searchMentionableUsers(eq(UserStatus.ACTIVE), eq("bob"), pageableCaptor.capture());
+		assertEquals(50, pageableCaptor.getValue().getPageSize());
 	}
 }

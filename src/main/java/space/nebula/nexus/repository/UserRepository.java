@@ -65,4 +65,21 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	java.util.Optional<User> findByGoogleId(String googleId);
 
 	boolean existsByAvatarContaining(String keyword);
+
+	/**
+	 * Active users whose username or nickname matches {@code q} (case-insensitive).
+	 * Empty {@code q} returns active users ordered by username for initial mention
+	 * pickers.
+	 */
+	@Query("""
+			SELECT u FROM User u
+			WHERE u.status = :status
+			  AND (
+			    :q = ''
+			    OR LOWER(u.username) LIKE LOWER(CONCAT('%', :q, '%'))
+			    OR LOWER(COALESCE(u.nickname, '')) LIKE LOWER(CONCAT('%', :q, '%'))
+			  )
+			ORDER BY u.username ASC
+			""")
+	List<User> searchMentionableUsers(UserStatus status, String q, Pageable pageable);
 }
