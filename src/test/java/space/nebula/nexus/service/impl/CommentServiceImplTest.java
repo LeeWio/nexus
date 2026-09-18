@@ -922,8 +922,9 @@ class CommentServiceImplTest {
 
 	@Test
 	void countNewGuestbookRootCommentsUsesZeroWhenAfterIdMissing() {
-		when(commentRepository.countByPostIsNullAndMomentIsNullAndParentIsNullAndStatusAndIdGreaterThan(
-				CommentStatus.APPROVED, 0L)).thenReturn(5L);
+		when(commentRepository
+				.countByPostIsNullAndMomentIsNullAndParentIsNullAndStatusAndIdGreaterThan(CommentStatus.APPROVED, 0L))
+				.thenReturn(5L);
 
 		var response = commentService.countNewGuestbookRootComments(null);
 
