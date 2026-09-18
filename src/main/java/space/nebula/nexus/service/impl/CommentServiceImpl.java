@@ -37,7 +37,8 @@ public class CommentServiceImpl implements ICommentService {
 	private final CommentGovernanceService governanceService;
 
 	@Override
-	public ApiResponse<CommentPublishResponse> publishComment(CommentRequest request, HttpServletRequest servletRequest) {
+	public ApiResponse<CommentPublishResponse> publishComment(CommentRequest request,
+			HttpServletRequest servletRequest) {
 		return commandService.publishComment(request, servletRequest);
 	}
 

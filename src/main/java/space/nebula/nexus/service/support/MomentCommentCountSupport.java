@@ -33,8 +33,7 @@ public class MomentCommentCountSupport {
 		if (responses == null || responses.isEmpty()) {
 			return List.of();
 		}
-		List<Long> momentIds = responses.stream().map(MomentResponse::id).filter(Objects::nonNull).distinct()
-				.toList();
+		List<Long> momentIds = responses.stream().map(MomentResponse::id).filter(Objects::nonNull).distinct().toList();
 		if (momentIds.isEmpty()) {
 			return List.copyOf(responses);
 		}

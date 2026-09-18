@@ -25,6 +25,7 @@ import space.nebula.nexus.payload.request.CommentReportRequest;
 import space.nebula.nexus.payload.request.CommentUpdateRequest;
 import space.nebula.nexus.payload.response.CommentResponse;
 import space.nebula.nexus.repository.CommentRepository;
+import space.nebula.nexus.repository.MomentRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
@@ -46,6 +47,8 @@ class CommentServiceImplTest {
 	private CommentRepository commentRepository;
 	@Mock
 	private PostRepository postRepository;
+	@Mock
+	private MomentRepository momentRepository;
 	@Mock
 	private UserRepository userRepository;
 	@Mock
@@ -98,10 +101,11 @@ class CommentServiceImplTest {
 					.likesCount(0L).reportsCount(0L).likedByCurrentUser(false).build()).toList();
 		});
 		commentService = new CommentServiceImpl(
-				new CommentCommandService(commentRepository, postRepository, userRepository, sensitiveWordService,
-						eventPublisher, jdbcTemplate, governanceService, moderationProperties, threadProperties,
-						idempotencyService, metricsService),
-				new CommentQueryService(commentRepository, postRepository, userRepository, commentResponseAssembler),
+				new CommentCommandService(commentRepository, postRepository, momentRepository, userRepository,
+						sensitiveWordService, eventPublisher, jdbcTemplate, governanceService, moderationProperties,
+						threadProperties, idempotencyService, metricsService),
+				new CommentQueryService(commentRepository, postRepository, momentRepository, userRepository,
+						commentResponseAssembler),
 				new CommentModerationService(commentRepository, eventPublisher, governanceService, metricsService),
 				governanceService);
 	}
@@ -930,7 +934,7 @@ class CommentServiceImplTest {
 		when(commentRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
 				.thenReturn(page);
 
-		var response = commentService.searchCommentsForManagement(null, null, null, null, pageable);
+		var response = commentService.searchCommentsForManagement(null, null, null, null, null, pageable);
 
 		assertEquals(200, response.code());
 		assertNotNull(response.data());

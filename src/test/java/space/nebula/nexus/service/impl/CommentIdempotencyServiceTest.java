@@ -35,10 +35,8 @@ class CommentIdempotencyServiceTest {
 	@Test
 	void hashSubmissionIsStableForSameSemanticRequest() {
 		assertEquals(service.hashSubmission(1L, null, 2L, "hello"), service.hashSubmission(1L, null, 2L, "hello"));
-		assertNotEquals(service.hashSubmission(1L, null, 2L, "hello"),
-				service.hashSubmission(1L, null, 2L, "changed"));
-		assertNotEquals(service.hashSubmission(1L, null, 2L, "hello"),
-				service.hashSubmission(null, 9L, 2L, "hello"));
+		assertNotEquals(service.hashSubmission(1L, null, 2L, "hello"), service.hashSubmission(1L, null, 2L, "changed"));
+		assertNotEquals(service.hashSubmission(1L, null, 2L, "hello"), service.hashSubmission(null, 9L, 2L, "hello"));
 	}
 
 	@Test

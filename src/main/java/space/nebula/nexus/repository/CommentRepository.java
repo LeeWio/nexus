@@ -29,7 +29,10 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	@EntityGraph(attributePaths = {"user"})
 	List<Comment> findAllByPostIsNullAndMomentIsNullAndStatusOrderByPathAsc(CommentStatus status);
 
-	/** @deprecated Prefer findAllByPostIsNullAndMomentIsNullAndStatusOrderByPathAsc */
+	/**
+	 * @deprecated Prefer findAllByPostIsNullAndMomentIsNullAndStatusOrderByPathAsc
+	 */
+	@Deprecated
 	@EntityGraph(attributePaths = {"user"})
 	List<Comment> findAllByPostIsNullAndStatusOrderByPathAsc(CommentStatus status);
 
@@ -39,7 +42,10 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	@EntityGraph(attributePaths = {"user", "post", "moment"})
 	Page<Comment> findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatus(CommentStatus status, Pageable pageable);
 
-	/** @deprecated Prefer findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatus */
+	/**
+	 * @deprecated Prefer findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatus
+	 */
+	@Deprecated
 	@EntityGraph(attributePaths = {"user", "post"})
 	Page<Comment> findAllByPostIsNullAndParentIsNullAndStatus(CommentStatus status, Pageable pageable);
 
@@ -74,12 +80,18 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	List<Comment> findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatusOrderByIdDesc(CommentStatus status,
 			Pageable pageable);
 
-	/** @deprecated Prefer moment-null aware guestbook methods */
+	/**
+	 * @deprecated Prefer moment-null aware guestbook methods
+	 */
+	@Deprecated
 	@EntityGraph(attributePaths = {"user", "post"})
 	List<Comment> findAllByPostIsNullAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(CommentStatus status,
 			Long cursor, Pageable pageable);
 
-	/** @deprecated Prefer moment-null aware guestbook methods */
+	/**
+	 * @deprecated Prefer moment-null aware guestbook methods
+	 */
+	@Deprecated
 	@EntityGraph(attributePaths = {"user", "post"})
 	List<Comment> findAllByPostIsNullAndParentIsNullAndStatusOrderByIdDesc(CommentStatus status, Pageable pageable);
 

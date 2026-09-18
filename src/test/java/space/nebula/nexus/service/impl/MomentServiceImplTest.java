@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -53,6 +54,8 @@ class MomentServiceImplTest {
 	private UserRepository userRepository;
 	@Mock
 	private JdbcTemplate jdbcTemplate;
+	@Mock
+	private space.nebula.nexus.service.support.MomentCommentCountSupport momentCommentCountSupport;
 
 	private MomentServiceImpl momentService;
 	private User user;
@@ -60,7 +63,9 @@ class MomentServiceImplTest {
 	@BeforeEach
 	void setUp() {
 		momentService = new MomentServiceImpl(momentRepository, momentTopicRepository, momentMapper, fileRepository,
-				userRepository, jdbcTemplate);
+				userRepository, jdbcTemplate, momentCommentCountSupport);
+		lenient().when(momentCommentCountSupport.withCount(any())).thenAnswer(invocation -> invocation.getArgument(0));
+		lenient().when(momentCommentCountSupport.withCounts(any())).thenAnswer(invocation -> invocation.getArgument(0));
 		user = new User();
 		user.setId(4L);
 		user.setUsername("reader");

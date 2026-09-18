@@ -86,7 +86,8 @@ public class CommentQueryService {
 			long total = commentRepository.countDescendantsByRootPath(parent.getPath(), parent.getId(),
 					CommentStatus.APPROVED);
 			return ApiResponse.success(new PageResult<>(commentResponseAssembler.toResponseList(descendants), total,
-					pageable.getPageNumber() + 1, pageable.getPageSize(), calculateTotalPages(total, pageable.getPageSize())));
+					pageable.getPageNumber() + 1, pageable.getPageSize(),
+					calculateTotalPages(total, pageable.getPageSize())));
 		}
 
 		var replies = commentRepository.findAllByParentIdAndStatus(parentId, CommentStatus.APPROVED, pageable);
@@ -119,15 +120,15 @@ public class CommentQueryService {
 
 	@Transactional(readOnly = true)
 	public ApiResponse<List<Tree<Long>>> retrieveGuestbookComments() {
-		var comments = commentRepository.findAllByPostIsNullAndMomentIsNullAndStatusOrderByPathAsc(
-				CommentStatus.APPROVED);
+		var comments = commentRepository
+				.findAllByPostIsNullAndMomentIsNullAndStatusOrderByPathAsc(CommentStatus.APPROVED);
 		return ApiResponse.success(buildCommentTree(commentResponseAssembler.toResponseList(comments)));
 	}
 
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<CommentResponse>> retrieveGuestbookRootComments(Pageable pageable) {
-		var comments = commentRepository.findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatus(
-				CommentStatus.APPROVED, pageable);
+		var comments = commentRepository
+				.findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatus(CommentStatus.APPROVED, pageable);
 		return ApiResponse.success(toPageResult(comments));
 	}
 
@@ -137,8 +138,9 @@ public class CommentQueryService {
 		List<Comment> comments = cursor == null
 				? commentRepository.findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatusOrderByIdDesc(
 						CommentStatus.APPROVED, limit)
-				: commentRepository.findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(
-						CommentStatus.APPROVED, cursor, limit);
+				: commentRepository
+						.findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(
+								CommentStatus.APPROVED, cursor, limit);
 		long total = commentRepository.countByPostIsNullAndMomentIsNullAndParentIsNullAndStatus(CommentStatus.APPROVED);
 		return ApiResponse.success(toCursorResponse(comments, size, total));
 	}

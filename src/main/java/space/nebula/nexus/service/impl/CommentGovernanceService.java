@@ -71,15 +71,14 @@ public class CommentGovernanceService {
 
 	public ApiResponse<Void> resolveCommentReport(Long commentId, Long reporterId,
 			CommentReportResolutionRequest request) {
-		Assert.isTrue(request.status() == CommentReportStatus.ACTIONED || request.status() == CommentReportStatus.DISMISSED,
+		Assert.isTrue(
+				request.status() == CommentReportStatus.ACTIONED || request.status() == CommentReportStatus.DISMISSED,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Report status must be ACTIONED or DISMISSED"));
-		int updated = jdbcTemplate.update(
-				"""
-						UPDATE blog_comment_report
-						SET status = ?, resolution_note = ?, handled_by = ?, handled_at = CURRENT_TIMESTAMP
-						WHERE comment_id = ? AND reporter_id = ? AND status = ?
-						""",
-				request.status().name(), request.resolutionNote(), SecurityUtil.getCurrentUsername(), commentId,
+		int updated = jdbcTemplate.update("""
+				UPDATE blog_comment_report
+				SET status = ?, resolution_note = ?, handled_by = ?, handled_at = CURRENT_TIMESTAMP
+				WHERE comment_id = ? AND reporter_id = ? AND status = ?
+				""", request.status().name(), request.resolutionNote(), SecurityUtil.getCurrentUsername(), commentId,
 				reporterId, CommentReportStatus.OPEN.name());
 		Assert.isTrue(updated > 0,
 				() -> new BusinessException(BusinessCode.NOT_FOUND, "Open comment report was not found"));
