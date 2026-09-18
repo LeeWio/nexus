@@ -13,9 +13,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Loads approved root-comment totals onto posts without Hibernate
- * {@code @Formula}. Formula fields break paginated/joined SQL on H2 and some
- * dialect subquery rewrites.
+ * Loads approved comment totals onto posts without Hibernate {@code @Formula}.
+ * Counts every approved comment on the post (roots and replies) so badges match
+ * the visible discussion volume.
  */
 @Component
 @RequiredArgsConstructor
@@ -33,7 +33,7 @@ public class PostCommentCountSupport {
 		}
 
 		Map<Long, Long> counts = new HashMap<>();
-		for (Object[] row : commentRepository.countRootCommentsByPostIds(postIds, CommentStatus.APPROVED)) {
+		for (Object[] row : commentRepository.countApprovedCommentsByPostIds(postIds, CommentStatus.APPROVED)) {
 			counts.put((Long) row[0], (Long) row[1]);
 		}
 		for (Post post : posts) {

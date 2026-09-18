@@ -3,12 +3,14 @@ package space.nebula.nexus.service.impl;
 import cn.hutool.core.lang.Assert;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
 import space.nebula.nexus.common.constant.BusinessCode;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.event.CommentModeratedEvent;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
@@ -32,6 +34,7 @@ public class CommentModerationService {
 	private final CommentMetricsService metricsService;
 
 	@Transactional
+	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
 	@LogOperation("Moderate Comment")
 	public ApiResponse<Void> moderateComment(Long id, CommentStatus status) {
 		validateModerationStatus(status);
@@ -183,6 +186,9 @@ public class CommentModerationService {
 
 	private String buildCommentLink(Comment comment) {
 		String anchor = "#comment-" + comment.getId();
+		if (comment.getMoment() != null) {
+			return "/moments" + anchor;
+		}
 		return comment.getPost() == null ? "/guestbook" + anchor : "/posts/" + comment.getPost().getSlug() + anchor;
 	}
 }

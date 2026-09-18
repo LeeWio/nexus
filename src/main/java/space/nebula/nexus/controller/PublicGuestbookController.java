@@ -89,7 +89,7 @@ public class PublicGuestbookController {
 	public ApiResponse<CommentPublishResponse> publishComment(@Valid @RequestBody GuestbookRequest request,
 			HttpServletRequest servletRequest) {
 		// Ensure postId is null for guestbook entries
-		CommentRequest guestbookRequest = new CommentRequest(request.content(), null, request.parentId());
+		CommentRequest guestbookRequest = new CommentRequest(request.content(), null, null, request.parentId());
 		return commentService.publishComment(guestbookRequest, servletRequest);
 	}
 }

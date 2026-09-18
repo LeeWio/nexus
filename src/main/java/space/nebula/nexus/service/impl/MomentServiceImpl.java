@@ -33,6 +33,7 @@ import space.nebula.nexus.repository.MomentTopicRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IMomentService;
+import space.nebula.nexus.service.support.MomentCommentCountSupport;
 import space.nebula.nexus.utils.MomentContentPolicy;
 import space.nebula.nexus.utils.MomentTopicPolicy;
 
@@ -55,19 +56,22 @@ public class MomentServiceImpl implements IMomentService {
 	private final FileRepository fileRepository;
 	private final UserRepository userRepository;
 	private final JdbcTemplate jdbcTemplate;
+	private final MomentCommentCountSupport momentCommentCountSupport;
 
 	@Override
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<MomentResponse>> getAdminMoments(Pageable pageable) {
 		Page<MomentResponse> page = momentRepository.findAll(pageable).map(momentMapper::toResponse);
-		return ApiResponse.success(PageResult.of(page));
+		List<MomentResponse> enriched = momentCommentCountSupport.withCounts(page.getContent());
+		return ApiResponse.success(new PageResult<>(enriched, page.getTotalElements(), page.getNumber() + 1,
+				page.getSize(), page.getTotalPages()));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public ApiResponse<MomentResponse> getMomentById(Long id) {
 		Moment moment = findMomentOrThrow(id);
-		return ApiResponse.success(momentMapper.toResponse(moment));
+		return ApiResponse.success(momentCommentCountSupport.withCount(momentMapper.toResponse(moment)));
 	}
 
 	@Override
@@ -82,7 +86,8 @@ public class MomentServiceImpl implements IMomentService {
 		replaceTopics(moment, request.topicSlugs(), false);
 		momentRepository.save(moment);
 		log.info("Moment created");
-		return ApiResponse.success("Moment created successfully", momentMapper.toResponse(moment));
+		return ApiResponse.success("Moment created successfully",
+				momentCommentCountSupport.withCount(momentMapper.toResponse(moment)));
 	}
 
 	@Override
@@ -102,7 +107,8 @@ public class MomentServiceImpl implements IMomentService {
 		momentRepository.save(moment);
 
 		log.info("Moment updated: {}", id);
-		return ApiResponse.success("Moment updated successfully", momentMapper.toResponse(moment));
+		return ApiResponse.success("Moment updated successfully",
+				momentCommentCountSupport.withCount(momentMapper.toResponse(moment)));
 	}
 
 	@Override
@@ -123,7 +129,9 @@ public class MomentServiceImpl implements IMomentService {
 		String currentUsername = SecurityUtil.getCurrentUsername();
 		Page<MomentResponse> page = momentRepository
 				.findPublicTimeline(MomentVisibility.PUBLIC, currentUsername, pageable).map(momentMapper::toResponse);
-		return ApiResponse.success(PageResult.of(page));
+		List<MomentResponse> enriched = momentCommentCountSupport.withCounts(page.getContent());
+		return ApiResponse.success(new PageResult<>(enriched, page.getTotalElements(), page.getNumber() + 1,
+				page.getSize(), page.getTotalPages()));
 	}
 
 	@Override

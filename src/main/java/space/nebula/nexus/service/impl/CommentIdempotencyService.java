@@ -19,9 +19,9 @@ public class CommentIdempotencyService {
 
 	private final JdbcTemplate jdbcTemplate;
 
-	public String hashSubmission(Long postId, Long parentId, String content) {
-		String value = (postId == null ? "" : postId) + "|" + (parentId == null ? "" : parentId) + "|"
-				+ (content == null ? "" : content);
+	public String hashSubmission(Long postId, Long momentId, Long parentId, String content) {
+		String value = (postId == null ? "" : postId) + "|" + (momentId == null ? "" : momentId) + "|"
+				+ (parentId == null ? "" : parentId) + "|" + (content == null ? "" : content);
 		try {
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");
 			return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));

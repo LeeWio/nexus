@@ -17,6 +17,7 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.payload.request.CommentRequest;
 import space.nebula.nexus.payload.request.CommentReportRequest;
+import space.nebula.nexus.payload.request.MomentCommentRequest;
 import space.nebula.nexus.payload.response.CommentAnchorContextResponse;
 import space.nebula.nexus.payload.response.CommentResponse;
 import space.nebula.nexus.payload.response.CommentPublishResponse;
@@ -95,6 +96,58 @@ public class PublicCommentController {
 			@Parameter(description = "Highest comment ID currently known by the client") @RequestParam(required = false) Long afterId,
 			@Parameter(description = "Number of comments to return") @RequestParam(defaultValue = "20") int size) {
 		return commentService.retrieveNewRootCommentsByPost(postId, afterId, size);
+	}
+
+	@PostMapping("/moment")
+	@Operation(summary = "Publish a moment comment", description = "Submit a comment on a public moment. Requires authentication.")
+	@SecurityRequirement(name = "bearerAuth")
+	@PreAuthorize("isAuthenticated()")
+	@RateLimit(count = 5, time = 15, unit = TimeUnit.MINUTES, message = "Too many comments. Please wait a moment.")
+	public ApiResponse<CommentPublishResponse> publishMomentComment(@Valid @RequestBody MomentCommentRequest request,
+			HttpServletRequest servletRequest) {
+		return commentService.publishMomentComment(request, servletRequest);
+	}
+
+	@GetMapping("/moment/{momentId}/roots")
+	@Operation(summary = "Retrieve root comments for a moment")
+	public ApiResponse<PageResult<CommentResponse>> retrieveMomentRootComments(
+			@Parameter(description = "Moment ID") @PathVariable Long momentId,
+			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+		return commentService.retrieveRootCommentsByMoment(momentId, pageable);
+	}
+
+	@GetMapping("/moment/{momentId}/roots/cursor")
+	@Operation(summary = "Cursor-load root comments for a moment")
+	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveMomentRootCommentsCursor(
+			@Parameter(description = "Moment ID") @PathVariable Long momentId,
+			@Parameter(description = "Last seen comment ID") @RequestParam(required = false) Long cursor,
+			@Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size) {
+		return commentService.retrieveRootCommentsByMomentCursor(momentId, cursor, size);
+	}
+
+	@GetMapping("/moment/{momentId}/roots/hot")
+	@Operation(summary = "Retrieve hot root comments for a moment")
+	public ApiResponse<PageResult<CommentResponse>> retrieveHotMomentRootComments(
+			@Parameter(description = "Moment ID") @PathVariable Long momentId,
+			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20) Pageable pageable) {
+		return commentService.retrieveHotRootCommentsByMoment(momentId, pageable);
+	}
+
+	@GetMapping("/moment/{momentId}/new-count")
+	@Operation(summary = "Count new root comments for a moment")
+	public ApiResponse<Long> countNewMomentRootComments(
+			@Parameter(description = "Moment ID") @PathVariable Long momentId,
+			@Parameter(description = "Highest comment ID known by the client") @RequestParam(required = false) Long afterId) {
+		return commentService.countNewRootCommentsByMoment(momentId, afterId);
+	}
+
+	@GetMapping("/moment/{momentId}/new")
+	@Operation(summary = "Retrieve new root comments for a moment")
+	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveNewMomentRootComments(
+			@Parameter(description = "Moment ID") @PathVariable Long momentId,
+			@Parameter(description = "Highest comment ID known by the client") @RequestParam(required = false) Long afterId,
+			@Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size) {
+		return commentService.retrieveNewRootCommentsByMoment(momentId, afterId, size);
 	}
 
 	@GetMapping("/{commentId}/context")

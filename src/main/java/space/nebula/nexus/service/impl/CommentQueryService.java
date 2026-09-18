@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
@@ -15,15 +16,18 @@ import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Comment;
+import space.nebula.nexus.entity.Moment;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.CommentStatus;
+import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.payload.response.CommentAnchorContextResponse;
 import space.nebula.nexus.payload.response.CommentResponse;
 import space.nebula.nexus.payload.response.CursorPageResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.CommentRepository;
+import space.nebula.nexus.repository.MomentRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
@@ -36,6 +40,7 @@ public class CommentQueryService {
 
 	private final CommentRepository commentRepository;
 	private final PostRepository postRepository;
+	private final MomentRepository momentRepository;
 	private final UserRepository userRepository;
 	private final CommentResponseAssembler commentResponseAssembler;
 
@@ -72,7 +77,17 @@ public class CommentQueryService {
 
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<CommentResponse>> retrieveReplies(Long parentId, Pageable pageable) {
-		validateVisibleReplyParent(parentId);
+		Comment parent = validateVisibleReplyParent(parentId);
+		if (isRootComment(parent)) {
+			Pageable sorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+					Sort.by(Sort.Direction.ASC, "id"));
+			List<Comment> descendants = commentRepository.findDescendantsByRootPathOrderByIdAsc(parent.getPath(),
+					parent.getId(), CommentStatus.APPROVED, sorted);
+			long total = commentRepository.countDescendantsByRootPath(parent.getPath(), parent.getId(),
+					CommentStatus.APPROVED);
+			return ApiResponse.success(new PageResult<>(commentResponseAssembler.toResponseList(descendants), total,
+					pageable.getPageNumber() + 1, pageable.getPageSize(), calculateTotalPages(total, pageable.getPageSize())));
+		}
 
 		var replies = commentRepository.findAllByParentIdAndStatus(parentId, CommentStatus.APPROVED, pageable);
 		return ApiResponse.success(toPageResult(replies));
@@ -81,8 +96,19 @@ public class CommentQueryService {
 	@Transactional(readOnly = true)
 	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveRepliesCursor(Long parentId, Long cursor,
 			int size) {
-		validateVisibleReplyParent(parentId);
+		Comment parent = validateVisibleReplyParent(parentId);
 		Pageable limit = cursorLimit(size);
+		if (isRootComment(parent)) {
+			List<Comment> replies = cursor == null
+					? commentRepository.findDescendantsByRootPathOrderByIdAsc(parent.getPath(), parent.getId(),
+							CommentStatus.APPROVED, limit)
+					: commentRepository.findDescendantsByRootPathAndIdGreaterThanOrderByIdAsc(parent.getPath(),
+							parent.getId(), cursor, CommentStatus.APPROVED, limit);
+			long total = commentRepository.countDescendantsByRootPath(parent.getPath(), parent.getId(),
+					CommentStatus.APPROVED);
+			return ApiResponse.success(toCursorResponse(replies, size, total));
+		}
+
 		List<Comment> replies = cursor == null
 				? commentRepository.findAllByParentIdAndStatusOrderByIdAsc(parentId, CommentStatus.APPROVED, limit)
 				: commentRepository.findAllByParentIdAndStatusAndIdGreaterThanOrderByIdAsc(parentId,
@@ -93,13 +119,15 @@ public class CommentQueryService {
 
 	@Transactional(readOnly = true)
 	public ApiResponse<List<Tree<Long>>> retrieveGuestbookComments() {
-		var comments = commentRepository.findAllByPostIsNullAndStatusOrderByPathAsc(CommentStatus.APPROVED);
+		var comments = commentRepository.findAllByPostIsNullAndMomentIsNullAndStatusOrderByPathAsc(
+				CommentStatus.APPROVED);
 		return ApiResponse.success(buildCommentTree(commentResponseAssembler.toResponseList(comments)));
 	}
 
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<CommentResponse>> retrieveGuestbookRootComments(Pageable pageable) {
-		var comments = commentRepository.findAllByPostIsNullAndParentIsNullAndStatus(CommentStatus.APPROVED, pageable);
+		var comments = commentRepository.findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatus(
+				CommentStatus.APPROVED, pageable);
 		return ApiResponse.success(toPageResult(comments));
 	}
 
@@ -107,11 +135,11 @@ public class CommentQueryService {
 	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveGuestbookRootCommentsCursor(Long cursor, int size) {
 		Pageable limit = cursorLimit(size);
 		List<Comment> comments = cursor == null
-				? commentRepository.findAllByPostIsNullAndParentIsNullAndStatusOrderByIdDesc(CommentStatus.APPROVED,
-						limit)
-				: commentRepository.findAllByPostIsNullAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(
+				? commentRepository.findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatusOrderByIdDesc(
+						CommentStatus.APPROVED, limit)
+				: commentRepository.findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(
 						CommentStatus.APPROVED, cursor, limit);
-		long total = commentRepository.countByPostIsNullAndParentIsNullAndStatus(CommentStatus.APPROVED);
+		long total = commentRepository.countByPostIsNullAndMomentIsNullAndParentIsNullAndStatus(CommentStatus.APPROVED);
 		return ApiResponse.success(toCursorResponse(comments, size, total));
 	}
 
@@ -155,18 +183,21 @@ public class CommentQueryService {
 					() -> new BusinessException(BusinessCode.FORBIDDEN,
 							"Comments are not available for unpublished posts"));
 		}
-		var replies = commentRepository.findAllByParentIdAndStatus(root.getId(), CommentStatus.APPROVED,
-				PageRequest.of(0, replyWindowSize));
+		// Align with replies/cursor (id ASC) so clients can continue with nextCursor.
+		List<Comment> replies = commentRepository.findDescendantsByRootPathOrderByIdAsc(root.getPath(), root.getId(),
+				CommentStatus.APPROVED, PageRequest.of(0, replyWindowSize));
+		long total = commentRepository.countDescendantsByRootPath(root.getPath(), root.getId(), CommentStatus.APPROVED);
+		PageResult<CommentResponse> repliesWindow = new PageResult<>(commentResponseAssembler.toResponseList(replies),
+				total, 1, replyWindowSize, calculateTotalPages(total, replyWindowSize));
 		return ApiResponse.success(CommentAnchorContextResponse.builder().rootCommentId(root.getId())
 				.rootComment(commentResponseAssembler.toResponse(root))
-				.targetComment(commentResponseAssembler.toResponse(target)).repliesWindow(toPageResult(replies))
-				.build());
+				.targetComment(commentResponseAssembler.toResponse(target)).repliesWindow(repliesWindow).build());
 	}
 
 	@Transactional(readOnly = true)
 	public ApiResponse<Long> countNewGuestbookRootComments(Long afterId) {
-		long count = commentRepository.countByPostIsNullAndParentIsNullAndStatusAndIdGreaterThan(CommentStatus.APPROVED,
-				normalizeCursor(afterId));
+		long count = commentRepository.countByPostIsNullAndMomentIsNullAndParentIsNullAndStatusAndIdGreaterThan(
+				CommentStatus.APPROVED, normalizeCursor(afterId));
 		return ApiResponse.success(count);
 	}
 
@@ -174,7 +205,55 @@ public class CommentQueryService {
 	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveNewGuestbookRootComments(Long afterId, int size) {
 		List<Comment> comments = commentRepository.findNewGuestbookRootComments(CommentStatus.APPROVED,
 				normalizeCursor(afterId), cursorLimit(size));
-		long total = commentRepository.countByPostIsNullAndParentIsNullAndStatusAndIdGreaterThan(
+		long total = commentRepository.countByPostIsNullAndMomentIsNullAndParentIsNullAndStatusAndIdGreaterThan(
+				CommentStatus.APPROVED, normalizeCursor(afterId));
+		return ApiResponse.success(toForwardCursorResponse(comments, size, total));
+	}
+
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<CommentResponse>> retrieveRootCommentsByMoment(Long momentId, Pageable pageable) {
+		validatePublicMoment(momentId);
+		var comments = commentRepository.findAllByMomentIdAndParentIsNullAndStatus(momentId, CommentStatus.APPROVED,
+				pageable);
+		return ApiResponse.success(toPageResult(comments));
+	}
+
+	@Transactional(readOnly = true)
+	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveRootCommentsByMomentCursor(Long momentId,
+			Long cursor, int size) {
+		validatePublicMoment(momentId);
+		Pageable limit = cursorLimit(size);
+		List<Comment> comments = cursor == null
+				? commentRepository.findAllByMomentIdAndParentIsNullAndStatusOrderByIdDesc(momentId,
+						CommentStatus.APPROVED, limit)
+				: commentRepository.findAllByMomentIdAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(momentId,
+						CommentStatus.APPROVED, cursor, limit);
+		long total = commentRepository.countByMomentIdAndParentIsNullAndStatus(momentId, CommentStatus.APPROVED);
+		return ApiResponse.success(toCursorResponse(comments, size, total));
+	}
+
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<CommentResponse>> retrieveHotRootCommentsByMoment(Long momentId, Pageable pageable) {
+		validatePublicMoment(momentId);
+		var comments = commentRepository.findHotRootCommentsByMoment(momentId, CommentStatus.APPROVED, pageable);
+		return ApiResponse.success(toPageResult(comments));
+	}
+
+	@Transactional(readOnly = true)
+	public ApiResponse<Long> countNewRootCommentsByMoment(Long momentId, Long afterId) {
+		validatePublicMoment(momentId);
+		long count = commentRepository.countByMomentIdAndParentIsNullAndStatusAndIdGreaterThan(momentId,
+				CommentStatus.APPROVED, normalizeCursor(afterId));
+		return ApiResponse.success(count);
+	}
+
+	@Transactional(readOnly = true)
+	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveNewRootCommentsByMoment(Long momentId, Long afterId,
+			int size) {
+		validatePublicMoment(momentId);
+		List<Comment> comments = commentRepository.findNewRootCommentsByMoment(momentId, CommentStatus.APPROVED,
+				normalizeCursor(afterId), cursorLimit(size));
+		long total = commentRepository.countByMomentIdAndParentIsNullAndStatusAndIdGreaterThan(momentId,
 				CommentStatus.APPROVED, normalizeCursor(afterId));
 		return ApiResponse.success(toForwardCursorResponse(comments, size, total));
 	}
@@ -187,9 +266,9 @@ public class CommentQueryService {
 
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<CommentResponse>> searchCommentsForManagement(CommentStatus status, Long postId,
-			String username, String keyword, Pageable pageable) {
+			String username, String keyword, Boolean featuredOnly, Pageable pageable) {
 		var spec = space.nebula.nexus.repository.specification.CommentSpecification.filterComments(status, postId,
-				username, keyword);
+				username, keyword, featuredOnly);
 		var comments = commentRepository.findAll(spec, pageable);
 		return ApiResponse.success(toPageResult(comments));
 	}
@@ -216,7 +295,14 @@ public class CommentQueryService {
 				"Comments are not available for unpublished posts"));
 	}
 
-	private void validateVisibleReplyParent(Long parentId) {
+	private void validatePublicMoment(Long momentId) {
+		Moment moment = momentRepository.findById(momentId)
+				.orElseThrow(() -> new ResourceNotFoundException("Moment", "id", momentId));
+		Assert.isTrue(moment.getVisibility() == MomentVisibility.PUBLIC,
+				() -> new BusinessException(BusinessCode.FORBIDDEN, "Comments are only available on public moments"));
+	}
+
+	private Comment validateVisibleReplyParent(Long parentId) {
 		Comment parent = commentRepository.findById(parentId)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", parentId));
 		Assert.isTrue(parent.getStatus() == CommentStatus.APPROVED,
@@ -226,6 +312,23 @@ public class CommentQueryService {
 					() -> new BusinessException(BusinessCode.FORBIDDEN,
 							"Replies are not available for unpublished posts"));
 		}
+		if (parent.getMoment() != null) {
+			Assert.isTrue(parent.getMoment().getVisibility() == MomentVisibility.PUBLIC,
+					() -> new BusinessException(BusinessCode.FORBIDDEN,
+							"Replies are only available on public moments"));
+		}
+		return parent;
+	}
+
+	private boolean isRootComment(Comment comment) {
+		return comment.getParent() == null;
+	}
+
+	private int calculateTotalPages(long total, int size) {
+		if (size <= 0) {
+			return 0;
+		}
+		return (int) ((total + size - 1) / size);
 	}
 
 	private Pageable cursorLimit(int size) {

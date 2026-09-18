@@ -65,14 +65,20 @@ public class CommentResponseAssembler {
 
 	private CommentResponse enrich(Comment comment, Map<Long, Long> replyCounts, Set<Long> likedCommentIds) {
 		CommentResponse response = commentMapper.toResponse(comment);
+		User currentUser = SecurityUtil.getCurrentUser();
+		boolean isOwner = currentUser != null && comment.getUser() != null
+				&& currentUser.getId().equals(comment.getUser().getId());
+		boolean canMutate = isOwner && !Boolean.TRUE.equals(comment.getDeletedPlaceholder());
 		return CommentResponse.builder().id(response.id()).parentId(response.parentId()).content(response.content())
-				.username(response.username()).nickname(response.nickname()).avatar(response.avatar())
-				.status(response.status()).postId(response.postId()).postTitle(response.postTitle())
+				.authorUserId(response.authorUserId()).username(response.username()).nickname(response.nickname())
+				.avatar(response.avatar()).status(response.status()).postId(response.postId())
+				.postTitle(response.postTitle()).momentId(response.momentId())
 				.likesCount(response.likesCount() == null ? 0L : response.likesCount())
 				.reportsCount(response.reportsCount() == null ? 0L : response.reportsCount())
 				.replyCount(Math.toIntExact(replyCounts.getOrDefault(comment.getId(), 0L)))
-				.likedByCurrentUser(likedCommentIds.contains(comment.getId()))
-				.pinned(Boolean.TRUE.equals(response.pinned())).featured(Boolean.TRUE.equals(response.featured()))
+				.likedByCurrentUser(likedCommentIds.contains(comment.getId())).viewerCanEdit(canMutate)
+				.viewerCanDelete(canMutate).pinned(Boolean.TRUE.equals(response.pinned()))
+				.featured(Boolean.TRUE.equals(response.featured()))
 				.deletedPlaceholder(Boolean.TRUE.equals(response.deletedPlaceholder())).createdAt(response.createdAt())
 				.editedAt(response.editedAt()).build();
 	}

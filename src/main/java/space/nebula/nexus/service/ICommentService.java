@@ -9,7 +9,9 @@ import space.nebula.nexus.enums.CommentReportStatus;
 import space.nebula.nexus.enums.CommentStatus;
 import space.nebula.nexus.payload.request.CommentRequest;
 import space.nebula.nexus.payload.request.CommentReportRequest;
+import space.nebula.nexus.payload.request.CommentReportResolutionRequest;
 import space.nebula.nexus.payload.request.CommentUpdateRequest;
+import space.nebula.nexus.payload.request.MomentCommentRequest;
 import space.nebula.nexus.payload.response.CommentAnchorContextResponse;
 import space.nebula.nexus.payload.response.CommentResponse;
 import space.nebula.nexus.payload.response.CommentPublishResponse;
@@ -28,6 +30,21 @@ public interface ICommentService {
 	 * Publishes a new comment. Performs auto-moderation.
 	 */
 	ApiResponse<CommentPublishResponse> publishComment(CommentRequest request, HttpServletRequest servletRequest);
+
+	ApiResponse<CommentPublishResponse> publishMomentComment(MomentCommentRequest request,
+			HttpServletRequest servletRequest);
+
+	ApiResponse<PageResult<CommentResponse>> retrieveRootCommentsByMoment(Long momentId, Pageable pageable);
+
+	ApiResponse<CursorPageResponse<CommentResponse>> retrieveRootCommentsByMomentCursor(Long momentId, Long cursor,
+			int size);
+
+	ApiResponse<PageResult<CommentResponse>> retrieveHotRootCommentsByMoment(Long momentId, Pageable pageable);
+
+	ApiResponse<Long> countNewRootCommentsByMoment(Long momentId, Long afterId);
+
+	ApiResponse<CursorPageResponse<CommentResponse>> retrieveNewRootCommentsByMoment(Long momentId, Long afterId,
+			int size);
 
 	/**
 	 * Retrieves approved comments for a specific post as a tree.
@@ -121,7 +138,12 @@ public interface ICommentService {
 	 * Searches all comments for administrative management with filters.
 	 */
 	ApiResponse<PageResult<CommentResponse>> searchCommentsForManagement(CommentStatus status, Long postId,
-			String username, String keyword, Pageable pageable);
+			String username, String keyword, Boolean featuredOnly, Pageable pageable);
+
+	/**
+	 * Resolves a single comment report without necessarily changing comment status.
+	 */
+	ApiResponse<Void> resolveCommentReport(Long commentId, Long reporterId, CommentReportResolutionRequest request);
 
 	/**
 	 * Retrieves comments that are pending moderation.

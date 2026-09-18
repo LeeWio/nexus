@@ -15,7 +15,7 @@ import java.util.List;
 public class CommentSpecification {
 
 	public static Specification<Comment> filterComments(CommentStatus status, Long postId, String username,
-			String keyword) {
+			String keyword, Boolean featuredOnly) {
 		return (root, query, cb) -> {
 			List<Predicate> predicates = new ArrayList<>();
 
@@ -34,6 +34,10 @@ public class CommentSpecification {
 			if (StrUtil.isNotBlank(keyword)) {
 				String pattern = "%" + keyword.toLowerCase() + "%";
 				predicates.add(cb.like(cb.lower(root.get("content")), pattern));
+			}
+
+			if (Boolean.TRUE.equals(featuredOnly)) {
+				predicates.add(cb.isTrue(root.get("featured")));
 			}
 
 			return cb.and(predicates.toArray(new Predicate[0]));

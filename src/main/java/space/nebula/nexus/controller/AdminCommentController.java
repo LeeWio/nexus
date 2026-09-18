@@ -15,6 +15,7 @@ import space.nebula.nexus.enums.CommentModerationAction;
 import space.nebula.nexus.enums.CommentReportStatus;
 import space.nebula.nexus.enums.CommentStatus;
 import space.nebula.nexus.payload.request.BatchModerateCommentRequest;
+import space.nebula.nexus.payload.request.CommentReportResolutionRequest;
 import space.nebula.nexus.payload.response.CommentGovernanceOverviewResponse;
 import space.nebula.nexus.payload.response.CommentModerationLogResponse;
 import space.nebula.nexus.payload.response.CommentRiskResponse;
@@ -43,8 +44,9 @@ public class AdminCommentController {
 			@Parameter(description = "Filter by post ID") @RequestParam(required = false) Long postId,
 			@Parameter(description = "Filter by username") @RequestParam(required = false) String username,
 			@Parameter(description = "Filter by keyword in content") @RequestParam(required = false) String keyword,
+			@Parameter(description = "When true, only featured comments") @RequestParam(required = false) Boolean featuredOnly,
 			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-		return commentService.searchCommentsForManagement(status, postId, username, keyword, pageable);
+		return commentService.searchCommentsForManagement(status, postId, username, keyword, featuredOnly, pageable);
 	}
 
 	@GetMapping("/pending")
@@ -68,6 +70,15 @@ public class AdminCommentController {
 			@Parameter(description = "Filter by reporter username") @RequestParam(required = false) String reporterUsername,
 			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return commentService.retrieveCommentReports(status, commentId, reporterUsername, pageable);
+	}
+
+	@PatchMapping("/reports/{commentId}/{reporterId}")
+	@Operation(summary = "Resolve comment report", description = "Dismiss or action a single comment report without requiring a status change on the comment.")
+	public ApiResponse<Void> resolveCommentReport(
+			@Parameter(description = "Reported comment ID") @PathVariable Long commentId,
+			@Parameter(description = "Reporter user ID") @PathVariable Long reporterId,
+			@Valid @RequestBody CommentReportResolutionRequest request) {
+		return commentService.resolveCommentReport(commentId, reporterId, request);
 	}
 
 	@GetMapping("/high-risk")

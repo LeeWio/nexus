@@ -27,13 +27,24 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	List<Comment> findAllByPostIdAndStatusOrderByPathAsc(Long postId, CommentStatus status);
 
 	@EntityGraph(attributePaths = {"user"})
+	List<Comment> findAllByPostIsNullAndMomentIsNullAndStatusOrderByPathAsc(CommentStatus status);
+
+	/** @deprecated Prefer findAllByPostIsNullAndMomentIsNullAndStatusOrderByPathAsc */
+	@EntityGraph(attributePaths = {"user"})
 	List<Comment> findAllByPostIsNullAndStatusOrderByPathAsc(CommentStatus status);
 
 	@EntityGraph(attributePaths = {"user", "post"})
 	Page<Comment> findAllByPostIdAndParentIsNullAndStatus(Long postId, CommentStatus status, Pageable pageable);
 
+	@EntityGraph(attributePaths = {"user", "post", "moment"})
+	Page<Comment> findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatus(CommentStatus status, Pageable pageable);
+
+	/** @deprecated Prefer findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatus */
 	@EntityGraph(attributePaths = {"user", "post"})
 	Page<Comment> findAllByPostIsNullAndParentIsNullAndStatus(CommentStatus status, Pageable pageable);
+
+	@EntityGraph(attributePaths = {"user", "moment"})
+	Page<Comment> findAllByMomentIdAndParentIsNullAndStatus(Long momentId, CommentStatus status, Pageable pageable);
 
 	@EntityGraph(attributePaths = {"user", "post", "parent"})
 	Page<Comment> findAllByParentIdAndStatus(Long parentId, CommentStatus status, Pageable pageable);
@@ -55,12 +66,30 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	List<Comment> findAllByPostIdAndParentIsNullAndStatusOrderByIdDesc(Long postId, CommentStatus status,
 			Pageable pageable);
 
+	@EntityGraph(attributePaths = {"user", "post", "moment"})
+	List<Comment> findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(
+			CommentStatus status, Long cursor, Pageable pageable);
+
+	@EntityGraph(attributePaths = {"user", "post", "moment"})
+	List<Comment> findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatusOrderByIdDesc(CommentStatus status,
+			Pageable pageable);
+
+	/** @deprecated Prefer moment-null aware guestbook methods */
 	@EntityGraph(attributePaths = {"user", "post"})
 	List<Comment> findAllByPostIsNullAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(CommentStatus status,
 			Long cursor, Pageable pageable);
 
+	/** @deprecated Prefer moment-null aware guestbook methods */
 	@EntityGraph(attributePaths = {"user", "post"})
 	List<Comment> findAllByPostIsNullAndParentIsNullAndStatusOrderByIdDesc(CommentStatus status, Pageable pageable);
+
+	@EntityGraph(attributePaths = {"user", "moment"})
+	List<Comment> findAllByMomentIdAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(Long momentId,
+			CommentStatus status, Long cursor, Pageable pageable);
+
+	@EntityGraph(attributePaths = {"user", "moment"})
+	List<Comment> findAllByMomentIdAndParentIsNullAndStatusOrderByIdDesc(Long momentId, CommentStatus status,
+			Pageable pageable);
 
 	@EntityGraph(attributePaths = {"user", "post", "parent"})
 	List<Comment> findAllByParentIdAndStatusAndIdGreaterThanOrderByIdAsc(Long parentId, CommentStatus status,
@@ -69,13 +98,72 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	@EntityGraph(attributePaths = {"user", "post", "parent"})
 	List<Comment> findAllByParentIdAndStatusOrderByIdAsc(Long parentId, CommentStatus status, Pageable pageable);
 
+	@EntityGraph(attributePaths = {"user", "post", "parent"})
+	@Query("""
+			select c from Comment c
+			where c.path like concat(:rootPath, '%')
+			  and c.id <> :rootId
+			  and c.status = :status
+			order by c.id asc
+			""")
+	List<Comment> findDescendantsByRootPathOrderByIdAsc(String rootPath, Long rootId, CommentStatus status,
+			Pageable pageable);
+
+	@EntityGraph(attributePaths = {"user", "post", "parent"})
+	@Query("""
+			select c from Comment c
+			where c.path like concat(:rootPath, '%')
+			  and c.id <> :rootId
+			  and c.id > :cursor
+			  and c.status = :status
+			order by c.id asc
+			""")
+	List<Comment> findDescendantsByRootPathAndIdGreaterThanOrderByIdAsc(String rootPath, Long rootId, Long cursor,
+			CommentStatus status, Pageable pageable);
+
+	@Query("""
+			select count(c) from Comment c
+			where c.path like concat(:rootPath, '%')
+			  and c.id <> :rootId
+			  and c.status = :status
+			""")
+	long countDescendantsByRootPath(String rootPath, Long rootId, CommentStatus status);
+
 	long countByPostIdAndParentIsNullAndStatusAndIdGreaterThan(Long postId, CommentStatus status, Long afterId);
+
+	long countByPostIsNullAndMomentIsNullAndParentIsNullAndStatusAndIdGreaterThan(CommentStatus status, Long afterId);
 
 	long countByPostIsNullAndParentIsNullAndStatusAndIdGreaterThan(CommentStatus status, Long afterId);
 
 	long countByPostIdAndParentIsNullAndStatus(Long postId, CommentStatus status);
 
+	long countByPostIsNullAndMomentIsNullAndParentIsNullAndStatus(CommentStatus status);
+
 	long countByPostIsNullAndParentIsNullAndStatus(CommentStatus status);
+
+	long countByMomentIdAndParentIsNullAndStatus(Long momentId, CommentStatus status);
+
+	long countByMomentIdAndStatus(Long momentId, CommentStatus status);
+
+	long countByMomentIdAndParentIsNullAndStatusAndIdGreaterThan(Long momentId, CommentStatus status, Long afterId);
+
+	@Query("""
+			select c.moment.id, count(c)
+			from Comment c
+			where c.moment.id in :momentIds
+			  and c.status = :status
+			group by c.moment.id
+			""")
+	List<Object[]> countApprovedCommentsByMomentIds(Collection<Long> momentIds, CommentStatus status);
+
+	@Query("""
+			select c.post.id, count(c)
+			from Comment c
+			where c.post.id in :postIds
+			  and c.status = :status
+			group by c.post.id
+			""")
+	List<Object[]> countApprovedCommentsByPostIds(Collection<Long> postIds, CommentStatus status);
 
 	@Query("""
 			select c.post.id, count(c)
@@ -91,17 +179,25 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	@Query("select c from Comment c where c.post.id = :postId and c.parent is null and c.status = :status and c.id > :afterId order by c.id asc")
 	List<Comment> findNewRootCommentsByPost(Long postId, CommentStatus status, Long afterId, Pageable pageable);
 
-	@EntityGraph(attributePaths = {"user", "post"})
-	@Query("select c from Comment c where c.post is null and c.parent is null and c.status = :status and c.id > :afterId order by c.id asc")
+	@EntityGraph(attributePaths = {"user", "post", "moment"})
+	@Query("select c from Comment c where c.post is null and c.moment is null and c.parent is null and c.status = :status and c.id > :afterId order by c.id asc")
 	List<Comment> findNewGuestbookRootComments(CommentStatus status, Long afterId, Pageable pageable);
+
+	@EntityGraph(attributePaths = {"user", "moment"})
+	@Query("select c from Comment c where c.moment.id = :momentId and c.parent is null and c.status = :status and c.id > :afterId order by c.id asc")
+	List<Comment> findNewRootCommentsByMoment(Long momentId, CommentStatus status, Long afterId, Pageable pageable);
 
 	@EntityGraph(attributePaths = {"user", "post"})
 	@Query("select c from Comment c where c.post.id = :postId and c.parent is null and c.status = :status order by c.pinned desc, c.featured desc, c.likesCount desc, c.createdAt desc, c.id desc")
 	Page<Comment> findHotRootCommentsByPost(Long postId, CommentStatus status, Pageable pageable);
 
-	@EntityGraph(attributePaths = {"user", "post"})
-	@Query("select c from Comment c where c.post is null and c.parent is null and c.status = :status order by c.pinned desc, c.featured desc, c.likesCount desc, c.createdAt desc, c.id desc")
+	@EntityGraph(attributePaths = {"user", "post", "moment"})
+	@Query("select c from Comment c where c.post is null and c.moment is null and c.parent is null and c.status = :status order by c.pinned desc, c.featured desc, c.likesCount desc, c.createdAt desc, c.id desc")
 	Page<Comment> findHotGuestbookRootComments(CommentStatus status, Pageable pageable);
+
+	@EntityGraph(attributePaths = {"user", "moment"})
+	@Query("select c from Comment c where c.moment.id = :momentId and c.parent is null and c.status = :status order by c.pinned desc, c.featured desc, c.likesCount desc, c.createdAt desc, c.id desc")
+	Page<Comment> findHotRootCommentsByMoment(Long momentId, CommentStatus status, Pageable pageable);
 
 	@Override
 	@EntityGraph(attributePaths = {"user", "post"})

@@ -11,7 +11,9 @@ import space.nebula.nexus.enums.CommentReportStatus;
 import space.nebula.nexus.enums.CommentStatus;
 import space.nebula.nexus.payload.request.CommentRequest;
 import space.nebula.nexus.payload.request.CommentReportRequest;
+import space.nebula.nexus.payload.request.CommentReportResolutionRequest;
 import space.nebula.nexus.payload.request.CommentUpdateRequest;
+import space.nebula.nexus.payload.request.MomentCommentRequest;
 import space.nebula.nexus.payload.response.CommentAnchorContextResponse;
 import space.nebula.nexus.payload.response.CommentResponse;
 import space.nebula.nexus.payload.response.CommentPublishResponse;
@@ -37,6 +39,39 @@ public class CommentServiceImpl implements ICommentService {
 	@Override
 	public ApiResponse<CommentPublishResponse> publishComment(CommentRequest request, HttpServletRequest servletRequest) {
 		return commandService.publishComment(request, servletRequest);
+	}
+
+	@Override
+	public ApiResponse<CommentPublishResponse> publishMomentComment(MomentCommentRequest request,
+			HttpServletRequest servletRequest) {
+		return commandService.publishMomentComment(request, servletRequest);
+	}
+
+	@Override
+	public ApiResponse<PageResult<CommentResponse>> retrieveRootCommentsByMoment(Long momentId, Pageable pageable) {
+		return queryService.retrieveRootCommentsByMoment(momentId, pageable);
+	}
+
+	@Override
+	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveRootCommentsByMomentCursor(Long momentId,
+			Long cursor, int size) {
+		return queryService.retrieveRootCommentsByMomentCursor(momentId, cursor, size);
+	}
+
+	@Override
+	public ApiResponse<PageResult<CommentResponse>> retrieveHotRootCommentsByMoment(Long momentId, Pageable pageable) {
+		return queryService.retrieveHotRootCommentsByMoment(momentId, pageable);
+	}
+
+	@Override
+	public ApiResponse<Long> countNewRootCommentsByMoment(Long momentId, Long afterId) {
+		return queryService.countNewRootCommentsByMoment(momentId, afterId);
+	}
+
+	@Override
+	public ApiResponse<CursorPageResponse<CommentResponse>> retrieveNewRootCommentsByMoment(Long momentId, Long afterId,
+			int size) {
+		return queryService.retrieveNewRootCommentsByMoment(momentId, afterId, size);
 	}
 
 	@Override
@@ -144,8 +179,14 @@ public class CommentServiceImpl implements ICommentService {
 
 	@Override
 	public ApiResponse<PageResult<CommentResponse>> searchCommentsForManagement(CommentStatus status, Long postId,
-			String username, String keyword, Pageable pageable) {
-		return queryService.searchCommentsForManagement(status, postId, username, keyword, pageable);
+			String username, String keyword, Boolean featuredOnly, Pageable pageable) {
+		return queryService.searchCommentsForManagement(status, postId, username, keyword, featuredOnly, pageable);
+	}
+
+	@Override
+	public ApiResponse<Void> resolveCommentReport(Long commentId, Long reporterId,
+			CommentReportResolutionRequest request) {
+		return governanceService.resolveCommentReport(commentId, reporterId, request);
 	}
 
 	@Override

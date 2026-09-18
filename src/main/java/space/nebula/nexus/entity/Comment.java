@@ -34,8 +34,12 @@ public class Comment extends BaseEntity {
 	private CommentStatus status = CommentStatus.PENDING;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "post_id") // Nullable for guestbook
+	@JoinColumn(name = "post_id") // Nullable for guestbook / moments
 	private Post post;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "moment_id") // Nullable for posts / guestbook
+	private Moment moment;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false)
@@ -118,6 +122,10 @@ public class Comment extends BaseEntity {
 	 */
 	public boolean belongsToPost(Long postId) {
 		return this.post != null && this.post.getId().equals(postId);
+	}
+
+	public boolean belongsToMoment(Long momentId) {
+		return this.moment != null && this.moment.getId().equals(momentId);
 	}
 
 	public void markDeletedPlaceholder() {

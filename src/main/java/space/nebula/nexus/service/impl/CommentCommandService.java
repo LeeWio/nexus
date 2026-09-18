@@ -4,11 +4,13 @@ import cn.hutool.core.lang.Assert;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
 import space.nebula.nexus.common.constant.BusinessCode;
@@ -18,17 +20,21 @@ import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.config.CommentModerationProperties;
 import space.nebula.nexus.config.CommentThreadProperties;
 import space.nebula.nexus.entity.Comment;
+import space.nebula.nexus.entity.Moment;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.CommentModerationAction;
 import space.nebula.nexus.enums.CommentReportStatus;
 import space.nebula.nexus.enums.CommentStatus;
+import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.payload.request.CommentRequest;
 import space.nebula.nexus.payload.request.CommentReportRequest;
 import space.nebula.nexus.payload.request.CommentUpdateRequest;
+import space.nebula.nexus.payload.request.MomentCommentRequest;
 import space.nebula.nexus.payload.response.CommentPublishResponse;
 import space.nebula.nexus.repository.CommentRepository;
+import space.nebula.nexus.repository.MomentRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
@@ -46,6 +52,7 @@ public class CommentCommandService {
 
 	private final CommentRepository commentRepository;
 	private final PostRepository postRepository;
+	private final MomentRepository momentRepository;
 	private final UserRepository userRepository;
 	private final SensitiveWordService sensitiveWordService;
 	private final ApplicationEventPublisher eventPublisher;
@@ -60,14 +67,18 @@ public class CommentCommandService {
 	@LogOperation("Publish Comment")
 	public ApiResponse<CommentPublishResponse> publishComment(CommentRequest request,
 			HttpServletRequest servletRequest) {
+		Assert.isFalse(request.postId() != null && request.momentId() != null,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Provide either postId or momentId, not both"));
 		Post targetPost = resolveTargetPost(request.postId());
+		Moment targetMoment = resolveTargetMoment(request.momentId());
 		String filteredContent = sensitiveWordService.filter(request.content());
 		boolean hasViolation = request.content() != null && !request.content().equals(filteredContent);
-		Comment parentComment = resolveParentComment(request.parentId(), targetPost);
+		Comment parentComment = resolveParentComment(request.parentId(), targetPost, targetMoment);
 		User author = SecurityUtil.getCurrentUserOrThrow(userRepository);
 
 		String clientRequestId = normalizeClientRequestId(servletRequest);
-		String requestHash = idempotencyService.hashSubmission(request.postId(), request.parentId(), filteredContent);
+		String requestHash = idempotencyService.hashSubmission(request.postId(), request.momentId(), request.parentId(),
+				filteredContent);
 		var replayedResponse = idempotencyService.begin(author.getId(), clientRequestId, requestHash);
 		if (replayedResponse.isPresent()) {
 			return restoreReplayResponse(replayedResponse.get(), author, clientRequestId);
@@ -75,7 +86,8 @@ public class CommentCommandService {
 		if (clientRequestId != null) {
 			var existingComment = commentRepository.findByUserIdAndClientRequestId(author.getId(), clientRequestId);
 			if (existingComment.isPresent()) {
-				Assert.isTrue(isSameSubmission(existingComment.get(), targetPost, parentComment, filteredContent),
+				Assert.isTrue(
+						isSameSubmission(existingComment.get(), targetPost, targetMoment, parentComment, filteredContent),
 						() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 								"Idempotency-Key was already used for a different comment"));
 				return ApiResponse.success("Comment submission already received.",
@@ -87,6 +99,7 @@ public class CommentCommandService {
 			var comment = new Comment();
 			comment.setContent(filteredContent);
 			comment.setPost(targetPost);
+			comment.setMoment(targetMoment);
 			comment.setUser(author);
 			comment.setParent(parentComment);
 			comment.setIpAddress(IpUtil.getIpAddress(servletRequest));
@@ -161,6 +174,7 @@ public class CommentCommandService {
 	}
 
 	@Transactional
+	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
 	@LogOperation("Delete My Comment")
 	public ApiResponse<Void> deleteMyComment(Long id) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
@@ -228,14 +242,32 @@ public class CommentCommandService {
 		return targetPost;
 	}
 
-	private Comment resolveParentComment(Long parentId, Post targetPost) {
+	private Moment resolveTargetMoment(Long momentId) {
+		if (momentId == null) {
+			return null;
+		}
+		Moment targetMoment = momentRepository.findById(momentId)
+				.orElseThrow(() -> new ResourceNotFoundException("Moment", "id", momentId));
+		Assert.isTrue(targetMoment.getVisibility() == MomentVisibility.PUBLIC,
+				() -> new BusinessException(BusinessCode.FORBIDDEN, "Comments are only available on public moments"));
+		return targetMoment;
+	}
+
+	private Comment resolveParentComment(Long parentId, Post targetPost, Moment targetMoment) {
 		if (parentId == null) {
 			return null;
 		}
 		Comment parentComment = commentRepository.findById(parentId)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", parentId));
-		boolean contextMatch = (targetPost == null && parentComment.getPost() == null) || (targetPost != null
-				&& parentComment.getPost() != null && parentComment.getPost().getId().equals(targetPost.getId()));
+		boolean contextMatch;
+		if (targetMoment != null) {
+			contextMatch = parentComment.getMoment() != null
+					&& parentComment.getMoment().getId().equals(targetMoment.getId());
+		} else if (targetPost != null) {
+			contextMatch = parentComment.getPost() != null && parentComment.getPost().getId().equals(targetPost.getId());
+		} else {
+			contextMatch = parentComment.getPost() == null && parentComment.getMoment() == null;
+		}
 		Assert.isTrue(contextMatch,
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Comment context does not match the parent"));
 		Assert.isTrue(parentComment.getStatus() == CommentStatus.APPROVED,
@@ -297,19 +329,23 @@ public class CommentCommandService {
 				.orElseGet(() -> ApiResponse.success(replayedResponse.message(), null));
 	}
 
-	private boolean isSameSubmission(Comment existingComment, Post targetPost, Comment parentComment,
-			String filteredContent) {
+	private boolean isSameSubmission(Comment existingComment, Post targetPost, Moment targetMoment,
+			Comment parentComment, String filteredContent) {
 		Long existingPostId = existingComment.getPost() == null ? null : existingComment.getPost().getId();
 		Long targetPostId = targetPost == null ? null : targetPost.getId();
+		Long existingMomentId = existingComment.getMoment() == null ? null : existingComment.getMoment().getId();
+		Long targetMomentId = targetMoment == null ? null : targetMoment.getId();
 		Long existingParentId = existingComment.getParent() == null ? null : existingComment.getParent().getId();
 		Long targetParentId = parentComment == null ? null : parentComment.getId();
-		return Objects.equals(existingPostId, targetPostId) && Objects.equals(existingParentId, targetParentId)
+		return Objects.equals(existingPostId, targetPostId) && Objects.equals(existingMomentId, targetMomentId)
+				&& Objects.equals(existingParentId, targetParentId)
 				&& Objects.equals(existingComment.getContent(), filteredContent);
 	}
 
 	private CommentSubmittedEvent buildSubmittedEvent(Comment comment) {
 		User author = comment.getUser();
 		Post post = comment.getPost();
+		Moment moment = comment.getMoment();
 		String authorDisplayName = author.getNickname() != null ? author.getNickname() : author.getUsername();
 		String postAuthorEmail = null;
 		String postAuthorDisplayName = null;
@@ -324,11 +360,29 @@ public class CommentCommandService {
 						? postAuthor.getNickname()
 						: postAuthor.getUsername();
 			}
+		} else if (moment != null) {
+			postTitle = "Moment #" + moment.getId();
+			User momentAuthor = moment.getUser();
+			if (momentAuthor != null) {
+				postAuthorEmail = momentAuthor.getEmail();
+				postAuthorDisplayName = momentAuthor.getNickname() != null
+						? momentAuthor.getNickname()
+						: momentAuthor.getUsername();
+			}
 		}
 
 		return new CommentSubmittedEvent(this, comment.getId(), author.getUsername(), authorDisplayName,
 				comment.getContent(), comment.getStatus(), postTitle, postAuthorEmail, postAuthorDisplayName,
 				comment.getIpAddress(), comment.getUserAgent());
+	}
+
+	@Transactional
+	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
+	@LogOperation("Publish Moment Comment")
+	public ApiResponse<CommentPublishResponse> publishMomentComment(MomentCommentRequest request,
+			HttpServletRequest servletRequest) {
+		return publishComment(new CommentRequest(request.content(), null, request.momentId(), request.parentId()),
+				servletRequest);
 	}
 
 	private Comment findOwnedComment(Long id, User currentUser) {

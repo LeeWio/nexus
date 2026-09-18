@@ -85,7 +85,7 @@ class CommentServiceImplTest {
 		testPost.setStatus(PostStatus.PUBLISHED);
 		moderationProperties = new CommentModerationProperties();
 		threadProperties = new CommentThreadProperties();
-		lenient().when(idempotencyService.hashSubmission(any(), any(), any())).thenReturn("request-hash");
+		lenient().when(idempotencyService.hashSubmission(any(), any(), any(), any())).thenReturn("request-hash");
 		lenient().when(idempotencyService.begin(anyLong(), any(), any())).thenReturn(Optional.empty());
 		lenient().when(commentRepository.saveAndFlush(any(Comment.class))).thenAnswer(invocation -> {
 			Comment comment = invocation.getArgument(0);
@@ -108,7 +108,7 @@ class CommentServiceImplTest {
 
 	@Test
 	void publishComment_Success() {
-		CommentRequest request = new CommentRequest("Hello World", 1L, null);
+		CommentRequest request = new CommentRequest("Hello World", 1L, null, null);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(sensitiveWordService.filter("Hello World")).thenReturn("Hello World");
@@ -132,7 +132,7 @@ class CommentServiceImplTest {
 
 	@Test
 	void publishComment_WithViolation() {
-		CommentRequest request = new CommentRequest("Bad Word", 1L, null);
+		CommentRequest request = new CommentRequest("Bad Word", 1L, null, null);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(sensitiveWordService.filter("Bad Word")).thenReturn("***");
@@ -152,7 +152,7 @@ class CommentServiceImplTest {
 
 	@Test
 	void publishComment_AdminSuccess() {
-		CommentRequest request = new CommentRequest("Hello from Admin", 1L, null);
+		CommentRequest request = new CommentRequest("Hello from Admin", 1L, null, null);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(sensitiveWordService.filter("Hello from Admin")).thenReturn("Hello from Admin");
@@ -173,7 +173,7 @@ class CommentServiceImplTest {
 
 	@Test
 	void publishComment_AdminWithViolation() {
-		CommentRequest request = new CommentRequest("Admin Bad Word", 1L, null);
+		CommentRequest request = new CommentRequest("Admin Bad Word", 1L, null, null);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(sensitiveWordService.filter("Admin Bad Word")).thenReturn("***");
@@ -194,7 +194,7 @@ class CommentServiceImplTest {
 
 	@Test
 	void publishCommentWithSameIdempotencyKeyReturnsExistingSuccess() {
-		CommentRequest request = new CommentRequest("Hello World", 1L, null);
+		CommentRequest request = new CommentRequest("Hello World", 1L, null, null);
 		Comment existing = new Comment();
 		existing.setId(101L);
 		existing.setUser(testUser);
@@ -220,7 +220,7 @@ class CommentServiceImplTest {
 
 	@Test
 	void publishCommentRejectsReusedIdempotencyKeyForDifferentContent() {
-		CommentRequest request = new CommentRequest("Updated content", 1L, null);
+		CommentRequest request = new CommentRequest("Updated content", 1L, null, null);
 		Comment existing = new Comment();
 		existing.setId(101L);
 		existing.setUser(testUser);
@@ -246,7 +246,7 @@ class CommentServiceImplTest {
 
 	@Test
 	void publishCommentRejectsTooLongIdempotencyKey() {
-		CommentRequest request = new CommentRequest("Hello World", 1L, null);
+		CommentRequest request = new CommentRequest("Hello World", 1L, null, null);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(sensitiveWordService.filter("Hello World")).thenReturn("Hello World");
@@ -639,7 +639,7 @@ class CommentServiceImplTest {
 		parent.setId(10L);
 		parent.setPost(testPost);
 		parent.setStatus(CommentStatus.PENDING);
-		CommentRequest request = new CommentRequest("Reply", 1L, 10L);
+		CommentRequest request = new CommentRequest("Reply", 1L, null, 10L);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(sensitiveWordService.filter("Reply")).thenReturn("Reply");
@@ -659,7 +659,7 @@ class CommentServiceImplTest {
 		parent.setPost(testPost);
 		parent.setStatus(CommentStatus.APPROVED);
 		parent.setDeletedPlaceholder(true);
-		CommentRequest request = new CommentRequest("Reply", 1L, 10L);
+		CommentRequest request = new CommentRequest("Reply", 1L, null, 10L);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(sensitiveWordService.filter("Reply")).thenReturn("Reply");
@@ -680,7 +680,7 @@ class CommentServiceImplTest {
 		parent.setPost(testPost);
 		parent.setStatus(CommentStatus.APPROVED);
 		parent.setPath("/1/2/10/");
-		CommentRequest request = new CommentRequest("Reply", 1L, 10L);
+		CommentRequest request = new CommentRequest("Reply", 1L, null, 10L);
 
 		when(postRepository.findById(1L)).thenReturn(Optional.of(testPost));
 		when(sensitiveWordService.filter("Reply")).thenReturn("Reply");

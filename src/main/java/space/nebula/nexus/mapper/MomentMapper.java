@@ -54,7 +54,7 @@ public interface MomentMapper {
 		}
 
 		return new MomentResponse(moment.getId(), moment.getContent(), moment.getStockSymbol(), moment.getLikesCount(),
-				moment.getVisibility(), authorName, authorAvatar, images, topics, moment.getCreatedAt(),
+				0L, moment.getVisibility(), authorName, authorAvatar, images, topics, moment.getCreatedAt(),
 				moment.getUpdatedAt());
 	}
 

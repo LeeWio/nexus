@@ -5,13 +5,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import cn.hutool.core.lang.Assert;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.common.constant.BusinessCode;
+import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.config.CommentModerationProperties;
 import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.entity.CommentModerationLog;
 import space.nebula.nexus.enums.CommentModerationAction;
 import space.nebula.nexus.enums.CommentReportStatus;
 import space.nebula.nexus.enums.CommentStatus;
+import space.nebula.nexus.payload.request.CommentReportResolutionRequest;
 import space.nebula.nexus.payload.response.CommentGovernanceOverviewResponse;
 import space.nebula.nexus.payload.response.CommentModerationLogResponse;
 import space.nebula.nexus.payload.response.CommentRiskResponse;
@@ -63,6 +67,23 @@ public class CommentGovernanceService {
 				"UPDATE blog_comment_report SET status = ?, resolution_note = ?, handled_by = ?, handled_at = CURRENT_TIMESTAMP WHERE comment_id = ? AND status = ?",
 				status.name(), resolutionNote, SecurityUtil.getCurrentUsername(), commentId,
 				CommentReportStatus.OPEN.name());
+	}
+
+	public ApiResponse<Void> resolveCommentReport(Long commentId, Long reporterId,
+			CommentReportResolutionRequest request) {
+		Assert.isTrue(request.status() == CommentReportStatus.ACTIONED || request.status() == CommentReportStatus.DISMISSED,
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Report status must be ACTIONED or DISMISSED"));
+		int updated = jdbcTemplate.update(
+				"""
+						UPDATE blog_comment_report
+						SET status = ?, resolution_note = ?, handled_by = ?, handled_at = CURRENT_TIMESTAMP
+						WHERE comment_id = ? AND reporter_id = ? AND status = ?
+						""",
+				request.status().name(), request.resolutionNote(), SecurityUtil.getCurrentUsername(), commentId,
+				reporterId, CommentReportStatus.OPEN.name());
+		Assert.isTrue(updated > 0,
+				() -> new BusinessException(BusinessCode.NOT_FOUND, "Open comment report was not found"));
+		return ApiResponse.success("Comment report resolved", null);
 	}
 
 	public ApiResponse<CommentGovernanceOverviewResponse> retrieveCommentGovernanceOverview() {
