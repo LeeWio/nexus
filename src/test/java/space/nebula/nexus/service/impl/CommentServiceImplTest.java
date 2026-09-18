@@ -314,9 +314,12 @@ class CommentServiceImplTest {
 	@Test
 	void retrieveRepliesUsesPaginatedReplyQuery() {
 		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+		Comment root = new Comment();
+		root.setId(1L);
 		Comment parent = new Comment();
 		parent.setId(10L);
 		parent.setPost(testPost);
+		parent.setParent(root);
 		parent.setStatus(CommentStatus.APPROVED);
 		Comment reply = new Comment();
 		org.springframework.data.domain.Page<Comment> page = new org.springframework.data.domain.PageImpl<>(
@@ -354,15 +357,15 @@ class CommentServiceImplTest {
 		org.springframework.data.domain.Page<Comment> page = new org.springframework.data.domain.PageImpl<>(
 				java.util.List.of(comment), pageable, 1);
 
-		when(commentRepository.findAllByPostIsNullAndParentIsNullAndStatus(CommentStatus.APPROVED, pageable))
-				.thenReturn(page);
+		when(commentRepository.findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatus(CommentStatus.APPROVED,
+				pageable)).thenReturn(page);
 
 		var response = commentService.retrieveGuestbookRootComments(pageable);
 
 		assertEquals(200, response.code());
 		assertEquals(1, response.data().getTotal());
 		assertEquals(0, response.data().getList().getFirst().replyCount());
-		verify(commentRepository, never()).findAllByPostIsNullAndStatusOrderByPathAsc(any());
+		verify(commentRepository, never()).findAllByPostIsNullAndMomentIsNullAndStatusOrderByPathAsc(any());
 	}
 
 	@Test
@@ -856,9 +859,12 @@ class CommentServiceImplTest {
 
 	@Test
 	void retrieveRepliesCursorUsesAscendingCursor() {
+		Comment root = new Comment();
+		root.setId(1L);
 		Comment parent = new Comment();
 		parent.setId(10L);
 		parent.setPost(testPost);
+		parent.setParent(root);
 		parent.setStatus(CommentStatus.APPROVED);
 		Comment reply = commentWithId(11L);
 
@@ -878,8 +884,9 @@ class CommentServiceImplTest {
 	@Test
 	void retrieveGuestbookRootCommentsCursorUsesGuestbookQuery() {
 		Comment first = commentWithId(12L);
-		when(commentRepository.findAllByPostIsNullAndParentIsNullAndStatusOrderByIdDesc(eq(CommentStatus.APPROVED),
-				any(org.springframework.data.domain.Pageable.class))).thenReturn(List.of(first));
+		when(commentRepository.findAllByPostIsNullAndMomentIsNullAndParentIsNullAndStatusOrderByIdDesc(
+				eq(CommentStatus.APPROVED), any(org.springframework.data.domain.Pageable.class)))
+				.thenReturn(List.of(first));
 
 		var response = commentService.retrieveGuestbookRootCommentsCursor(null, 20);
 
@@ -915,8 +922,8 @@ class CommentServiceImplTest {
 
 	@Test
 	void countNewGuestbookRootCommentsUsesZeroWhenAfterIdMissing() {
-		when(commentRepository.countByPostIsNullAndParentIsNullAndStatusAndIdGreaterThan(CommentStatus.APPROVED, 0L))
-				.thenReturn(5L);
+		when(commentRepository.countByPostIsNullAndMomentIsNullAndParentIsNullAndStatusAndIdGreaterThan(
+				CommentStatus.APPROVED, 0L)).thenReturn(5L);
 
 		var response = commentService.countNewGuestbookRootComments(null);
 
