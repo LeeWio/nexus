@@ -27,7 +27,7 @@
 		<url/>
 	</scm>
 	<properties>
-		<bouncycastle.version>1.80.2</bouncycastle.version>
+		<bouncycastle.version>1.86</bouncycastle.version>
 		<java.version>21</java.version>
 		<mockito.version>5.20.0</mockito.version>
 		<!-- Security overrides for vulnerabilities reported by Trivy. -->
