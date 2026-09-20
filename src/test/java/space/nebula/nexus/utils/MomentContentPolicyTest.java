@@ -33,4 +33,18 @@ class MomentContentPolicyTest {
 		assertEquals(MomentContentPolicy.MAX_VISIBLE_CHARACTERS + 1,
 				MomentContentPolicy.visibleCharacterCount("a".repeat(MomentContentPolicy.MAX_VISIBLE_CHARACTERS + 1)));
 	}
+
+	@Test
+	void truncateForXKeepsShortTextIntact() {
+		assertEquals("hello world", MomentContentPolicy.truncateForX("  hello   world  ", 280));
+	}
+
+	@Test
+	void truncateForXPrefersAWordBoundary() {
+		String text = "alpha bravo charlie delta echo";
+		String truncated = MomentContentPolicy.truncateForX(text, 18);
+		assertTrue(truncated.endsWith("…"));
+		assertTrue(truncated.length() <= 18);
+		assertFalse(truncated.contains("charlie"));
+	}
 }

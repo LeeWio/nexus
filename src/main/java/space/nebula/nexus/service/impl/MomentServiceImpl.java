@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -14,6 +15,8 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
 import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
+import space.nebula.nexus.common.event.MomentChangeType;
+import space.nebula.nexus.common.event.MomentChangedEvent;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.FileMetadata;
@@ -33,7 +36,9 @@ import space.nebula.nexus.repository.MomentTopicRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IMomentService;
+import space.nebula.nexus.service.IXSyncService;
 import space.nebula.nexus.service.support.MomentCommentCountSupport;
+import space.nebula.nexus.service.support.MomentXSyncSupport;
 import space.nebula.nexus.utils.MomentContentPolicy;
 import space.nebula.nexus.utils.MomentTopicPolicy;
 
@@ -57,12 +62,16 @@ public class MomentServiceImpl implements IMomentService {
 	private final UserRepository userRepository;
 	private final JdbcTemplate jdbcTemplate;
 	private final MomentCommentCountSupport momentCommentCountSupport;
+	private final MomentXSyncSupport momentXSyncSupport;
+	private final IXSyncService xSyncService;
+	private final ApplicationEventPublisher eventPublisher;
 
 	@Override
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<MomentResponse>> getAdminMoments(Pageable pageable) {
 		Page<MomentResponse> page = momentRepository.findAll(pageable).map(momentMapper::toResponse);
-		List<MomentResponse> enriched = momentCommentCountSupport.withCounts(page.getContent());
+		List<MomentResponse> enriched = momentXSyncSupport
+				.withSyncs(momentCommentCountSupport.withCounts(page.getContent()));
 		return ApiResponse.success(new PageResult<>(enriched, page.getTotalElements(), page.getNumber() + 1,
 				page.getSize(), page.getTotalPages()));
 	}
@@ -71,7 +80,7 @@ public class MomentServiceImpl implements IMomentService {
 	@Transactional(readOnly = true)
 	public ApiResponse<MomentResponse> getMomentById(Long id) {
 		Moment moment = findMomentOrThrow(id);
-		return ApiResponse.success(momentCommentCountSupport.withCount(momentMapper.toResponse(moment)));
+		return ApiResponse.success(enrich(momentMapper.toResponse(moment)));
 	}
 
 	@Override
@@ -85,9 +94,13 @@ public class MomentServiceImpl implements IMomentService {
 		replaceImages(moment, request.images(), false);
 		replaceTopics(moment, request.topicSlugs(), false);
 		momentRepository.save(moment);
+
+		boolean shareToX = xSyncService.enqueueOnCreate(moment, request.shareToX());
+		eventPublisher.publishEvent(new MomentChangedEvent(this, moment.getId(), MomentChangeType.CREATED,
+				moment.getVisibility(), shareToX));
+
 		log.info("Moment created");
-		return ApiResponse.success("Moment created successfully",
-				momentCommentCountSupport.withCount(momentMapper.toResponse(moment)));
+		return ApiResponse.success("Moment created successfully", enrich(momentMapper.toResponse(moment)));
 	}
 
 	@Override
@@ -106,9 +119,11 @@ public class MomentServiceImpl implements IMomentService {
 		}
 		momentRepository.save(moment);
 
+		eventPublisher.publishEvent(new MomentChangedEvent(this, moment.getId(), MomentChangeType.UPDATED,
+				moment.getVisibility(), false));
+
 		log.info("Moment updated: {}", id);
-		return ApiResponse.success("Moment updated successfully",
-				momentCommentCountSupport.withCount(momentMapper.toResponse(moment)));
+		return ApiResponse.success("Moment updated successfully", enrich(momentMapper.toResponse(moment)));
 	}
 
 	@Override
@@ -116,8 +131,11 @@ public class MomentServiceImpl implements IMomentService {
 	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
 	@LogOperation("Delete Moment")
 	public ApiResponse<Void> deleteMoment(Long id) {
-		Assert.isTrue(momentRepository.existsById(id), () -> new ResourceNotFoundException("Moment", "id", id));
-		momentRepository.deleteById(id);
+		Moment moment = findMomentOrThrow(id);
+		MomentVisibility visibility = moment.getVisibility();
+		momentRepository.delete(moment);
+		eventPublisher
+				.publishEvent(new MomentChangedEvent(this, id, MomentChangeType.DELETED, visibility, false));
 		log.info("Moment deleted: {}", id);
 		return ApiResponse.success("Moment deleted successfully", null);
 	}
@@ -129,7 +147,8 @@ public class MomentServiceImpl implements IMomentService {
 		String currentUsername = SecurityUtil.getCurrentUsername();
 		Page<MomentResponse> page = momentRepository
 				.findPublicTimeline(MomentVisibility.PUBLIC, currentUsername, pageable).map(momentMapper::toResponse);
-		List<MomentResponse> enriched = momentCommentCountSupport.withCounts(page.getContent());
+		List<MomentResponse> enriched = momentXSyncSupport
+				.withSyncs(momentCommentCountSupport.withCounts(page.getContent()));
 		return ApiResponse.success(new PageResult<>(enriched, page.getTotalElements(), page.getNumber() + 1,
 				page.getSize(), page.getTotalPages()));
 	}
@@ -178,6 +197,10 @@ public class MomentServiceImpl implements IMomentService {
 		Set<Long> likedMomentIds = new LinkedHashSet<>(
 				momentRepository.findLikedMomentIdsByUserIdAndMomentIdIn(user.getId(), uniqueMomentIds));
 		return ApiResponse.success(likedMomentIds);
+	}
+
+	private MomentResponse enrich(MomentResponse response) {
+		return momentXSyncSupport.withSync(momentCommentCountSupport.withCount(response));
 	}
 
 	private Moment findMomentOrThrow(Long id) {

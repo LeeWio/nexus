@@ -29,7 +29,10 @@ public final class MomentContentPolicy {
 		return !visibleText(content).isBlank();
 	}
 
-	private static String visibleText(String content) {
+	/**
+	 * Extracts composer-visible plain text from TipTap JSON or legacy plain text.
+	 */
+	public static String visibleText(String content) {
 		if (content == null || content.isEmpty()) {
 			return "";
 		}
@@ -52,6 +55,28 @@ public final class MomentContentPolicy {
 			// Legacy plain-text Moments may begin with a left brace.
 			return content;
 		}
+	}
+
+	/**
+	 * Truncates plain text for an X post, preferring a word boundary when possible.
+	 */
+	public static String truncateForX(String text, int maxLength) {
+		if (text == null) {
+			return "";
+		}
+		String normalized = text.replace('\u00a0', ' ').trim().replaceAll("\\s+", " ");
+		if (maxLength <= 0 || normalized.length() <= maxLength) {
+			return normalized;
+		}
+		if (maxLength <= 1) {
+			return normalized.substring(0, maxLength);
+		}
+		String candidate = normalized.substring(0, maxLength - 1);
+		int lastSpace = candidate.lastIndexOf(' ');
+		if (lastSpace >= Math.max(8, maxLength / 2)) {
+			candidate = candidate.substring(0, lastSpace);
+		}
+		return candidate.trim() + "…";
 	}
 
 	private static JsonNode asRichTextDocument(JsonNode root) {

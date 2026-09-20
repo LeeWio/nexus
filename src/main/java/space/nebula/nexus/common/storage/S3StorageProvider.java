@@ -7,13 +7,17 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.config.StorageProperties;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -81,5 +85,23 @@ public class S3StorageProvider implements StorageProvider {
 			return config.getDomain() + "/" + filename;
 		}
 		return config.getEndpoint() + "/" + config.getBucketName() + "/" + filename;
+	}
+
+	@Override
+	public InputStream open(String filename) {
+		try (S3Client client = getClient();
+				ResponseInputStream<GetObjectResponse> response = client.getObject(GetObjectRequest.builder()
+						.bucket(config.getBucketName()).key(filename).build())) {
+			return new ByteArrayInputStream(response.readAllBytes());
+		} catch (S3Exception e) {
+			if (e.statusCode() == 404) {
+				throw new BusinessException("Stored file not found: " + filename);
+			}
+			log.error("Failed to open S3 object {}", filename, e);
+			throw new BusinessException(500, "Could not open S3 storage object");
+		} catch (Exception e) {
+			log.error("Failed to open S3 object {}", filename, e);
+			throw new BusinessException(500, "Could not open S3 storage object");
+		}
 	}
 }

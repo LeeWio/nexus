@@ -99,4 +99,16 @@ public class LocalStorageProvider implements StorageProvider {
 	public String getUrl(String filename) {
 		return baseUrl + filename;
 	}
+
+	@Override
+	public InputStream open(String filename) {
+		try {
+			return Files.newInputStream(validateFilenameAndResolve(filename));
+		} catch (NoSuchFileException e) {
+			throw new BusinessException("Stored file not found: " + filename);
+		} catch (IOException e) {
+			log.error("Could not open local storage object {}", filename, e);
+			throw new BusinessException("Could not open local storage object");
+		}
+	}
 }

@@ -3,24 +3,32 @@ package space.nebula.nexus.service.impl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
+import space.nebula.nexus.common.event.MomentChangeType;
+import space.nebula.nexus.common.event.MomentChangedEvent;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.entity.FileMetadata;
 import space.nebula.nexus.entity.Moment;
 import space.nebula.nexus.entity.MomentTopic;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.mapper.MomentMapper;
 import space.nebula.nexus.payload.request.MomentImageRequest;
 import space.nebula.nexus.payload.request.MomentRequest;
+import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.MomentRepository;
 import space.nebula.nexus.repository.MomentTopicRepository;
 import space.nebula.nexus.repository.UserRepository;
-import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.security.util.SecurityUtil;
+import space.nebula.nexus.service.IXSyncService;
+import space.nebula.nexus.service.support.MomentCommentCountSupport;
+import space.nebula.nexus.service.support.MomentXSyncSupport;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,9 +37,10 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
@@ -55,7 +64,13 @@ class MomentServiceImplTest {
 	@Mock
 	private JdbcTemplate jdbcTemplate;
 	@Mock
-	private space.nebula.nexus.service.support.MomentCommentCountSupport momentCommentCountSupport;
+	private MomentCommentCountSupport momentCommentCountSupport;
+	@Mock
+	private MomentXSyncSupport momentXSyncSupport;
+	@Mock
+	private IXSyncService xSyncService;
+	@Mock
+	private ApplicationEventPublisher eventPublisher;
 
 	private MomentServiceImpl momentService;
 	private User user;
@@ -63,9 +78,18 @@ class MomentServiceImplTest {
 	@BeforeEach
 	void setUp() {
 		momentService = new MomentServiceImpl(momentRepository, momentTopicRepository, momentMapper, fileRepository,
-				userRepository, jdbcTemplate, momentCommentCountSupport);
+				userRepository, jdbcTemplate, momentCommentCountSupport, momentXSyncSupport, xSyncService,
+				eventPublisher);
 		lenient().when(momentCommentCountSupport.withCount(any())).thenAnswer(invocation -> invocation.getArgument(0));
 		lenient().when(momentCommentCountSupport.withCounts(any())).thenAnswer(invocation -> invocation.getArgument(0));
+		lenient().when(momentXSyncSupport.withSync(any())).thenAnswer(invocation -> invocation.getArgument(0));
+		lenient().when(momentXSyncSupport.withSyncs(any())).thenAnswer(invocation -> invocation.getArgument(0));
+		lenient().when(momentMapper.toResponse(any(Moment.class))).thenAnswer(invocation -> {
+			Moment moment = invocation.getArgument(0);
+			return new MomentResponse(moment.getId(), moment.getContent(), moment.getStockSymbol(),
+					moment.getLikesCount(), 0L, moment.getVisibility(), null, null, List.of(), List.of(), null, null,
+					null);
+		});
 		user = new User();
 		user.setId(4L);
 		user.setUsername("reader");
@@ -76,7 +100,7 @@ class MomentServiceImplTest {
 		Moment moment = publishedMoment(null);
 		MomentRequest request = new MomentRequest("A small field note", MomentVisibility.PUBLIC,
 				List.of(new MomentImageRequest(12L, "Second view"), new MomentImageRequest(11L, "First view")),
-				List.of(), null);
+				List.of(), null, null);
 		FileMetadata first = image(11L, "first.jpg", "image/jpeg");
 		FileMetadata second = image(12L, "second.webp", "image/webp");
 		when(momentMapper.toEntity(request)).thenReturn(moment);
@@ -96,7 +120,7 @@ class MomentServiceImplTest {
 	void createMomentAllowsAnImageWithoutText() {
 		Moment moment = publishedMoment(null);
 		MomentRequest request = new MomentRequest("", MomentVisibility.PUBLIC,
-				List.of(new MomentImageRequest(12L, "A field note photo")), List.of(), null);
+				List.of(new MomentImageRequest(12L, "A field note photo")), List.of(), null, null);
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 		when(fileRepository.findAllById(anyCollection()))
 				.thenReturn(List.of(image(12L, "field-note.jpg", "image/jpeg")));
@@ -108,7 +132,7 @@ class MomentServiceImplTest {
 
 	@Test
 	void createMomentRejectsAnEmptyTextOnlyRequest() {
-		MomentRequest request = new MomentRequest("", MomentVisibility.PUBLIC, List.of(), List.of(), null);
+		MomentRequest request = new MomentRequest("", MomentVisibility.PUBLIC, List.of(), List.of(), null, null);
 
 		assertThrows(BusinessException.class, () -> momentService.createMoment(request));
 		verifyNoInteractions(momentMapper, fileRepository, momentRepository);
@@ -116,7 +140,7 @@ class MomentServiceImplTest {
 
 	@Test
 	void createMomentRejectsVisibleTextOverTheComposerLimit() {
-		MomentRequest request = new MomentRequest("a".repeat(2001), MomentVisibility.PUBLIC, List.of(), List.of(),
+		MomentRequest request = new MomentRequest("a".repeat(2001), MomentVisibility.PUBLIC, List.of(), List.of(), null,
 				null);
 
 		assertThrows(BusinessException.class, () -> momentService.createMoment(request));
@@ -128,7 +152,7 @@ class MomentServiceImplTest {
 		Moment moment = publishedMoment(null);
 		moment.setStockSymbol("AAPL");
 		MomentRequest request = new MomentRequest("Check AAPL trend!", MomentVisibility.PUBLIC, List.of(), List.of(),
-				"AAPL");
+				"AAPL", null);
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 
 		withAuthenticatedUser(() -> momentService.createMoment(request));
@@ -138,10 +162,29 @@ class MomentServiceImplTest {
 	}
 
 	@Test
+	void createMomentQueuesXSyncAndPublishesCreatedEvent() {
+		Moment moment = publishedMoment(42L);
+		moment.setContent("Hello X");
+		MomentRequest request = new MomentRequest("Hello X", MomentVisibility.PUBLIC, List.of(), List.of(), null, true);
+		when(momentMapper.toEntity(request)).thenReturn(moment);
+		when(xSyncService.enqueueOnCreate(moment, true)).thenReturn(true);
+
+		withAuthenticatedUser(() -> momentService.createMoment(request));
+
+		ArgumentCaptor<MomentChangedEvent> eventCaptor = ArgumentCaptor.forClass(MomentChangedEvent.class);
+		verify(eventPublisher).publishEvent(eventCaptor.capture());
+		MomentChangedEvent event = eventCaptor.getValue();
+		assertEquals(42L, event.getMomentId());
+		assertEquals(MomentChangeType.CREATED, event.getChangeType());
+		assertTrue(event.isShareToX());
+		verify(xSyncService).enqueueOnCreate(moment, true);
+	}
+
+	@Test
 	void createMomentRejectsNonImageAssets() {
 		Moment moment = publishedMoment(null);
 		MomentRequest request = new MomentRequest("Attachment", MomentVisibility.PUBLIC,
-				List.of(new MomentImageRequest(13L, "A document")), List.of(), null);
+				List.of(new MomentImageRequest(13L, "A document")), List.of(), null, null);
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 		when(fileRepository.findAllById(anyCollection()))
 				.thenReturn(List.of(image(13L, "notes.pdf", "application/pdf")));
@@ -157,7 +200,7 @@ class MomentServiceImplTest {
 		Moment moment = publishedMoment(null);
 		MomentTopic existingTopic = topic(8L, "frontend-architecture");
 		MomentRequest request = new MomentRequest("A small field note", MomentVisibility.PUBLIC, List.of(),
-				List.of("#Frontend Architecture", "Observability"), null);
+				List.of("#Frontend Architecture", "Observability"), null, null);
 		when(momentMapper.toEntity(request)).thenReturn(moment);
 		when(momentTopicRepository.findBySlug("frontend-architecture")).thenReturn(Optional.of(existingTopic));
 		when(momentTopicRepository.findBySlug("observability")).thenReturn(Optional.empty());

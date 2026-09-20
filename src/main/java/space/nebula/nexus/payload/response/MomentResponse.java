@@ -8,5 +8,6 @@ import java.util.List;
 
 public record MomentResponse(Long id, String content, String stockSymbol, Long likesCount, Long commentsCount,
 		MomentVisibility visibility, String authorName, String authorAvatar, List<MomentImageResponse> images,
-		List<MomentTopicResponse> topics, LocalDateTime createdAt, LocalDateTime updatedAt) implements Serializable {
+		List<MomentTopicResponse> topics, LocalDateTime createdAt, LocalDateTime updatedAt,
+		MomentXSyncResponse xSync) implements Serializable {
 }

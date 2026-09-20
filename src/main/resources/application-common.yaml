@@ -162,6 +162,14 @@ app:
     type: ${SEARCH_TYPE:elasticsearch}
   github:
     username: ${GITHUB_USERNAME:LeeWio}
+  x:
+    enabled: ${X_SYNC_ENABLED:false}
+    api-key: ${X_API_KEY:}
+    api-secret: ${X_API_SECRET:}
+    access-token: ${X_ACCESS_TOKEN:}
+    access-token-secret: ${X_ACCESS_TOKEN_SECRET:}
+    max-text-length: ${X_MAX_TEXT_LENGTH:280}
+    max-images: ${X_MAX_IMAGES:4}
   upload:
     location: "uploads"
     max-size: 10485760

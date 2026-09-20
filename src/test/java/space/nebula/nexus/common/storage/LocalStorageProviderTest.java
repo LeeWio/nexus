@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -39,5 +40,17 @@ class LocalStorageProviderTest {
 
 		assertTrue(provider.exists(nestedFilename));
 		assertTrue(Files.exists(storageDirectory.resolve("static/posts/nested-present.html")));
+	}
+
+	@Test
+	void open_ReturnsStoredBytes() throws IOException {
+		StorageProperties properties = new StorageProperties();
+		properties.getLocal().setLocation(storageDirectory.toString());
+		LocalStorageProvider provider = new LocalStorageProvider(properties);
+		Files.writeString(storageDirectory.resolve("note.txt"), "field note");
+
+		try (var in = provider.open("note.txt")) {
+			assertEquals("field note", new String(in.readAllBytes()));
+		}
 	}
 }

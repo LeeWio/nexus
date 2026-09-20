@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.config.StorageProperties;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
 /**
@@ -76,6 +77,27 @@ public class AliyunStorageProvider implements StorageProvider {
 		} catch (Exception e) {
 			log.error("Failed to inspect Aliyun OSS object {}", fileName, e);
 			throw new BusinessException(500, "Could not inspect Aliyun OSS storage object");
+		} finally {
+			ossClient.shutdown();
+		}
+	}
+
+	@Override
+	public InputStream open(String fileName) {
+		OSS ossClient = new OSSClientBuilder().build(config.getEndpoint(), config.getAccessKeyId(),
+				config.getAccessKeySecret());
+		try {
+			if (!ossClient.doesObjectExist(config.getBucketName(), fileName)) {
+				throw new BusinessException("Stored file not found: " + fileName);
+			}
+			try (InputStream content = ossClient.getObject(config.getBucketName(), fileName).getObjectContent()) {
+				return new ByteArrayInputStream(content.readAllBytes());
+			}
+		} catch (BusinessException e) {
+			throw e;
+		} catch (Exception e) {
+			log.error("Failed to open Aliyun OSS object {}", fileName, e);
+			throw new BusinessException(500, "Could not open Aliyun OSS storage object");
 		} finally {
 			ossClient.shutdown();
 		}

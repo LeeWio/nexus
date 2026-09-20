@@ -30,6 +30,11 @@ public interface StorageProvider {
 	String getUrl(String filename);
 
 	/**
+	 * Opens a stored object for reading. Callers must close the stream.
+	 */
+	InputStream open(String filename);
+
+	/**
 	 * Get a signed/temporary URL for a file (useful for private buckets). Defaults
 	 * to getUrl if not specialized.
 	 * 

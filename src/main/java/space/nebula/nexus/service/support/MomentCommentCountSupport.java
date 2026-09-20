@@ -49,6 +49,6 @@ public class MomentCommentCountSupport {
 	private static MomentResponse copyWithCommentsCount(MomentResponse response, long commentsCount) {
 		return new MomentResponse(response.id(), response.content(), response.stockSymbol(), response.likesCount(),
 				commentsCount, response.visibility(), response.authorName(), response.authorAvatar(), response.images(),
-				response.topics(), response.createdAt(), response.updatedAt());
+				response.topics(), response.createdAt(), response.updatedAt(), response.xSync());
 	}
 }

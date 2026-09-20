@@ -7,9 +7,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import space.nebula.nexus.common.event.CommentSubmittedEvent;
+import space.nebula.nexus.common.event.MomentChangedEvent;
+import space.nebula.nexus.common.event.MomentChangeType;
 import space.nebula.nexus.common.event.PostChangedEvent;
 import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.common.event.PostDeletedEvent;
+import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.entity.Webhook;
 import space.nebula.nexus.enums.WebhookEvent;
 import space.nebula.nexus.repository.WebhookRepository;
@@ -55,6 +58,19 @@ public class WebhookDispatcher {
 		dispatchToSubscribers(WebhookEvent.COMMENT_SUBMITTED,
 				Dict.create().set("commentId", event.getCommentId()).set("author", event.getAuthorUsername())
 						.set("content", event.getContent()).set("status", event.getStatus().name()));
+	}
+
+	@Async("asyncExecutor")
+	@org.springframework.transaction.event.TransactionalEventListener(phase = org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT)
+	public void handleMomentChangedEvent(MomentChangedEvent event) {
+		if (event.getChangeType() == MomentChangeType.CREATED && event.getVisibility() == MomentVisibility.PUBLIC) {
+			dispatchToSubscribers(WebhookEvent.MOMENT_PUBLISHED, Dict.create().set("momentId", event.getMomentId())
+					.set("visibility", event.getVisibility().name()).set("shareToX", event.isShareToX()));
+		} else if (event.getChangeType() == MomentChangeType.DELETED) {
+			dispatchToSubscribers(WebhookEvent.MOMENT_DELETED,
+					Dict.create().set("momentId", event.getMomentId()).set("visibility",
+							event.getVisibility() == null ? null : event.getVisibility().name()));
+		}
 	}
 
 	private void dispatchToSubscribers(WebhookEvent eventType, Dict payload) {

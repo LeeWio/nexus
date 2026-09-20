@@ -32,7 +32,17 @@ public enum WebhookEvent {
 	 * a pending state (e.g., awaiting moderation), and the payload usually contains
 	 * comment details and associated post information.
 	 */
-	COMMENT_SUBMITTED("Triggered when a new comment is submitted");
+	COMMENT_SUBMITTED("Triggered when a new comment is submitted"),
+
+	/**
+	 * Triggered when a public Moment is created.
+	 */
+	MOMENT_PUBLISHED("Triggered when a public moment is created"),
+
+	/**
+	 * Triggered when a Moment is deleted.
+	 */
+	MOMENT_DELETED("Triggered when a moment is deleted");
 
 	private final String description;
 

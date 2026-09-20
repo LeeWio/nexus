@@ -30,6 +30,7 @@ public interface MomentMapper {
 	@Mapping(target = "images", ignore = true)
 	@Mapping(target = "topicRelations", ignore = true)
 	@Mapping(target = "user", ignore = true)
+	@BeanMapping(ignoreUnmappedSourceProperties = "shareToX")
 	Moment toEntity(MomentRequest request);
 
 	default MomentResponse toResponse(Moment moment) {
@@ -55,7 +56,7 @@ public interface MomentMapper {
 
 		return new MomentResponse(moment.getId(), moment.getContent(), moment.getStockSymbol(), moment.getLikesCount(),
 				0L, moment.getVisibility(), authorName, authorAvatar, images, topics, moment.getCreatedAt(),
-				moment.getUpdatedAt());
+				moment.getUpdatedAt(), null);
 	}
 
 	default MomentImageResponse toImageResponse(MomentMedia media) {
@@ -71,7 +72,7 @@ public interface MomentMapper {
 
 	List<MomentResponse> toResponseList(List<Moment> moments);
 
-	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE, ignoreUnmappedSourceProperties = "shareToX")
 	@Mapping(target = "id", ignore = true)
 	@Mapping(target = "likesCount", ignore = true)
 	@Mapping(target = "createdAt", ignore = true)
