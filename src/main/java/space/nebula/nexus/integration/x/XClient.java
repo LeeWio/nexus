@@ -42,17 +42,12 @@ public class XClient {
 			public String getFilename() {
 				return filename == null || filename.isBlank() ? "image.jpg" : filename;
 			}
-		}).contentType(MediaType.parseMediaType(contentType == null || contentType.isBlank()
-				? MediaType.APPLICATION_OCTET_STREAM_VALUE
-				: contentType));
+		}).contentType(MediaType.parseMediaType(
+				contentType == null || contentType.isBlank() ? MediaType.APPLICATION_OCTET_STREAM_VALUE : contentType));
 
 		try {
-			String responseBody = restClient.post().uri(MEDIA_UPLOAD_URL)
-					.header("Authorization", authorization)
-					.contentType(MediaType.MULTIPART_FORM_DATA)
-					.body(bodyBuilder.build())
-					.retrieve()
-					.body(String.class);
+			String responseBody = restClient.post().uri(MEDIA_UPLOAD_URL).header("Authorization", authorization)
+					.contentType(MediaType.MULTIPART_FORM_DATA).body(bodyBuilder.build()).retrieve().body(String.class);
 			JsonNode root = objectMapper.readTree(responseBody);
 			String mediaId = root.path("media_id_string").asText(null);
 			if (mediaId == null || mediaId.isBlank()) {
@@ -81,12 +76,8 @@ public class XClient {
 		}
 
 		try {
-			String responseBody = restClient.post().uri(CREATE_TWEET_URL)
-					.header("Authorization", authorization)
-					.contentType(MediaType.APPLICATION_JSON)
-					.body(payload)
-					.retrieve()
-					.body(String.class);
+			String responseBody = restClient.post().uri(CREATE_TWEET_URL).header("Authorization", authorization)
+					.contentType(MediaType.APPLICATION_JSON).body(payload).retrieve().body(String.class);
 			JsonNode data = objectMapper.readTree(responseBody).path("data");
 			String id = data.path("id").asText(null);
 			if (id == null || id.isBlank()) {

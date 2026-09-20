@@ -67,9 +67,8 @@ public class WebhookDispatcher {
 			dispatchToSubscribers(WebhookEvent.MOMENT_PUBLISHED, Dict.create().set("momentId", event.getMomentId())
 					.set("visibility", event.getVisibility().name()).set("shareToX", event.isShareToX()));
 		} else if (event.getChangeType() == MomentChangeType.DELETED) {
-			dispatchToSubscribers(WebhookEvent.MOMENT_DELETED,
-					Dict.create().set("momentId", event.getMomentId()).set("visibility",
-							event.getVisibility() == null ? null : event.getVisibility().name()));
+			dispatchToSubscribers(WebhookEvent.MOMENT_DELETED, Dict.create().set("momentId", event.getMomentId())
+					.set("visibility", event.getVisibility() == null ? null : event.getVisibility().name()));
 		}
 	}
 

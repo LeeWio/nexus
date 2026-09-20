@@ -90,8 +90,8 @@ public class S3StorageProvider implements StorageProvider {
 	@Override
 	public InputStream open(String filename) {
 		try (S3Client client = getClient();
-				ResponseInputStream<GetObjectResponse> response = client.getObject(GetObjectRequest.builder()
-						.bucket(config.getBucketName()).key(filename).build())) {
+				ResponseInputStream<GetObjectResponse> response = client
+						.getObject(GetObjectRequest.builder().bucket(config.getBucketName()).key(filename).build())) {
 			return new ByteArrayInputStream(response.readAllBytes());
 		} catch (S3Exception e) {
 			if (e.statusCode() == 404) {

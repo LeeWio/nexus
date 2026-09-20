@@ -104,7 +104,8 @@ class XSyncServiceImplTest {
 
 		when(momentXSyncRepository.findByMomentId(7L)).thenReturn(Optional.of(sync));
 		when(momentRepository.findById(7L)).thenReturn(Optional.of(moment));
-		when(xClient.createPost(any(), any())).thenReturn(new XClient.CreatedPost("123", "https://x.com/i/web/status/123"));
+		when(xClient.createPost(any(), any()))
+				.thenReturn(new XClient.CreatedPost("123", "https://x.com/i/web/status/123"));
 
 		service.processPending(7L);
 

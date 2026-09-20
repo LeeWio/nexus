@@ -119,8 +119,8 @@ public class MomentServiceImpl implements IMomentService {
 		}
 		momentRepository.save(moment);
 
-		eventPublisher.publishEvent(new MomentChangedEvent(this, moment.getId(), MomentChangeType.UPDATED,
-				moment.getVisibility(), false));
+		eventPublisher.publishEvent(
+				new MomentChangedEvent(this, moment.getId(), MomentChangeType.UPDATED, moment.getVisibility(), false));
 
 		log.info("Moment updated: {}", id);
 		return ApiResponse.success("Moment updated successfully", enrich(momentMapper.toResponse(moment)));
@@ -134,8 +134,7 @@ public class MomentServiceImpl implements IMomentService {
 		Moment moment = findMomentOrThrow(id);
 		MomentVisibility visibility = moment.getVisibility();
 		momentRepository.delete(moment);
-		eventPublisher
-				.publishEvent(new MomentChangedEvent(this, id, MomentChangeType.DELETED, visibility, false));
+		eventPublisher.publishEvent(new MomentChangedEvent(this, id, MomentChangeType.DELETED, visibility, false));
 		log.info("Moment deleted: {}", id);
 		return ApiResponse.success("Moment deleted successfully", null);
 	}

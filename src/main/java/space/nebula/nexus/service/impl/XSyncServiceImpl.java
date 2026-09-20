@@ -49,11 +49,9 @@ public class XSyncServiceImpl implements IXSyncService {
 			return false;
 		}
 		Assert.isTrue(moment.getVisibility() == MomentVisibility.PUBLIC,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Only public moments can be shared to X"));
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only public moments can be shared to X"));
 		if (!xProperties.isConfigured()) {
-			log.info("shareToX requested for moment {} but X sync is disabled or incomplete; skipping",
-					moment.getId());
+			log.info("shareToX requested for moment {} but X sync is disabled or incomplete; skipping", moment.getId());
 			return false;
 		}
 		if (momentXSyncRepository.findByMomentId(moment.getId()).isPresent()) {
