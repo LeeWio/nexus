@@ -118,8 +118,14 @@ public interface IPostService {
 	ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
 			Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable);
 
+	ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String authorName,
+			String keyword, Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable);
+
 	ApiResponse<PageResult<PostDigestResponse>> searchPublicPostDigests(Long categoryId, Long tagId, String keyword,
 			Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable);
+
+	ApiResponse<PageResult<PostDigestResponse>> searchPublicPostDigests(Long categoryId, Long tagId, String authorName,
+			String keyword, Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable);
 
 	ApiResponse<PageResult<PostDigestResponse>> retrievePublicArchive(Integer year, Integer month, Pageable pageable);
 

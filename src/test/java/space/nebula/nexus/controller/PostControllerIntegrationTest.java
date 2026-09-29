@@ -108,6 +108,26 @@ public class PostControllerIntegrationTest {
 
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
+	public void testPublicPostsCanBeFilteredByDisplayedAuthorName() throws Exception {
+		User admin = userRepository.findByUsername("admin").orElseThrow();
+		admin.setNickname("Pen Name");
+		userRepository.save(admin);
+
+		PostRequest request = new PostRequest("Author-filtered post", "author-filtered-post", null, "Summary",
+				"Content", null, PostStatus.PUBLISHED, false, categoryId, null, null, null, null);
+		mockMvc.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request))).andExpect(status().isOk());
+
+		mockMvc.perform(get("/api/v1/public/blog/posts").param("authorName", "Pen Name")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.total").value(1))
+				.andExpect(jsonPath("$.data.list[0].title").value("Author-filtered post"));
+
+		mockMvc.perform(get("/api/v1/public/blog/posts/digest").param("authorName", "admin")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.total").value(0));
+	}
+
+	@Test
+	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testUpdatePost() throws Exception {
 		PostRequest createRequest = new PostRequest("Original Title", "original-slug", null, "Summary", "Content", null,
 				PostStatus.DRAFT, false, categoryId, null, null, null, null);

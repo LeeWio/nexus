@@ -541,14 +541,22 @@ public class PostServiceImpl implements IPostService {
 	@Cacheable(value = CacheConstants.BLOG_POSTS, key = CacheConstants.POST_LIST_KEY, sync = true)
 	public ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
 			Pageable pageable) {
-		return searchPublicPosts(categoryId, tagId, keyword, null, null, null, pageable);
+		return searchPublicPosts(categoryId, tagId, null, keyword, null, null, null, pageable);
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
 			Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable) {
-		var spec = PostSpecification.filterPublicPosts(categoryId, tagId, keyword, featuredOnly, hasCover, contentType);
+		return searchPublicPosts(categoryId, tagId, null, keyword, featuredOnly, hasCover, contentType, pageable);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String authorName,
+			String keyword, Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable) {
+		var spec = PostSpecification.filterPublicPosts(categoryId, tagId, authorName, keyword, featuredOnly, hasCover,
+				contentType);
 		Page<Post> publishedPosts = postRepository.findAll(spec, pageable);
 
 		return ApiResponse.success(PageResult.of(publishedPosts.map(postMapper::toResponse)));
@@ -558,7 +566,16 @@ public class PostServiceImpl implements IPostService {
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<PostDigestResponse>> searchPublicPostDigests(Long categoryId, Long tagId,
 			String keyword, Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable) {
-		var spec = PostSpecification.filterPublicPosts(categoryId, tagId, keyword, featuredOnly, hasCover, contentType);
+		return searchPublicPostDigests(categoryId, tagId, null, keyword, featuredOnly, hasCover, contentType, pageable);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<PostDigestResponse>> searchPublicPostDigests(Long categoryId, Long tagId,
+			String authorName, String keyword, Boolean featuredOnly, Boolean hasCover, PostContentType contentType,
+			Pageable pageable) {
+		var spec = PostSpecification.filterPublicPosts(categoryId, tagId, authorName, keyword, featuredOnly, hasCover,
+				contentType);
 		Page<Post> publishedPosts = postRepository.findAll(spec, pageable);
 		postCommentCountSupport.attachApprovedRootCounts(publishedPosts.getContent());
 		return ApiResponse.success(PageResult.of(publishedPosts.map(postMapper::toDigestResponse)));

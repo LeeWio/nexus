@@ -27,7 +27,13 @@ public class PostSpecification {
 
 	public static Specification<Post> filterPublicPosts(Long categoryId, Long tagId, String keyword,
 			Boolean featuredOnly, Boolean hasCover, PostContentType contentType) {
-		return filterPosts(PostStatus.PUBLISHED, categoryId, tagId, keyword, featuredOnly, hasCover, contentType);
+		return filterPublicPosts(categoryId, tagId, null, keyword, featuredOnly, hasCover, contentType);
+	}
+
+	public static Specification<Post> filterPublicPosts(Long categoryId, Long tagId, String authorName, String keyword,
+			Boolean featuredOnly, Boolean hasCover, PostContentType contentType) {
+		return filterPosts(PostStatus.PUBLISHED, categoryId, tagId, authorName, keyword, featuredOnly, hasCover,
+				contentType);
 	}
 
 	/**
@@ -39,6 +45,11 @@ public class PostSpecification {
 
 	public static Specification<Post> filterPosts(PostStatus status, Long categoryId, Long tagId, String keyword,
 			Boolean featuredOnly, Boolean hasCover, PostContentType contentType) {
+		return filterPosts(status, categoryId, tagId, null, keyword, featuredOnly, hasCover, contentType);
+	}
+
+	public static Specification<Post> filterPosts(PostStatus status, Long categoryId, Long tagId, String authorName,
+			String keyword, Boolean featuredOnly, Boolean hasCover, PostContentType contentType) {
 		return (root, query, cb) -> {
 			List<Predicate> predicates = new ArrayList<>();
 
@@ -53,6 +64,13 @@ public class PostSpecification {
 			if (tagId != null) {
 				Join<Post, Tag> tagsJoin = root.join("tags");
 				predicates.add(cb.equal(tagsJoin.get("id"), tagId));
+			}
+
+			if (StrUtil.isNotBlank(authorName)) {
+				String normalizedAuthor = authorName.trim();
+				predicates.add(
+						cb.equal(cb.coalesce(root.get("author").get("nickname"), root.get("author").get("username")),
+								normalizedAuthor));
 			}
 
 			if (StrUtil.isNotBlank(keyword)) {

@@ -53,6 +53,8 @@ public class PublicBlogController {
 
 			@Parameter(description = "Filter by tag ID") @RequestParam(required = false) Long tagId,
 
+			@Parameter(description = "Filter by author display name") @RequestParam(required = false) String authorName,
+
 			@Parameter(description = "Search in title and content") @RequestParam(required = false) String keyword,
 
 			@Parameter(description = "Only return editorially featured posts") @RequestParam(required = false) Boolean featuredOnly,
@@ -62,7 +64,8 @@ public class PublicBlogController {
 			@Parameter(description = "Filter by content format") @RequestParam(required = false) PostContentType contentType,
 
 			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10, sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable) {
-		return postService.searchPublicPosts(categoryId, tagId, keyword, featuredOnly, hasCover, contentType, pageable);
+		return postService.searchPublicPosts(categoryId, tagId, authorName, keyword, featuredOnly, hasCover,
+				contentType, pageable);
 	}
 
 	@GetMapping("/posts/featured")
@@ -77,13 +80,14 @@ public class PublicBlogController {
 	public ApiResponse<PageResult<PostDigestResponse>> searchPostDigests(
 			@Parameter(description = "Filter by category ID") @RequestParam(required = false) Long categoryId,
 			@Parameter(description = "Filter by tag ID") @RequestParam(required = false) Long tagId,
+			@Parameter(description = "Filter by author display name") @RequestParam(required = false) String authorName,
 			@Parameter(description = "Search in title and content") @RequestParam(required = false) String keyword,
 			@Parameter(description = "Only return editorially featured posts") @RequestParam(required = false) Boolean featuredOnly,
 			@Parameter(description = "Only return posts with a cover image") @RequestParam(required = false) Boolean hasCover,
 			@Parameter(description = "Filter by content format") @RequestParam(required = false) PostContentType contentType,
 			@Parameter(description = "Pagination and sorting parameters") @PageableDefault(size = 10, sort = "publishedAt", direction = Sort.Direction.DESC) Pageable pageable) {
-		return postService.searchPublicPostDigests(categoryId, tagId, keyword, featuredOnly, hasCover, contentType,
-				pageable);
+		return postService.searchPublicPostDigests(categoryId, tagId, authorName, keyword, featuredOnly, hasCover,
+				contentType, pageable);
 	}
 
 	@GetMapping("/archive")
