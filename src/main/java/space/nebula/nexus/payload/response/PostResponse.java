@@ -68,6 +68,8 @@ public record PostResponse(@Schema(description = "Post ID") Long id,
 
 		@Schema(description = "Whether current user favorited this post") Boolean isFavorited,
 
+		@Schema(description = "Whether current user queued this post for later reading") Boolean isInReadingList,
+
 		@Schema(description = "Author nickname or username") String authorName,
 
 		@Schema(description = "Author avatar URL") String authorAvatar,

@@ -13,6 +13,7 @@ import space.nebula.nexus.payload.response.PersonalLibraryOverviewResponse;
 import space.nebula.nexus.payload.response.PostCollectionResponse;
 import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.payload.response.ReadingHistoryResponse;
+import space.nebula.nexus.payload.response.ReadingListPostResponse;
 
 import java.util.List;
 
@@ -106,6 +107,15 @@ public interface IPersonalLibraryService {
 
 	/** Clears the current user's complete reading history. */
 	ApiResponse<Void> clearReadingHistory();
+
+	/** Returns the current user's visible later-reading queue. */
+	ApiResponse<PageResult<ReadingListPostResponse>> getReadingList(Pageable pageable);
+
+	/** Adds a published post to the current user's later-reading queue. */
+	ApiResponse<Void> addToReadingList(Long postId);
+
+	/** Removes a post from the current user's later-reading queue. */
+	ApiResponse<Void> removeFromReadingList(Long postId);
 
 	/** Returns summaries of the current user's custom collections. */
 	ApiResponse<List<PostCollectionResponse>> getCollections();

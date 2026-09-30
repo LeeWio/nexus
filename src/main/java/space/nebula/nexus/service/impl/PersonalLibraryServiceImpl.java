@@ -30,6 +30,7 @@ import space.nebula.nexus.payload.response.PersonalLibraryOverviewResponse;
 import space.nebula.nexus.payload.response.PostCollectionResponse;
 import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.payload.response.ReadingHistoryResponse;
+import space.nebula.nexus.payload.response.ReadingListPostResponse;
 import space.nebula.nexus.payload.response.RecommendedPostResponse;
 import space.nebula.nexus.repository.PostCollectionItemRepository;
 import space.nebula.nexus.repository.CategoryFollowRepository;
@@ -40,6 +41,7 @@ import space.nebula.nexus.repository.PostFavoriteRepository;
 import space.nebula.nexus.repository.PostLikeRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.ReadingHistoryRepository;
+import space.nebula.nexus.repository.ReadingListItemRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IPersonalLibraryService;
@@ -76,6 +78,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	private final PostFavoriteRepository favoriteRepository;
 	private final PostLikeRepository likeRepository;
 	private final ReadingHistoryRepository readingHistoryRepository;
+	private final ReadingListItemRepository readingListItemRepository;
 	private final PostCollectionRepository collectionRepository;
 	private final PostCollectionItemRepository collectionItemRepository;
 	private final PostMapper postMapper;
@@ -232,6 +235,34 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 		int deleted = readingHistoryRepository.deleteAllOwnedEntries(user.getId());
 		log.info("Cleared {} reading history entries for user {}", deleted, user.getUsername());
 		return ApiResponse.success("Reading history cleared", null);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<ReadingListPostResponse>> getReadingList(Pageable pageable) {
+		User user = currentUser();
+		var items = readingListItemRepository.findVisibleItems(user.getId(), PostStatus.PUBLISHED, pageable)
+				.map(item -> new ReadingListPostResponse(toDigest(item.getPost()), item.getCreatedAt()));
+		return ApiResponse.success(PageResult.of(items));
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<Void> addToReadingList(Long postId) {
+		User user = currentUser();
+		findPublishedPost(postId);
+		int inserted = readingListItemRepository.insertIgnore(user.getId(), postId);
+		return ApiResponse.success(inserted > 0 ? "Post added to reading list" : "Post is already in the reading list",
+				null);
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<Void> removeFromReadingList(Long postId) {
+		User user = currentUser();
+		int deleted = readingListItemRepository.deleteOwnedItem(user.getId(), postId);
+		return ApiResponse.success(deleted > 0 ? "Post removed from reading list" : "Post was not in the reading list",
+				null);
 	}
 
 	@Override

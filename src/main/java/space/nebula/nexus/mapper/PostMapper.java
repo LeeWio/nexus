@@ -30,6 +30,7 @@ public interface PostMapper {
 	@Mapping(target = "navigation", ignore = true)
 	@Mapping(target = "isLiked", ignore = true)
 	@Mapping(target = "isFavorited", ignore = true)
+	@Mapping(target = "isInReadingList", ignore = true)
 	PostResponse toResponse(Post post);
 
 	List<PostResponse> toResponseList(List<Post> posts);

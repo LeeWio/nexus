@@ -46,6 +46,15 @@ class OpenApiDocumentationIntegrationTest {
 						"$.paths['/api/v1/public/interactions/posts/{postId}/like'].post.security[0].bearerAuth")
 						.isArray())
 				.andExpect(
+						jsonPath("$.paths['/api/v1/user/library/reading-list'].get.security[0].bearerAuth").isArray())
+				.andExpect(jsonPath("$.paths['/api/v1/user/library/reading-list/{postId}'].put.security[0].bearerAuth")
+						.isArray())
+				.andExpect(
+						jsonPath("$.paths['/api/v1/user/library/reading-list/{postId}'].delete.security[0].bearerAuth")
+								.isArray())
+				.andExpect(
+						jsonPath("$.components.schemas.PostResponse.properties.isInReadingList.type").value("boolean"))
+				.andExpect(
 						jsonPath("$.components.schemas.PostInteractionResponse.properties.liked.type").value("boolean"))
 				.andExpect(jsonPath("$.components.schemas.PostInteractionResponse.properties.favoritesCount.type")
 						.value("integer"))

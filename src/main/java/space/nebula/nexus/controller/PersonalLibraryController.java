@@ -28,6 +28,7 @@ import space.nebula.nexus.payload.response.PersonalLibraryOverviewResponse;
 import space.nebula.nexus.payload.response.PostCollectionResponse;
 import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.payload.response.ReadingHistoryResponse;
+import space.nebula.nexus.payload.response.ReadingListPostResponse;
 import space.nebula.nexus.service.IPersonalLibraryService;
 
 import java.util.List;
@@ -190,6 +191,29 @@ public class PersonalLibraryController {
 	@Operation(summary = "Clear reading history", description = "Delete every saved reading-progress entry owned by the current user.")
 	public ApiResponse<Void> clearReadingHistory() {
 		return personalLibraryService.clearReadingHistory();
+	}
+
+	/** Returns posts queued for later reading. */
+	@GetMapping("/reading-list")
+	@Operation(summary = "Get reading list", description = "Return published posts queued for later reading by the authenticated user, ordered by most recent addition.")
+	public ApiResponse<PageResult<ReadingListPostResponse>> getReadingList(
+			@PageableDefault(size = 20) Pageable pageable) {
+		return personalLibraryService.getReadingList(pageable);
+	}
+
+	/** Adds one published post to the later-reading queue. */
+	@PutMapping("/reading-list/{postId}")
+	@Operation(summary = "Add post to reading list", description = "Queue one published post for later reading. Repeating the request does not create a duplicate.")
+	public ApiResponse<Void> addToReadingList(@Parameter(description = "Published post ID") @PathVariable Long postId) {
+		return personalLibraryService.addToReadingList(postId);
+	}
+
+	/** Removes one post from the later-reading queue. */
+	@DeleteMapping("/reading-list/{postId}")
+	@Operation(summary = "Remove post from reading list", description = "Remove one post from the current user's later-reading queue. Repeating the request is safe.")
+	public ApiResponse<Void> removeFromReadingList(
+			@Parameter(description = "Published post ID") @PathVariable Long postId) {
+		return personalLibraryService.removeFromReadingList(postId);
 	}
 
 	/** Returns personal collection summaries. */

@@ -194,12 +194,17 @@ public class InteractionServiceImpl implements IInteractionService {
 			Boolean isFavorited = jdbcTemplate.queryForObject(
 					"SELECT EXISTS(SELECT 1 FROM blog_post_favorite WHERE post_id = ? AND user_id = ?)", Boolean.class,
 					postId, userId);
+			Boolean isInReadingList = jdbcTemplate.queryForObject(
+					"SELECT EXISTS(SELECT 1 FROM blog_reading_list_item WHERE post_id = ? AND user_id = ? AND is_deleted = FALSE)",
+					Boolean.class, postId, userId);
 
 			builder.isLiked(isLiked != null ? isLiked : false);
 			builder.isFavorited(isFavorited != null ? isFavorited : false);
+			builder.isInReadingList(isInReadingList != null ? isInReadingList : false);
 		} else {
 			builder.isLiked(false);
 			builder.isFavorited(false);
+			builder.isInReadingList(false);
 		}
 	}
 

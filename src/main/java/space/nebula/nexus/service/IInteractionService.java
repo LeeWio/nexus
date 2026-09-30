@@ -19,8 +19,8 @@ public interface IInteractionService {
 	ApiResponse<PostInteractionResponse> unfavoritePost(Long postId);
 
 	/**
-	 * Updates a PostResponse with dynamic interaction data (like/favorite status)
-	 * for the current user.
+	 * Updates a PostResponse with dynamic interaction data
+	 * (like/favorite/reading-list status) for the current user.
 	 */
 	void populateInteractionData(space.nebula.nexus.payload.response.PostResponse.PostResponseBuilder builder,
 			Long postId);

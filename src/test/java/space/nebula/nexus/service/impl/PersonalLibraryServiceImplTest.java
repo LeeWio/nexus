@@ -18,6 +18,7 @@ import space.nebula.nexus.entity.PostCollection;
 import space.nebula.nexus.entity.PostFavorite;
 import space.nebula.nexus.entity.PostLike;
 import space.nebula.nexus.entity.ReadingHistory;
+import space.nebula.nexus.entity.ReadingListItem;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.mapper.PostMapper;
@@ -25,6 +26,7 @@ import space.nebula.nexus.mapper.CategoryMapper;
 import space.nebula.nexus.payload.request.PostCollectionRequest;
 import space.nebula.nexus.payload.request.ReadingProgressRequest;
 import space.nebula.nexus.payload.response.PostDigestResponse;
+import space.nebula.nexus.repository.ReadingListItemRepository;
 import space.nebula.nexus.repository.PostCollectionItemRepository;
 import space.nebula.nexus.repository.CategoryFollowRepository;
 import space.nebula.nexus.repository.CategoryRepository;
@@ -67,6 +69,8 @@ class PersonalLibraryServiceImplTest {
 	private PostLikeRepository likeRepository;
 	@Mock
 	private ReadingHistoryRepository readingHistoryRepository;
+	@Mock
+	private ReadingListItemRepository readingListItemRepository;
 	@Mock
 	private PostCollectionRepository collectionRepository;
 	@Mock
@@ -258,6 +262,40 @@ class PersonalLibraryServiceImplTest {
 		assertEquals(60, response.data().progressPercent());
 		assertEquals("section-middle", response.data().positionAnchor());
 		assertEquals(null, response.data().completedAt());
+	}
+
+	@Test
+	void readingListReturnsPublishedEntriesInRepositoryOrder() {
+		Post post = publishedPost(9L);
+		ReadingListItem item = new ReadingListItem();
+		item.setPost(post);
+		item.setCreatedAt(LocalDateTime.now());
+		var pageable = PageRequest.of(0, 20);
+		when(readingListItemRepository.findVisibleItems(42L, PostStatus.PUBLISHED, pageable))
+				.thenReturn(new PageImpl<>(List.of(item), pageable, 1));
+		when(postMapper.toDigestResponse(post)).thenReturn(digest(9L));
+
+		var response = personalLibraryService.getReadingList(pageable);
+
+		assertEquals(1, response.data().getTotal());
+		assertEquals(9L, response.data().getList().getFirst().post().id());
+	}
+
+	@Test
+	void readingListAddAndRemoveAreIdempotent() {
+		when(postRepository.findById(9L)).thenReturn(Optional.of(publishedPost(9L)));
+		when(readingListItemRepository.insertIgnore(42L, 9L)).thenReturn(1, 0);
+		when(readingListItemRepository.deleteOwnedItem(42L, 9L)).thenReturn(1, 0);
+
+		var added = personalLibraryService.addToReadingList(9L);
+		var duplicate = personalLibraryService.addToReadingList(9L);
+		var removed = personalLibraryService.removeFromReadingList(9L);
+		var missing = personalLibraryService.removeFromReadingList(9L);
+
+		assertEquals("Post added to reading list", added.message());
+		assertEquals("Post is already in the reading list", duplicate.message());
+		assertEquals("Post removed from reading list", removed.message());
+		assertEquals("Post was not in the reading list", missing.message());
 	}
 
 	@Test
