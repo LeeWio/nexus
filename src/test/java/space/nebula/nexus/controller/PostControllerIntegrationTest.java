@@ -118,12 +118,26 @@ public class PostControllerIntegrationTest {
 		mockMvc.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request))).andExpect(status().isOk());
 
-		mockMvc.perform(get("/api/v1/public/blog/posts").param("authorName", "Pen Name")).andExpect(status().isOk())
+		mockMvc.perform(get("/api/v1/public/blog/posts").param("authorName", "  pen name  ")).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.total").value(1))
+				.andExpect(jsonPath("$.data.list[0].title").value("Author-filtered post"));
+
+		mockMvc.perform(get("/api/v1/public/blog/posts/digest").param("authorName", "pen name"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(1))
 				.andExpect(jsonPath("$.data.list[0].title").value("Author-filtered post"));
 
 		mockMvc.perform(get("/api/v1/public/blog/posts/digest").param("authorName", "admin")).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.total").value(0));
+
+		admin.setNickname(null);
+		userRepository.saveAndFlush(admin);
+
+		mockMvc.perform(get("/api/v1/public/blog/posts").param("authorName", " ADMIN ")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.total").value(1))
+				.andExpect(jsonPath("$.data.list[0].title").value("Author-filtered post"));
+
+		mockMvc.perform(get("/api/v1/public/blog/posts/digest").param("authorName", "Admin")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.total").value(1));
 	}
 
 	@Test

@@ -48,8 +48,14 @@ public class ReadingHistory extends BaseEntity {
 	 *            progress percentage from 0 through 100
 	 * @param positionAnchor
 	 *            frontend-defined stable reading position
+	 *
+	 *            Progress is monotonic so a stale browser report cannot erase more
+	 *            advanced reading history.
 	 */
 	public void recordProgress(Integer progressPercent, String positionAnchor) {
+		if (this.progressPercent != null && progressPercent < this.progressPercent) {
+			return;
+		}
 		this.progressPercent = progressPercent;
 		this.positionAnchor = positionAnchor;
 		this.lastReadAt = LocalDateTime.now();

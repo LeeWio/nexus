@@ -1,6 +1,7 @@
 package space.nebula.nexus.repository.specification;
 
 import cn.hutool.core.util.StrUtil;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
@@ -63,14 +64,18 @@ public class PostSpecification {
 
 			if (tagId != null) {
 				Join<Post, Tag> tagsJoin = root.join("tags");
+				query.distinct(true);
 				predicates.add(cb.equal(tagsJoin.get("id"), tagId));
 			}
 
 			if (StrUtil.isNotBlank(authorName)) {
 				String normalizedAuthor = authorName.trim();
-				predicates.add(
-						cb.equal(cb.coalesce(root.get("author").get("nickname"), root.get("author").get("username")),
-								normalizedAuthor));
+				Expression<String> nickname = root.get("author").get("nickname").as(String.class);
+				Expression<String> username = root.get("author").get("username").as(String.class);
+				Expression<String> displayName = cb.<String>selectCase()
+						.when(cb.or(cb.isNull(nickname), cb.equal(cb.trim(nickname), "")), username)
+						.otherwise(nickname);
+				predicates.add(cb.equal(cb.lower(displayName), normalizedAuthor.toLowerCase(Locale.ROOT)));
 			}
 
 			if (StrUtil.isNotBlank(keyword)) {

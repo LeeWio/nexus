@@ -239,6 +239,28 @@ class PersonalLibraryServiceImplTest {
 	}
 
 	@Test
+	void readingProgressDoesNotRegressAnExistingEntry() {
+		Post post = publishedPost(9L);
+		ReadingHistory history = new ReadingHistory();
+		history.setPost(post);
+		history.setProgressPercent(60);
+		history.setPositionAnchor("section-middle");
+		history.setCompletedAt(null);
+		when(postRepository.findById(9L)).thenReturn(Optional.of(post));
+		when(readingHistoryRepository.findByUserIdAndPostIdAndIsDeletedFalse(42L, 9L)).thenReturn(Optional.of(history));
+		when(readingHistoryRepository.save(any(ReadingHistory.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+		when(postMapper.toDigestResponse(post)).thenReturn(digest(9L));
+
+		var response = personalLibraryService.recordReadingProgress(9L,
+				new ReadingProgressRequest(30, "section-start"));
+
+		assertEquals(60, response.data().progressPercent());
+		assertEquals("section-middle", response.data().positionAnchor());
+		assertEquals(null, response.data().completedAt());
+	}
+
+	@Test
 	void duplicateCollectionMembershipIsIdempotent() {
 		PostCollection collection = ownedCollection(7L);
 		when(collectionRepository.findByIdAndUserIdAndIsDeletedFalse(7L, 42L)).thenReturn(Optional.of(collection));
