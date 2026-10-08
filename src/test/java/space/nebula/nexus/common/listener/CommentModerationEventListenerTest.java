@@ -12,9 +12,49 @@ import java.util.Optional;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class CommentModerationEventListenerTest {
+	@Test
+	void approvedGuestReplyNotifiesRegisteredAudienceWithoutLookingUpGuest() {
+		UserRepository userRepository = mock(UserRepository.class);
+		INotificationService notificationService = mock(INotificationService.class);
+		CommentModerationEventListener listener = new CommentModerationEventListener(userRepository,
+				notificationService);
+		User recipient = user(2L, "recipient");
+		User postAuthor = user(3L, "post-author");
+		when(userRepository.findById(2L)).thenReturn(Optional.of(recipient));
+		when(userRepository.findById(3L)).thenReturn(Optional.of(postAuthor));
+		var event = new CommentModeratedEvent(this, 48L, null, 2L, 3L, "Guest reader", "Example post",
+				CommentStatus.APPROVED, "/posts/example#comment-48");
+
+		listener.onCommentModerated(event);
+
+		verify(userRepository).findById(2L);
+		verify(userRepository).findById(3L);
+		verifyNoMoreInteractions(userRepository);
+		verify(notificationService).send(recipient, "New reply to your comment",
+				"Guest reader replied to your comment.", "COMMENT_REPLY", "/posts/example#comment-48");
+		verify(notificationService).send(postAuthor, "New comment on your post",
+				"Guest reader commented on \"Example post\".", "POST_COMMENT", "/posts/example#comment-48");
+		verifyNoMoreInteractions(notificationService);
+	}
+
+	@Test
+	void rejectedGuestCommentDoesNotLookUpOrNotifyUsers() {
+		UserRepository userRepository = mock(UserRepository.class);
+		INotificationService notificationService = mock(INotificationService.class);
+		CommentModerationEventListener listener = new CommentModerationEventListener(userRepository,
+				notificationService);
+		var event = new CommentModeratedEvent(this, 48L, null, 2L, 3L, "Guest reader", "Example post",
+				CommentStatus.REJECTED, null);
+
+		listener.onCommentModerated(event);
+
+		verifyNoInteractions(userRepository, notificationService);
+	}
+
 	@Test
 	void approvedReplyNotifiesAuthorReplyRecipientAndPostAuthor() {
 		UserRepository userRepository = mock(UserRepository.class);

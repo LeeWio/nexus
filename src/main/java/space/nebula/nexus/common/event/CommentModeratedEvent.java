@@ -26,13 +26,14 @@ public class CommentModeratedEvent extends ApplicationEvent {
 	 * @param commentId
 	 *            moderated comment identifier
 	 * @param authorId
-	 *            comment author identifier
+	 *            comment author identifier, or {@code null} for guests
 	 * @param replyRecipientId
-	 *            parent comment author identifier, or {@code null}
+	 *            parent comment author identifier, or {@code null} for guests or
+	 *            root comments
 	 * @param postAuthorId
 	 *            article author identifier, or {@code null} for guestbook comments
 	 * @param authorUsername
-	 *            comment author's display identifier
+	 *            comment author's username or guest display name
 	 * @param postTitle
 	 *            article title, or {@code null} for guestbook comments
 	 * @param status

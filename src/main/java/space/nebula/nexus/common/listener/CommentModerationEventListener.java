@@ -35,7 +35,9 @@ public class CommentModerationEventListener {
 	@Async("asyncExecutor")
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onCommentModerated(CommentModeratedEvent event) {
-		userRepository.findById(event.getAuthorId()).ifPresent(author -> notifyAuthor(author, event));
+		if (event.getAuthorId() != null) {
+			userRepository.findById(event.getAuthorId()).ifPresent(author -> notifyAuthor(author, event));
+		}
 
 		if (event.getStatus() == CommentStatus.APPROVED) {
 			notifyApprovedCommentAudience(event);
