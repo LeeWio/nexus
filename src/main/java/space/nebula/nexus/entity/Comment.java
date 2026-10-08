@@ -42,8 +42,20 @@ public class Comment extends BaseEntity {
 	private Moment moment;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "user_id", nullable = false)
+	@JoinColumn(name = "user_id")
 	private User user;
+
+	/** Display name supplied by a guest. Null when {@link #user} is present. */
+	@Column(name = "guest_name", length = 32)
+	private String guestName;
+
+	/** Contact address visible only to moderators. Never returned on public responses. */
+	@Column(name = "guest_email", length = 120)
+	private String guestEmail;
+
+	/** SHA-256 hex of the guest claim cookie. Never returned to clients. */
+	@Column(name = "guest_token_hash", length = 64)
+	private String guestTokenHash;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "parent_id")
@@ -142,5 +154,9 @@ public class Comment extends BaseEntity {
 	 */
 	public boolean isDeletedPlaceholder() {
 		return Boolean.TRUE.equals(deletedPlaceholder);
+	}
+
+	public boolean isGuestComment() {
+		return user == null;
 	}
 }

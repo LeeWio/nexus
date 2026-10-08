@@ -62,6 +62,7 @@ public class CommentCommandService {
 	private final CommentThreadProperties threadProperties;
 	private final CommentIdempotencyService idempotencyService;
 	private final CommentMetricsService metricsService;
+	private final GuestCommentIdentityService guestIdentityService;
 
 	@Transactional
 	@LogOperation("Publish Comment")
@@ -74,17 +75,27 @@ public class CommentCommandService {
 		String filteredContent = sensitiveWordService.filter(request.content());
 		boolean hasViolation = request.content() != null && !request.content().equals(filteredContent);
 		Comment parentComment = resolveParentComment(request.parentId(), targetPost, targetMoment);
-		User author = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		User author = SecurityUtil.getCurrentUser(userRepository);
+		String guestTokenHash = null;
+		String guestName = null;
+		String guestEmail = null;
+		if (author == null) {
+			guestIdentityService.validateGuestName(request.guestName());
+			guestName = request.guestName().trim();
+			guestEmail = guestIdentityService.normalizeGuestEmail(request.guestEmail());
+			guestTokenHash = guestIdentityService.claimTokenHash(servletRequest);
+		}
 
 		String clientRequestId = normalizeClientRequestId(servletRequest);
 		String requestHash = idempotencyService.hashSubmission(request.postId(), request.momentId(), request.parentId(),
 				filteredContent);
-		var replayedResponse = idempotencyService.begin(author.getId(), clientRequestId, requestHash);
+		Long authorId = author == null ? null : author.getId();
+		var replayedResponse = idempotencyService.begin(authorId, guestTokenHash, clientRequestId, requestHash);
 		if (replayedResponse.isPresent()) {
-			return restoreReplayResponse(replayedResponse.get(), author, clientRequestId);
+			return restoreReplayResponse(replayedResponse.get(), authorId, guestTokenHash, clientRequestId);
 		}
 		if (clientRequestId != null) {
-			var existingComment = commentRepository.findByUserIdAndClientRequestId(author.getId(), clientRequestId);
+			var existingComment = findExistingSubmission(authorId, guestTokenHash, clientRequestId);
 			if (existingComment.isPresent()) {
 				Assert.isTrue(
 						isSameSubmission(existingComment.get(), targetPost, targetMoment, parentComment, filteredContent),
@@ -101,11 +112,14 @@ public class CommentCommandService {
 			comment.setPost(targetPost);
 			comment.setMoment(targetMoment);
 			comment.setUser(author);
+			comment.setGuestName(guestName);
+			comment.setGuestEmail(guestEmail);
+			comment.setGuestTokenHash(guestTokenHash);
 			comment.setParent(parentComment);
 			comment.setIpAddress(IpUtil.getIpAddress(servletRequest));
 			comment.setUserAgent(servletRequest.getHeader("User-Agent"));
 			comment.setClientRequestId(clientRequestId);
-			boolean isAdmin = SecurityUtil.hasRole("ADMIN");
+			boolean isAdmin = author != null && SecurityUtil.hasRole("ADMIN");
 			if (isAdmin) {
 				comment.setStatus(CommentStatus.APPROVED);
 			} else {
@@ -113,7 +127,8 @@ public class CommentCommandService {
 			}
 
 			if (hasViolation && !isAdmin) {
-				log.warn("Comment by {} automatically marked as spam due to policy violation", author.getUsername());
+				log.warn("Comment by {} automatically marked as spam due to policy violation",
+						author == null ? guestName : author.getUsername());
 			}
 
 			commentRepository.saveAndFlush(comment);
@@ -131,10 +146,11 @@ public class CommentCommandService {
 						? ApiResponse.success("Comment received and flagged for moderation.", result)
 						: ApiResponse.success("Comment submitted successfully. It is awaiting moderation.", result);
 			}
-			idempotencyService.complete(author.getId(), clientRequestId, requestHash, response, comment.getId());
+			idempotencyService.complete(authorId, guestTokenHash, clientRequestId, requestHash, response,
+					comment.getId());
 			return response;
 		} catch (DataIntegrityViolationException ex) {
-			return recoverIdempotentSubmission(author.getId(), clientRequestId, requestHash, ex);
+			return recoverIdempotentSubmission(authorId, guestTokenHash, clientRequestId, requestHash, ex);
 		}
 	}
 
@@ -204,7 +220,7 @@ public class CommentCommandService {
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only visible comments can be reported"));
 		Assert.isFalse(comment.isDeletedPlaceholder(),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Deleted comments cannot be reported"));
-		Assert.isFalse(comment.getUser().getId().equals(currentUser.getId()),
+		Assert.isFalse(comment.getUser() != null && comment.getUser().getId().equals(currentUser.getId()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "You cannot report your own comment"));
 
 		int inserted = jdbcTemplate.update(
@@ -306,27 +322,35 @@ public class CommentCommandService {
 		return normalized;
 	}
 
-	private ApiResponse<CommentPublishResponse> recoverIdempotentSubmission(Long userId, String clientRequestId,
-			String requestHash, DataIntegrityViolationException ex) {
+	private ApiResponse<CommentPublishResponse> recoverIdempotentSubmission(Long userId, String guestTokenHash,
+			String clientRequestId, String requestHash, DataIntegrityViolationException ex) {
 		if (clientRequestId == null) {
 			throw ex;
 		}
-		return idempotencyService.findCompletedCommentId(userId, clientRequestId, requestHash)
+		return idempotencyService.findCompletedCommentId(userId, guestTokenHash, clientRequestId, requestHash)
 				.flatMap(commentRepository::findById)
 				.map(comment -> ApiResponse.success("Comment submission already received.",
 						new CommentPublishResponse(comment.getId(), comment.getStatus())))
 				.orElseThrow(() -> ex);
 	}
 
-	private ApiResponse<CommentPublishResponse> restoreReplayResponse(ApiResponse<Void> replayedResponse, User author,
-			String clientRequestId) {
+	private ApiResponse<CommentPublishResponse> restoreReplayResponse(ApiResponse<Void> replayedResponse, Long userId,
+			String guestTokenHash, String clientRequestId) {
 		if (clientRequestId == null) {
 			return ApiResponse.success(replayedResponse.message(), null);
 		}
-		return commentRepository.findByUserIdAndClientRequestId(author.getId(), clientRequestId)
+		return findExistingSubmission(userId, guestTokenHash, clientRequestId)
 				.map(comment -> ApiResponse.success(replayedResponse.message(),
 						new CommentPublishResponse(comment.getId(), comment.getStatus())))
 				.orElseGet(() -> ApiResponse.success(replayedResponse.message(), null));
+	}
+
+	private java.util.Optional<Comment> findExistingSubmission(Long userId, String guestTokenHash,
+			String clientRequestId) {
+		if (userId != null) {
+			return commentRepository.findByUserIdAndClientRequestId(userId, clientRequestId);
+		}
+		return commentRepository.findByGuestTokenHashAndClientRequestId(guestTokenHash, clientRequestId);
 	}
 
 	private boolean isSameSubmission(Comment existingComment, Post targetPost, Moment targetMoment,
@@ -346,7 +370,9 @@ public class CommentCommandService {
 		User author = comment.getUser();
 		Post post = comment.getPost();
 		Moment moment = comment.getMoment();
-		String authorDisplayName = author.getNickname() != null ? author.getNickname() : author.getUsername();
+		String authorUsername = author == null ? "guest" : author.getUsername();
+		String authorDisplayName = author == null ? comment.getGuestName()
+				: (author.getNickname() != null ? author.getNickname() : author.getUsername());
 		String postAuthorEmail = null;
 		String postAuthorDisplayName = null;
 		String postTitle = "Guestbook";
@@ -371,7 +397,7 @@ public class CommentCommandService {
 			}
 		}
 
-		return new CommentSubmittedEvent(this, comment.getId(), author.getUsername(), authorDisplayName,
+		return new CommentSubmittedEvent(this, comment.getId(), authorUsername, authorDisplayName,
 				comment.getContent(), comment.getStatus(), postTitle, postAuthorEmail, postAuthorDisplayName,
 				comment.getIpAddress(), comment.getUserAgent());
 	}
@@ -381,14 +407,15 @@ public class CommentCommandService {
 	@LogOperation("Publish Moment Comment")
 	public ApiResponse<CommentPublishResponse> publishMomentComment(MomentCommentRequest request,
 			HttpServletRequest servletRequest) {
-		return publishComment(new CommentRequest(request.content(), null, request.momentId(), request.parentId()),
-				servletRequest);
+		return publishComment(new CommentRequest(request.content(), null, request.momentId(), request.parentId(),
+				request.guestName(), request.guestEmail()), servletRequest);
 	}
 
 	private Comment findOwnedComment(Long id, User currentUser) {
 		Comment comment = commentRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Comment", "id", id));
-		Assert.isTrue(comment.getUser().getId().equals(currentUser.getId()),
+		boolean ownsComment = comment.getUser() != null && comment.getUser().getId().equals(currentUser.getId());
+		Assert.isTrue(ownsComment,
 				() -> new BusinessException(BusinessCode.FORBIDDEN, "You can only manage your own comments"));
 		return comment;
 	}

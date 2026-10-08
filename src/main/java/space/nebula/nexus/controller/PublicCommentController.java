@@ -41,10 +41,9 @@ public class PublicCommentController {
 	private final ICommentService commentService;
 
 	@PostMapping
-	@Operation(summary = "Publish a new comment", description = "Submit a comment on a blog post. Requires user authentication.")
+	@Operation(summary = "Publish a new comment", description = "Submit a comment on a blog post. Signed-in users post as themselves. Guests must provide a display name and receive a claim cookie.")
 	@SecurityRequirement(name = "bearerAuth")
-	@PreAuthorize("isAuthenticated()")
-	@RateLimit(count = 5, time = 15, unit = TimeUnit.MINUTES, message = "Too many comments. Please wait a moment.")
+	@RateLimit(key = "comment-publish:", count = 5, time = 15, unit = TimeUnit.MINUTES, message = "Too many comments. Please wait a moment.")
 	public ApiResponse<CommentPublishResponse> publishComment(@Valid @RequestBody CommentRequest request,
 			HttpServletRequest servletRequest) {
 		return commentService.publishComment(request, servletRequest);
@@ -99,10 +98,9 @@ public class PublicCommentController {
 	}
 
 	@PostMapping("/moment")
-	@Operation(summary = "Publish a moment comment", description = "Submit a comment on a public moment. Requires authentication.")
+	@Operation(summary = "Publish a moment comment", description = "Submit a comment on a public moment. Guests must provide a display name.")
 	@SecurityRequirement(name = "bearerAuth")
-	@PreAuthorize("isAuthenticated()")
-	@RateLimit(count = 5, time = 15, unit = TimeUnit.MINUTES, message = "Too many comments. Please wait a moment.")
+	@RateLimit(key = "comment-publish:", count = 5, time = 15, unit = TimeUnit.MINUTES, message = "Too many comments. Please wait a moment.")
 	public ApiResponse<CommentPublishResponse> publishMomentComment(@Valid @RequestBody MomentCommentRequest request,
 			HttpServletRequest servletRequest) {
 		return commentService.publishMomentComment(request, servletRequest);

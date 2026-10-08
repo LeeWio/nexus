@@ -64,6 +64,9 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	@EntityGraph(attributePaths = {"user", "post", "parent"})
 	java.util.Optional<Comment> findByUserIdAndClientRequestId(Long userId, String clientRequestId);
 
+	@EntityGraph(attributePaths = {"user", "post", "parent"})
+	java.util.Optional<Comment> findByGuestTokenHashAndClientRequestId(String guestTokenHash, String clientRequestId);
+
 	@EntityGraph(attributePaths = {"user", "post"})
 	List<Comment> findAllByPostIdAndParentIsNullAndStatusAndIdLessThanOrderByIdDesc(Long postId, CommentStatus status,
 			Long cursor, Pageable pageable);

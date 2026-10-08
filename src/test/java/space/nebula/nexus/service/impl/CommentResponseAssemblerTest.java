@@ -17,6 +17,8 @@ import space.nebula.nexus.security.util.SecurityUtil;
 import java.util.List;
 import java.util.Optional;
 
+import static org.mockito.Mockito.lenient;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,6 +38,8 @@ class CommentResponseAssemblerTest {
 	private CommentRepository commentRepository;
 	@Mock
 	private UserRepository userRepository;
+	@Mock
+	private GuestCommentIdentityService guestIdentityService;
 
 	@Test
 	void toResponseListBatchLoadsReplyCountsAndLikedState() {
@@ -54,8 +58,7 @@ class CommentResponseAssemblerTest {
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(SecurityUtil::getCurrentUsername).thenReturn("reader");
 
-			CommentResponseAssembler assembler = new CommentResponseAssembler(commentMapper, commentRepository,
-					userRepository);
+			CommentResponseAssembler assembler = assembler();
 			List<CommentResponse> responses = assembler.toResponseList(List.of(first, second));
 
 			assertEquals(2, responses.size());
@@ -76,8 +79,7 @@ class CommentResponseAssemblerTest {
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(SecurityUtil::getCurrentUsername).thenReturn(null);
 
-			CommentResponseAssembler assembler = new CommentResponseAssembler(commentMapper, commentRepository,
-					userRepository);
+			CommentResponseAssembler assembler = assembler();
 			List<CommentResponse> responses = assembler.toResponseList(List.of(comment));
 
 			assertEquals(0, responses.getFirst().replyCount());
@@ -85,6 +87,31 @@ class CommentResponseAssemblerTest {
 			verify(userRepository, never()).findByUsername(eq("reader"));
 			verify(commentRepository, never()).findLikedCommentIds(eq(7L), anyCollection());
 		}
+	}
+
+	@Test
+	void guestOwnerCanEditWhenClaimCookieMatches() {
+		Comment comment = comment(10L, 0L);
+		comment.setGuestTokenHash("hashed-token");
+		comment.setGuestName("River");
+
+		when(commentMapper.toResponse(comment)).thenReturn(mapped(10L, 0L));
+		when(commentRepository.countRepliesByParentIds(List.of(10L), CommentStatus.APPROVED)).thenReturn(List.of());
+		when(guestIdentityService.currentTokenHash()).thenReturn(Optional.of("hashed-token"));
+
+		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
+			mockedSecurity.when(SecurityUtil::getCurrentUsername).thenReturn(null);
+
+			CommentResponse response = assembler().toResponseList(List.of(comment)).getFirst();
+
+			assertTrue(response.viewerCanEdit());
+			assertTrue(response.viewerCanDelete());
+		}
+	}
+
+	private CommentResponseAssembler assembler() {
+		lenient().when(guestIdentityService.currentTokenHash()).thenReturn(Optional.empty());
+		return new CommentResponseAssembler(commentMapper, commentRepository, userRepository, guestIdentityService);
 	}
 
 	private Comment comment(Long id, Long likesCount) {

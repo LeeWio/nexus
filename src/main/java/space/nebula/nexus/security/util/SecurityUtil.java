@@ -51,15 +51,22 @@ public class SecurityUtil {
 	 * @throws BusinessException
 	 *             if user is not authenticated or not found in database.
 	 */
-	public User getCurrentUserOrThrow(UserRepository userRepository) {
+	public User getCurrentUser(UserRepository userRepository) {
 		User currentUser = getCurrentUser();
 		if (currentUser != null) {
 			return currentUser;
 		}
 		String username = getCurrentUsername();
-		Assert.notNull(username, () -> new BusinessException(401, "Authentication required"));
-		return userRepository.findByUsername(username)
-				.orElseThrow(() -> new BusinessException(404, "Current user could not be resolved"));
+		if (username == null) {
+			return null;
+		}
+		return userRepository.findByUsername(username).orElse(null);
+	}
+
+	public User getCurrentUserOrThrow(UserRepository userRepository) {
+		User currentUser = getCurrentUser(userRepository);
+		Assert.notNull(currentUser, () -> new BusinessException(401, "Authentication required"));
+		return currentUser;
 	}
 
 	/**

@@ -24,6 +24,7 @@ public class CommentResponseAssembler {
 	private final CommentMapper commentMapper;
 	private final CommentRepository commentRepository;
 	private final UserRepository userRepository;
+	private final GuestCommentIdentityService guestIdentityService;
 
 	public CommentResponse toResponse(Comment comment) {
 		return toResponseList(List.of(comment)).getFirst();
@@ -68,10 +69,13 @@ public class CommentResponseAssembler {
 		User currentUser = SecurityUtil.getCurrentUser();
 		boolean isOwner = currentUser != null && comment.getUser() != null
 				&& currentUser.getId().equals(comment.getUser().getId());
-		boolean canMutate = isOwner && !Boolean.TRUE.equals(comment.getDeletedPlaceholder());
+		boolean isGuestOwner = comment.isGuestComment() && guestIdentityService.currentTokenHash()
+				.filter(hash -> hash.equals(comment.getGuestTokenHash())).isPresent();
+		boolean canMutate = (isOwner || isGuestOwner) && !Boolean.TRUE.equals(comment.getDeletedPlaceholder());
 		return CommentResponse.builder().id(response.id()).parentId(response.parentId()).content(response.content())
 				.authorUserId(response.authorUserId()).username(response.username()).nickname(response.nickname())
-				.avatar(response.avatar()).status(response.status()).postId(response.postId())
+				.avatar(response.avatar()).anonymous(Boolean.TRUE.equals(response.anonymous()))
+				.status(response.status()).postId(response.postId())
 				.postTitle(response.postTitle()).momentId(response.momentId())
 				.likesCount(response.likesCount() == null ? 0L : response.likesCount())
 				.reportsCount(response.reportsCount() == null ? 0L : response.reportsCount())

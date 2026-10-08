@@ -159,14 +159,15 @@ public class CommentGovernanceService {
 		long threshold = minOpenReports == null ? moderationProperties.getHighRiskReportThreshold() : minOpenReports;
 		String baseQuery = """
 				FROM blog_comment comment
-				JOIN sys_user author ON author.id = comment.user_id
+				LEFT JOIN sys_user author ON author.id = comment.user_id
 				LEFT JOIN blog_post post ON post.id = comment.post_id
 				LEFT JOIN blog_comment parent ON parent.id = comment.parent_id
 				LEFT JOIN blog_comment_report open_report
 				       ON open_report.comment_id = comment.id AND open_report.status = ?
 				WHERE comment.is_deleted = FALSE
 				GROUP BY comment.id, comment.parent_id, comment.post_id, post.title, comment.content,
-				         author.username, author.nickname, author.avatar, comment.status, comment.reports_count,
+				         author.username, author.nickname, author.avatar, comment.guest_name, comment.status,
+				         comment.reports_count,
 				         comment.likes_count, comment.created_at, comment.edited_at
 				HAVING COUNT(open_report.reporter_id) >= ?
 				""";
@@ -174,7 +175,9 @@ public class CommentGovernanceService {
 				Long.class, CommentReportStatus.OPEN.name(), threshold);
 		List<CommentRiskResponse> comments = jdbcTemplate.query("""
 				SELECT comment.id, comment.parent_id, comment.post_id, post.title AS post_title, comment.content,
-				       author.username, author.nickname, author.avatar, comment.status, comment.reports_count,
+				       COALESCE(author.username, 'guest') AS username,
+				       COALESCE(author.nickname, comment.guest_name) AS nickname,
+				       author.avatar, comment.status, comment.reports_count,
 				       COUNT(open_report.reporter_id) AS open_reports, comment.likes_count,
 				       (COUNT(open_report.reporter_id) * 10 + comment.reports_count * 2) AS risk_score,
 				       comment.created_at, comment.edited_at
