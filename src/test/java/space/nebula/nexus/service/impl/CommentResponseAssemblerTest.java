@@ -95,14 +95,16 @@ class CommentResponseAssemblerTest {
 		comment.setGuestTokenHash("hashed-token");
 		comment.setGuestName("River");
 
+		CommentResponseAssembler responseAssembler = assembler();
 		when(commentMapper.toResponse(comment)).thenReturn(mapped(10L, 0L));
 		when(commentRepository.countRepliesByParentIds(List.of(10L), CommentStatus.APPROVED)).thenReturn(List.of());
 		when(guestIdentityService.currentTokenHash()).thenReturn(Optional.of("hashed-token"));
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(SecurityUtil::getCurrentUsername).thenReturn(null);
+			mockedSecurity.when(SecurityUtil::getCurrentUser).thenReturn(null);
 
-			CommentResponse response = assembler().toResponseList(List.of(comment)).getFirst();
+			CommentResponse response = responseAssembler.toResponseList(List.of(comment)).getFirst();
 
 			assertTrue(response.viewerCanEdit());
 			assertTrue(response.viewerCanDelete());

@@ -41,7 +41,7 @@ class CommentIdempotencyServiceTest {
 
 	@Test
 	void beginCreatesNewRecordWhenKeyIsFresh() {
-		when(jdbcTemplate.update(anyString(), eq(1L), eq("key"), eq("hash"))).thenReturn(1);
+		when(jdbcTemplate.update(anyString(), eq(1L), isNull(), eq("key"), eq("hash"))).thenReturn(1);
 
 		Optional<ApiResponse<Void>> response = service.begin(1L, "key", "hash");
 
@@ -51,7 +51,7 @@ class CommentIdempotencyServiceTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	void beginReplaysCompletedResponseForSameHash() throws Exception {
-		when(jdbcTemplate.update(anyString(), eq(1L), eq("key"), eq("hash"))).thenReturn(0);
+		when(jdbcTemplate.update(anyString(), eq(1L), isNull(), eq("key"), eq("hash"))).thenReturn(0);
 		when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class), eq(1L), eq("key")))
 				.thenAnswer(invocation -> {
 					ResultSetExtractor<Optional<?>> extractor = invocation.getArgument(1);
@@ -73,7 +73,7 @@ class CommentIdempotencyServiceTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	void beginRejectsSameKeyWithDifferentHash() throws Exception {
-		when(jdbcTemplate.update(anyString(), eq(1L), eq("key"), eq("new-hash"))).thenReturn(0);
+		when(jdbcTemplate.update(anyString(), eq(1L), isNull(), eq("key"), eq("new-hash"))).thenReturn(0);
 		when(jdbcTemplate.query(anyString(), any(ResultSetExtractor.class), eq(1L), eq("key")))
 				.thenAnswer(invocation -> {
 					ResultSetExtractor<Optional<?>> extractor = invocation.getArgument(1);

@@ -120,7 +120,7 @@ class CommentServiceImplTest {
 		when(sensitiveWordService.filter("Hello World")).thenReturn("Hello World");
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
-			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUser(userRepository)).thenReturn(testUser);
 
 			var response = commentService.publishComment(request, servletRequest);
 
@@ -144,7 +144,7 @@ class CommentServiceImplTest {
 		when(sensitiveWordService.filter("Bad Word")).thenReturn("***");
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
-			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUser(userRepository)).thenReturn(testUser);
 
 			var response = commentService.publishComment(request, servletRequest);
 
@@ -164,7 +164,7 @@ class CommentServiceImplTest {
 		when(sensitiveWordService.filter("Hello from Admin")).thenReturn("Hello from Admin");
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
-			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUser(userRepository)).thenReturn(testUser);
 			mockedSecurity.when(() -> SecurityUtil.hasRole("ADMIN")).thenReturn(true);
 
 			var response = commentService.publishComment(request, servletRequest);
@@ -185,7 +185,7 @@ class CommentServiceImplTest {
 		when(sensitiveWordService.filter("Admin Bad Word")).thenReturn("***");
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
-			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUser(userRepository)).thenReturn(testUser);
 			mockedSecurity.when(() -> SecurityUtil.hasRole("ADMIN")).thenReturn(true);
 
 			var response = commentService.publishComment(request, servletRequest);
@@ -260,7 +260,7 @@ class CommentServiceImplTest {
 		when(commentRepository.findByUserIdAndClientRequestId(1L, "comment-key-1")).thenReturn(Optional.of(existing));
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
-			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUser(userRepository)).thenReturn(testUser);
 
 			var response = commentService.publishComment(request, servletRequest);
 
@@ -286,7 +286,7 @@ class CommentServiceImplTest {
 		when(commentRepository.findByUserIdAndClientRequestId(1L, "comment-key-1")).thenReturn(Optional.of(existing));
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
-			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUser(userRepository)).thenReturn(testUser);
 
 			BusinessException exception = assertThrows(BusinessException.class,
 					() -> commentService.publishComment(request, servletRequest));
@@ -305,7 +305,7 @@ class CommentServiceImplTest {
 		when(servletRequest.getHeader("Idempotency-Key")).thenReturn("x".repeat(81));
 
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
-			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(testUser);
+			mockedSecurity.when(() -> SecurityUtil.getCurrentUser(userRepository)).thenReturn(testUser);
 
 			BusinessException exception = assertThrows(BusinessException.class,
 					() -> commentService.publishComment(request, servletRequest));
