@@ -98,7 +98,8 @@ public class CommentCommandService {
 			var existingComment = findExistingSubmission(authorId, guestTokenHash, clientRequestId);
 			if (existingComment.isPresent()) {
 				Assert.isTrue(
-						isSameSubmission(existingComment.get(), targetPost, targetMoment, parentComment, filteredContent),
+						isSameSubmission(existingComment.get(), targetPost, targetMoment, parentComment,
+								filteredContent),
 						() -> new BusinessException(BusinessCode.DUPLICATE_KEY,
 								"Idempotency-Key was already used for a different comment"));
 				return ApiResponse.success("Comment submission already received.",
@@ -280,7 +281,8 @@ public class CommentCommandService {
 			contextMatch = parentComment.getMoment() != null
 					&& parentComment.getMoment().getId().equals(targetMoment.getId());
 		} else if (targetPost != null) {
-			contextMatch = parentComment.getPost() != null && parentComment.getPost().getId().equals(targetPost.getId());
+			contextMatch = parentComment.getPost() != null
+					&& parentComment.getPost().getId().equals(targetPost.getId());
 		} else {
 			contextMatch = parentComment.getPost() == null && parentComment.getMoment() == null;
 		}
@@ -371,7 +373,8 @@ public class CommentCommandService {
 		Post post = comment.getPost();
 		Moment moment = comment.getMoment();
 		String authorUsername = author == null ? "guest" : author.getUsername();
-		String authorDisplayName = author == null ? comment.getGuestName()
+		String authorDisplayName = author == null
+				? comment.getGuestName()
 				: (author.getNickname() != null ? author.getNickname() : author.getUsername());
 		String postAuthorEmail = null;
 		String postAuthorDisplayName = null;
@@ -397,9 +400,9 @@ public class CommentCommandService {
 			}
 		}
 
-		return new CommentSubmittedEvent(this, comment.getId(), authorUsername, authorDisplayName,
-				comment.getContent(), comment.getStatus(), postTitle, postAuthorEmail, postAuthorDisplayName,
-				comment.getIpAddress(), comment.getUserAgent());
+		return new CommentSubmittedEvent(this, comment.getId(), authorUsername, authorDisplayName, comment.getContent(),
+				comment.getStatus(), postTitle, postAuthorEmail, postAuthorDisplayName, comment.getIpAddress(),
+				comment.getUserAgent());
 	}
 
 	@Transactional

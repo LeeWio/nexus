@@ -49,7 +49,10 @@ public class Comment extends BaseEntity {
 	@Column(name = "guest_name", length = 32)
 	private String guestName;
 
-	/** Contact address visible only to moderators. Never returned on public responses. */
+	/**
+	 * Contact address visible only to moderators. Never returned on public
+	 * responses.
+	 */
 	@Column(name = "guest_email", length = 120)
 	private String guestEmail;
 
