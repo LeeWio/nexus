@@ -32,6 +32,7 @@
 		<mockito.version>5.20.0</mockito.version>
 		<!-- Security overrides for vulnerabilities reported by Trivy. -->
 		<netty.version>4.2.17.Final</netty.version>
+		<spring-framework.version>7.0.9</spring-framework.version>
 		<tomcat.version>11.0.25</tomcat.version>
 		<spotless.ratchetFrom>origin/main</spotless.ratchetFrom>
 	</properties>
