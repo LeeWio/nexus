@@ -1,81 +1,59 @@
 package space.nebula.nexus.common.listener;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import space.nebula.nexus.common.event.CommentModeratedEvent;
 import space.nebula.nexus.common.event.CommentSubmittedEvent;
-import space.nebula.nexus.config.RabbitMQConfig;
 import space.nebula.nexus.enums.CommentStatus;
-import space.nebula.nexus.payload.request.TemplateMailMessage;
-
-import cn.hutool.core.lang.Dict;
-
-import java.util.Map;
+import space.nebula.nexus.enums.NotificationType;
+import space.nebula.nexus.repository.CommentRepository;
+import space.nebula.nexus.service.INotificationService;
+import space.nebula.nexus.payload.response.NotificationContext;
+import static space.nebula.nexus.payload.response.NotificationContext.ObjectType.COMMENT;
+import static space.nebula.nexus.payload.response.NotificationContext.Action.REVIEW;
 
 /**
- * Listener for comment-related events. Dispatches email notifications via
- * RabbitMQ.
+ * Persists submission alerts with the comment, including immediately approved
+ * replies.
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class CommentEventListener {
+	private final CommentRepository commentRepository;
+	private final INotificationService notificationService;
+	private final CommentModerationEventListener moderationListener;
 
-	private final RabbitTemplate rabbitTemplate;
-
-	/**
-	 * Handle comment submission. Dispatched asynchronously via 'asyncExecutor'.
-	 */
-	@Async("asyncExecutor")
-	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	@TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
 	public void onCommentSubmitted(CommentSubmittedEvent event) {
-		// Target email is post author, or admin if guestbook/missing
-		String targetEmail = event.getPostAuthorEmail();
-		String authorName = event.getPostAuthorDisplayName() != null ? event.getPostAuthorDisplayName() : "Admin";
-		String postTitle = event.getPostTitle();
-
-		if (targetEmail == null || targetEmail.isBlank()) {
-			targetEmail = "admin@nexus.com";
-		}
-
-		if (event.getStatus() == CommentStatus.SPAM) {
-			sendViolationAlert(event, targetEmail, postTitle);
-		} else {
-			sendNewCommentNotification(event, targetEmail, authorName, postTitle);
-		}
-	}
-
-	private void sendNewCommentNotification(CommentSubmittedEvent event, String email, String authorName,
-			String postTitle) {
-		String subject = "New Comment on: " + postTitle;
-
-		Map<String, Object> variables = Dict.create().set("authorName", authorName)
-				.set("commenterName", event.getAuthorDisplayName()).set("postTitle", postTitle)
-				.set("commentContent", event.getContent());
-
-		TemplateMailMessage message = TemplateMailMessage.builder().to(email).subject(subject)
-				.templateName("new-comment").variables(variables).type(TemplateMailMessage.MailType.TEMPLATE).build();
-
-		rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
-		log.info("Dispatched async comment notification task for: {}", email);
-	}
-
-	private void sendViolationAlert(CommentSubmittedEvent event, String email, String postTitle) {
-		String subject = "[ALERT] Content Violation Blocked on: " + postTitle;
-
-		Map<String, Object> variables = Dict.create().set("commenterName", event.getAuthorUsername())
-				.set("postTitle", postTitle).set("commentContent", event.getContent())
-				.set("ipAddress", event.getIpAddress()).set("userAgent", event.getUserAgent());
-
-		TemplateMailMessage message = TemplateMailMessage.builder().to(email).subject(subject)
-				.templateName("violation-alert").variables(variables).type(TemplateMailMessage.MailType.TEMPLATE)
-				.build();
-
-		rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
-		log.info("Dispatched async violation alert task for: {}", email);
+		commentRepository.findById(event.getCommentId()).ifPresent(comment -> {
+			Long authorId = comment.getUser() == null ? null : comment.getUser().getId();
+			if (event.getStatus() == CommentStatus.APPROVED) {
+				var parent = comment.getParent();
+				Long replyId = parent == null || parent.getUser() == null ? null : parent.getUser().getId();
+				var post = comment.getPost();
+				Long postAuthorId = post == null || post.getAuthor() == null ? null : post.getAuthor().getId();
+				if (comment.getMoment() != null && comment.getMoment().getUser() != null)
+					postAuthorId = comment.getMoment().getUser().getId();
+				NotificationType audienceType = comment.getMoment() != null
+						? NotificationType.MOMENT_COMMENT
+						: post == null ? NotificationType.GUESTBOOK_COMMENT : NotificationType.POST_COMMENT;
+				String base = comment.getMoment() != null
+						? "/moments"
+						: post == null ? "/guestbook" : "/posts/" + post.getSlug();
+				moderationListener.notifyApprovedCommentAudience(new CommentModeratedEvent(this, comment.getId(),
+						authorId, replyId, postAuthorId, event.getAuthorDisplayName(), event.getPostTitle(),
+						CommentStatus.APPROVED, base + "#comment-" + comment.getId(), audienceType));
+			} else if (event.getStatus() == CommentStatus.PENDING || event.getStatus() == CommentStatus.SPAM) {
+				boolean flagged = event.getStatus() == CommentStatus.SPAM;
+				notificationService.sendToAdministrators(
+						flagged ? "Comment flagged for review" : "Comment awaiting review",
+						"A comment on \"" + event.getPostTitle() + "\" needs moderation.",
+						flagged ? NotificationType.COMMENT_FLAGGED : NotificationType.COMMENT_PENDING_REVIEW,
+						"/comments?id=" + comment.getId(), event.getNotificationEventId(), authorId,
+						new NotificationContext(COMMENT, comment.getId(), authorId, REVIEW));
+			}
+		});
 	}
 }

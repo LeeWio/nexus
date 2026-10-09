@@ -6,7 +6,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.config.FriendLinkProperties;
 import space.nebula.nexus.entity.FriendLink;
@@ -14,6 +13,9 @@ import space.nebula.nexus.enums.FriendLinkStatus;
 import space.nebula.nexus.mapper.FriendLinkMapper;
 import space.nebula.nexus.payload.request.FriendLinkApplicationRequest;
 import space.nebula.nexus.repository.FriendLinkRepository;
+import space.nebula.nexus.service.INotificationService;
+import space.nebula.nexus.service.NotificationDeliveryService;
+import space.nebula.nexus.enums.NotificationType;
 
 import java.util.Optional;
 
@@ -21,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,7 +35,9 @@ class FriendLinkServiceImplTest {
 	@Mock
 	private FriendLinkMapper friendLinkMapper;
 	@Mock
-	private RabbitTemplate rabbitTemplate;
+	private INotificationService notificationService;
+	@Mock
+	private NotificationDeliveryService notificationDeliveryService;
 	@Mock
 	private FriendLinkProperties friendLinkProperties;
 	@InjectMocks
@@ -47,7 +50,7 @@ class FriendLinkServiceImplTest {
 	}
 
 	@Test
-	void applicationNormalizesUrlAndSurvivesNotificationFailure() {
+	void applicationNormalizesUrlAndPersistsNotificationRequests() {
 		FriendLinkApplicationRequest request = new FriendLinkApplicationRequest(" Example ", "HTTPS://Example.COM/",
 				null, " Site ", "Owner@Example.COM");
 		when(friendLinkRepository.findByUrl("https://example.com")).thenReturn(Optional.empty());
@@ -56,8 +59,6 @@ class FriendLinkServiceImplTest {
 			link.setId(1L);
 			return link;
 		});
-		doThrow(new RuntimeException("broker unavailable")).when(rabbitTemplate).convertAndSend(any(String.class),
-				any(String.class), any(Object.class));
 
 		var response = service.applyForFriendLink(request);
 
@@ -65,6 +66,15 @@ class FriendLinkServiceImplTest {
 		verify(friendLinkRepository).save(org.mockito.ArgumentMatchers.argThat(
 				link -> "https://example.com".equals(link.getUrl()) && link.getStatus() == FriendLinkStatus.APPLYING
 						&& !link.getIsPublished() && "owner@example.com".equals(link.getEmail())));
+		verify(notificationService).sendToAdministrators("Friend link application received",
+				"\"Example\" applied for a friend link and needs review.", NotificationType.FRIEND_LINK_APPLICATION,
+				"/links?id=1", "FRIEND_LINK:1", null,
+				new space.nebula.nexus.payload.response.NotificationContext(
+						space.nebula.nexus.payload.response.NotificationContext.ObjectType.FRIEND_LINK, 1L, null,
+						space.nebula.nexus.payload.response.NotificationContext.Action.REVIEW));
+		verify(notificationDeliveryService).queueExternalEmail(org.mockito.ArgumentMatchers.eq("moderator@example.com"),
+				any(String.class), any(String.class), org.mockito.ArgumentMatchers.eq("/links?id=1"),
+				org.mockito.ArgumentMatchers.eq("FRIEND_LINK_MODERATION:1"));
 	}
 
 	@Test
@@ -89,5 +99,21 @@ class FriendLinkServiceImplTest {
 
 		assertFalse(link.getIsPublished());
 		verify(friendLinkRepository, never()).save(link);
+	}
+
+	@Test
+	void moderationNotifiesApplicantOfApproval() {
+		FriendLink link = new FriendLink();
+		link.setId(1L);
+		link.setName("Example");
+		link.setEmail("owner@example.com");
+		link.setStatus(FriendLinkStatus.APPLYING);
+		when(friendLinkRepository.findById(1L)).thenReturn(Optional.of(link));
+
+		service.moderateFriendLink(1L, FriendLinkStatus.APPROVED);
+
+		verify(notificationDeliveryService).queueExternalEmail("owner@example.com", "Friend link application approved",
+				"Your application for \"Example\" has been reviewed. Result: APPROVED.", null,
+				"FRIEND_LINK_APPROVED:1");
 	}
 }

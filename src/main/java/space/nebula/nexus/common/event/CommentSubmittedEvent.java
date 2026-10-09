@@ -9,6 +9,7 @@ import space.nebula.nexus.enums.CommentStatus;
  */
 @Getter
 public class CommentSubmittedEvent extends ApplicationEvent {
+	private final String notificationEventId = java.util.UUID.randomUUID().toString();
 
 	private final Long commentId;
 	private final String authorUsername;

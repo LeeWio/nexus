@@ -16,6 +16,9 @@ import space.nebula.nexus.payload.response.NotificationPreferenceResponse;
 import space.nebula.nexus.payload.response.NotificationResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.service.INotificationService;
+import space.nebula.nexus.service.NotificationPreferenceService;
+import space.nebula.nexus.payload.request.NotificationCategoryPreferenceRequest;
+import space.nebula.nexus.payload.response.NotificationCategoryPreferenceResponse;
 
 @Tag(name = "Notification API", description = "Endpoints for managing user notifications")
 @SecurityRequirement(name = "bearerAuth")
@@ -25,14 +28,29 @@ import space.nebula.nexus.service.INotificationService;
 public class NotificationController {
 
 	private final INotificationService notificationService;
+	private final NotificationPreferenceService notificationPreferenceService;
+
+	@GetMapping("/preferences/categories")
+	@Operation(summary = "Get effective category delivery preferences", description = "Returns six categories and whether each inherits the legacy preference settings.")
+	public ApiResponse<NotificationCategoryPreferenceResponse> getMyCategoryPreferences() {
+		return ApiResponse.success(notificationPreferenceService.getMyCategories());
+	}
+
+	@PutMapping("/preferences/categories")
+	@Operation(summary = "Replace category preference overrides", description = "Omitted categories inherit legacy preferences. An empty overrides map resets every category to inheritance. Explicit overrides take precedence over legacy switches.")
+	public ApiResponse<NotificationCategoryPreferenceResponse> replaceMyCategoryPreferences(
+			@Valid @RequestBody NotificationCategoryPreferenceRequest request) {
+		return ApiResponse.success(notificationPreferenceService.replaceMyCategories(request));
+	}
 
 	@GetMapping
-	@Operation(summary = "Get my notifications", description = "Retrieve the current user's inbox. Use unreadOnly for badge and inbox filtering; newest notifications appear first by default.")
+	@Operation(summary = "Get my notifications", description = "Retrieve the current user's inbox. Use unreadOnly for badge and inbox filtering and category to limit one delivery group. Omit category for every group. Newest notifications appear first by default.")
 	public ApiResponse<PageResult<NotificationResponse>> getMyNotifications(
 			@Parameter(description = "When true, return only unread notifications", example = "false") @RequestParam(defaultValue = "false") boolean unreadOnly,
 			@Parameter(description = "Inbox view: inbox, saved, or done", example = "inbox") @RequestParam(defaultValue = "inbox") String view,
+			@Parameter(description = "Delivery category. Omit to include every category.", example = "MODERATION") @RequestParam(required = false) space.nebula.nexus.enums.NotificationCategory category,
 			@Parameter(description = "Zero-based request pagination. Responses use a one-based page number.") @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-		return notificationService.getMyNotifications(unreadOnly, view, pageable);
+		return notificationService.getMyNotifications(unreadOnly, view, category, pageable);
 	}
 
 	@GetMapping("/unread/count")

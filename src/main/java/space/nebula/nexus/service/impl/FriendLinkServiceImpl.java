@@ -2,7 +2,6 @@ package space.nebula.nexus.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
@@ -14,18 +13,22 @@ import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
-import space.nebula.nexus.config.RabbitMQConfig;
 import space.nebula.nexus.config.FriendLinkProperties;
 import space.nebula.nexus.entity.FriendLink;
 import space.nebula.nexus.enums.FriendLinkStatus;
 import space.nebula.nexus.mapper.FriendLinkMapper;
 import space.nebula.nexus.payload.request.FriendLinkRequest;
 import space.nebula.nexus.payload.request.FriendLinkApplicationRequest;
-import space.nebula.nexus.payload.request.TemplateMailMessage;
 import space.nebula.nexus.payload.response.FriendLinkResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.FriendLinkRepository;
 import space.nebula.nexus.service.IFriendLinkService;
+import space.nebula.nexus.service.INotificationService;
+import space.nebula.nexus.service.NotificationDeliveryService;
+import space.nebula.nexus.enums.NotificationType;
+import space.nebula.nexus.payload.response.NotificationContext;
+import static space.nebula.nexus.payload.response.NotificationContext.ObjectType.FRIEND_LINK;
+import static space.nebula.nexus.payload.response.NotificationContext.Action.REVIEW;
 
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
@@ -46,7 +49,8 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 
 	private final FriendLinkRepository friendLinkRepository;
 	private final FriendLinkMapper friendLinkMapper;
-	private final RabbitTemplate rabbitTemplate;
+	private final INotificationService notificationService;
+	private final NotificationDeliveryService notificationDeliveryService;
 	private final FriendLinkProperties friendLinkProperties;
 
 	@Override
@@ -160,6 +164,15 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 		link.setIsPublished(status == FriendLinkStatus.APPROVED);
 		friendLinkRepository.save(link);
 		log.info("Friend link ID {} status updated to {}", id, status);
+		NotificationType type = status == FriendLinkStatus.APPROVED
+				? NotificationType.FRIEND_LINK_APPROVED
+				: NotificationType.FRIEND_LINK_REJECTED;
+		notificationDeliveryService.queueExternalEmail(link.getEmail(),
+				status == FriendLinkStatus.APPROVED
+						? "Friend link application approved"
+						: "Friend link application not approved",
+				"Your application for \"" + link.getName() + "\" has been reviewed. Result: " + status.name() + ".",
+				null, type.name() + ":" + id);
 		return ApiResponse.success("Friend link status updated.", null);
 	}
 
@@ -176,6 +189,10 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 	}
 
 	private void sendApplicationNotification(FriendLink link) {
+		notificationService.sendToAdministrators("Friend link application received",
+				"\"" + link.getName() + "\" applied for a friend link and needs review.",
+				NotificationType.FRIEND_LINK_APPLICATION, "/links?id=" + link.getId(), "FRIEND_LINK:" + link.getId(),
+				null, new NotificationContext(FRIEND_LINK, link.getId(), null, REVIEW));
 		if (StrUtil.isBlank(friendLinkProperties.getModerationEmail())) {
 			log.warn("Friend-link moderation email is not configured; application {} remains queued", link.getId());
 			return;
@@ -187,14 +204,8 @@ public class FriendLinkServiceImpl implements IFriendLinkService {
 						+ "Please log in to moderate this application.",
 				link.getName(), link.getUrl(), link.getDescription(), link.getEmail());
 
-		TemplateMailMessage message = TemplateMailMessage.builder().to(friendLinkProperties.getModerationEmail())
-				.subject(subject).content(content).type(TemplateMailMessage.MailType.SIMPLE).build();
-
-		try {
-			rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
-		} catch (RuntimeException e) {
-			log.error("Failed to enqueue moderation notification for friend-link application {}", link.getId(), e);
-		}
+		notificationDeliveryService.queueExternalEmail(friendLinkProperties.getModerationEmail(), subject, content,
+				"/links?id=" + link.getId(), "FRIEND_LINK_MODERATION:" + link.getId());
 	}
 
 	private String normalizeOptionalHttpUrl(String value, String fieldName) {

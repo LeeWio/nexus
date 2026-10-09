@@ -10,6 +10,10 @@ import space.nebula.nexus.enums.PostStatus;
  */
 @Getter
 public class PostChangedEvent extends ApplicationEvent {
+	private final String notificationEventId = java.util.UUID.randomUUID().toString();
+	private final Long notificationActorId = space.nebula.nexus.security.util.SecurityUtil.getCurrentUser() == null
+			? null
+			: space.nebula.nexus.security.util.SecurityUtil.getCurrentUser().getId();
 
 	private final Post post;
 	private final PostChangeType changeType;

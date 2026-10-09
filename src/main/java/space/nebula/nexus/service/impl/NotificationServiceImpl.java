@@ -10,6 +10,8 @@ import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Notification;
 import space.nebula.nexus.entity.NotificationPreference;
 import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.enums.NotificationType;
+import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.payload.request.NotificationPreferenceRequest;
 import space.nebula.nexus.payload.response.PageResult;
@@ -22,9 +24,13 @@ import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.INotificationService;
 import space.nebula.nexus.service.NotificationDeliveryService;
+import space.nebula.nexus.service.NotificationPreferenceService;
+import space.nebula.nexus.service.NotificationContexts;
+import space.nebula.nexus.repository.NotificationCategoryPreferenceRepository;
+import space.nebula.nexus.enums.NotificationCategory;
+import space.nebula.nexus.payload.response.NotificationContext;
 
 import java.time.LocalDateTime;
-import java.util.Set;
 
 @Slf4j
 @Service
@@ -36,15 +42,65 @@ public class NotificationServiceImpl implements INotificationService {
 	private final UserRepository userRepository;
 	private final PostRepository postRepository;
 	private final NotificationDeliveryService notificationDeliveryService;
+	private final NotificationCategoryPreferenceRepository categoryPreferenceRepository;
 
-	private static final Set<String> COMMENT_NOTIFICATION_TYPES = Set.of("COMMENT_APPROVED", "COMMENT_REJECTED",
-			"COMMENT_REPLY", "POST_COMMENT");
+	@Override
+	@Transactional
+	public void sendOnce(User recipient, String title, String content, NotificationType type, String link,
+			String eventKey) {
+		sendOnce(recipient, title, content, type, link, eventKey, null);
+	}
+
+	@Override
+	@Transactional
+	public void sendOnce(User recipient, String title, String content, NotificationType type, String link,
+			String eventKey, NotificationContext context) {
+		if (recipient == null || recipient.getStatus() != UserStatus.ACTIVE
+				|| Boolean.TRUE.equals(recipient.getIsDeleted()))
+			return;
+		String key = type.name() + ":" + eventKey + ":" + recipient.getId();
+		if (key.length() > 150)
+			throw new IllegalArgumentException("Notification event key is too long");
+		// Dismissed notifications retain the key so replay cannot recreate them.
+		if (notificationRepository.findByDeduplicationKey(key).isPresent())
+			return;
+		var channels = channels(recipient.getId(), type.name());
+		boolean inAppEnabled = channels.inApp();
+		boolean emailEnabled = channels.email();
+		if (!inAppEnabled && !emailEnabled)
+			return;
+		if (context == null)
+			notificationRepository.insertOnce(recipient.getId(), title, content, type.name(), link, inAppEnabled, key);
+		else
+			notificationRepository.insertContextualOnce(recipient.getId(), title, content, type.name(), link,
+					inAppEnabled, key, context.objectType().name(), context.objectId(), context.actorId(),
+					context.action().name());
+		if (emailEnabled)
+			notificationRepository.findByDeduplicationKey(key)
+					.ifPresent(notification -> dispatchEmail(notification, recipient, title, content, link));
+	}
+
+	@Override
+	@Transactional
+	public void sendToAdministrators(String title, String content, NotificationType type, String link, String eventKey,
+			Long actorId) {
+		sendToAdministrators(title, content, type, link, eventKey, actorId, null);
+	}
+
+	@Override
+	@Transactional
+	public void sendToAdministrators(String title, String content, NotificationType type, String link, String eventKey,
+			Long actorId, NotificationContext context) {
+		userRepository.findActiveAdministrators().stream().filter(user -> !user.getId().equals(actorId))
+				.forEach(user -> sendOnce(user, title, content, type, link, eventKey, context));
+	}
 
 	@Override
 	@Transactional
 	public void send(User recipient, String title, String content, String type, String link) {
-		boolean inAppEnabled = isInAppNotificationEnabled(recipient.getId(), type);
-		boolean emailEnabled = isEmailNotificationEnabled(recipient.getId(), type);
+		var channels = channels(recipient.getId(), type);
+		boolean inAppEnabled = channels.inApp();
+		boolean emailEnabled = channels.email();
 		if (!inAppEnabled && !emailEnabled) {
 			log.debug("Notification suppressed by delivery preference for user {}: {}", recipient.getUsername(), type);
 			return;
@@ -57,8 +113,23 @@ public class NotificationServiceImpl implements INotificationService {
 		notification.setLink(link);
 		notification.setIsVisible(inAppEnabled);
 		notificationRepository.save(notification);
-		if (emailEnabled) dispatchEmail(notification, recipient, title, content, link);
+		if (emailEnabled)
+			dispatchEmail(notification, recipient, title, content, link);
 		log.debug("Notification sent to user {}: {}", recipient.getUsername(), title);
+	}
+
+	@Override
+	@Transactional
+	public void sendToPostReviewers(String title, String content, String link, String eventKey, Long authorId) {
+		sendToPostReviewers(title, content, link, eventKey, authorId, null);
+	}
+
+	@Override
+	@Transactional
+	public void sendToPostReviewers(String title, String content, String link, String eventKey, Long authorId,
+			NotificationContext context) {
+		userRepository.findActivePostReviewers().stream().filter(user -> !user.getId().equals(authorId)).forEach(
+				user -> sendOnce(user, title, content, NotificationType.POST_PENDING_REVIEW, link, eventKey, context));
 	}
 
 	@Override
@@ -74,8 +145,8 @@ public class NotificationServiceImpl implements INotificationService {
 		int inserted = notificationRepository.insertCategoryPublicationNotifications(post.getCategory().getId(),
 				post.getAuthor().getId(), post.getId(), title, content, "/post/" + post.getSlug());
 		notificationRepository.findCategoryPublicationEmailNotifications("CATEGORY_POST:" + post.getId() + ":")
-				.forEach(notification -> dispatchEmail(notification, notification.getRecipient(), notification.getTitle(),
-						notification.getContent(), notification.getLink()));
+				.forEach(notification -> dispatchEmail(notification, notification.getRecipient(),
+						notification.getTitle(), notification.getContent(), notification.getLink()));
 		log.info("Created {} category publication notifications for post {}", inserted, postId);
 		return inserted;
 	}
@@ -92,6 +163,7 @@ public class NotificationServiceImpl implements INotificationService {
 	@Transactional
 	public ApiResponse<NotificationPreferenceResponse> updateMyPreferences(NotificationPreferenceRequest request) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		userRepository.findNotificationPreferenceOwnerForUpdate(currentUser.getId()).orElseThrow();
 		NotificationPreference preference = notificationPreferenceRepository.findByUserId(currentUser.getId())
 				.orElseGet(() -> {
 					NotificationPreference created = new NotificationPreference();
@@ -116,12 +188,17 @@ public class NotificationServiceImpl implements INotificationService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<NotificationResponse>> getMyNotifications(boolean unreadOnly, String view, Pageable pageable) {
+	public ApiResponse<PageResult<NotificationResponse>> getMyNotifications(boolean unreadOnly, String view,
+			NotificationCategory category, Pageable pageable) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		String categoryName = category == null ? null : category.name();
 		var notifications = switch (view.toLowerCase(java.util.Locale.ROOT)) {
-			case "saved" -> notificationRepository.findSavedByRecipientId(currentUser.getId(), unreadOnly, pageable);
-			case "done" -> notificationRepository.findDoneByRecipientId(currentUser.getId(), unreadOnly, pageable);
-			default -> notificationRepository.findInboxByRecipientId(currentUser.getId(), unreadOnly, pageable);
+			case "saved" -> notificationRepository.findSavedByRecipientId(currentUser.getId(), unreadOnly,
+					categoryName, pageable);
+			case "done" -> notificationRepository.findDoneByRecipientId(currentUser.getId(), unreadOnly, categoryName,
+					pageable);
+			default -> notificationRepository.findInboxByRecipientId(currentUser.getId(), unreadOnly, categoryName,
+					pageable);
 		};
 		return ApiResponse.success(PageResult.of(notifications.map(this::toResponse)));
 	}
@@ -157,7 +234,8 @@ public class NotificationServiceImpl implements INotificationService {
 		if (notification.getCompletedAt() == null) {
 			notification.setCompletedAt(LocalDateTime.now());
 			notification.setIsRead(true);
-			if (notification.getReadAt() == null) notification.setReadAt(LocalDateTime.now());
+			if (notification.getReadAt() == null)
+				notification.setReadAt(LocalDateTime.now());
 			notificationRepository.save(notification);
 		}
 		return ApiResponse.success("Notification completed", null);
@@ -212,8 +290,9 @@ public class NotificationServiceImpl implements INotificationService {
 
 	private NotificationResponse toResponse(Notification notification) {
 		return new NotificationResponse(notification.getId(), notification.getTitle(), notification.getContent(),
-				notification.getType(), notification.getIsRead(), notification.getIsSaved(), notification.getReadAt(), notification.getCompletedAt(), notification.getLink(),
-				notification.getCreatedAt());
+				notification.getType(), notification.getIsRead(), notification.getIsSaved(), notification.getReadAt(),
+				notification.getCompletedAt(), notification.getLink(), notification.getCreatedAt(),
+				NotificationContexts.from(notification));
 	}
 
 	private Notification findOwnedNotification(Long id) {
@@ -222,33 +301,17 @@ public class NotificationServiceImpl implements INotificationService {
 				.orElseThrow(() -> new ResourceNotFoundException("Notification", "id", id));
 	}
 
-	private boolean isInAppNotificationEnabled(Long recipientId, String type) {
-		return notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(recipientId)
-				.map(preference -> switch (notificationCategory(type)) {
-					case COMMENT -> Boolean.TRUE.equals(preference.getCommentEnabled());
-					case CATEGORY_POST -> Boolean.TRUE.equals(preference.getCategoryPostEnabled());
-					case SYSTEM -> Boolean.TRUE.equals(preference.getSystemEnabled());
-		}).orElse(true);
-	}
-
-	private boolean isEmailNotificationEnabled(Long recipientId, String type) {
-		return notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(recipientId)
-				.map(preference -> switch (notificationCategory(type)) {
-					case COMMENT -> Boolean.TRUE.equals(preference.getCommentEmailEnabled());
-					case CATEGORY_POST -> Boolean.TRUE.equals(preference.getCategoryPostEmailEnabled());
-					case SYSTEM -> Boolean.TRUE.equals(preference.getSystemEmailEnabled());
-				}).orElse(false);
+	private NotificationPreferenceService.Channels channels(Long recipientId, String type) {
+		NotificationCategory category = NotificationCategory.forType(type);
+		return categoryPreferenceRepository.findByUserIdAndCategory(recipientId, category)
+				.map(row -> new NotificationPreferenceService.Channels(row.getInAppEnabled(), row.getEmailEnabled()))
+				.orElseGet(() -> NotificationPreferenceService.inherited(
+						notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(recipientId).orElse(null),
+						category));
 	}
 
 	private void dispatchEmail(Notification notification, User recipient, String title, String content, String link) {
 		notificationDeliveryService.queueEmail(notification, recipient.getEmail(), title, content, link);
-	}
-
-	private NotificationCategory notificationCategory(String type) {
-		if (COMMENT_NOTIFICATION_TYPES.contains(type)) {
-			return NotificationCategory.COMMENT;
-		}
-		return "CATEGORY_POST".equals(type) ? NotificationCategory.CATEGORY_POST : NotificationCategory.SYSTEM;
 	}
 
 	private NotificationPreferenceResponse toPreferenceResponse(NotificationPreference preference) {
@@ -264,7 +327,4 @@ public class NotificationServiceImpl implements INotificationService {
 		return new NotificationPreferenceResponse(true, true, true, false, false, false);
 	}
 
-	private enum NotificationCategory {
-		COMMENT, CATEGORY_POST, SYSTEM
-	}
 }

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import cn.hutool.core.lang.Assert;
 import space.nebula.nexus.common.ApiResponse;
@@ -22,6 +23,12 @@ import space.nebula.nexus.payload.response.CommentRiskResponse;
 import space.nebula.nexus.payload.response.CommentReportResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.CommentModerationLogRepository;
+import space.nebula.nexus.repository.UserRepository;
+import space.nebula.nexus.service.INotificationService;
+import space.nebula.nexus.enums.NotificationType;
+import space.nebula.nexus.payload.response.NotificationContext;
+import static space.nebula.nexus.payload.response.NotificationContext.ObjectType.COMMENT;
+import static space.nebula.nexus.payload.response.NotificationContext.Action.*;
 import space.nebula.nexus.security.util.SecurityUtil;
 
 import java.sql.ResultSet;
@@ -40,6 +47,8 @@ public class CommentGovernanceService {
 	private final CommentModerationLogRepository moderationLogRepository;
 	private final JdbcTemplate jdbcTemplate;
 	private final CommentModerationProperties moderationProperties;
+	private final UserRepository userRepository;
+	private final INotificationService notificationService;
 
 	public void recordModeration(Comment comment, CommentStatus previousStatus, CommentStatus newStatus,
 			CommentModerationAction action, String reason, String note, String batchId) {
@@ -62,13 +71,19 @@ public class CommentGovernanceService {
 		return count == null ? 0L : count;
 	}
 
+	@Transactional
 	public void resolveOpenReports(Long commentId, CommentReportStatus status, String resolutionNote) {
+		List<Long> reporters = jdbcTemplate.queryForList(
+				"SELECT reporter_id FROM blog_comment_report WHERE comment_id = ? AND status = ? FOR UPDATE",
+				Long.class, commentId, CommentReportStatus.OPEN.name());
 		jdbcTemplate.update(
 				"UPDATE blog_comment_report SET status = ?, resolution_note = ?, handled_by = ?, handled_at = CURRENT_TIMESTAMP WHERE comment_id = ? AND status = ?",
 				status.name(), resolutionNote, SecurityUtil.getCurrentUsername(), commentId,
 				CommentReportStatus.OPEN.name());
+		reporters.forEach(reporter -> notifyReportResolution(commentId, reporter, status));
 	}
 
+	@Transactional
 	public ApiResponse<Void> resolveCommentReport(Long commentId, Long reporterId,
 			CommentReportResolutionRequest request) {
 		Assert.isTrue(
@@ -82,7 +97,23 @@ public class CommentGovernanceService {
 				reporterId, CommentReportStatus.OPEN.name());
 		Assert.isTrue(updated > 0,
 				() -> new BusinessException(BusinessCode.NOT_FOUND, "Open comment report was not found"));
+		notifyReportResolution(commentId, reporterId, request.status());
 		return ApiResponse.success("Comment report resolved", null);
+	}
+
+	public void notifyReportReceived(Long commentId, Long reporterId) {
+		notificationService.sendToAdministrators("Comment report received", "A comment was reported and needs review.",
+				NotificationType.COMMENT_REPORT_RECEIVED, "/comments?id=" + commentId,
+				"COMMENT_REPORT:" + commentId + ":" + reporterId, reporterId,
+				new NotificationContext(COMMENT, commentId, reporterId, REVIEW_REPORT));
+	}
+
+	private void notifyReportResolution(Long commentId, Long reporterId, CommentReportStatus status) {
+		userRepository.findById(reporterId).ifPresent(reporter -> notificationService.sendOnce(reporter,
+				"Comment report reviewed", "Your comment report has been reviewed. Result: " + status.name() + ".",
+				NotificationType.COMMENT_REPORT_RESOLVED, null, "COMMENT_REPORT:" + commentId + ":" + reporterId,
+				new NotificationContext(COMMENT, commentId,
+						SecurityUtil.getCurrentUser() == null ? null : SecurityUtil.getCurrentUser().getId(), VIEW)));
 	}
 
 	public ApiResponse<CommentGovernanceOverviewResponse> retrieveCommentGovernanceOverview() {

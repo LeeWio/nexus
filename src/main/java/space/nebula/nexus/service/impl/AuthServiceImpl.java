@@ -19,6 +19,7 @@ import space.nebula.nexus.common.validator.UserValidator;
 import space.nebula.nexus.config.RabbitMQConfig;
 import space.nebula.nexus.entity.Role;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.NotificationType;
 import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.payload.request.LoginRequest;
 import space.nebula.nexus.payload.request.OtpLoginRequest;
@@ -27,6 +28,7 @@ import space.nebula.nexus.payload.request.PasswordResetRequest;
 import space.nebula.nexus.payload.request.RegisterRequest;
 import space.nebula.nexus.payload.request.TemplateMailMessage;
 import space.nebula.nexus.payload.response.AuthResponse;
+import space.nebula.nexus.payload.response.NotificationContext;
 import space.nebula.nexus.repository.RoleRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.model.SecurityUser;
@@ -36,6 +38,7 @@ import space.nebula.nexus.security.token.RefreshTokenStore;
 import space.nebula.nexus.security.service.LoginSecurityService;
 import space.nebula.nexus.security.util.JwtUtils;
 import space.nebula.nexus.service.IAuthService;
+import space.nebula.nexus.service.INotificationService;
 import space.nebula.nexus.utils.RedisUtil;
 
 import cn.hutool.core.lang.Assert;
@@ -73,6 +76,7 @@ public class AuthServiceImpl implements IAuthService {
 	private final RefreshTokenStore refreshTokenStore;
 	private final OAuthLoginCodeStore oauthLoginCodeStore;
 	private final RabbitTemplate rabbitTemplate;
+	private final INotificationService notificationService;
 	private final space.nebula.nexus.config.AuthProperties authProperties;
 	private final space.nebula.nexus.security.config.JwtProperties jwtProperties;
 
@@ -85,8 +89,8 @@ public class AuthServiceImpl implements IAuthService {
 		var newUser = createNewUser(request);
 		assignDefaultRole(newUser);
 
-		userRepository.save(newUser);
-		log.info("User account registered successfully, pending audit: {}", newUser.getUsername());
+		User savedUser = userRepository.save(newUser);
+		log.info("User account registered successfully, pending audit: {}", savedUser.getUsername());
 
 		// Prepare email variables using modern Java Map.of
 		Map<String, Object> emailVars = Map.of("username", newUser.getUsername(), "message",
@@ -102,6 +106,13 @@ public class AuthServiceImpl implements IAuthService {
 		} catch (Exception e) {
 			log.error("Failed to dispatch registration email for: {}", newUser.getEmail());
 		}
+
+		notificationService.sendToAdministrators("Account awaiting approval",
+				savedUser.getUsername() + " registered and is waiting for approval.",
+				NotificationType.USER_PENDING_REVIEW, "/admin/users?id=" + savedUser.getId(),
+				"USER_REGISTRATION:" + savedUser.getId(), null,
+				new NotificationContext(NotificationContext.ObjectType.USER, savedUser.getId(), null,
+						NotificationContext.Action.REVIEW));
 
 		return ApiResponse.success("Registration successful. Your account is awaiting approval.", null);
 	}

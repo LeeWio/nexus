@@ -32,7 +32,7 @@ public class NotificationEmailDeliveryListener {
 		try {
 			rabbitTemplate.convertAndSend(RabbitMQConfig.MAIL_EXCHANGE, RabbitMQConfig.MAIL_ROUTING_KEY, message);
 		} catch (RuntimeException error) {
-			notificationDeliveryService.markFailed(event.deliveryId(), error);
+			notificationDeliveryService.markEnqueueFailed(event.deliveryId(), event.generation(), error);
 		}
 	}
 }

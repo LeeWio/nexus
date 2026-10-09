@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.common.event.PostChangedEvent;
 import space.nebula.nexus.entity.Post;
+import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.service.INotificationService;
 
 import static org.mockito.Mockito.mock;
@@ -41,5 +42,25 @@ class CategoryPublicationNotificationListenerTest {
 		post.setId(id);
 		post.setSlug("post-" + id);
 		return post;
+	}
+
+	@Test
+	void directlyCreatedPublishedArticleAlsoNotifiesFollowers() {
+		INotificationService notifications = mock(INotificationService.class);
+		Post post = post(7L);
+		post.setStatus(PostStatus.PUBLISHED);
+		new CategoryPublicationNotificationListener(notifications)
+				.onPostPublished(new PostChangedEvent(this, post, PostChangeType.CREATED));
+		verify(notifications).sendCategoryPublication(7L);
+	}
+
+	@Test
+	void draftCreationDoesNotNotifyFollowers() {
+		INotificationService notifications = mock(INotificationService.class);
+		Post post = post(7L);
+		post.setStatus(PostStatus.DRAFT);
+		new CategoryPublicationNotificationListener(notifications)
+				.onPostPublished(new PostChangedEvent(this, post, PostChangeType.CREATED));
+		verify(notifications, never()).sendCategoryPublication(7L);
 	}
 }

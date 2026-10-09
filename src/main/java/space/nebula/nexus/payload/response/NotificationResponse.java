@@ -18,5 +18,6 @@ public record NotificationResponse(@Schema(description = "Notification ID") Long
 		@Schema(description = "Time at which the notification was marked read; null when unread") LocalDateTime readAt,
 		@Schema(description = "Time at which the notification was completed; null while it remains in the inbox") LocalDateTime completedAt,
 		@Schema(description = "Optional frontend-relative route associated with this notification") String link,
-		@Schema(description = "Creation time") LocalDateTime createdAt) {
+		@Schema(description = "Creation time") LocalDateTime createdAt,
+		@Schema(description = "Structured object and action; null for legacy notifications") NotificationContext context) {
 }

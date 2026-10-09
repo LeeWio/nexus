@@ -17,6 +17,8 @@ import space.nebula.nexus.payload.request.PostReportResolutionRequest;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
+import space.nebula.nexus.service.INotificationService;
+import space.nebula.nexus.enums.NotificationType;
 
 import java.util.Optional;
 
@@ -27,6 +29,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,6 +40,8 @@ class PostReportServiceImplTest {
 	private PostRepository postRepository;
 	@Mock
 	private UserRepository userRepository;
+	@Mock
+	private INotificationService notificationService;
 
 	private PostReportServiceImpl postReportService;
 	private User reader;
@@ -44,7 +49,8 @@ class PostReportServiceImplTest {
 
 	@BeforeEach
 	void setUp() {
-		postReportService = new PostReportServiceImpl(jdbcTemplate, postRepository, userRepository);
+		postReportService = new PostReportServiceImpl(jdbcTemplate, postRepository, userRepository,
+				notificationService);
 		reader = user(42L, "reader");
 		publishedPost = new Post();
 		publishedPost.setId(7L);
@@ -64,6 +70,12 @@ class PostReportServiceImplTest {
 			var response = postReportService.reportPost(7L, new PostReportRequest(" spam ", "  "));
 
 			assertEquals("Post report received.", response.message());
+			verify(notificationService).sendToAdministrators("Post report received",
+					"\"null\" was reported and needs review.", NotificationType.POST_REPORT_RECEIVED,
+					"/posts?tab=reports&postId=7", "REPORT:7:42", 42L,
+					new space.nebula.nexus.payload.response.NotificationContext(
+							space.nebula.nexus.payload.response.NotificationContext.ObjectType.POST, 7L, 42L,
+							space.nebula.nexus.payload.response.NotificationContext.Action.REVIEW_REPORT));
 		}
 	}
 
@@ -95,6 +107,7 @@ class PostReportServiceImplTest {
 			var response = postReportService.reportPost(7L, new PostReportRequest("spam", null));
 
 			assertEquals("Post report was already received.", response.message());
+			verifyNoInteractions(notificationService);
 		}
 	}
 
@@ -116,6 +129,7 @@ class PostReportServiceImplTest {
 	@Test
 	void resolveOpenReportRecordsModeratorAndResolution() {
 		User moderator = user(2L, "moderator");
+		when(userRepository.findById(42L)).thenReturn(Optional.of(reader));
 		when(jdbcTemplate.update(contains("UPDATE blog_post_report"), eq(PostReportStatus.DISMISSED.name()),
 				eq("No policy violation."), eq("moderator"), eq(7L), eq(42L), eq(PostReportStatus.OPEN.name())))
 				.thenReturn(1);
@@ -127,6 +141,12 @@ class PostReportServiceImplTest {
 					new PostReportResolutionRequest(PostReportStatus.DISMISSED, "No policy violation."));
 
 			assertEquals("Post report resolved.", response.message());
+			verify(notificationService).sendOnce(reader, "Post report reviewed",
+					"Your report has been reviewed. Result: DISMISSED.", NotificationType.POST_REPORT_RESOLVED, null,
+					"REPORT:7:42",
+					new space.nebula.nexus.payload.response.NotificationContext(
+							space.nebula.nexus.payload.response.NotificationContext.ObjectType.POST, 7L, 2L,
+							space.nebula.nexus.payload.response.NotificationContext.Action.VIEW));
 		}
 	}
 

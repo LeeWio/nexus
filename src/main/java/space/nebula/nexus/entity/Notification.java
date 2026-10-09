@@ -45,4 +45,13 @@ public class Notification extends BaseEntity {
 
 	@Column(name = "deduplication_key", length = 150, unique = true)
 	private String deduplicationKey;
+
+	@Column(name = "object_type", length = 24)
+	private String objectType;
+	@Column(name = "object_id")
+	private Long objectId;
+	@Column(name = "actor_id")
+	private Long actorId;
+	@Column(name = "action", length = 24)
+	private String action;
 }

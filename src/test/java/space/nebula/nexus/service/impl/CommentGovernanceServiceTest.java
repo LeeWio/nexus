@@ -19,11 +19,17 @@ import space.nebula.nexus.payload.response.CommentModerationLogResponse;
 import space.nebula.nexus.payload.response.CommentRiskResponse;
 import space.nebula.nexus.payload.response.CommentReportResponse;
 import space.nebula.nexus.repository.CommentModerationLogRepository;
+import space.nebula.nexus.repository.UserRepository;
+import space.nebula.nexus.service.INotificationService;
+import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.NotificationType;
+import space.nebula.nexus.payload.request.CommentReportResolutionRequest;
 
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.AdditionalMatchers.aryEq;
@@ -39,6 +45,10 @@ class CommentGovernanceServiceTest {
 	private JdbcTemplate jdbcTemplate;
 	@Mock
 	private ResultSet resultSet;
+	@Mock
+	private UserRepository userRepository;
+	@Mock
+	private INotificationService notificationService;
 
 	private CommentGovernanceService governanceService;
 	private CommentModerationProperties moderationProperties;
@@ -46,7 +56,32 @@ class CommentGovernanceServiceTest {
 	@BeforeEach
 	void setUp() {
 		moderationProperties = new CommentModerationProperties();
-		governanceService = new CommentGovernanceService(moderationLogRepository, jdbcTemplate, moderationProperties);
+		governanceService = new CommentGovernanceService(moderationLogRepository, jdbcTemplate, moderationProperties,
+				userRepository, notificationService);
+	}
+
+	@Test
+	void automaticReportResolutionNotifiesOnlyPreviouslyOpenReporters() {
+		when(jdbcTemplate.queryForList(contains("FOR UPDATE"), eq(Long.class), eq(7L), eq("OPEN")))
+				.thenReturn(List.of(42L));
+		User reporter = new User();
+		reporter.setId(42L);
+		when(userRepository.findById(42L)).thenReturn(Optional.of(reporter));
+		governanceService.resolveOpenReports(7L, CommentReportStatus.ACTIONED, "Internal moderation note");
+		verify(notificationService).sendOnce(reporter, "Comment report reviewed",
+				"Your comment report has been reviewed. Result: ACTIONED.", NotificationType.COMMENT_REPORT_RESOLVED,
+				null, "COMMENT_REPORT:7:42",
+				new space.nebula.nexus.payload.response.NotificationContext(
+						space.nebula.nexus.payload.response.NotificationContext.ObjectType.COMMENT, 7L, null,
+						space.nebula.nexus.payload.response.NotificationContext.Action.VIEW));
+	}
+
+	@Test
+	void failedReportResolutionDoesNotNotifyReporter() {
+		assertThrows(space.nebula.nexus.common.exception.BusinessException.class,
+				() -> governanceService.resolveCommentReport(7L, 42L,
+						new CommentReportResolutionRequest(CommentReportStatus.DISMISSED, null)));
+		verifyNoInteractions(userRepository, notificationService);
 	}
 
 	@Test

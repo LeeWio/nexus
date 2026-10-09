@@ -180,6 +180,8 @@ public class CommentCommandService {
 		}
 		commentRepository.save(comment);
 		log.info("User {} edited comment {} and status is now {}", currentUser.getUsername(), id, comment.getStatus());
+		if (!isAdmin)
+			eventPublisher.publishEvent(buildSubmittedEvent(comment));
 
 		if (isAdmin) {
 			return ApiResponse.success("Comment updated successfully.", null);
@@ -229,6 +231,7 @@ public class CommentCommandService {
 				id, currentUser.getId(), request.reason(), request.description(), CommentReportStatus.OPEN.name());
 		if (inserted > 0) {
 			commentRepository.incrementReports(id, 1L);
+			governanceService.notifyReportReceived(id, currentUser.getId());
 			autoFlagReportedComment(comment);
 		}
 		metricsService.incrementReport(inserted > 0);

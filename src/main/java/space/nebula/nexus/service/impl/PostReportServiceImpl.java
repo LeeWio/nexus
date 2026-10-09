@@ -23,6 +23,11 @@ import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IPostReportService;
+import space.nebula.nexus.service.INotificationService;
+import space.nebula.nexus.enums.NotificationType;
+import space.nebula.nexus.payload.response.NotificationContext;
+import static space.nebula.nexus.payload.response.NotificationContext.ObjectType.POST;
+import static space.nebula.nexus.payload.response.NotificationContext.Action.*;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -49,6 +54,7 @@ public class PostReportServiceImpl implements IPostReportService {
 	private final JdbcTemplate jdbcTemplate;
 	private final PostRepository postRepository;
 	private final UserRepository userRepository;
+	private final INotificationService notificationService;
 
 	@Override
 	@Transactional
@@ -68,6 +74,11 @@ public class PostReportServiceImpl implements IPostReportService {
 				VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP(3))
 				""", postId, reporter.getId(), request.reason().trim(), normalize(request.description()),
 				PostReportStatus.OPEN.name());
+		if (inserted > 0)
+			notificationService.sendToAdministrators("Post report received",
+					"\"" + post.getTitle() + "\" was reported and needs review.", NotificationType.POST_REPORT_RECEIVED,
+					"/posts?tab=reports&postId=" + postId, "REPORT:" + postId + ":" + reporter.getId(),
+					reporter.getId(), new NotificationContext(POST, postId, reporter.getId(), REVIEW_REPORT));
 		return ApiResponse.success(inserted > 0 ? "Post report received." : "Post report was already received.", null);
 	}
 
@@ -117,6 +128,11 @@ public class PostReportServiceImpl implements IPostReportService {
 				""", request.status().name(), normalize(request.resolutionNote()), moderator.getUsername(), postId,
 				reporterId, PostReportStatus.OPEN.name());
 		if (updated > 0) {
+			userRepository.findById(reporterId)
+					.ifPresent(reporter -> notificationService.sendOnce(reporter, "Post report reviewed",
+							"Your report has been reviewed. Result: " + request.status().name() + ".",
+							NotificationType.POST_REPORT_RESOLVED, null, "REPORT:" + postId + ":" + reporterId,
+							new NotificationContext(POST, postId, moderator.getId(), VIEW)));
 			return ApiResponse.success("Post report resolved.", null);
 		}
 

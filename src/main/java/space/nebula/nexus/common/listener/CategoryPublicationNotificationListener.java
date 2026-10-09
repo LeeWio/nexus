@@ -2,17 +2,16 @@ package space.nebula.nexus.common.listener;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.common.event.PostChangedEvent;
+import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.service.INotificationService;
 
 /**
- * Creates follower notifications after an article publication transaction
- * commits.
+ * Persists follower notifications in the article publication transaction.
  */
 @Slf4j
 @Component
@@ -26,10 +25,11 @@ public class CategoryPublicationNotificationListener {
 	 * @param event
 	 *            committed post change event
 	 */
-	@Async("asyncExecutor")
-	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	@TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
 	public void onPostPublished(PostChangedEvent event) {
-		if (event.getChangeType() != PostChangeType.PUBLISHED) {
+		boolean publishedCreation = event.getChangeType() == PostChangeType.CREATED
+				&& event.getPost().getStatus() == PostStatus.PUBLISHED;
+		if (event.getChangeType() != PostChangeType.PUBLISHED && !publishedCreation) {
 			return;
 		}
 		int recipients = notificationService.sendCategoryPublication(event.getPost().getId());

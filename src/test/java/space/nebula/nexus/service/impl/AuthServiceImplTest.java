@@ -37,7 +37,10 @@ import space.nebula.nexus.security.service.LoginSecurityService;
 import space.nebula.nexus.security.token.OAuthLoginCodeStore;
 import space.nebula.nexus.security.token.RevokedTokenStore;
 import space.nebula.nexus.security.token.RefreshTokenStore;
+import space.nebula.nexus.enums.NotificationType;
+import space.nebula.nexus.payload.response.NotificationContext;
 import space.nebula.nexus.security.util.JwtUtils;
+import space.nebula.nexus.service.INotificationService;
 import space.nebula.nexus.utils.RedisUtil;
 
 import java.util.Optional;
@@ -78,6 +81,8 @@ class AuthServiceImplTest {
 	@Mock
 	private RabbitTemplate rabbitTemplate;
 	@Mock
+	private INotificationService notificationService;
+	@Mock
 	private space.nebula.nexus.config.AuthProperties authProperties;
 	@Mock
 	private space.nebula.nexus.security.config.JwtProperties jwtProperties;
@@ -107,6 +112,11 @@ class AuthServiceImplTest {
 		userRole.setCode("ROLE_USER");
 		when(roleRepository.findByCode("ROLE_USER")).thenReturn(Optional.of(userRole));
 		when(passwordEncoder.encode(any())).thenReturn("encodedPassword");
+		when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+			User user = invocation.getArgument(0);
+			user.setId(42L);
+			return user;
+		});
 
 		// Act
 		ApiResponse<Void> response = authService.registerAccount(registerRequest);
@@ -115,6 +125,9 @@ class AuthServiceImplTest {
 		assertEquals(200, response.code());
 		verify(userValidator).validateRegistration(registerRequest);
 		verify(userRepository).save(any(User.class));
+		verify(notificationService).sendToAdministrators(eq("Account awaiting approval"),
+				eq("testuser registered and is waiting for approval."), eq(NotificationType.USER_PENDING_REVIEW),
+				eq("/admin/users?id=42"), eq("USER_REGISTRATION:42"), isNull(), any(NotificationContext.class));
 	}
 
 	@Test

@@ -18,9 +18,12 @@ import space.nebula.nexus.entity.Category;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.enums.NotificationType;
+import space.nebula.nexus.enums.UserStatus;
 import space.nebula.nexus.payload.request.NotificationPreferenceRequest;
 import space.nebula.nexus.repository.NotificationPreferenceRepository;
 import space.nebula.nexus.repository.NotificationRepository;
+import space.nebula.nexus.repository.NotificationCategoryPreferenceRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.service.NotificationDeliveryService;
@@ -54,6 +57,8 @@ class NotificationServiceImplTest {
 
 	@Mock
 	private NotificationDeliveryService notificationDeliveryService;
+	@Mock
+	private NotificationCategoryPreferenceRepository categoryPreferenceRepository;
 
 	@InjectMocks
 	private NotificationServiceImpl notificationService;
@@ -68,7 +73,11 @@ class NotificationServiceImplTest {
 		SecurityContextHolder.getContext()
 				.setAuthentication(new UsernamePasswordAuthenticationToken("reader", "password", List.of()));
 		lenient().when(userRepository.findByUsername("reader")).thenReturn(Optional.of(currentUser));
-		lenient().when(notificationRepository.findCategoryPublicationEmailNotifications(org.mockito.ArgumentMatchers.anyString()))
+		lenient().when(userRepository.findNotificationPreferenceOwnerForUpdate(42L))
+				.thenReturn(Optional.of(currentUser));
+		lenient()
+				.when(notificationRepository
+						.findCategoryPublicationEmailNotifications(org.mockito.ArgumentMatchers.anyString()))
 				.thenReturn(List.of());
 	}
 
@@ -107,12 +116,12 @@ class NotificationServiceImplTest {
 	@Test
 	void getMyNotificationsReadsTheInboxByDefault() {
 		var pageable = PageRequest.of(0, 10);
-		when(notificationRepository.findInboxByRecipientId(42L, false, pageable))
+		when(notificationRepository.findInboxByRecipientId(42L, false, null, pageable))
 				.thenReturn(new PageImpl<>(List.of()));
 
-		notificationService.getMyNotifications(false, "inbox", pageable);
+		notificationService.getMyNotifications(false, "inbox", null, pageable);
 
-		verify(notificationRepository).findInboxByRecipientId(42L, false, pageable);
+		verify(notificationRepository).findInboxByRecipientId(42L, false, null, pageable);
 		verify(notificationRepository, never()).findByRecipientId(42L, pageable);
 	}
 
@@ -160,8 +169,8 @@ class NotificationServiceImplTest {
 		when(notificationPreferenceRepository.save(any(NotificationPreference.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 
-		var response = notificationService.updateMyPreferences(
-				new NotificationPreferenceRequest(false, true, false, true, false, true));
+		var response = notificationService
+				.updateMyPreferences(new NotificationPreferenceRequest(false, true, false, true, false, true));
 
 		assertTrue(!response.data().commentNotificationsEnabled());
 		assertTrue(response.data().categoryPostNotificationsEnabled());
@@ -212,8 +221,8 @@ class NotificationServiceImplTest {
 		var savedNotification = org.mockito.ArgumentCaptor.forClass(Notification.class);
 		verify(notificationRepository).save(savedNotification.capture());
 		assertTrue(!savedNotification.getValue().getIsVisible());
-		verify(notificationDeliveryService).queueEmail(savedNotification.getValue(), currentUser.getEmail(), "New reply",
-				"A reader replied to your comment.", "/posts/example#comment-1");
+		verify(notificationDeliveryService).queueEmail(savedNotification.getValue(), currentUser.getEmail(),
+				"New reply", "A reader replied to your comment.", "/posts/example#comment-1");
 	}
 
 	@Test
@@ -251,5 +260,38 @@ class NotificationServiceImplTest {
 
 		assertTrue(notification.getCompletedAt() == null);
 		verify(notificationRepository).save(notification);
+	}
+
+	@Test
+	void inactiveRecipientCannotReceiveNewBusinessNotifications() {
+		currentUser.setStatus(UserStatus.BANNED);
+		notificationService.sendOnce(currentUser, "Result", "Reviewed", NotificationType.POST_REJECTED, null, "event");
+		org.mockito.Mockito.verifyNoInteractions(notificationPreferenceRepository, notificationRepository,
+				notificationDeliveryService);
+	}
+
+	@Test
+	void disabledSystemChannelsSuppressModerationTasks() {
+		NotificationPreference preference = new NotificationPreference();
+		preference.setSystemEnabled(false);
+		preference.setSystemEmailEnabled(false);
+		when(notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(42L)).thenReturn(Optional.of(preference));
+		notificationService.sendOnce(currentUser, "Pending", "Review required", NotificationType.COMMENT_PENDING_REVIEW,
+				null, "event");
+		verify(notificationRepository, never()).insertOnce(any(), any(), any(), any(), any(),
+				org.mockito.ArgumentMatchers.anyBoolean(), any());
+		org.mockito.Mockito.verifyNoInteractions(notificationDeliveryService);
+	}
+
+	@Test
+	void postReviewerAudienceIncludesEditorsAndExcludesAuthor() {
+		User editor = new User();
+		editor.setId(9L);
+		when(userRepository.findActivePostReviewers()).thenReturn(List.of(currentUser, editor));
+		when(notificationPreferenceRepository.findByUserIdAndIsDeletedFalse(9L)).thenReturn(Optional.empty());
+		notificationService.sendToPostReviewers("Pending", "Review required", "/posts?id=7", "event", 42L);
+		verify(notificationRepository).insertOnce(9L, "Pending", "Review required", "POST_PENDING_REVIEW",
+				"/posts?id=7", true, "POST_PENDING_REVIEW:event:9");
+		verify(notificationPreferenceRepository, never()).findByUserIdAndIsDeletedFalse(42L);
 	}
 }

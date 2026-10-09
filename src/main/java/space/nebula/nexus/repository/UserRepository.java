@@ -17,6 +17,14 @@ import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT u FROM User u WHERE u.id = :id")
+	Optional<User> findNotificationPreferenceOwnerForUpdate(Long id);
+	@Query("SELECT DISTINCT u FROM User u JOIN u.roles r WHERE r.code = 'ROLE_ADMIN' AND u.status = 'ACTIVE'")
+	List<User> findActiveAdministrators();
+
+	@Query("SELECT DISTINCT u FROM User u JOIN u.roles r WHERE r.code IN ('ROLE_ADMIN', 'ROLE_EDITOR') AND u.status = 'ACTIVE'")
+	List<User> findActivePostReviewers();
 
 	/**
 	 * Locks all active users assigned to a role so administrative invariants can be

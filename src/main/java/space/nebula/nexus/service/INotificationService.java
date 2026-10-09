@@ -3,9 +3,11 @@ package space.nebula.nexus.service;
 import org.springframework.data.domain.Pageable;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.NotificationType;
 import space.nebula.nexus.payload.request.NotificationPreferenceRequest;
 import space.nebula.nexus.payload.response.NotificationPreferenceResponse;
 import space.nebula.nexus.payload.response.NotificationResponse;
+import space.nebula.nexus.payload.response.NotificationContext;
 import space.nebula.nexus.payload.response.PageResult;
 
 public interface INotificationService {
@@ -25,6 +27,32 @@ public interface INotificationService {
 	 *            optional application link related to the notification
 	 */
 	void send(User recipient, String title, String content, String type, String link);
+
+	/**
+	 * Creates at most one notification per event and recipient, including
+	 * concurrent deliveries.
+	 */
+	void sendOnce(User recipient, String title, String content, NotificationType type, String link, String eventKey);
+
+	void sendOnce(User recipient, String title, String content, NotificationType type, String link, String eventKey,
+			NotificationContext context);
+
+	/**
+	 * Sends operational notifications to active administrators, excluding the
+	 * initiating user.
+	 */
+	void sendToAdministrators(String title, String content, NotificationType type, String link, String eventKey,
+			Long actorId);
+	void sendToAdministrators(String title, String content, NotificationType type, String link, String eventKey,
+			Long actorId, NotificationContext context);
+
+	/**
+	 * Sends a review request to active administrators and editors with article
+	 * approval access.
+	 */
+	void sendToPostReviewers(String title, String content, String link, String eventKey, Long authorId);
+	void sendToPostReviewers(String title, String content, String link, String eventKey, Long authorId,
+			NotificationContext context);
 
 	/**
 	 * Notifies active category followers about a newly published post.
@@ -56,11 +84,16 @@ public interface INotificationService {
 	 *
 	 * @param unreadOnly
 	 *            whether to return only unread notifications
+	 * @param view
+	 *            inbox, saved, or done
+	 * @param category
+	 *            delivery category, or {@code null} for every category
 	 * @param pageable
 	 *            pagination and sorting parameters
 	 * @return paginated notifications owned by the current user
 	 */
-	ApiResponse<PageResult<NotificationResponse>> getMyNotifications(boolean unreadOnly, String view, Pageable pageable);
+	ApiResponse<PageResult<NotificationResponse>> getMyNotifications(boolean unreadOnly, String view,
+			space.nebula.nexus.enums.NotificationCategory category, Pageable pageable);
 
 	/**
 	 * Marks a specific notification as read.

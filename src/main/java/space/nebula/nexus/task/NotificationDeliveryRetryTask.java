@@ -21,11 +21,11 @@ public class NotificationDeliveryRetryTask {
 	private static final int RETRY_BATCH_SIZE = 100;
 	private final NotificationDeliveryService notificationDeliveryService;
 
-	@Scheduled(fixedDelay = 300_000)
+	@Scheduled(fixedDelay = 60_000)
 	@SchedulerLock(name = "notificationDeliveryRetry", lockAtMostFor = "PT4M")
 	public void retryStaleDeliveries() {
-		int retried = notificationDeliveryService.retryStaleEmailDeliveries(LocalDateTime.now().minusMinutes(10),
-				RETRY_BATCH_SIZE);
-		if (retried > 0) log.info("Requeued {} stale notification email deliveries", retried);
+		int retried = notificationDeliveryService.retryStaleEmailDeliveries(LocalDateTime.now(), RETRY_BATCH_SIZE);
+		if (retried > 0)
+			log.info("Requeued {} stale notification email deliveries", retried);
 	}
 }

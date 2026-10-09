@@ -18,6 +18,7 @@ import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.enums.CommentModerationAction;
 import space.nebula.nexus.enums.CommentReportStatus;
 import space.nebula.nexus.enums.CommentStatus;
+import space.nebula.nexus.enums.NotificationType;
 import space.nebula.nexus.repository.CommentRepository;
 
 import java.util.List;
@@ -183,9 +184,16 @@ public class CommentModerationService {
 		var post = comment.getPost();
 		Long postAuthorId = post == null || post.getAuthor() == null ? null : post.getAuthor().getId();
 		String postTitle = post == null ? null : post.getTitle();
+		if (comment.getMoment() != null) {
+			postAuthorId = comment.getMoment().getUser() == null ? null : comment.getMoment().getUser().getId();
+			postTitle = "Moment #" + comment.getMoment().getId();
+		}
+		NotificationType audienceType = comment.getMoment() != null
+				? NotificationType.MOMENT_COMMENT
+				: post == null ? NotificationType.GUESTBOOK_COMMENT : NotificationType.POST_COMMENT;
 		String link = status == CommentStatus.APPROVED ? buildCommentLink(comment) : null;
 		eventPublisher.publishEvent(new CommentModeratedEvent(this, comment.getId(), authorId, replyRecipientId,
-				postAuthorId, authorUsername, postTitle, status, link));
+				postAuthorId, authorUsername, postTitle, status, link, audienceType));
 	}
 
 	private String buildCommentLink(Comment comment) {
