@@ -109,8 +109,8 @@ class NotificationTransactionIntegrationTest {
 			events.publishEvent(new PostChangedEvent(this, post(), PostChangeType.PUBLISHED));
 			status.setRollbackOnly();
 		});
-		assertEquals(0,
-				notifications.findInboxByRecipientId(reader.getId(), false, null, PageRequest.of(0, 10)).getTotalElements());
+		assertEquals(0, notifications.findInboxByRecipientId(reader.getId(), false, null, PageRequest.of(0, 10))
+				.getTotalElements());
 		assertEquals(committedBefore, committedEmails.ids.size());
 	}
 
@@ -137,8 +137,8 @@ class NotificationTransactionIntegrationTest {
 			for (var result : executor.invokeAll(List.of(generate, generate, generate, generate)))
 				result.get();
 		}
-		assertEquals(1,
-				notifications.findInboxByRecipientId(reader.getId(), false, null, PageRequest.of(0, 10)).getTotalElements());
+		assertEquals(1, notifications.findInboxByRecipientId(reader.getId(), false, null, PageRequest.of(0, 10))
+				.getTotalElements());
 		var notification = notifications.findByDeduplicationKey("POST_REJECTED:concurrent:" + reader.getId())
 				.orElseThrow();
 		assertTrue(deliveries.findByNotificationIdAndChannel(notification.getId(), "EMAIL").isPresent());

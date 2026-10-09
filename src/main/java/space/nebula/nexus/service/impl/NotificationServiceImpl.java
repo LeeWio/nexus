@@ -193,12 +193,12 @@ public class NotificationServiceImpl implements INotificationService {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		String categoryName = category == null ? null : category.name();
 		var notifications = switch (view.toLowerCase(java.util.Locale.ROOT)) {
-			case "saved" -> notificationRepository.findSavedByRecipientId(currentUser.getId(), unreadOnly,
-					categoryName, pageable);
-			case "done" -> notificationRepository.findDoneByRecipientId(currentUser.getId(), unreadOnly, categoryName,
-					pageable);
-			default -> notificationRepository.findInboxByRecipientId(currentUser.getId(), unreadOnly, categoryName,
-					pageable);
+			case "saved" ->
+				notificationRepository.findSavedByRecipientId(currentUser.getId(), unreadOnly, categoryName, pageable);
+			case "done" ->
+				notificationRepository.findDoneByRecipientId(currentUser.getId(), unreadOnly, categoryName, pageable);
+			default ->
+				notificationRepository.findInboxByRecipientId(currentUser.getId(), unreadOnly, categoryName, pageable);
 		};
 		return ApiResponse.success(PageResult.of(notifications.map(this::toResponse)));
 	}
