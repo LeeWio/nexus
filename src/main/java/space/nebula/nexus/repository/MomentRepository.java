@@ -26,6 +26,22 @@ public interface MomentRepository extends JpaRepository<Moment, Long> {
 
 	List<Moment> findByCreatedAtBetweenOrderByCreatedAtAsc(java.time.LocalDateTime from, java.time.LocalDateTime to);
 
+	/**
+	 * Returns publication times for public moments inside a stored UTC range.
+	 * 
+	 * @param visibility
+	 *            visibility included in the cadence
+	 * @param from
+	 *            inclusive stored publication time
+	 * @param to
+	 *            exclusive stored publication time
+	 * @return publication times in ascending order
+	 */
+	@Query("SELECT m.createdAt FROM Moment m WHERE m.visibility = :visibility "
+			+ "AND m.createdAt >= :from AND m.createdAt < :to ORDER BY m.createdAt ASC")
+	List<java.time.LocalDateTime> findPublicCreatedAtBetween(@Param("visibility") MomentVisibility visibility,
+			@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
 	@Modifying
 	@Query("update Moment moment set moment.likesCount = case when coalesce(moment.likesCount, 0) + :delta < 0 then 0 else coalesce(moment.likesCount, 0) + :delta end where moment.id = :id")
 	void incrementLikes(@Param("id") Long id, @Param("delta") Long delta);

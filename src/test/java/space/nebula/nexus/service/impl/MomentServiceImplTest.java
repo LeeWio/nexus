@@ -29,7 +29,10 @@ import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IXSyncService;
 import space.nebula.nexus.service.support.MomentCommentCountSupport;
 import space.nebula.nexus.service.support.MomentXSyncSupport;
+import space.nebula.nexus.utils.MomentCadence;
 
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -213,6 +216,21 @@ class MomentServiceImplTest {
 		assertEquals(0, moment.getTopicRelations().get(0).getSortOrder());
 		assertEquals("observability", moment.getTopicRelations().get(1).getTopic().getSlug());
 		assertEquals(1, moment.getTopicRelations().get(1).getSortOrder());
+	}
+
+	@Test
+	void publicCadenceQueriesOnlyTheCurrentAuthorYear() {
+		ZonedDateTime now = ZonedDateTime.now(MomentCadence.ZONE);
+		LocalDateTime publishedAt = MomentCadence.storedRangeStart(now).plusHours(1);
+		when(momentRepository.findPublicCreatedAtBetween(eq(MomentVisibility.PUBLIC),
+				eq(MomentCadence.storedRangeStart(now)), eq(MomentCadence.storedRangeEnd(now))))
+				.thenReturn(List.of(publishedAt));
+
+		var response = momentService.getPublicCadence();
+
+		assertEquals(200, response.code());
+		assertEquals(MomentCadence.ZONE.getId(), response.data().zone());
+		assertEquals(MomentCadence.of(List.of(publishedAt), now), response.data());
 	}
 
 	@Test

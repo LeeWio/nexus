@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.RateLimit;
+import space.nebula.nexus.payload.response.MomentCadenceResponse;
 import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.service.IMomentService;
@@ -32,6 +33,12 @@ public class PublicMomentController {
 	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(
 			@Parameter(description = "Zero-based request pagination. Responses use a one-based page number.") @PageableDefault(size = 20) Pageable pageable) {
 		return momentService.getPublicMoments(pageable);
+	}
+
+	@GetMapping("/cadence")
+	@Operation(summary = "Get public moment publishing cadence", description = "Returns the hours, days, and months in the current author-time period that contain at least one public moment.")
+	public ApiResponse<MomentCadenceResponse> getPublicCadence() {
+		return momentService.getPublicCadence();
 	}
 
 	@GetMapping("/liked")

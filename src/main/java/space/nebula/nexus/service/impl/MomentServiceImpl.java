@@ -28,6 +28,7 @@ import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.mapper.MomentMapper;
 import space.nebula.nexus.payload.request.MomentRequest;
+import space.nebula.nexus.payload.response.MomentCadenceResponse;
 import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.FileRepository;
@@ -39,9 +40,12 @@ import space.nebula.nexus.service.IMomentService;
 import space.nebula.nexus.service.IXSyncService;
 import space.nebula.nexus.service.support.MomentCommentCountSupport;
 import space.nebula.nexus.service.support.MomentXSyncSupport;
+import space.nebula.nexus.utils.MomentCadence;
 import space.nebula.nexus.utils.MomentContentPolicy;
 import space.nebula.nexus.utils.MomentTopicPolicy;
 
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -137,6 +141,18 @@ public class MomentServiceImpl implements IMomentService {
 		eventPublisher.publishEvent(new MomentChangedEvent(this, id, MomentChangeType.DELETED, visibility, false));
 		log.info("Moment deleted: {}", id);
 		return ApiResponse.success("Moment deleted successfully", null);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.MOMENTS, key = "'cadence-' + T(java.time.LocalDate).now(T(space.nebula.nexus.utils.MomentCadence).ZONE)")
+	public ApiResponse<MomentCadenceResponse> getPublicCadence() {
+		ZonedDateTime now = ZonedDateTime.now(MomentCadence.ZONE);
+		LocalDateTime from = MomentCadence.storedRangeStart(now);
+		LocalDateTime to = MomentCadence.storedRangeEnd(now);
+		List<LocalDateTime> publishedAt = momentRepository.findPublicCreatedAtBetween(MomentVisibility.PUBLIC, from,
+				to);
+		return ApiResponse.success(MomentCadence.of(publishedAt, now));
 	}
 
 	@Override

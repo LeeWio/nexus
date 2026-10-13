@@ -3,6 +3,7 @@ package space.nebula.nexus.service;
 import org.springframework.data.domain.Pageable;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.request.MomentRequest;
+import space.nebula.nexus.payload.response.MomentCadenceResponse;
 import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.payload.response.PageResult;
 
@@ -24,6 +25,13 @@ public interface IMomentService {
 
 	// Public methods
 	ApiResponse<PageResult<MomentResponse>> getPublicMoments(Pageable pageable);
+
+	/**
+	 * Returns which current day, month, and year buckets contain a public moment.
+	 * 
+	 * @return publishing cadence in the author time zone
+	 */
+	ApiResponse<MomentCadenceResponse> getPublicCadence();
 
 	ApiResponse<Void> likeMoment(Long id);
 
