@@ -200,7 +200,8 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 	private PostRevisionSnapshot toSnapshot(Post post) {
 		Set<Long> tagIds = Optional.ofNullable(post.getTags()).orElseGet(Set::of).stream().map(tag -> tag.getId())
 				.filter(Objects::nonNull).collect(java.util.stream.Collectors.toCollection(TreeSet::new));
-		return new PostRevisionSnapshot(post.getTitle(), post.getSlug(), post.getCoverImage(), post.getSummary(),
+		return new PostRevisionSnapshot(post.getTitle(), post.getSlug(), post.getCoverImage(), post.getShaderPreset(),
+				post.getSummary(),
 				post.getContent(), post.getContentType(), post.getStatus(), post.getIsFeatured(),
 				post.getCategory() == null ? null : post.getCategory().getId(), tagIds,
 				post.getSeries() == null ? null : post.getSeries().getId(), post.getSeriesOrder(),
@@ -209,7 +210,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 
 	private PostRevisionSnapshot snapshotFor(PostRevision revision) {
 		if (revision.getSnapshotJson() == null) {
-			return new PostRevisionSnapshot(revision.getTitle(), null, null, revision.getSummary(),
+			return new PostRevisionSnapshot(revision.getTitle(), null, null, null, revision.getSummary(),
 					revision.getContent(), revision.getContentType(), null, false, null, Set.of(), null, null, null);
 		}
 		try {
@@ -235,6 +236,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 
 		post.setSlug(snapshotSlug);
 		post.setCoverImage(snapshot.coverImage());
+		post.setShaderPreset(snapshot.shaderPreset());
 		post.setIsFeatured(Boolean.TRUE.equals(snapshot.featured()));
 		restoreCategory(post, snapshot.categoryId());
 		restoreTags(post, snapshot.tagIds());

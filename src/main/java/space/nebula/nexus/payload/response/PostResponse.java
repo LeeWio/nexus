@@ -22,6 +22,8 @@ public record PostResponse(@Schema(description = "Post ID") Long id,
 
 		@Schema(description = "Post cover image URL") String coverImage,
 
+		@Schema(description = "Selected shader background preset id") String shaderPreset,
+
 		@Schema(description = "Post summary") String summary,
 
 		@Schema(description = "Automatically generated fallback summary") String autoSummary,

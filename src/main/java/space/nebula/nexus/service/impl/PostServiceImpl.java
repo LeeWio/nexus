@@ -322,6 +322,7 @@ public class PostServiceImpl implements IPostService {
 		copiedPost.setTitle(copiedTitle);
 		copiedPost.setSlug(generateCopySlug(source, copiedTitle));
 		copiedPost.setCoverImage(source.getCoverImage());
+		copiedPost.setShaderPreset(source.getShaderPreset());
 		copiedPost.setSummary(source.getSummary());
 		copiedPost.setContent(source.getContent());
 		copiedPost.setContentType(source.getContentType());

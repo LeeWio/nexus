@@ -8,7 +8,8 @@ import java.util.Set;
 /**
  * Immutable post state captured by a revision.
  */
-public record PostRevisionSnapshot(String title, String slug, String coverImage, String summary, String content,
+public record PostRevisionSnapshot(String title, String slug, String coverImage, String shaderPreset, String summary,
+		String content,
 		PostContentType contentType, PostStatus status, Boolean featured, Long categoryId, Set<Long> tagIds,
 		Long seriesId, Integer seriesOrder, Long parentId) {
 }

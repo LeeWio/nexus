@@ -127,7 +127,8 @@ class PostRevisionServiceImplTest {
 		target.setPost(post);
 		target.setVersionNumber(1);
 		target.setSnapshotJson(objectMapper.writeValueAsString(new PostRevisionSnapshot("Restored title",
-				"restored-title", "cover.png", "Restored summary", "Restored content", PostContentType.MDX,
+				"restored-title", "cover.png", "mesh-aurora", "Restored summary", "Restored content",
+				PostContentType.MDX,
 				PostStatus.DRAFT, false, null, java.util.Set.of(), null, 0, null)));
 		PostRevision latest = new PostRevision();
 		latest.setId(202L);
@@ -185,8 +186,8 @@ class PostRevisionServiceImplTest {
 		target.setPost(post);
 		target.setVersionNumber(1);
 		target.setSnapshotJson(objectMapper.writeValueAsString(new PostRevisionSnapshot("Restored title",
-				"restored-slug", "restored-cover.png", "Restored summary", "Restored content", PostContentType.MDX,
-				PostStatus.DRAFT, true, 101L, Set.of(201L, 202L), 301L, 7, 401L)));
+				"restored-slug", "restored-cover.png", "mesh-aurora", "Restored summary", "Restored content",
+				PostContentType.MDX, PostStatus.DRAFT, true, 101L, Set.of(201L, 202L), 301L, 7, 401L)));
 		PostRevision latest = latestRevision(2, "existing-hash");
 		User editor = user(8L, "editor");
 
@@ -210,6 +211,7 @@ class PostRevisionServiceImplTest {
 
 		assertEquals("restored-slug", post.getSlug());
 		assertEquals("restored-cover.png", post.getCoverImage());
+		assertEquals("mesh-aurora", post.getShaderPreset());
 		assertEquals(category, post.getCategory());
 		assertEquals(Set.of(firstTag, secondTag), post.getTags());
 		assertEquals(series, post.getSeries());
@@ -230,8 +232,8 @@ class PostRevisionServiceImplTest {
 		target.setPost(post);
 		target.setVersionNumber(1);
 		target.setSnapshotJson(objectMapper.writeValueAsString(new PostRevisionSnapshot("Restored title",
-				"restored-slug", null, "Restored summary", "Restored content", PostContentType.MDX, PostStatus.DRAFT,
-				false, null, Set.of(701L), null, 0, null)));
+				"restored-slug", null, null, "Restored summary", "Restored content", PostContentType.MDX,
+				PostStatus.DRAFT, false, null, Set.of(701L), null, 0, null)));
 
 		when(postRepository.findByIdForUpdate(16L)).thenReturn(Optional.of(post));
 		when(postRevisionRepository.findById(501L)).thenReturn(Optional.of(target));

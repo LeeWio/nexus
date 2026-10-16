@@ -122,7 +122,7 @@ class PostServiceImplTest {
 	@DisplayName("Should create a new post and publish event")
 	void createPost_Success() {
 		// Arrange
-		PostRequest request = new PostRequest("My Title", null, null, "Summary", "Content", null, PostStatus.PUBLISHED,
+		PostRequest request = new PostRequest("My Title", null, null, null, "Summary", "Content", null, PostStatus.PUBLISHED,
 				false, null, null, null, null, null);
 		User author = new User();
 		author.setUsername("admin");
@@ -152,7 +152,7 @@ class PostServiceImplTest {
 		Post existingPost = post(60L, "Original title");
 		existingPost.setSlug("original-title");
 		existingPost.setStatus(PostStatus.DRAFT);
-		PostRequest request = new PostRequest("Updated title", "original-title", null, "Summary", "Updated content",
+		PostRequest request = new PostRequest("Updated title", "original-title", null, null, "Summary", "Updated content",
 				PostContentType.MDX, PostStatus.DRAFT, false, null, null, null, null, null);
 		PostResponse postResponse = mock(PostResponse.class);
 		when(postRepository.findByIdForUpdate(60L)).thenReturn(Optional.of(existingPost));
@@ -179,7 +179,7 @@ class PostServiceImplTest {
 		existingPost.setSlug("draft-article");
 		existingPost.setStatus(PostStatus.DRAFT);
 		existingPost.setIsFeatured(false);
-		PostRequest request = new PostRequest("Updated article", "draft-article", null, "Summary", "Updated content",
+		PostRequest request = new PostRequest("Updated article", "draft-article", null, null, "Summary", "Updated content",
 				PostContentType.MDX, PostStatus.PUBLISHED, true, null, null, null, null, null);
 		PostResponse postResponse = mock(PostResponse.class);
 		when(postRepository.findByIdForUpdate(61L)).thenReturn(Optional.of(existingPost));
@@ -210,7 +210,7 @@ class PostServiceImplTest {
 	@Test
 	@DisplayName("Should not allow a standard author to create a featured post")
 	void createPost_StandardUserCannotCreateFeaturedPost() {
-		PostRequest request = new PostRequest("New article", null, null, "Summary", "Content", PostContentType.MDX,
+		PostRequest request = new PostRequest("New article", null, null, null, "Summary", "Content", PostContentType.MDX,
 				PostStatus.PUBLISHED, true, null, null, null, null, null);
 		User author = new User();
 		author.setUsername("author");
@@ -254,8 +254,9 @@ class PostServiceImplTest {
 				.thenReturn(new PageImpl<>(List.of(featured)));
 		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
 			Post post = invocation.getArgument(0);
-			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null,
-					null, post.getViews(), post.getLikesCount(), post.getCommentsCount(), post.getPublishedAt());
+			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null,
+					post.getShaderPreset(), null, null, null, null, post.getViews(), post.getLikesCount(),
+					post.getCommentsCount(), post.getPublishedAt());
 		});
 
 		ApiResponse<BlogDiscoveryResponse> response = postService.retrievePublicDiscovery();
@@ -284,8 +285,9 @@ class PostServiceImplTest {
 				.thenReturn(new PageImpl<>(List.of(featured)));
 		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
 			Post post = invocation.getArgument(0);
-			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null,
-					null, post.getViews(), post.getLikesCount(), post.getCommentsCount(), post.getPublishedAt());
+			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null,
+					post.getShaderPreset(), null, null, null, null, post.getViews(), post.getLikesCount(),
+					post.getCommentsCount(), post.getPublishedAt());
 		});
 
 		ApiResponse<BlogDiscoveryResponse> response = postService.retrievePublicDiscovery();
@@ -302,7 +304,7 @@ class PostServiceImplTest {
 		when(postRepository.findProminentPublicPosts(PostStatus.PUBLISHED, pageable))
 				.thenReturn(new PageImpl<>(List.of(featured)));
 		when(postMapper.toDigestResponse(featured)).thenReturn(
-				new PostDigestResponse(1L, "Featured", "featured", null, null, null, null, null, 0L, 0L, 0L, null));
+				new PostDigestResponse(1L, "Featured", "featured", null, null, null, null, null, null, 0L, 0L, 0L, null));
 
 		ApiResponse<PageResult<PostDigestResponse>> response = postService.retrieveFeaturedPublicPosts(pageable);
 
@@ -343,8 +345,9 @@ class PostServiceImplTest {
 				.thenReturn(new PageImpl<>(List.of(categoryOnly, sameSeriesAndTags)));
 		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
 			Post post = invocation.getArgument(0);
-			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null, null, null, null,
-					null, post.getViews(), post.getLikesCount(), post.getCommentsCount(), post.getPublishedAt());
+			return new PostDigestResponse(post.getId(), post.getTitle(), "post-" + post.getId(), null,
+					post.getShaderPreset(), null, null, null, null, post.getViews(), post.getLikesCount(),
+					post.getCommentsCount(), post.getPublishedAt());
 		});
 
 		ApiResponse<List<PostDigestResponse>> response = postService.retrieveRelatedPosts("source",
@@ -363,7 +366,8 @@ class PostServiceImplTest {
 		when(postRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
 				.thenReturn(new PageImpl<>(List.of(archivedPost)));
 		when(postMapper.toDigestResponse(archivedPost)).thenReturn(new PostDigestResponse(13L, "Archived by month",
-				"archived-by-month", null, null, null, null, null, 0L, 0L, 0L, archivedPost.getPublishedAt()));
+				"archived-by-month", null, null, null, null, null, null, 0L, 0L, 0L,
+				archivedPost.getPublishedAt()));
 
 		ApiResponse<PageResult<PostDigestResponse>> response = postService.retrievePublicArchive(2026, 7,
 				org.springframework.data.domain.PageRequest.of(0, 10));
@@ -548,7 +552,7 @@ class PostServiceImplTest {
 	void updatePost_PublishedPostRejected() {
 		Post post = post(34L, "Published article");
 		post.publish();
-		PostRequest request = new PostRequest("Changed", null, null, "Summary", "Content", null, PostStatus.DRAFT,
+		PostRequest request = new PostRequest("Changed", null, null, null, "Summary", "Content", null, PostStatus.DRAFT,
 				false, null, null, null, null, null);
 		when(postRepository.findByIdForUpdate(34L)).thenReturn(Optional.of(post));
 

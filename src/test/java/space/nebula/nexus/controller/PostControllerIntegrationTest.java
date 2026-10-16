@@ -78,19 +78,23 @@ public class PostControllerIntegrationTest {
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testCreateAndGetPost() throws Exception {
-		PostRequest request = new PostRequest("Test Post Title", "test-post-slug", null, "Summary of test post",
-				"Content of test post", null, PostStatus.PUBLISHED, false, categoryId, null, null, null,
-				new HashSet<>());
+		PostRequest request = new PostRequest("Test Post Title", "test-post-slug", null, "mesh-aurora",
+				"Summary of test post", "Content of test post", null, PostStatus.PUBLISHED, false, categoryId, null,
+				null, null, new HashSet<>());
 
 		// 1. Bearer-authenticated API writes must not require a cookie CSRF token.
 		mockMvc.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request))).andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.title").value("Test Post Title"))
-				.andExpect(jsonPath("$.data.slug").value("test-post-slug"));
+				.andExpect(jsonPath("$.data.slug").value("test-post-slug"))
+				.andExpect(jsonPath("$.data.shaderPreset").value("mesh-aurora"));
 
-		// 2. Get Public Posts
-		mockMvc.perform(get("/api/v1/public/blog/posts").param("page", "1").param("size", "10"))
-				.andExpect(status().isOk()).andExpect(jsonPath("$.data.list").isArray());
+		// 2. Get Public Posts. Page indexes are zero-based.
+		mockMvc.perform(get("/api/v1/public/blog/posts").param("page", "0").param("size", "10"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.list").isArray())
+				.andExpect(jsonPath("$.data.list[0].shaderPreset").value("mesh-aurora"));
+		mockMvc.perform(get("/api/v1/public/blog/posts/digest").param("page", "0").param("size", "10"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.data.list[0].shaderPreset").value("mesh-aurora"));
 
 		// 3. Get curated prominent posts without forcing the frontend to page through
 		// all posts.
@@ -113,7 +117,7 @@ public class PostControllerIntegrationTest {
 		admin.setNickname("Pen Name");
 		userRepository.save(admin);
 
-		PostRequest request = new PostRequest("Author-filtered post", "author-filtered-post", null, "Summary",
+		PostRequest request = new PostRequest("Author-filtered post", "author-filtered-post", null, null, "Summary",
 				"Content", null, PostStatus.PUBLISHED, false, categoryId, null, null, null, null);
 		mockMvc.perform(post("/api/v1/admin/posts").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request))).andExpect(status().isOk());
@@ -143,7 +147,7 @@ public class PostControllerIntegrationTest {
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testUpdatePost() throws Exception {
-		PostRequest createRequest = new PostRequest("Original Title", "original-slug", null, "Summary", "Content", null,
+		PostRequest createRequest = new PostRequest("Original Title", "original-slug", null, null, "Summary", "Content", null,
 				PostStatus.DRAFT, false, categoryId, null, null, null, null);
 
 		String response = mockMvc
@@ -153,7 +157,7 @@ public class PostControllerIntegrationTest {
 
 		Long postId = objectMapper.readTree(response).get("data").get("id").asLong();
 
-		PostRequest updateRequest = new PostRequest("Updated Title", "updated-slug", null, "Updated Summary",
+		PostRequest updateRequest = new PostRequest("Updated Title", "updated-slug", null, null, "Updated Summary",
 				"Updated Content", null, PostStatus.PUBLISHED, true, categoryId, null, null, null, null);
 
 		mockMvc.perform(put("/api/v1/admin/posts/" + postId).with(csrf()).contentType(MediaType.APPLICATION_JSON)
@@ -165,7 +169,7 @@ public class PostControllerIntegrationTest {
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testRevisionTimelineDetailRestoreAndStaleWriteProtection() throws Exception {
-		PostRequest initialRequest = new PostRequest("Revision source", "revision-source", null, "Original summary",
+		PostRequest initialRequest = new PostRequest("Revision source", "revision-source", null, null, "Original summary",
 				"Original content", null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
 		String created = mockMvc
 				.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
@@ -178,7 +182,7 @@ public class PostControllerIntegrationTest {
 				.getResponse().getContentAsString();
 		Long firstRevisionId = objectMapper.readTree(firstTimeline).get("data").get(0).get("id").asLong();
 
-		PostRequest updatedRequest = new PostRequest("Revision source updated", "revision-source", null,
+		PostRequest updatedRequest = new PostRequest("Revision source updated", "revision-source", null, null,
 				"Updated summary", "Updated content", null, PostStatus.DRAFT, false, categoryId, null, null, null,
 				null);
 		mockMvc.perform(put("/api/v1/admin/posts/" + postId).with(csrf()).header("If-Match", "\"revision-1\"")
@@ -204,7 +208,8 @@ public class PostControllerIntegrationTest {
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testCopyAndBatchDeletePosts() throws Exception {
-		PostRequest createRequest = new PostRequest("Copy Source", "copy-source", null, "Summary", "Content", null,
+		PostRequest createRequest = new PostRequest("Copy Source", "copy-source", null, "mesh-aurora", "Summary", "Content",
+				null,
 				PostStatus.DRAFT, false, categoryId, null, null, null, null);
 		String created = mockMvc
 				.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
@@ -214,7 +219,9 @@ public class PostControllerIntegrationTest {
 
 		String copied = mockMvc.perform(post("/api/v1/admin/posts/" + sourceId + "/copy").with(csrf()))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.data.title").value("Copy Source (Copy)"))
-				.andExpect(jsonPath("$.data.status").value("DRAFT")).andReturn().getResponse().getContentAsString();
+				.andExpect(jsonPath("$.data.status").value("DRAFT"))
+				.andExpect(jsonPath("$.data.shaderPreset").value("mesh-aurora")).andReturn().getResponse()
+				.getContentAsString();
 		Long copiedId = objectMapper.readTree(copied).get("data").get("id").asLong();
 
 		mockMvc.perform(delete("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
@@ -224,7 +231,7 @@ public class PostControllerIntegrationTest {
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testCompleteEditorialLifecycle() throws Exception {
-		PostRequest createRequest = new PostRequest("Lifecycle Post", "lifecycle-post", null, "Summary", "Content",
+		PostRequest createRequest = new PostRequest("Lifecycle Post", "lifecycle-post", null, null, "Summary", "Content",
 				null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
 		String response = mockMvc
 				.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)

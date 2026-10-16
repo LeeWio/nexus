@@ -42,6 +42,9 @@ public class Post extends BaseEntity {
 	@Column(name = "cover_image", length = 255)
 	private String coverImage;
 
+	@Column(name = "shader_preset", length = 64)
+	private String shaderPreset;
+
 	@Column(length = 500)
 	private String summary;
 

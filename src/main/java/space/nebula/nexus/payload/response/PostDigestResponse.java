@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 public record PostDigestResponse(@Schema(description = "Post ID") Long id,
 		@Schema(description = "Post title") String title, @Schema(description = "Post slug") String slug,
 		@Schema(description = "Cover image URL") String coverImage,
+		@Schema(description = "Selected shader background preset id") String shaderPreset,
 		@Schema(description = "Short post summary") String summary,
 		@Schema(description = "Author display name") String authorName,
 		@Schema(description = "Author avatar URL") String authorAvatar,

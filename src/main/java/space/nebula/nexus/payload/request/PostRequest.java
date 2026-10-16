@@ -21,6 +21,8 @@ public record PostRequest(
 
 		@Schema(description = "Full URL to the cover image") String coverImage,
 
+		@Schema(description = "Selected shader background preset id", example = "mesh-aurora") @Size(max = 64) String shaderPreset,
+
 		@Schema(description = "Short summary/excerpt of the post", example = "A comprehensive guide to the latest Spring Boot version.") @Size(max = 500) String summary,
 
 		@Schema(description = "Main content in JSON or MDX") @NotBlank(message = "Content is required") String content,
