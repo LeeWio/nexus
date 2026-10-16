@@ -147,8 +147,8 @@ public class PostControllerIntegrationTest {
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testUpdatePost() throws Exception {
-		PostRequest createRequest = new PostRequest("Original Title", "original-slug", null, null, "Summary", "Content", null,
-				PostStatus.DRAFT, false, categoryId, null, null, null, null);
+		PostRequest createRequest = new PostRequest("Original Title", "original-slug", null, null, "Summary", "Content",
+				null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
 
 		String response = mockMvc
 				.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
@@ -169,8 +169,9 @@ public class PostControllerIntegrationTest {
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testRevisionTimelineDetailRestoreAndStaleWriteProtection() throws Exception {
-		PostRequest initialRequest = new PostRequest("Revision source", "revision-source", null, null, "Original summary",
-				"Original content", null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
+		PostRequest initialRequest = new PostRequest("Revision source", "revision-source", null, null,
+				"Original summary", "Original content", null, PostStatus.DRAFT, false, categoryId, null, null, null,
+				null);
 		String created = mockMvc
 				.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(initialRequest)))
@@ -208,9 +209,8 @@ public class PostControllerIntegrationTest {
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testCopyAndBatchDeletePosts() throws Exception {
-		PostRequest createRequest = new PostRequest("Copy Source", "copy-source", null, "mesh-aurora", "Summary", "Content",
-				null,
-				PostStatus.DRAFT, false, categoryId, null, null, null, null);
+		PostRequest createRequest = new PostRequest("Copy Source", "copy-source", null, "mesh-aurora", "Summary",
+				"Content", null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
 		String created = mockMvc
 				.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(createRequest)))
@@ -231,8 +231,8 @@ public class PostControllerIntegrationTest {
 	@Test
 	@WithMockUser(username = "admin", roles = {"ADMIN"})
 	public void testCompleteEditorialLifecycle() throws Exception {
-		PostRequest createRequest = new PostRequest("Lifecycle Post", "lifecycle-post", null, null, "Summary", "Content",
-				null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
+		PostRequest createRequest = new PostRequest("Lifecycle Post", "lifecycle-post", null, null, "Summary",
+				"Content", null, PostStatus.DRAFT, false, categoryId, null, null, null, null);
 		String response = mockMvc
 				.perform(post("/api/v1/admin/posts").with(csrf()).contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(createRequest)))

@@ -128,8 +128,7 @@ class PostRevisionServiceImplTest {
 		target.setVersionNumber(1);
 		target.setSnapshotJson(objectMapper.writeValueAsString(new PostRevisionSnapshot("Restored title",
 				"restored-title", "cover.png", "mesh-aurora", "Restored summary", "Restored content",
-				PostContentType.MDX,
-				PostStatus.DRAFT, false, null, java.util.Set.of(), null, 0, null)));
+				PostContentType.MDX, PostStatus.DRAFT, false, null, java.util.Set.of(), null, 0, null)));
 		PostRevision latest = new PostRevision();
 		latest.setId(202L);
 		latest.setVersionNumber(2);

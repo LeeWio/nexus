@@ -122,8 +122,8 @@ class PostServiceImplTest {
 	@DisplayName("Should create a new post and publish event")
 	void createPost_Success() {
 		// Arrange
-		PostRequest request = new PostRequest("My Title", null, null, null, "Summary", "Content", null, PostStatus.PUBLISHED,
-				false, null, null, null, null, null);
+		PostRequest request = new PostRequest("My Title", null, null, null, "Summary", "Content", null,
+				PostStatus.PUBLISHED, false, null, null, null, null, null);
 		User author = new User();
 		author.setUsername("admin");
 
@@ -152,8 +152,8 @@ class PostServiceImplTest {
 		Post existingPost = post(60L, "Original title");
 		existingPost.setSlug("original-title");
 		existingPost.setStatus(PostStatus.DRAFT);
-		PostRequest request = new PostRequest("Updated title", "original-title", null, null, "Summary", "Updated content",
-				PostContentType.MDX, PostStatus.DRAFT, false, null, null, null, null, null);
+		PostRequest request = new PostRequest("Updated title", "original-title", null, null, "Summary",
+				"Updated content", PostContentType.MDX, PostStatus.DRAFT, false, null, null, null, null, null);
 		PostResponse postResponse = mock(PostResponse.class);
 		when(postRepository.findByIdForUpdate(60L)).thenReturn(Optional.of(existingPost));
 		when(postMapper.toResponse(existingPost)).thenReturn(postResponse);
@@ -179,8 +179,8 @@ class PostServiceImplTest {
 		existingPost.setSlug("draft-article");
 		existingPost.setStatus(PostStatus.DRAFT);
 		existingPost.setIsFeatured(false);
-		PostRequest request = new PostRequest("Updated article", "draft-article", null, null, "Summary", "Updated content",
-				PostContentType.MDX, PostStatus.PUBLISHED, true, null, null, null, null, null);
+		PostRequest request = new PostRequest("Updated article", "draft-article", null, null, "Summary",
+				"Updated content", PostContentType.MDX, PostStatus.PUBLISHED, true, null, null, null, null, null);
 		PostResponse postResponse = mock(PostResponse.class);
 		when(postRepository.findByIdForUpdate(61L)).thenReturn(Optional.of(existingPost));
 		when(postMapper.toResponse(existingPost)).thenReturn(postResponse);
@@ -210,8 +210,8 @@ class PostServiceImplTest {
 	@Test
 	@DisplayName("Should not allow a standard author to create a featured post")
 	void createPost_StandardUserCannotCreateFeaturedPost() {
-		PostRequest request = new PostRequest("New article", null, null, null, "Summary", "Content", PostContentType.MDX,
-				PostStatus.PUBLISHED, true, null, null, null, null, null);
+		PostRequest request = new PostRequest("New article", null, null, null, "Summary", "Content",
+				PostContentType.MDX, PostStatus.PUBLISHED, true, null, null, null, null, null);
 		User author = new User();
 		author.setUsername("author");
 		PostResponse postResponse = mock(PostResponse.class);
@@ -303,8 +303,8 @@ class PostServiceImplTest {
 		Pageable pageable = Pageable.unpaged();
 		when(postRepository.findProminentPublicPosts(PostStatus.PUBLISHED, pageable))
 				.thenReturn(new PageImpl<>(List.of(featured)));
-		when(postMapper.toDigestResponse(featured)).thenReturn(
-				new PostDigestResponse(1L, "Featured", "featured", null, null, null, null, null, null, 0L, 0L, 0L, null));
+		when(postMapper.toDigestResponse(featured)).thenReturn(new PostDigestResponse(1L, "Featured", "featured", null,
+				null, null, null, null, null, 0L, 0L, 0L, null));
 
 		ApiResponse<PageResult<PostDigestResponse>> response = postService.retrieveFeaturedPublicPosts(pageable);
 
@@ -366,8 +366,7 @@ class PostServiceImplTest {
 		when(postRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
 				.thenReturn(new PageImpl<>(List.of(archivedPost)));
 		when(postMapper.toDigestResponse(archivedPost)).thenReturn(new PostDigestResponse(13L, "Archived by month",
-				"archived-by-month", null, null, null, null, null, null, 0L, 0L, 0L,
-				archivedPost.getPublishedAt()));
+				"archived-by-month", null, null, null, null, null, null, 0L, 0L, 0L, archivedPost.getPublishedAt()));
 
 		ApiResponse<PageResult<PostDigestResponse>> response = postService.retrievePublicArchive(2026, 7,
 				org.springframework.data.domain.PageRequest.of(0, 10));

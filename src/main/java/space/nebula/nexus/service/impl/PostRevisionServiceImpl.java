@@ -201,8 +201,7 @@ public class PostRevisionServiceImpl implements IPostRevisionService {
 		Set<Long> tagIds = Optional.ofNullable(post.getTags()).orElseGet(Set::of).stream().map(tag -> tag.getId())
 				.filter(Objects::nonNull).collect(java.util.stream.Collectors.toCollection(TreeSet::new));
 		return new PostRevisionSnapshot(post.getTitle(), post.getSlug(), post.getCoverImage(), post.getShaderPreset(),
-				post.getSummary(),
-				post.getContent(), post.getContentType(), post.getStatus(), post.getIsFeatured(),
+				post.getSummary(), post.getContent(), post.getContentType(), post.getStatus(), post.getIsFeatured(),
 				post.getCategory() == null ? null : post.getCategory().getId(), tagIds,
 				post.getSeries() == null ? null : post.getSeries().getId(), post.getSeriesOrder(),
 				post.getParent() == null ? null : post.getParent().getId());
