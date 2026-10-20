@@ -40,7 +40,8 @@ public class PublicLifeListController {
 	public ApiResponse<LifeListPageResponse> getItems(
 			@Parameter(description = "Category slug") @RequestParam(required = false) String category,
 			@Parameter(description = "Wish status") @RequestParam(required = false) LifeListStatus status,
-			@PageableDefault(size = 100, sort = {"sortOrder", "number"}, direction = Sort.Direction.ASC) Pageable pageable) {
+			@PageableDefault(size = 100, sort = {"sortOrder",
+					"number"}, direction = Sort.Direction.ASC) Pageable pageable) {
 		return lifeListService.getPublicItems(category, status, pageable);
 	}
 

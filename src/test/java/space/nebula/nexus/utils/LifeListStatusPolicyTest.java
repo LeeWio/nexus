@@ -34,8 +34,7 @@ class LifeListStatusPolicyTest {
 
 	@Test
 	void completionDateDefaultsToTodayAndClearsWhenReopened() {
-		assertEquals(today,
-				LifeListStatusPolicy.nextCompletedAt(LifeListStatus.COMPLETED, null, today));
+		assertEquals(today, LifeListStatusPolicy.nextCompletedAt(LifeListStatus.COMPLETED, null, today));
 		assertEquals(LocalDate.of(2024, 5, 1),
 				LifeListStatusPolicy.nextCompletedAt(LifeListStatus.COMPLETED, LocalDate.of(2024, 5, 1), today));
 		assertNull(LifeListStatusPolicy.nextCompletedAt(LifeListStatus.PLANNED, today, today));

@@ -56,8 +56,8 @@ class LifeListServiceImplTest {
 		LifeListItem item = item(1L, 7, LifeListStatus.COMPLETED, LifeListVisibility.PUBLIC);
 		when(itemRepository.findAll(any(Specification.class), eq(PageRequest.of(0, 20))))
 				.thenReturn(new PageImpl<>(List.of(item)));
-		when(memoryRepository.findByItemIdAndVisibilityOrderByOccurredAtDescCreatedAtDesc(1L, LifeListVisibility.PUBLIC))
-				.thenReturn(List.of());
+		when(memoryRepository.findByItemIdAndVisibilityOrderByOccurredAtDescCreatedAtDesc(1L,
+				LifeListVisibility.PUBLIC)).thenReturn(List.of());
 		when(itemRepository.countByVisibilityAndStatusAndArchivedAtIsNull(LifeListVisibility.PUBLIC,
 				LifeListStatus.COMPLETED)).thenReturn(1L);
 		when(itemRepository.countByVisibilityAndArchivedAtIsNull(LifeListVisibility.PUBLIC)).thenReturn(4L);

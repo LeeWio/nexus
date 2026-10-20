@@ -65,9 +65,9 @@ public class AdminLifeListController {
 
 	@GetMapping("/items")
 	public ApiResponse<LifeListPageResponse> getItems(@RequestParam(required = false) String category,
-			@RequestParam(required = false) LifeListStatus status,
-			@RequestParam(required = false) Boolean archived,
-			@PageableDefault(size = 100, sort = {"sortOrder", "number"}, direction = Sort.Direction.ASC) Pageable pageable) {
+			@RequestParam(required = false) LifeListStatus status, @RequestParam(required = false) Boolean archived,
+			@PageableDefault(size = 100, sort = {"sortOrder",
+					"number"}, direction = Sort.Direction.ASC) Pageable pageable) {
 		return lifeListService.getAdminItems(category, status, archived, pageable);
 	}
 

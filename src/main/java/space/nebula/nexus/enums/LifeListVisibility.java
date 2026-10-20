@@ -4,7 +4,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 
 /**
- * Who may read a life-list item or memory. Public pages never return private rows.
+ * Who may read a life-list item or memory. Public pages never return private
+ * rows.
  */
 @Getter
 public enum LifeListVisibility {

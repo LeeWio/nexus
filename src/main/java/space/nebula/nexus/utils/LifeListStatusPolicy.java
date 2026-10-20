@@ -7,8 +7,8 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Pure status rules for a life-list item. Completing a wish never creates a memory, and
- * reversing completion never deletes one.
+ * Pure status rules for a life-list item. Completing a wish never creates a
+ * memory, and reversing completion never deletes one.
  */
 public final class LifeListStatusPolicy {
 
@@ -28,8 +28,9 @@ public final class LifeListStatusPolicy {
 	}
 
 	/**
-	 * Completing writes the supplied date, or today when none is given. Leaving completed
-	 * clears the current completion date. Other transitions leave it untouched.
+	 * Completing writes the supplied date, or today when none is given. Leaving
+	 * completed clears the current completion date. Other transitions leave it
+	 * untouched.
 	 */
 	public static LocalDate nextCompletedAt(LifeListStatus to, LocalDate requested, LocalDate today) {
 		if (to == LifeListStatus.COMPLETED) {

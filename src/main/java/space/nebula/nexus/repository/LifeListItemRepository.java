@@ -9,7 +9,10 @@ import space.nebula.nexus.enums.LifeListVisibility;
 
 import java.util.Optional;
 
-public interface LifeListItemRepository extends JpaRepository<LifeListItem, Long>, JpaSpecificationExecutor<LifeListItem> {
+public interface LifeListItemRepository
+		extends
+			JpaRepository<LifeListItem, Long>,
+			JpaSpecificationExecutor<LifeListItem> {
 
 	Optional<LifeListItem> findByNumber(Integer number);
 

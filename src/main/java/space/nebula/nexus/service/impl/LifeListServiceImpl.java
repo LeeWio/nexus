@@ -103,7 +103,8 @@ public class LifeListServiceImpl implements ILifeListService {
 			throw new BusinessException(BusinessCode.BAD_REQUEST, "The uncategorized category cannot be deleted");
 		}
 		if (itemRepository.countByCategoryId(id) > 0) {
-			throw new BusinessException(BusinessCode.BAD_REQUEST, "Move wishes out of this category before deleting it");
+			throw new BusinessException(BusinessCode.BAD_REQUEST,
+					"Move wishes out of this category before deleting it");
 		}
 		categoryRepository.delete(category);
 		return ApiResponse.success("Category deleted", null);
@@ -111,8 +112,8 @@ public class LifeListServiceImpl implements ILifeListService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<LifeListPageResponse> getAdminItems(String categorySlug, LifeListStatus status,
-			Boolean archived, Pageable pageable) {
+	public ApiResponse<LifeListPageResponse> getAdminItems(String categorySlug, LifeListStatus status, Boolean archived,
+			Pageable pageable) {
 		boolean includeArchived = Boolean.TRUE.equals(archived);
 		Specification<LifeListItem> spec = andAll(categorySpec(categorySlug), statusSpec(status));
 		if (!includeArchived) {
@@ -188,8 +189,7 @@ public class LifeListServiceImpl implements ILifeListService {
 	@LogOperation("Delete Life List Item")
 	public ApiResponse<Void> deleteItem(Long id) {
 		LifeListItem item = item(id);
-		memoryRepository.findByItemIdOrderByOccurredAtDescCreatedAtDesc(item.getId())
-				.forEach(memoryRepository::delete);
+		memoryRepository.findByItemIdOrderByOccurredAtDescCreatedAtDesc(item.getId()).forEach(memoryRepository::delete);
 		itemRepository.delete(item);
 		return ApiResponse.success("Wish deleted", null);
 	}
@@ -270,8 +270,7 @@ public class LifeListServiceImpl implements ILifeListService {
 		category.setSlug(slug);
 		if (request.sortOrder() != null) {
 			category.setSortOrder(request.sortOrder());
-		}
-		else if (creating) {
+		} else if (creating) {
 			category.setSortOrder(categoryRepository.findMaxSortOrder() + 10);
 		}
 	}
@@ -303,8 +302,7 @@ public class LifeListServiceImpl implements ILifeListService {
 		}
 		if (request.categoryId() == null) {
 			item.setCategory(null);
-		}
-		else {
+		} else {
 			item.setCategory(category(request.categoryId()));
 		}
 		if (!LifeListStatusPolicy.canTransition(item.getStatus() == null ? LifeListStatus.PLANNED : item.getStatus(),

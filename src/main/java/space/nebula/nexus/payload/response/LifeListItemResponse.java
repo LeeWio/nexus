@@ -9,20 +9,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Schema(description = "A life-list wish. Public responses omit private memories.")
-public record LifeListItemResponse(
-		Long id,
-		int number,
-		String title,
-		String description,
-		String motivation,
-		LifeListCategoryResponse category,
-		LifeListStatus status,
-		LifeListVisibility visibility,
-		int sortOrder,
-		LocalDate completedAt,
-		LocalDateTime archivedAt,
-		long memoryCount,
-		List<LifeListMemoryResponse> memories,
-		LocalDateTime createdAt,
-		LocalDateTime updatedAt) {
+public record LifeListItemResponse(Long id, int number, String title, String description, String motivation,
+		LifeListCategoryResponse category, LifeListStatus status, LifeListVisibility visibility, int sortOrder,
+		LocalDate completedAt, LocalDateTime archivedAt, long memoryCount, List<LifeListMemoryResponse> memories,
+		LocalDateTime createdAt, LocalDateTime updatedAt) {
 }

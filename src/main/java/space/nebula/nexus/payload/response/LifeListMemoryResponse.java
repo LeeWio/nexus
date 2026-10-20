@@ -7,13 +7,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Schema(description = "A recorded experience for one wish")
-public record LifeListMemoryResponse(
-		Long id,
-		Long itemId,
-		LocalDate occurredAt,
-		String content,
-		String location,
-		LifeListVisibility visibility,
-		LocalDateTime createdAt,
-		LocalDateTime updatedAt) {
+public record LifeListMemoryResponse(Long id, Long itemId, LocalDate occurredAt, String content, String location,
+		LifeListVisibility visibility, LocalDateTime createdAt, LocalDateTime updatedAt) {
 }

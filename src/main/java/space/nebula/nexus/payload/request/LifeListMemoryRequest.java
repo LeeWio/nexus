@@ -9,9 +9,7 @@ import space.nebula.nexus.enums.LifeListVisibility;
 import java.time.LocalDate;
 
 @Schema(description = "A memory attached to a wish. Saving one does not change the wish status.")
-public record LifeListMemoryRequest(
-		@Schema(description = "When the experience happened") LocalDate occurredAt,
-		@NotBlank @Size(max = 8000) String content,
-		@Size(max = 160) String location,
+public record LifeListMemoryRequest(@Schema(description = "When the experience happened") LocalDate occurredAt,
+		@NotBlank @Size(max = 8000) String content, @Size(max = 160) String location,
 		@NotNull LifeListVisibility visibility) {
 }
