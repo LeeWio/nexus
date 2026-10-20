@@ -68,7 +68,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	@org.springframework.data.jpa.repository.Query("SELECT u.avatar FROM User u WHERE u.avatar IS NOT NULL")
 	java.util.List<String> findAllAvatars();
 
-	/** Loads roles with the account so token issuance stays outside the persistence session. */
+	/**
+	 * Loads roles with the account so token issuance stays outside the persistence
+	 * session.
+	 */
 	@EntityGraph(attributePaths = "roles")
 	java.util.Optional<User> findWithRolesById(Long id);
 
