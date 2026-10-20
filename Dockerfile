@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     mvn test
 
 # Run stage
-FROM public.ecr.aws/docker/library/amazoncorretto:21-alpine AS runner
+FROM library/amazoncorretto:21-alpine AS runner
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
@@ -37,7 +37,7 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 # ========================================================
 # 🌟 Stage 3: runner-prebuilt (专为 GitHub Actions 宿主机编译打造的极速精简运行层)
 # ========================================================
-FROM public.ecr.aws/docker/library/amazoncorretto:21-alpine AS runner-prebuilt
+FROM library/amazoncorretto:21-alpine AS runner-prebuilt
 
 WORKDIR /app
 
