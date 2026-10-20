@@ -52,7 +52,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 			throw new ServletException("OAuth login did not resolve a local user account");
 		}
 
-		User user = userRepository.findById(Long.valueOf(String.valueOf(localUserId)))
+		User user = userRepository.findWithRolesById(Long.valueOf(String.valueOf(localUserId)))
 				.orElseThrow(() -> new ServletException("User not found after OAuth login"));
 
 		AuthResponse authResponse = authService.issueTokens(new SecurityUser(user));
