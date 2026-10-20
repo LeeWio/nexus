@@ -30,6 +30,7 @@ import space.nebula.nexus.mapper.MomentMapper;
 import space.nebula.nexus.payload.request.MomentRequest;
 import space.nebula.nexus.payload.response.MomentCadenceResponse;
 import space.nebula.nexus.payload.response.MomentResponse;
+import space.nebula.nexus.payload.response.MomentTopicCountResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.MomentRepository;
@@ -157,15 +158,27 @@ public class MomentServiceImpl implements IMomentService {
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.MOMENTS, key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + T(space.nebula.nexus.security.util.SecurityUtil).getCurrentUsername()")
-	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(Pageable pageable) {
+	@Cacheable(value = CacheConstants.MOMENTS, key = "(#topic == null ? '' : #topic) + '-' + #pageable.pageNumber + '-' + #pageable.pageSize + '-' + T(space.nebula.nexus.security.util.SecurityUtil).getCurrentUsername()")
+	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(String topic, Pageable pageable) {
 		String currentUsername = SecurityUtil.getCurrentUsername();
-		Page<MomentResponse> page = momentRepository
-				.findPublicTimeline(MomentVisibility.PUBLIC, currentUsername, pageable).map(momentMapper::toResponse);
+		String slug = topic == null || topic.isBlank() ? null : topic.trim();
+		Page<Moment> moments = slug == null
+				? momentRepository.findPublicTimeline(MomentVisibility.PUBLIC, currentUsername, pageable)
+				: momentRepository.findPublicTimelineByTopic(slug, MomentVisibility.PUBLIC, currentUsername, pageable);
+		Page<MomentResponse> page = moments.map(momentMapper::toResponse);
 		List<MomentResponse> enriched = momentXSyncSupport
 				.withSyncs(momentCommentCountSupport.withCounts(page.getContent()));
 		return ApiResponse.success(new PageResult<>(enriched, page.getTotalElements(), page.getNumber() + 1,
 				page.getSize(), page.getTotalPages()));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	@Cacheable(value = CacheConstants.MOMENTS, key = "'topics'")
+	public ApiResponse<List<MomentTopicCountResponse>> getPublicTopics() {
+		List<MomentTopicCountResponse> topics = momentRepository.countPublicTopics(MomentVisibility.PUBLIC).stream()
+				.map(row -> new MomentTopicCountResponse((String) row[0], ((Number) row[1]).longValue())).toList();
+		return ApiResponse.success(topics);
 	}
 
 	@Override

@@ -5,6 +5,7 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.request.MomentRequest;
 import space.nebula.nexus.payload.response.MomentCadenceResponse;
 import space.nebula.nexus.payload.response.MomentResponse;
+import space.nebula.nexus.payload.response.MomentTopicCountResponse;
 import space.nebula.nexus.payload.response.PageResult;
 
 import java.util.List;
@@ -24,7 +25,9 @@ public interface IMomentService {
 	ApiResponse<Void> deleteMoment(Long id);
 
 	// Public methods
-	ApiResponse<PageResult<MomentResponse>> getPublicMoments(Pageable pageable);
+	ApiResponse<PageResult<MomentResponse>> getPublicMoments(String topic, Pageable pageable);
+
+	ApiResponse<List<MomentTopicCountResponse>> getPublicTopics();
 
 	/**
 	 * Returns which current day, month, and year buckets contain a public moment.

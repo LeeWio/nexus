@@ -13,6 +13,7 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.payload.response.MomentCadenceResponse;
 import space.nebula.nexus.payload.response.MomentResponse;
+import space.nebula.nexus.payload.response.MomentTopicCountResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.service.IMomentService;
 
@@ -31,8 +32,15 @@ public class PublicMomentController {
 	@GetMapping
 	@Operation(summary = "Get published moments timeline", description = "Retrieve the public microblog timeline in reverse chronological order.")
 	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(
+			@Parameter(description = "Optional topic slug. Omit to return every public moment.") @RequestParam(required = false) String topic,
 			@Parameter(description = "Zero-based request pagination. Responses use a one-based page number.") @PageableDefault(size = 20) Pageable pageable) {
-		return momentService.getPublicMoments(pageable);
+		return momentService.getPublicMoments(topic, pageable);
+	}
+
+	@GetMapping("/topics")
+	@Operation(summary = "List public moment topics", description = "Returns each topic used by a published public moment, with its count.")
+	public ApiResponse<List<MomentTopicCountResponse>> getPublicTopics() {
+		return momentService.getPublicTopics();
 	}
 
 	@GetMapping("/cadence")
