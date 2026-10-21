@@ -33,6 +33,13 @@ public interface MomentRepository extends JpaRepository<Moment, Long> {
 			+ "ORDER BY COUNT(moment.id) DESC, topic.slug ASC")
 	List<Object[]> countPublicTopics(@Param("visibility") MomentVisibility visibility);
 
+	@Query("SELECT m FROM Moment m WHERE (m.visibility = :publicVisibility "
+			+ "OR (:username IS NOT NULL AND m.createdBy = :username)) "
+			+ "AND m.createdAt >= :from AND m.createdAt < :to ORDER BY m.createdAt DESC")
+	Page<Moment> findPublicTimelineBetween(@Param("publicVisibility") MomentVisibility publicVisibility,
+			@Param("username") String username, @Param("from") java.time.LocalDateTime from,
+			@Param("to") java.time.LocalDateTime to, Pageable pageable);
+
 	List<Moment> findByContentContainingIgnoreCaseAndVisibility(String content, MomentVisibility visibility);
 
 	List<Moment> findTop10ByOrderByCreatedAtDesc();

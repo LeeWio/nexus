@@ -25,7 +25,8 @@ public interface IMomentService {
 	ApiResponse<Void> deleteMoment(Long id);
 
 	// Public methods
-	ApiResponse<PageResult<MomentResponse>> getPublicMoments(String topic, Pageable pageable);
+	ApiResponse<PageResult<MomentResponse>> getPublicMoments(String topic, Integer year, Integer month,
+			Pageable pageable);
 
 	ApiResponse<List<MomentTopicCountResponse>> getPublicTopics();
 

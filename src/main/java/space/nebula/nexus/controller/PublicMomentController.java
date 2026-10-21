@@ -33,8 +33,10 @@ public class PublicMomentController {
 	@Operation(summary = "Get published moments timeline", description = "Retrieve the public microblog timeline in reverse chronological order.")
 	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(
 			@Parameter(description = "Optional topic slug. Omit to return every public moment.") @RequestParam(required = false) String topic,
+			@Parameter(description = "Optional UTC year, used with month") @RequestParam(required = false) Integer year,
+			@Parameter(description = "Optional UTC month from 1 to 12, used with year") @RequestParam(required = false) Integer month,
 			@Parameter(description = "Zero-based request pagination. Responses use a one-based page number.") @PageableDefault(size = 20) Pageable pageable) {
-		return momentService.getPublicMoments(topic, pageable);
+		return momentService.getPublicMoments(topic, year, month, pageable);
 	}
 
 	@GetMapping("/topics")

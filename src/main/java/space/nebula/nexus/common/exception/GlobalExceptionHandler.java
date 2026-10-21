@@ -198,6 +198,14 @@ public class GlobalExceptionHandler {
 	 * Handle standard Spring MVC exceptions (e.g., 404 No Handler, 405 Method Not
 	 * Allowed).
 	 */
+	@ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+	public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(
+			org.springframework.web.servlet.resource.NoResourceFoundException e) {
+		log.warn("[TraceId: {}] HTTP Request error: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+				.body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), "Requested endpoint was not found"));
+	}
+
 	@ExceptionHandler(jakarta.servlet.ServletException.class)
 	public ResponseEntity<ApiResponse<Void>> handleServletException(jakarta.servlet.ServletException e) {
 		log.warn("[TraceId: {}] HTTP Request error: {}", org.slf4j.MDC.get("traceId"), e.getMessage());

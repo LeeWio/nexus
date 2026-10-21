@@ -1,6 +1,9 @@
 package space.nebula.nexus.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import java.time.ZoneOffset;
+import java.util.TimeZone;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -17,6 +20,7 @@ public class JacksonConfig {
 
 	@Bean
 	ObjectMapper objectMapper() {
-		return new ObjectMapper().findAndRegisterModules();
+		return new ObjectMapper().findAndRegisterModules().setTimeZone(TimeZone.getTimeZone(ZoneOffset.UTC))
+				.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 	}
 }

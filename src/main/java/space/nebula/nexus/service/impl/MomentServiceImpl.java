@@ -158,18 +158,29 @@ public class MomentServiceImpl implements IMomentService {
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.MOMENTS, key = "(#topic == null ? '' : #topic) + '-' + #pageable.pageNumber + '-' + #pageable.pageSize + '-' + T(space.nebula.nexus.security.util.SecurityUtil).getCurrentUsername()")
-	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(String topic, Pageable pageable) {
+	@Cacheable(value = CacheConstants.MOMENTS, key = "(#topic == null ? '' : #topic) + '-' + (#year == null ? '' : #year) + '-' + (#month == null ? '' : #month) + '-' + #pageable.pageNumber + '-' + #pageable.pageSize + '-' + T(space.nebula.nexus.security.util.SecurityUtil).getCurrentUsername()")
+	public ApiResponse<PageResult<MomentResponse>> getPublicMoments(String topic, Integer year, Integer month,
+			Pageable pageable) {
 		String currentUsername = SecurityUtil.getCurrentUsername();
 		String slug = topic == null || topic.isBlank() ? null : topic.trim();
-		Page<Moment> moments = slug == null
-				? momentRepository.findPublicTimeline(MomentVisibility.PUBLIC, currentUsername, pageable)
-				: momentRepository.findPublicTimelineByTopic(slug, MomentVisibility.PUBLIC, currentUsername, pageable);
+		Page<Moment> moments = timeline(slug, year, month, currentUsername, pageable);
 		Page<MomentResponse> page = moments.map(momentMapper::toResponse);
 		List<MomentResponse> enriched = momentXSyncSupport
 				.withSyncs(momentCommentCountSupport.withCounts(page.getContent()));
 		return ApiResponse.success(new PageResult<>(enriched, page.getTotalElements(), page.getNumber() + 1,
 				page.getSize(), page.getTotalPages()));
+	}
+
+	private Page<Moment> timeline(String slug, Integer year, Integer month, String username, Pageable pageable) {
+		if (year != null && month != null && month >= 1 && month <= 12) {
+			java.time.LocalDateTime from = java.time.LocalDateTime.of(year, month, 1, 0, 0);
+			return momentRepository.findPublicTimelineBetween(MomentVisibility.PUBLIC, username, from,
+					from.plusMonths(1), pageable);
+		}
+		if (slug != null) {
+			return momentRepository.findPublicTimelineByTopic(slug, MomentVisibility.PUBLIC, username, pageable);
+		}
+		return momentRepository.findPublicTimeline(MomentVisibility.PUBLIC, username, pageable);
 	}
 
 	@Override
