@@ -110,17 +110,17 @@ class AnalyticsServiceImplTest {
 		when(visitLogRepository.findAverageSessionDurationSeconds(any(), any())).thenReturn(12.0);
 		when(visitLogRepository.findDailySessionTrendRaw(any())).thenReturn(List.of());
 		when(visitLogRepository.findSourceStatsRawByRange(any(), any())).thenReturn(List.of());
-		when(visitLogRepository.findDeviceStatsRawByRange(any(), any())).thenReturn(
-				List.of(Map.of("userAgent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Mobile/15E148",
-						"count", 2L),
-						Map.of("userAgent", "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) Mobile/15E148", "count", 1L),
-						Map.of("userAgent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Safari/537.36", "count",
-								1L)));
+		when(visitLogRepository.findDeviceStatsRawByRange(any(), any())).thenReturn(List.of(
+				Map.of("userAgent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Mobile/15E148", "count",
+						2L),
+				Map.of("userAgent", "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) Mobile/15E148", "count", 1L),
+				Map.of("userAgent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Safari/537.36", "count", 1L)));
 
 		var devices = analyticsService.getTrafficStats(30).data().devices();
 
-		assertEquals(List.of(ClientDeviceClassifier.MOBILE, ClientDeviceClassifier.DESKTOP,
-				ClientDeviceClassifier.TABLET), devices.stream().map(device -> device.name()).toList());
+		assertEquals(
+				List.of(ClientDeviceClassifier.MOBILE, ClientDeviceClassifier.DESKTOP, ClientDeviceClassifier.TABLET),
+				devices.stream().map(device -> device.name()).toList());
 		assertEquals(List.of(2L, 1L, 1L), devices.stream().map(device -> device.views()).toList());
 		assertEquals(50.0, devices.get(0).percentage());
 	}
