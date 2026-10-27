@@ -30,8 +30,8 @@ public class AnalyticsInterceptor implements HandlerInterceptor {
 		try {
 			String url = request.getRequestURL().toString();
 			// Only track public API requests, excluding static assets or documentation
-			if ("GET".equalsIgnoreCase(request.getMethod()) && url.contains("/api/v1/public/")
-					&& !url.contains("/seo/") && !isServerPrefetch(request)) {
+			if ("GET".equalsIgnoreCase(request.getMethod()) && url.contains("/api/v1/public/") && !url.contains("/seo/")
+					&& !isServerPrefetch(request)) {
 				VisitLog visitLog = new VisitLog();
 				visitLog.setVisitorHash(analyticsPrivacyService.hashVisitor(request));
 				visitLog.setSessionId(analyticsPrivacyService.resolveSessionId(request, response));

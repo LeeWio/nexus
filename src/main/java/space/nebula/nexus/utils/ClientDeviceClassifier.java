@@ -5,7 +5,8 @@ import cn.hutool.core.util.StrUtil;
 /**
  * Classifies a User-Agent into the dashboard device buckets.
  *
- * <p>Tablet is checked before phone. Android tablets often omit "Mobile", and
+ * <p>
+ * Tablet is checked before phone. Android tablets often omit "Mobile", and
  * iPadOS 13+ reports a Macintosh user agent with a touch hint.
  */
 public final class ClientDeviceClassifier {
@@ -20,7 +21,8 @@ public final class ClientDeviceClassifier {
 	/**
 	 * Returns {@code Mobile}, {@code Tablet}, or {@code Desktop} for the agent.
 	 *
-	 * @param userAgent raw User-Agent header, possibly null
+	 * @param userAgent
+	 *            raw User-Agent header, possibly null
 	 * @return one of the device bucket names
 	 */
 	public static String classify(String userAgent) {
@@ -38,10 +40,10 @@ public final class ClientDeviceClassifier {
 	}
 
 	private static boolean isTablet(String agent) {
-		return agent.contains("ipad") || agent.contains("tablet") || agent.contains("kindle")
-				|| agent.contains("silk/") || agent.contains("playbook") || agent.contains("kftt")
-				|| agent.contains("kfjwi") || agent.contains("kfjwa") || agent.contains("kfapwi")
-				|| agent.contains("kfthwi") || agent.contains("kfsowi") || agent.contains("kfapwa")
+		return agent.contains("ipad") || agent.contains("tablet") || agent.contains("kindle") || agent.contains("silk/")
+				|| agent.contains("playbook") || agent.contains("kftt") || agent.contains("kfjwi")
+				|| agent.contains("kfjwa") || agent.contains("kfapwi") || agent.contains("kfthwi")
+				|| agent.contains("kfsowi") || agent.contains("kfapwa")
 				|| (agent.contains("android") && !agent.contains("mobile"))
 				|| (agent.contains("macintosh") && agent.contains("mobile"));
 	}
