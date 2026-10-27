@@ -62,7 +62,7 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
 	@Query("SELECT v.requestUrl as url, COUNT(v) as count FROM VisitLog v WHERE v.visitTime >= :start AND v.visitTime <= :end GROUP BY v.requestUrl ORDER BY count DESC")
 	List<Map<String, Object>> findTopContentRawByRange(LocalDateTime start, LocalDateTime end);
 
-	@Query("SELECT v.os as os, COUNT(v) as count FROM VisitLog v WHERE v.visitTime >= :start AND v.visitTime <= :end GROUP BY v.os ORDER BY count DESC")
+	@Query("SELECT v.userAgent as userAgent, COUNT(v) as count FROM VisitLog v WHERE v.visitTime >= :start AND v.visitTime <= :end GROUP BY v.userAgent ORDER BY count DESC")
 	List<Map<String, Object>> findDeviceStatsRawByRange(LocalDateTime start, LocalDateTime end);
 
 	@Query("SELECT v.referer as referer, v.requestUrl as url, COUNT(v) as count FROM VisitLog v WHERE v.visitTime >= :start AND v.visitTime <= :end GROUP BY v.referer, v.requestUrl ORDER BY count DESC")

@@ -28,6 +28,7 @@ import space.nebula.nexus.repository.VisitLogRepository;
 import space.nebula.nexus.service.IAnalyticsService;
 import space.nebula.nexus.mapper.PostMapper;
 import space.nebula.nexus.enums.SubscriberStatus;
+import space.nebula.nexus.utils.ClientDeviceClassifier;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -235,7 +236,7 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 						.sessions(rowCount(row, "sessions")).users(rowCount(row, "users")).build())
 				.toList();
 
-		List<TrafficStatsResponse.TrafficMetric> devices = deviceMetrics(start, end, currentRequests);
+		List<TrafficStatsResponse.TrafficMetric> devices = deviceMetrics(start, end, currentSessions);
 		List<TrafficStatsResponse.TrafficMetric> sources = sourceMetrics(start, end, currentRequests);
 		return ApiResponse.success(TrafficStatsResponse.builder().summary(summary).timeSeries(timeSeries)
 				.devices(devices).sources(sources).build());
@@ -314,24 +315,30 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	}
 
 	private List<TrafficStatsResponse.TrafficMetric> deviceMetrics(LocalDateTime start, LocalDateTime end,
-			long totalRequests) {
+			long totalSessions) {
 		long mobile = 0;
 		long desktop = 0;
 		long tablet = 0;
 		for (Map<String, Object> row : visitLogRepository.findDeviceStatsRawByRange(start, end)) {
-			String os = cn.hutool.core.util.StrUtil.nullToEmpty((CharSequence) row.get("os")).toLowerCase();
+			String device = ClientDeviceClassifier.classify(stringField(row, "userAgent"));
 			long count = rowCount(row);
-			if (os.contains("ipad") || os.contains("tablet") || os.contains("kindle")) {
+			if (ClientDeviceClassifier.TABLET.equals(device)) {
 				tablet += count;
-			} else if (os.contains("android") || os.contains("ios") || os.contains("iphone") || os.contains("mobile")) {
+			} else if (ClientDeviceClassifier.MOBILE.equals(device)) {
 				mobile += count;
 			} else {
 				desktop += count;
 			}
 		}
-		return List.of(new TrafficStatsResponse.TrafficMetric("Mobile", mobile, percentage(mobile, totalRequests)),
-				new TrafficStatsResponse.TrafficMetric("Desktop", desktop, percentage(desktop, totalRequests)),
-				new TrafficStatsResponse.TrafficMetric("Tablet", tablet, percentage(tablet, totalRequests)));
+		long total = mobile + desktop + tablet;
+		long denominator = total > 0 ? total : totalSessions;
+		return List.of(
+				new TrafficStatsResponse.TrafficMetric(ClientDeviceClassifier.MOBILE, mobile,
+						percentage(mobile, denominator)),
+				new TrafficStatsResponse.TrafficMetric(ClientDeviceClassifier.DESKTOP, desktop,
+						percentage(desktop, denominator)),
+				new TrafficStatsResponse.TrafficMetric(ClientDeviceClassifier.TABLET, tablet,
+						percentage(tablet, denominator)));
 	}
 
 	private List<TrafficStatsResponse.TrafficMetric> sourceMetrics(LocalDateTime start, LocalDateTime end,
@@ -396,6 +403,11 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	private long rowCount(Map<String, Object> row, String field) {
 		Object value = row.get(field);
 		return value instanceof Number number ? number.longValue() : Long.parseLong(String.valueOf(value));
+	}
+
+	private String stringField(Map<String, Object> row, String field) {
+		Object value = row.get(field);
+		return value == null ? "" : String.valueOf(value);
 	}
 
 	private double numberOrZero(Double value) {

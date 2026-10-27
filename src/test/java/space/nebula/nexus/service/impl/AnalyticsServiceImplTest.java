@@ -18,6 +18,7 @@ import space.nebula.nexus.repository.PostLikeRepository;
 import space.nebula.nexus.repository.SubscriberRepository;
 import space.nebula.nexus.enums.ContentAnalyticsAction;
 import space.nebula.nexus.payload.request.ContentAnalyticsEventRequest;
+import space.nebula.nexus.utils.ClientDeviceClassifier;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -97,5 +98,32 @@ class AnalyticsServiceImplTest {
 
 		assertEquals(200, response.code());
 		verify(contentAnalyticsEventRepository, times(4)).save(any());
+	}
+
+	@Test
+	void getTrafficStats_ClassifiesDevicesFromUserAgent() {
+		when(visitLogRepository.countPv(any(), any())).thenReturn(4L);
+		when(visitLogRepository.countSessions(any(), any())).thenReturn(4L);
+		when(visitLogRepository.countUv(any(), any())).thenReturn(3L);
+		when(visitLogRepository.countReturningVisitors(any(), any())).thenReturn(1L);
+		when(visitLogRepository.countBouncedSessions(any(), any())).thenReturn(1L);
+		when(visitLogRepository.findAverageSessionDurationSeconds(any(), any())).thenReturn(12.0);
+		when(visitLogRepository.findDailySessionTrendRaw(any())).thenReturn(List.of());
+		when(visitLogRepository.findSourceStatsRawByRange(any(), any())).thenReturn(List.of());
+		when(visitLogRepository.findDeviceStatsRawByRange(any(), any())).thenReturn(List.of(
+				Map.of("userAgent",
+						"Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+						"count", 2L),
+				Map.of("userAgent",
+						"Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", "count", 1L),
+				Map.of("userAgent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36",
+						"count", 1L)));
+
+		var devices = analyticsService.getTrafficStats(30).data().devices();
+
+		assertEquals(List.of(ClientDeviceClassifier.MOBILE, ClientDeviceClassifier.DESKTOP,
+				ClientDeviceClassifier.TABLET), devices.stream().map(device -> device.name()).toList());
+		assertEquals(List.of(2L, 1L, 1L), devices.stream().map(device -> device.views()).toList());
+		assertEquals(50.0, devices.get(0).percentage());
 	}
 }

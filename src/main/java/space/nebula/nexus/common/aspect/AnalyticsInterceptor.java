@@ -31,11 +31,11 @@ public class AnalyticsInterceptor implements HandlerInterceptor {
 			String url = request.getRequestURL().toString();
 			// Only track public API requests, excluding static assets or documentation
 			if ("GET".equalsIgnoreCase(request.getMethod()) && url.contains("/api/v1/public/")
-					&& !url.contains("/seo/")) {
+					&& !url.contains("/seo/") && !isServerPrefetch(request)) {
 				VisitLog visitLog = new VisitLog();
 				visitLog.setVisitorHash(analyticsPrivacyService.hashVisitor(request));
 				visitLog.setSessionId(analyticsPrivacyService.resolveSessionId(request, response));
-				visitLog.setUserAgent(request.getHeader("User-Agent"));
+				visitLog.setUserAgent(clientUserAgent(request));
 				visitLog.setReferer(request.getHeader("Referer"));
 				visitLog.setRequestUrl(request.getRequestURI());
 				visitLog.setVisitTime(LocalDateTime.now());
@@ -49,5 +49,21 @@ public class AnalyticsInterceptor implements HandlerInterceptor {
 			log.error("Failed to buffer analytics log", e);
 		}
 		return true;
+	}
+
+	/**
+	 * Prefer the browser agent forwarded by the Next.js rewrite. The servlet
+	 * User-Agent is the Node proxy, which would classify every visitor as desktop.
+	 */
+	static boolean isServerPrefetch(HttpServletRequest request) {
+		return "1".equals(request.getHeader("X-Odyssey-Prefetch"));
+	}
+
+	static String clientUserAgent(HttpServletRequest request) {
+		String forwarded = request.getHeader("X-Odyssey-Client-UA");
+		if (forwarded != null && !forwarded.isBlank() && forwarded.length() <= 500) {
+			return forwarded;
+		}
+		return request.getHeader("User-Agent");
 	}
 }

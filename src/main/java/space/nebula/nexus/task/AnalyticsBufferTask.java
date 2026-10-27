@@ -10,7 +10,11 @@ import org.springframework.util.StringUtils;
 import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.entity.VisitLog;
 import space.nebula.nexus.repository.VisitLogRepository;
+import space.nebula.nexus.utils.ClientDeviceClassifier;
 import space.nebula.nexus.utils.RedisUtil;
+
+import cn.hutool.http.useragent.UserAgent;
+import cn.hutool.http.useragent.UserAgentUtil;
 
 import java.util.List;
 
@@ -52,6 +56,7 @@ public class AnalyticsBufferTask {
 		}
 
 		if (!logsToPersist.isEmpty()) {
+			logsToPersist.forEach(this::enrichClient);
 			// Process in sub-batches if the total size is very large
 			int total = logsToPersist.size();
 			for (int i = 0; i < total; i += BATCH_SIZE) {
@@ -59,6 +64,19 @@ public class AnalyticsBufferTask {
 				visitLogRepository.saveAll(logsToPersist.subList(i, end));
 			}
 			log.info("Successfully persisted {} analytics logs to database.", total);
+		}
+	}
+
+	private void enrichClient(VisitLog visitLog) {
+		if (StringUtils.hasText(visitLog.getBrowser()) && StringUtils.hasText(visitLog.getOs())) {
+			return;
+		}
+		UserAgent agent = UserAgentUtil.parse(visitLog.getUserAgent());
+		if (!StringUtils.hasText(visitLog.getBrowser()) && agent.getBrowser() != null) {
+			visitLog.setBrowser(agent.getBrowser().getName());
+		}
+		if (!StringUtils.hasText(visitLog.getOs())) {
+			visitLog.setOs(ClientDeviceClassifier.classify(visitLog.getUserAgent()));
 		}
 	}
 }
