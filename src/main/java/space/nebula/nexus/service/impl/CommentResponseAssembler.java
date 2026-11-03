@@ -38,8 +38,28 @@ public class CommentResponseAssembler {
 		List<Long> commentIds = comments.stream().map(Comment::getId).toList();
 		Map<Long, Long> replyCounts = loadReplyCounts(commentIds);
 		Set<Long> likedCommentIds = loadLikedCommentIds(commentIds);
+		Map<Long, List<CommentResponse>> previews = loadReplyPreviews(comments, likedCommentIds);
 
-		return comments.stream().map(comment -> enrich(comment, replyCounts, likedCommentIds)).toList();
+		return comments.stream().map(comment -> enrich(comment, replyCounts, likedCommentIds, previews)).toList();
+	}
+
+	private Map<Long, List<CommentResponse>> loadReplyPreviews(Collection<Comment> comments,
+			Set<Long> likedCommentIds) {
+		List<Long> rootIds = comments.stream().filter(comment -> comment.getParent() == null).map(Comment::getId)
+				.toList();
+		if (rootIds.isEmpty()) {
+			return Map.of();
+		}
+
+		List<Comment> replies = commentRepository.findByParentIdInAndStatusOrderByCreatedAtAscIdAsc(rootIds,
+				CommentStatus.APPROVED);
+		Set<Long> replyIds = replies.stream().map(Comment::getId).collect(Collectors.toSet());
+		Set<Long> likedReplyIds = likedCommentIds.stream().filter(replyIds::contains).collect(Collectors.toSet());
+		Map<Long, Long> replyCounts = loadReplyCounts(replies.stream().map(Comment::getId).toList());
+
+		return replies.stream().collect(Collectors.groupingBy(comment -> comment.getParent().getId(),
+				Collectors.collectingAndThen(Collectors.toList(), grouped -> grouped.stream().limit(PREVIEW_REPLY_LIMIT)
+						.map(reply -> enrich(reply, replyCounts, likedReplyIds, Map.of())).toList())));
 	}
 
 	private Map<Long, Long> loadReplyCounts(List<Long> commentIds) {
@@ -64,7 +84,10 @@ public class CommentResponseAssembler {
 				.orElseGet(Set::of);
 	}
 
-	private CommentResponse enrich(Comment comment, Map<Long, Long> replyCounts, Set<Long> likedCommentIds) {
+	private static final int PREVIEW_REPLY_LIMIT = 2;
+
+	private CommentResponse enrich(Comment comment, Map<Long, Long> replyCounts, Set<Long> likedCommentIds,
+			Map<Long, List<CommentResponse>> previews) {
 		CommentResponse response = commentMapper.toResponse(comment);
 		User currentUser = SecurityUtil.getCurrentUser();
 		boolean isOwner = currentUser != null && comment.getUser() != null
@@ -80,6 +103,7 @@ public class CommentResponseAssembler {
 				.likesCount(response.likesCount() == null ? 0L : response.likesCount())
 				.reportsCount(response.reportsCount() == null ? 0L : response.reportsCount())
 				.replyCount(Math.toIntExact(replyCounts.getOrDefault(comment.getId(), 0L)))
+				.children(previews.getOrDefault(comment.getId(), List.of()))
 				.likedByCurrentUser(likedCommentIds.contains(comment.getId())).viewerCanEdit(canMutate)
 				.viewerCanDelete(canMutate).pinned(Boolean.TRUE.equals(response.pinned()))
 				.featured(Boolean.TRUE.equals(response.featured()))

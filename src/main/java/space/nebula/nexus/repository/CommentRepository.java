@@ -246,6 +246,9 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	@Query("select c.parent.id as parentId, count(c.id) as replyCount from Comment c where c.parent.id in :parentIds and c.status = :status group by c.parent.id")
 	List<CommentReplyCountView> countRepliesByParentIds(Collection<Long> parentIds, CommentStatus status);
 
+	@EntityGraph(attributePaths = {"user", "post", "moment"})
+	List<Comment> findByParentIdInAndStatusOrderByCreatedAtAscIdAsc(Collection<Long> parentIds, CommentStatus status);
+
 	@Query(value = "select comment_id from blog_comment_like where user_id = :userId and comment_id in (:commentIds)", nativeQuery = true)
 	List<Long> findLikedCommentIds(Long userId, Collection<Long> commentIds);
 

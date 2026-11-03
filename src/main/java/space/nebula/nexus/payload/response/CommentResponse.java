@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import space.nebula.nexus.enums.CommentStatus;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Response DTO for displaying comments. Kept flat as TreeUtil handles the
@@ -27,6 +28,7 @@ public record CommentResponse(@Schema(description = "Comment ID") Long id,
 		@Schema(description = "Visible like count") Long likesCount,
 		@Schema(description = "Open report count, exposed to moderation views") Long reportsCount,
 		@Schema(description = "Number of direct replies") Integer replyCount,
+		@Schema(description = "First replies included so short threads render without another request") List<CommentResponse> children,
 		@Schema(description = "Whether the authenticated caller liked this comment; null for anonymous callers") Boolean likedByCurrentUser,
 		@Schema(description = "Whether the authenticated caller may edit this comment") Boolean viewerCanEdit,
 		@Schema(description = "Whether the authenticated caller may delete this comment") Boolean viewerCanDelete,
