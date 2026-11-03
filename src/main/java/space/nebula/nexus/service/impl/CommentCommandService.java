@@ -79,10 +79,12 @@ public class CommentCommandService {
 		String guestTokenHash = null;
 		String guestName = null;
 		String guestEmail = null;
+		String guestWebsite = null;
 		if (author == null) {
 			guestIdentityService.validateGuestName(request.guestName());
 			guestName = request.guestName().trim();
 			guestEmail = guestIdentityService.normalizeGuestEmail(request.guestEmail());
+			guestWebsite = guestIdentityService.normalizeGuestWebsite(request.guestWebsite());
 			guestTokenHash = guestIdentityService.claimTokenHash(servletRequest);
 		}
 
@@ -115,6 +117,7 @@ public class CommentCommandService {
 			comment.setUser(author);
 			comment.setGuestName(guestName);
 			comment.setGuestEmail(guestEmail);
+			comment.setGuestWebsite(guestWebsite);
 			comment.setGuestTokenHash(guestTokenHash);
 			comment.setParent(parentComment);
 			comment.setIpAddress(IpUtil.getIpAddress(servletRequest));
@@ -414,7 +417,7 @@ public class CommentCommandService {
 	public ApiResponse<CommentPublishResponse> publishMomentComment(MomentCommentRequest request,
 			HttpServletRequest servletRequest) {
 		return publishComment(new CommentRequest(request.content(), null, request.momentId(), request.parentId(),
-				request.guestName(), request.guestEmail()), servletRequest);
+				request.guestName(), request.guestEmail(), request.guestWebsite()), servletRequest);
 	}
 
 	private Comment findOwnedComment(Long id, User currentUser) {

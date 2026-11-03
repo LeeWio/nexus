@@ -19,6 +19,7 @@ import java.util.HexFormat;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.net.URI;
 import java.util.regex.Pattern;
 
 /**
@@ -73,6 +74,35 @@ public class GuestCommentIdentityService {
 		String normalized = guestEmail.trim();
 		if (normalized.length() > 120 || !EMAIL.matcher(normalized).matches()) {
 			throw new BusinessException(BusinessCode.BAD_REQUEST, "Guest email must be a valid email address");
+		}
+		return normalized;
+	}
+
+	/**
+	 * Accepts a bare host or an http(s) URL and stores only a public http(s) URL.
+	 */
+	public String normalizeGuestWebsite(String guestWebsite) {
+		if (guestWebsite == null || guestWebsite.isBlank()) {
+			return null;
+		}
+		String normalized = guestWebsite.trim();
+		if (!normalized.regionMatches(true, 0, "http://", 0, 7)
+				&& !normalized.regionMatches(true, 0, "https://", 0, 8)) {
+			normalized = "https://" + normalized;
+		}
+		if (normalized.length() > 100) {
+			throw new BusinessException(BusinessCode.BAD_REQUEST, "Guest website must not exceed 100 characters");
+		}
+		URI uri;
+		try {
+			uri = URI.create(normalized);
+		} catch (IllegalArgumentException exception) {
+			throw new BusinessException(BusinessCode.BAD_REQUEST, "Guest website must be a valid http or https URL");
+		}
+		String scheme = uri.getScheme();
+		boolean publicWeb = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+		if (!publicWeb || uri.getHost() == null || uri.getHost().isBlank() || uri.getUserInfo() != null) {
+			throw new BusinessException(BusinessCode.BAD_REQUEST, "Guest website must be a valid http or https URL");
 		}
 		return normalized;
 	}

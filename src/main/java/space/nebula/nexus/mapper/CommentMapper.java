@@ -17,6 +17,7 @@ public interface CommentMapper {
 	@Mapping(target = "nickname", source = "comment", qualifiedByName = "commentNickname")
 	@Mapping(target = "avatar", source = "user", qualifiedByName = "resolveUserAvatar")
 	@Mapping(target = "anonymous", expression = "java(comment.isGuestComment())")
+	@Mapping(target = "website", source = "comment", qualifiedByName = "commentWebsite")
 	@Mapping(target = "parentId", source = "parent.id")
 	@Mapping(target = "postId", source = "post.id")
 	@Mapping(target = "postTitle", source = "post.title")
@@ -39,5 +40,17 @@ public interface CommentMapper {
 			return user.getNickname();
 		}
 		return comment.getGuestName();
+	}
+
+	@Named("commentWebsite")
+	default String commentWebsite(Comment comment) {
+		if (comment == null) {
+			return null;
+		}
+		if (comment.isGuestComment()) {
+			return comment.getGuestWebsite();
+		}
+		User user = comment.getUser();
+		return user == null ? null : user.getWebsite();
 	}
 }

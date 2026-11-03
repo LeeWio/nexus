@@ -88,7 +88,7 @@ public class PublicGuestbookController {
 			HttpServletRequest servletRequest) {
 		// Ensure postId is null for guestbook entries
 		CommentRequest guestbookRequest = new CommentRequest(request.content(), null, null, request.parentId(),
-				request.guestName(), request.guestEmail());
+				request.guestName(), request.guestEmail(), request.guestWebsite());
 		return commentService.publishComment(guestbookRequest, servletRequest);
 	}
 }

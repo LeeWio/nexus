@@ -56,6 +56,10 @@ public class Comment extends BaseEntity {
 	@Column(name = "guest_email", length = 120)
 	private String guestEmail;
 
+	/** Public website supplied by a guest. Null for account comments. */
+	@Column(name = "guest_website", length = 100)
+	private String guestWebsite;
+
 	/** SHA-256 hex of the guest claim cookie. Never returned to clients. */
 	@Column(name = "guest_token_hash", length = 64)
 	private String guestTokenHash;
