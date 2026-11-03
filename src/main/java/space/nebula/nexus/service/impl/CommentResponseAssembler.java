@@ -57,9 +57,11 @@ public class CommentResponseAssembler {
 		Set<Long> likedReplyIds = likedCommentIds.stream().filter(replyIds::contains).collect(Collectors.toSet());
 		Map<Long, Long> replyCounts = loadReplyCounts(replies.stream().map(Comment::getId).toList());
 
-		return replies.stream().collect(Collectors.groupingBy(comment -> comment.getParent().getId(),
-				Collectors.collectingAndThen(Collectors.toList(), grouped -> grouped.stream().limit(PREVIEW_REPLY_LIMIT)
-						.map(reply -> enrich(reply, replyCounts, likedReplyIds, Map.of())).toList())));
+		return replies.stream()
+				.collect(Collectors.groupingBy(comment -> comment.getParent().getId(),
+						Collectors.collectingAndThen(Collectors.toList(),
+								grouped -> grouped.stream().limit(PREVIEW_REPLY_LIMIT)
+										.map(reply -> enrich(reply, replyCounts, likedReplyIds, Map.of())).toList())));
 	}
 
 	private Map<Long, Long> loadReplyCounts(List<Long> commentIds) {
