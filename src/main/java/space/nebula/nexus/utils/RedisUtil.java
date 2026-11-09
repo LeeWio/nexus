@@ -348,11 +348,7 @@ public class RedisUtil {
 	 *            the lock key
 	 */
 	public void unlock(String key) {
-		try {
-			redisTemplate.delete(key);
-		} catch (Exception e) {
-			log.error("Error releasing lock for key: {}", key, e);
-		}
+		delete(key);
 	}
 
 	// ==================== List Operations ====================

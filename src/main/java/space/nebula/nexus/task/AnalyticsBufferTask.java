@@ -8,7 +8,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import space.nebula.nexus.common.constant.CacheConstants;
+import space.nebula.nexus.entity.PageView;
 import space.nebula.nexus.entity.VisitLog;
+import space.nebula.nexus.repository.PageViewRepository;
 import space.nebula.nexus.repository.VisitLogRepository;
 import space.nebula.nexus.utils.ClientDeviceClassifier;
 import space.nebula.nexus.utils.RedisUtil;
@@ -25,6 +27,7 @@ public class AnalyticsBufferTask {
 
 	private final RedisUtil redisUtil;
 	private final VisitLogRepository visitLogRepository;
+	private final PageViewRepository pageViewRepository;
 
 	private static final int BATCH_SIZE = 100;
 
@@ -40,7 +43,8 @@ public class AnalyticsBufferTask {
 
 		Long bufferSize = redisUtil.listSize(CacheConstants.ANALYTICS_BUFFER_KEY);
 		if (bufferSize == null || bufferSize == 0) {
-			log.info("Analytics buffer is empty. Skipping flush.");
+			log.info("Analytics buffer is empty. Skipping request-log flush.");
+			flushPageViews();
 			return;
 		}
 
@@ -65,6 +69,23 @@ public class AnalyticsBufferTask {
 			}
 			log.info("Successfully persisted {} analytics logs to database.", total);
 		}
+		flushPageViews();
+	}
+
+	private void flushPageViews() {
+		Long bufferSize = redisUtil.listSize(CacheConstants.PAGE_VIEW_BUFFER_KEY);
+		if (bufferSize == null || bufferSize == 0) {
+			return;
+		}
+		List<PageView> views = redisUtil.listPopLeft(CacheConstants.PAGE_VIEW_BUFFER_KEY, bufferSize, PageView.class);
+		if (views.isEmpty()) {
+			return;
+		}
+		for (int i = 0; i < views.size(); i += BATCH_SIZE) {
+			int end = Math.min(i + BATCH_SIZE, views.size());
+			pageViewRepository.saveAll(views.subList(i, end));
+		}
+		log.info("Successfully persisted {} page views to database.", views.size());
 	}
 
 	private void enrichClient(VisitLog visitLog) {

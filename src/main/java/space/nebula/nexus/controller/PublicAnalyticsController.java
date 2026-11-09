@@ -13,8 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.RateLimit;
 import space.nebula.nexus.payload.request.ContentAnalyticsEventRequest;
+import space.nebula.nexus.payload.request.PageViewRequest;
 import space.nebula.nexus.service.AnalyticsPrivacyService;
 import space.nebula.nexus.service.IAnalyticsService;
+import space.nebula.nexus.service.PageViewCollector;
 
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +28,7 @@ public class PublicAnalyticsController {
 
 	private final IAnalyticsService analyticsService;
 	private final AnalyticsPrivacyService analyticsPrivacyService;
+	private final PageViewCollector pageViewCollector;
 
 	@PostMapping("/content-events")
 	@RateLimit(count = 60, time = 1, unit = TimeUnit.MINUTES, message = "Too many analytics events. Please retry shortly.")
@@ -35,5 +38,15 @@ public class PublicAnalyticsController {
 		String sessionId = analyticsPrivacyService.resolveSessionId(servletRequest, servletResponse);
 		String visitorHash = analyticsPrivacyService.hashVisitor(servletRequest);
 		return analyticsService.recordContentEvent(request, sessionId, visitorHash);
+	}
+
+	@PostMapping("/pageviews")
+	@RateLimit(count = 60, time = 1, unit = TimeUnit.MINUTES, message = "Too many page views. Please retry shortly.")
+	@Operation(summary = "Record a page view", description = "Records one real browser navigation. Repeat views of the same path in the same session collapse for 30 minutes. The raw IP is stored for the admin visitor list only.")
+	public ApiResponse<Void> recordPageView(@Valid @RequestBody PageViewRequest request,
+			HttpServletRequest servletRequest, HttpServletResponse servletResponse) {
+		String sessionId = analyticsPrivacyService.resolveSessionId(servletRequest, servletResponse);
+		pageViewCollector.collect(request, sessionId, servletRequest);
+		return ApiResponse.success(null);
 	}
 }

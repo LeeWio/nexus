@@ -66,6 +66,8 @@ public final class CacheConstants {
 
 	// Analytics
 	public static final String ANALYTICS_BUFFER_KEY = "nexus:analytics:buffer";
+	public static final String PAGE_VIEW_BUFFER_KEY = "nexus:analytics:pageviews";
+	public static final String PAGE_VIEW_DEDUPE_PREFIX = "nexus:analytics:pv:";
 	public static final String OPERATION_LOG_BUFFER_KEY = "nexus:operation_log:buffer";
 	public static final String OVERVIEW_KEY = "'overview'";
 

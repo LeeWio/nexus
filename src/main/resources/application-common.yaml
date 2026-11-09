@@ -137,6 +137,8 @@ app:
     hash-salt: ${ANALYTICS_HASH_SALT:development-only-analytics-salt}
     retention-days: ${ANALYTICS_RETENTION_DAYS:90}
     session-cookie-max-age-days: ${ANALYTICS_SESSION_COOKIE_MAX_AGE_DAYS:30}
+    page-view-dedupe-minutes: ${ANALYTICS_PAGEVIEW_DEDUPE_MINUTES:30}
+    owner-hashes: ${ANALYTICS_OWNER_HASHES:}
   friend-link:
     moderation-email: ${FRIEND_LINK_MODERATION_EMAIL:}
   newsletter:

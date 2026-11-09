@@ -22,9 +22,18 @@ public class DailyAnalytics extends BaseEntity {
 	@Column(nullable = false)
 	private Long uv = 0L;
 
+	@Column(nullable = false)
+	private Long sessions = 0L;
+
 	@Column(name = "post_views", nullable = false)
 	private Long postViews = 0L;
 
 	@Column(name = "comment_count", nullable = false)
 	private Long commentCount = 0L;
+
+	@Column(name = "owner_pv", nullable = false)
+	private Long ownerPv = 0L;
+
+	@Column(name = "bot_pv", nullable = false)
+	private Long botPv = 0L;
 }

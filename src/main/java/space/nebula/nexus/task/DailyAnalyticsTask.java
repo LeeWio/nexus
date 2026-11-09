@@ -24,9 +24,12 @@ public class DailyAnalyticsTask {
 	@Scheduled(cron = "0 5 0 * * ?")
 	@SchedulerLock(name = "dailyAnalytics", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
 	public void runDailyAggregation() {
-		LocalDate yesterday = LocalDate.now().minusDays(1);
-		log.info("Executing scheduled daily analytics aggregation for {}", yesterday);
-		analyticsService.aggregateDailyData(yesterday);
+		LocalDate today = LocalDate.now();
+		for (int daysAgo = 3; daysAgo >= 1; daysAgo--) {
+			LocalDate date = today.minusDays(daysAgo);
+			log.info("Executing scheduled daily analytics aggregation for {}", date);
+			analyticsService.aggregateDailyData(date);
+		}
 
 		analyticsService.purgeOldLogs(analyticsProperties.getRetentionDays());
 	}

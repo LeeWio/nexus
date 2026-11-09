@@ -24,16 +24,16 @@ import space.nebula.nexus.repository.PostFavoriteRepository;
 import space.nebula.nexus.repository.PostLikeRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.SubscriberRepository;
+import space.nebula.nexus.repository.PageViewRepository;
 import space.nebula.nexus.repository.VisitLogRepository;
 import space.nebula.nexus.service.IAnalyticsService;
 import space.nebula.nexus.mapper.PostMapper;
 import space.nebula.nexus.enums.SubscriberStatus;
-import space.nebula.nexus.utils.ClientDeviceClassifier;
+import space.nebula.nexus.enums.TrafficClass;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -47,8 +47,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AnalyticsServiceImpl implements IAnalyticsService {
 	private static final int MAX_LOOKBACK_DAYS = 365;
+	private static final List<TrafficClass> READER = List.of(TrafficClass.HUMAN);
+	private static final List<String> READER_NAMES = List.of(TrafficClass.HUMAN.name());
 
 	private final VisitLogRepository visitLogRepository;
+	private final PageViewRepository pageViewRepository;
 	private final DailyAnalyticsRepository dailyAnalyticsRepository;
 	private final CommentRepository commentRepository;
 	private final PostRepository postRepository;
@@ -66,16 +69,19 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 		LocalDate weekAgo = today.minusDays(7);
 		LocalDateTime todayStart = today.atStartOfDay();
 		LocalDateTime todayEnd = today.atTime(LocalTime.MAX);
-		long todayPv = visitLogRepository.countPv(todayStart, todayEnd);
-		long todayUv = visitLogRepository.countUv(todayStart, todayEnd);
+		long todayPv = pageViewRepository.countViews(todayStart, todayEnd, READER);
+		long todayUv = pageViewRepository.countVisitors(todayStart, todayEnd, READER);
 
 		var yesterdayData = dailyAnalyticsRepository.findByStatDate(yesterday);
-		long yesterdayPv = yesterdayData.map(space.nebula.nexus.entity.DailyAnalytics::getPv).orElse(0L);
-		long yesterdayUv = yesterdayData.map(space.nebula.nexus.entity.DailyAnalytics::getUv).orElse(0L);
+		long yesterdayPv = yesterdayData.map(space.nebula.nexus.entity.DailyAnalytics::getPv)
+				.orElseGet(() -> pageViewRepository.countViews(yesterday.atStartOfDay(), todayStart, READER));
+		long yesterdayUv = yesterdayData.map(space.nebula.nexus.entity.DailyAnalytics::getUv)
+				.orElseGet(() -> pageViewRepository.countVisitors(yesterday.atStartOfDay(), todayStart, READER));
 		double growthRate = growth(todayPv, yesterdayPv);
 
-		List<AnalyticsOverviewResponse.TopContentItem> topContent = visitLogRepository.findTopContentRaw(todayStart)
-				.stream().map(this::toTopContentItem).limit(10).toList();
+		List<AnalyticsOverviewResponse.TopContentItem> topContent = pageViewRepository
+				.findTopPaths(todayStart, todayEnd, READER_NAMES).stream().map(this::toTopContentItem).limit(10)
+				.toList();
 
 		List<AnalyticsOverviewResponse.VisitTrendItem> dailyTrends = dailyAnalyticsRepository
 				.findByStatDateGreaterThanEqualOrderByStatDateAsc(weekAgo).stream()
@@ -97,24 +103,18 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 		LocalDateTime todayStart = now.toLocalDate().atStartOfDay();
 		LocalDateTime todayEnd = now.toLocalDate().atTime(LocalTime.MAX);
 		LocalDateTime yesterdayStart = todayStart.minusDays(1);
-		LocalDateTime yesterdayEnd = todayEnd.minusDays(1);
 
-		List<Map<String, Object>> todayContent = visitLogRepository.findTopContentRawByRange(todayStart, todayEnd);
-		Map<String, Long> yesterdayCounts = visitLogRepository.findTopContentRawByRange(yesterdayStart, yesterdayEnd)
-				.stream().collect(
-						Collectors.toMap(row -> String.valueOf(row.get("url")), this::rowCount, (left, right) -> left));
+		List<Map<String, Object>> todayContent = pageViewRepository.findTopPaths(todayStart, todayEnd, READER_NAMES);
+		Map<String, Long> yesterdayCounts = pageViewRepository.findTopPaths(yesterdayStart, todayStart, READER_NAMES)
+				.stream().collect(Collectors.toMap(row -> String.valueOf(row.get("path")),
+						row -> rowCount(row, "views"), (left, right) -> left));
 
 		List<TopPageResponse> topPages = todayContent.stream().map(row -> {
-			String url = String.valueOf(row.get("url"));
-			long views = rowCount(row);
+			String url = String.valueOf(row.get("path"));
+			long views = rowCount(row, "views");
 			long previousViews = yesterdayCounts.getOrDefault(url, 0L);
-			long sessions = visitLogRepository.countSessionsForPath(url, todayStart, todayEnd);
-			long bouncedSessions = visitLogRepository.countBouncedSessionsForPath(url, todayStart, todayEnd);
-			double averageSeconds = numberOrZero(
-					visitLogRepository.findAverageSessionDurationSecondsForPath(url, todayStart, todayEnd));
-			return TopPageResponse.builder().path(url).views(views).avgTime(formatDuration(averageSeconds))
-					.bounceRate(percentage(bouncedSessions, sessions)).trend(formatGrowth(views, previousViews))
-					.build();
+			return TopPageResponse.builder().path(url).views(views).avgTime("-").bounceRate(0)
+					.trend(formatGrowth(views, previousViews)).build();
 		}).limit(20).toList();
 
 		return ApiResponse.success(topPages);
@@ -176,18 +176,26 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	public void aggregateDailyData(LocalDate date) {
 		LocalDateTime start = date.atStartOfDay();
 		LocalDateTime end = date.atTime(LocalTime.MAX);
-		long pv = visitLogRepository.countPv(start, end);
-		long uv = visitLogRepository.countUv(start, end);
+		long pv = pageViewRepository.countViews(start, end, READER);
+		long uv = pageViewRepository.countVisitors(start, end, READER);
+		long sessions = pageViewRepository.countSessions(start, end, READER);
 		long comments = commentRepository.countByCreatedAtBetween(start, end);
-		long postViews = visitLogRepository.countPostDetailViews(start, end);
+		long postViews = pageViewRepository.findTopPaths(start, end, READER_NAMES).stream()
+				.filter(row -> String.valueOf(row.get("path")).startsWith("/single/"))
+				.mapToLong(row -> rowCount(row, "views")).sum();
+		long ownerPv = pageViewRepository.countViews(start, end, List.of(TrafficClass.OWNER));
+		long botPv = pageViewRepository.countViews(start, end, List.of(TrafficClass.BOT));
 
 		var daily = dailyAnalyticsRepository.findByStatDate(date)
 				.orElse(new space.nebula.nexus.entity.DailyAnalytics());
 		daily.setStatDate(date);
 		daily.setPv(pv);
 		daily.setUv(uv);
+		daily.setSessions(sessions);
 		daily.setCommentCount(comments);
 		daily.setPostViews(postViews);
+		daily.setOwnerPv(ownerPv);
+		daily.setBotPv(botPv);
 		dailyAnalyticsRepository.save(daily);
 		log.info("Daily aggregation completed for {}: PV={}, UV={}", date, pv, uv);
 	}
@@ -200,21 +208,20 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 		LocalDateTime start = end.minusDays(lookbackDays).toLocalDate().atStartOfDay();
 		LocalDateTime previousStart = start.minusDays(lookbackDays);
 
-		long currentRequests = visitLogRepository.countPv(start, end);
-		long currentSessions = visitLogRepository.countSessions(start, end);
-		long currentUsers = visitLogRepository.countUv(start, end);
-		long currentReturningVisitors = visitLogRepository.countReturningVisitors(start, end);
-		long currentBouncedSessions = visitLogRepository.countBouncedSessions(start, end);
+		long currentSessions = pageViewRepository.countSessions(start, end, READER);
+		long currentUsers = pageViewRepository.countVisitors(start, end, READER);
+		long currentReturningVisitors = pageViewRepository.countReturningVisitors(start, end, READER_NAMES);
+		long currentBouncedSessions = pageViewRepository.countBouncedSessions(start, end, READER_NAMES);
 		double currentBounce = percentage(currentBouncedSessions, currentSessions);
-		double currentAverageSeconds = numberOrZero(visitLogRepository.findAverageSessionDurationSeconds(start, end));
+		double currentAverageSeconds = numberOrZero(pageViewRepository.averageEngagedSeconds(start, end, READER_NAMES));
 
-		long previousSessions = visitLogRepository.countSessions(previousStart, start);
-		long previousUsers = visitLogRepository.countUv(previousStart, start);
-		long previousReturningVisitors = visitLogRepository.countReturningVisitors(previousStart, start);
-		long previousBouncedSessions = visitLogRepository.countBouncedSessions(previousStart, start);
+		long previousSessions = pageViewRepository.countSessions(previousStart, start, READER);
+		long previousUsers = pageViewRepository.countVisitors(previousStart, start, READER);
+		long previousReturningVisitors = pageViewRepository.countReturningVisitors(previousStart, start, READER_NAMES);
+		long previousBouncedSessions = pageViewRepository.countBouncedSessions(previousStart, start, READER_NAMES);
 		double previousBounce = percentage(previousBouncedSessions, previousSessions);
 		double previousAverageSeconds = numberOrZero(
-				visitLogRepository.findAverageSessionDurationSeconds(previousStart, start));
+				pageViewRepository.averageEngagedSeconds(previousStart, start, READER_NAMES));
 
 		TrafficStatsResponse.SummaryMetrics summary = TrafficStatsResponse.SummaryMetrics.builder()
 				.sessions(metric(currentSessions, growth(currentSessions, previousSessions),
@@ -228,16 +235,16 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 						formatDuration(currentAverageSeconds)))
 				.build();
 
-		List<TrafficStatsResponse.TimeSeriesItem> timeSeries = visitLogRepository.findDailySessionTrendRaw(start)
-				.stream()
-				.map(row -> TrafficStatsResponse.TimeSeriesItem.builder()
-						.date(LocalDate.parse(String.valueOf(row.get("visitDate")))
-								.format(DateTimeFormatter.ofPattern("MMM dd")))
+		List<TrafficStatsResponse.TimeSeriesItem> timeSeries = pageViewRepository
+				.findDailyTrend(start, end, READER_NAMES).stream()
+				.map(row -> TrafficStatsResponse.TimeSeriesItem.builder().date(String.valueOf(row.get("visitDate")))
 						.sessions(rowCount(row, "sessions")).users(rowCount(row, "users")).build())
 				.toList();
 
-		List<TrafficStatsResponse.TrafficMetric> devices = deviceMetrics(start, end, currentSessions);
-		List<TrafficStatsResponse.TrafficMetric> sources = sourceMetrics(start, end, currentRequests);
+		List<TrafficStatsResponse.TrafficMetric> devices = namedMetrics(
+				pageViewRepository.countByDevice(start, end, READER_NAMES), currentSessions);
+		List<TrafficStatsResponse.TrafficMetric> sources = namedMetrics(
+				pageViewRepository.countByChannel(start, end, READER_NAMES), currentSessions);
 		return ApiResponse.success(TrafficStatsResponse.builder().summary(summary).timeSeries(timeSeries)
 				.devices(devices).sources(sources).build());
 	}
@@ -247,9 +254,10 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	public ApiResponse<List<space.nebula.nexus.payload.response.PostResponse>> getTrendingPosts(int limit) {
 		int safeLimit = Math.clamp(limit, 1, 50);
 		LocalDateTime since = LocalDateTime.now().minusDays(7);
-		List<String> topSlugs = visitLogRepository.findTopContentRaw(since).stream()
-				.map(row -> String.valueOf(row.get("url"))).filter(url -> url.startsWith("/api/v1/public/blog/posts/"))
-				.map(url -> url.substring("/api/v1/public/blog/posts/".length())).distinct().limit(safeLimit).toList();
+		List<String> topSlugs = pageViewRepository.findTopPaths(since, LocalDateTime.now(), READER_NAMES).stream()
+				.map(row -> String.valueOf(row.get("path"))).filter(path -> path.startsWith("/single/"))
+				.map(path -> path.substring("/single/".length())).filter(slug -> !slug.isBlank() && !slug.contains("/"))
+				.distinct().limit(safeLimit).toList();
 		if (topSlugs.isEmpty()) {
 			return ApiResponse.success(List.of());
 		}
@@ -264,8 +272,10 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	public void purgeOldLogs(int daysToKeep) {
 		LocalDateTime cutoff = LocalDateTime.now().minusDays(Math.max(1, daysToKeep));
 		int requestLogsDeleted = visitLogRepository.deleteByVisitTimeBefore(cutoff);
+		int pageViewsDeleted = pageViewRepository.deleteByViewedAtBefore(cutoff);
 		long eventsDeleted = contentAnalyticsEventRepository.deleteByCreatedAtBefore(cutoff);
-		log.info("Purged {} request logs and {} content events before {}", requestLogsDeleted, eventsDeleted, cutoff);
+		log.info("Purged {} request logs, {} page views, and {} content events before {}", requestLogsDeleted,
+				pageViewsDeleted, eventsDeleted, cutoff);
 	}
 
 	private void recordReadingMilestones(ContentAnalyticsEventRequest request, String sessionId, String visitorHash,
@@ -314,78 +324,24 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 		return contentAnalyticsEventRepository.countDistinctSessionsByEventTypeAndPeriod(eventType, start, end, postId);
 	}
 
-	private List<TrafficStatsResponse.TrafficMetric> deviceMetrics(LocalDateTime start, LocalDateTime end,
-			long totalSessions) {
-		long mobile = 0;
-		long desktop = 0;
-		long tablet = 0;
-		for (Map<String, Object> row : visitLogRepository.findDeviceStatsRawByRange(start, end)) {
-			String device = ClientDeviceClassifier.classify(stringField(row, "userAgent"));
+	private List<TrafficStatsResponse.TrafficMetric> namedMetrics(List<Map<String, Object>> rows, long total) {
+		return rows.stream().map(row -> {
 			long count = rowCount(row);
-			if (ClientDeviceClassifier.TABLET.equals(device)) {
-				tablet += count;
-			} else if (ClientDeviceClassifier.MOBILE.equals(device)) {
-				mobile += count;
-			} else {
-				desktop += count;
-			}
-		}
-		long total = mobile + desktop + tablet;
-		long denominator = total > 0 ? total : totalSessions;
-		return List.of(
-				new TrafficStatsResponse.TrafficMetric(ClientDeviceClassifier.MOBILE, mobile,
-						percentage(mobile, denominator)),
-				new TrafficStatsResponse.TrafficMetric(ClientDeviceClassifier.DESKTOP, desktop,
-						percentage(desktop, denominator)),
-				new TrafficStatsResponse.TrafficMetric(ClientDeviceClassifier.TABLET, tablet,
-						percentage(tablet, denominator)));
-	}
-
-	private List<TrafficStatsResponse.TrafficMetric> sourceMetrics(LocalDateTime start, LocalDateTime end,
-			long totalRequests) {
-		Map<String, Long> channels = new java.util.HashMap<>();
-		for (Map<String, Object> row : visitLogRepository.findSourceStatsRawByRange(start, end)) {
-			String referer = cn.hutool.core.util.StrUtil.nullToEmpty((CharSequence) row.get("referer")).toLowerCase();
-			String url = cn.hutool.core.util.StrUtil.nullToEmpty((CharSequence) row.get("url")).toLowerCase();
-			String channel = sourceChannel(referer, url);
-			channels.merge(channel, rowCount(row), Long::sum);
-		}
-		return channels.entrySet().stream()
-				.map(entry -> new TrafficStatsResponse.TrafficMetric(entry.getKey(), entry.getValue(),
-						percentage(entry.getValue(), totalRequests)))
-				.sorted((left, right) -> Long.compare(right.views(), left.views())).toList();
-	}
-
-	private String sourceChannel(String referer, String url) {
-		if (url.contains("utm_medium=cpc") || url.contains("utm_source=ad"))
-			return "Paid Search";
-		if (url.contains("utm_medium=email"))
-			return "Email";
-		if (url.contains("utm_medium=display"))
-			return "Display Ads";
-		if (url.contains("utm_medium=affiliate"))
-			return "Affiliate";
-		if (url.contains("utm_source=newsletter"))
-			return "Newsletter";
-		if (url.contains("utm_medium=video") || referer.contains("youtube.com"))
-			return "Video";
-		if (referer.contains("facebook.com") || referer.contains("twitter.com") || referer.contains("linkedin.com")
-				|| referer.contains("t.co"))
-			return "Social";
-		if (referer.contains("google.") || referer.contains("bing.com") || referer.contains("baidu.com")
-				|| referer.contains("yahoo.com"))
-			return "Organic Search";
-		return referer.isBlank() || referer.equals("null") ? "Direct" : "Referral";
+			String name = stringField(row, "name");
+			return new TrafficStatsResponse.TrafficMetric(name.isBlank() ? "Unknown" : name, count,
+					percentage(count, total));
+		}).toList();
 	}
 
 	private AnalyticsOverviewResponse.TopContentItem toTopContentItem(Map<String, Object> row) {
-		String url = String.valueOf(row.get("url"));
+		String url = String.valueOf(row.get("path"));
 		String title = url;
-		if (url.startsWith("/api/v1/public/blog/posts/")) {
-			String slug = url.substring("/api/v1/public/blog/posts/".length());
+		if (url.startsWith("/single/")) {
+			String slug = url.substring("/single/".length());
 			title = postRepository.findBySlug(slug).map(Post::getTitle).orElse(url);
 		}
-		return AnalyticsOverviewResponse.TopContentItem.builder().url(url).title(title).count(rowCount(row)).build();
+		return AnalyticsOverviewResponse.TopContentItem.builder().url(url).title(title).count(rowCount(row, "views"))
+				.build();
 	}
 
 	private TrafficStatsResponse.Metric metric(double value, double growth, String display) {

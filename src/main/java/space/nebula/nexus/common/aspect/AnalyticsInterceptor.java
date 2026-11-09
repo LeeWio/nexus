@@ -7,11 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
-import space.nebula.nexus.common.constant.CacheConstants;
-import space.nebula.nexus.entity.VisitLog;
 import space.nebula.nexus.service.AnalyticsPrivacyService;
-
-import java.time.LocalDateTime;
 
 /**
  * Interceptor to capture analytics data for public requests. Buffers logs in
@@ -22,32 +18,15 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AnalyticsInterceptor implements HandlerInterceptor {
 
+	@SuppressWarnings("unused")
 	private final RedisTemplate<String, Object> redisTemplate;
+	@SuppressWarnings("unused")
 	private final AnalyticsPrivacyService analyticsPrivacyService;
 
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-		try {
-			String url = request.getRequestURL().toString();
-			// Only track public API requests, excluding static assets or documentation
-			if ("GET".equalsIgnoreCase(request.getMethod()) && url.contains("/api/v1/public/") && !url.contains("/seo/")
-					&& !isServerPrefetch(request)) {
-				VisitLog visitLog = new VisitLog();
-				visitLog.setVisitorHash(analyticsPrivacyService.hashVisitor(request));
-				visitLog.setSessionId(analyticsPrivacyService.resolveSessionId(request, response));
-				visitLog.setUserAgent(clientUserAgent(request));
-				visitLog.setReferer(request.getHeader("Referer"));
-				visitLog.setRequestUrl(request.getRequestURI());
-				visitLog.setVisitTime(LocalDateTime.now());
-
-				// Note: Browser/OS/Location will be parsed in the background task to save time
-				// here
-
-				redisTemplate.opsForList().rightPush(CacheConstants.ANALYTICS_BUFFER_KEY, visitLog);
-			}
-		} catch (Exception e) {
-			log.error("Failed to buffer analytics log", e);
-		}
+		// Page views are recorded by POST /api/v1/public/analytics/pageviews.
+		// Counting every public GET treated polls and homepage widgets as visits.
 		return true;
 	}
 

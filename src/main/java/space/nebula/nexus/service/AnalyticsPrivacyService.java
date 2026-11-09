@@ -30,7 +30,22 @@ public class AnalyticsPrivacyService {
 	private final AnalyticsProperties properties;
 
 	public String hashVisitor(HttpServletRequest request) {
-		return hmac(IpUtil.getIpAddress(request));
+		return hashVisitor(IpUtil.getIpAddress(request), clientUserAgent(request));
+	}
+
+	/** IP plus User-Agent, so two devices behind one address stay distinct. */
+	public String hashVisitor(String ipAddress, String userAgent) {
+		String ip = ipAddress == null ? "" : ipAddress;
+		String agent = userAgent == null ? "" : userAgent;
+		return hmac(ip + "|" + agent);
+	}
+
+	public static String clientUserAgent(HttpServletRequest request) {
+		String forwarded = request.getHeader("X-Odyssey-Client-UA");
+		if (forwarded != null && !forwarded.isBlank() && forwarded.length() <= 500) {
+			return forwarded;
+		}
+		return request.getHeader("User-Agent");
 	}
 
 	public String resolveSessionId(HttpServletRequest request, HttpServletResponse response) {
