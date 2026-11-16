@@ -51,6 +51,6 @@ public interface PostFavoriteRepository extends JpaRepository<PostFavorite, Post
 	List<Long> findPreferredCategoryIds(Long userId, PostStatus status, Pageable pageable);
 
 	@Query("SELECT COUNT(favorite) FROM PostFavorite favorite WHERE favorite.createdAt >= :start "
-			+ "AND favorite.createdAt <= :end AND (:postId IS NULL OR favorite.post.id = :postId)")
+			+ "AND favorite.createdAt < :end AND (:postId IS NULL OR favorite.post.id = :postId)")
 	long countCreatedBetween(LocalDateTime start, LocalDateTime end, Long postId);
 }

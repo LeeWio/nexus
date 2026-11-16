@@ -230,7 +230,8 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 
 	long countByStatus(CommentStatus status);
 
-	long countByCreatedAtBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
+	long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(java.time.LocalDateTime start,
+			java.time.LocalDateTime end);
 
 	@org.springframework.data.jpa.repository.Query("SELECT c.content FROM Comment c WHERE c.content IS NOT NULL")
 	java.util.List<String> findAllContents();

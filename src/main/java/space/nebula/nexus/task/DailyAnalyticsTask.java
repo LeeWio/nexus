@@ -7,6 +7,7 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import space.nebula.nexus.config.AnalyticsProperties;
 import space.nebula.nexus.service.IAnalyticsService;
+import space.nebula.nexus.service.AnalyticsTime;
 
 import java.time.LocalDate;
 
@@ -17,14 +18,15 @@ public class DailyAnalyticsTask {
 
 	private final IAnalyticsService analyticsService;
 	private final AnalyticsProperties analyticsProperties;
+	private final AnalyticsTime analyticsTime;
 
 	/**
 	 * Runs every day at 00:05 AM to aggregate data for the previous day.
 	 */
-	@Scheduled(cron = "0 5 0 * * ?")
+	@Scheduled(cron = "0 5 0 * * ?", zone = AnalyticsTime.REPORTING_ZONE)
 	@SchedulerLock(name = "dailyAnalytics", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
 	public void runDailyAggregation() {
-		LocalDate today = LocalDate.now();
+		LocalDate today = analyticsTime.today();
 		for (int daysAgo = 3; daysAgo >= 1; daysAgo--) {
 			LocalDate date = today.minusDays(daysAgo);
 			log.info("Executing scheduled daily analytics aggregation for {}", date);

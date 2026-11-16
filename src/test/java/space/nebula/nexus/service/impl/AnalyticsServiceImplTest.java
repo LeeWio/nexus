@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import space.nebula.nexus.entity.DailyAnalytics;
 import space.nebula.nexus.entity.Post;
@@ -20,8 +21,14 @@ import space.nebula.nexus.repository.SubscriberRepository;
 import space.nebula.nexus.enums.ContentAnalyticsAction;
 import space.nebula.nexus.payload.request.ContentAnalyticsEventRequest;
 import space.nebula.nexus.utils.ClientDeviceClassifier;
+import space.nebula.nexus.service.AnalyticsTime;
+import space.nebula.nexus.enums.TrafficClass;
 
 import java.time.LocalDate;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,6 +60,9 @@ class AnalyticsServiceImplTest {
 	private PostFavoriteRepository postFavoriteRepository;
 	@Mock
 	private SubscriberRepository subscriberRepository;
+	@Spy
+	private AnalyticsTime analyticsTime = new AnalyticsTime(
+			Clock.fixed(Instant.parse("2026-11-16T00:37:00Z"), ZoneOffset.UTC));
 
 	@InjectMocks
 	private AnalyticsServiceImpl analyticsService;
@@ -65,7 +75,7 @@ class AnalyticsServiceImplTest {
 		when(pageViewRepository.countVisitors(any(), any(), any())).thenReturn(50L);
 		when(pageViewRepository.countSessions(any(), any(), any())).thenReturn(40L);
 		when(pageViewRepository.findTopPaths(any(), any(), any())).thenReturn(List.of());
-		when(commentRepository.countByCreatedAtBetween(any(), any())).thenReturn(5L);
+		when(commentRepository.countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(any(), any())).thenReturn(5L);
 		when(dailyAnalyticsRepository.findByStatDate(date)).thenReturn(Optional.empty());
 
 		analyticsService.aggregateDailyData(date);
@@ -112,7 +122,7 @@ class AnalyticsServiceImplTest {
 		when(pageViewRepository.countReturningVisitors(any(), any(), any())).thenReturn(1L);
 		when(pageViewRepository.countBouncedSessions(any(), any(), any())).thenReturn(1L);
 		when(pageViewRepository.averageEngagedSeconds(any(), any(), any())).thenReturn(12.0);
-		when(pageViewRepository.findDailyTrend(any(), any(), any())).thenReturn(List.of());
+		when(pageViewRepository.findDailyTrend(any(), any(), any(), anyInt())).thenReturn(List.of());
 		when(pageViewRepository.countByChannel(any(), any(), any())).thenReturn(List.of());
 		when(pageViewRepository.countByDevice(any(), any(), any()))
 				.thenReturn(List.of(Map.of("name", ClientDeviceClassifier.MOBILE, "count", 2L),
@@ -126,5 +136,50 @@ class AnalyticsServiceImplTest {
 				devices.stream().map(device -> device.name()).toList());
 		assertEquals(List.of(2L, 1L, 1L), devices.stream().map(device -> device.views()).toList());
 		assertEquals(50.0, devices.get(0).percentage());
+	}
+
+	@Test
+	void dailyAggregationUsesShanghaiMidnightsAsExclusiveUtcBoundaries() {
+		LocalDate date = LocalDate.of(2026, 11, 16);
+		analyticsService.aggregateDailyData(date);
+		verify(pageViewRepository).countViews(Instant.parse("2026-11-15T16:00:00Z"),
+				Instant.parse("2026-11-16T16:00:00Z"), List.of(TrafficClass.HUMAN));
+		verify(commentRepository).countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+				LocalDateTime.parse("2026-11-15T16:00:00"), LocalDateTime.parse("2026-11-16T16:00:00"));
+	}
+
+	@Test
+	void oneDayTrafficStartsAtShanghaiMidnightAndComparesEqualDurations() {
+		analyticsService.getTrafficStats(1);
+		Instant start = Instant.parse("2026-11-15T16:00:00Z");
+		Instant end = Instant.parse("2026-11-16T00:37:00Z");
+		verify(pageViewRepository).countSessions(start, end, List.of(TrafficClass.HUMAN));
+		verify(pageViewRepository).countSessions(Instant.parse("2026-11-15T07:23:00Z"), start,
+				List.of(TrafficClass.HUMAN));
+		verify(pageViewRepository).findDailyTrend(start, end, List.of("HUMAN"), 28800);
+	}
+
+	@Test
+	void contentFunnelUsesTheSameUtcWindowAndReaderOnlyReturningVisitors() {
+		var response = analyticsService.getContentFunnel(1, null).data();
+		Instant start = Instant.parse("2026-11-15T16:00:00Z");
+		Instant end = Instant.parse("2026-11-16T00:37:00Z");
+		assertEquals(start, response.start());
+		assertEquals(end, response.end());
+		verify(pageViewRepository).countReturningVisitors(start, end, List.of("HUMAN"));
+		verify(contentAnalyticsEventRepository).countDistinctSessionsByEventTypeAndPeriod(
+				space.nebula.nexus.enums.ContentAnalyticsEventType.POST_IMPRESSION,
+				LocalDateTime.ofInstant(start, ZoneOffset.UTC), LocalDateTime.ofInstant(end, ZoneOffset.UTC), null);
+		verifyNoInteractions(visitLogRepository);
+	}
+
+	@Test
+	void overviewUsesRawViewsWithShanghaiDayBoundariesInsteadOfOldRollups() {
+		analyticsService.retrieveOverviewStats();
+		verify(pageViewRepository).countViews(Instant.parse("2026-11-15T16:00:00Z"),
+				Instant.parse("2026-11-16T16:00:00Z"), List.of(TrafficClass.HUMAN));
+		verify(pageViewRepository).countViews(Instant.parse("2026-11-14T16:00:00Z"),
+				Instant.parse("2026-11-15T16:00:00Z"), List.of(TrafficClass.HUMAN));
+		verifyNoInteractions(dailyAnalyticsRepository);
 	}
 }

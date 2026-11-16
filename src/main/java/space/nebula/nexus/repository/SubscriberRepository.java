@@ -21,4 +21,6 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
 
 	long countByStatus(SubscriberStatus status);
 	long countByStatusAndVerifiedAtBetween(SubscriberStatus status, LocalDateTime start, LocalDateTime end);
+	long countByStatusAndVerifiedAtGreaterThanEqualAndVerifiedAtLessThan(SubscriberStatus status, LocalDateTime start,
+			LocalDateTime end);
 }

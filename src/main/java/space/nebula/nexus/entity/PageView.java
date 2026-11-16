@@ -10,7 +10,7 @@ import lombok.Setter;
 import org.hibernate.annotations.SQLRestriction;
 import space.nebula.nexus.enums.TrafficClass;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /** One accepted first-party page navigation. */
 @Getter
@@ -20,8 +20,9 @@ import java.time.LocalDateTime;
 @SQLRestriction("is_deleted = false")
 public class PageView extends BaseEntity {
 
+	/** UTC in the existing DATETIME column; never a JVM-local wall-clock time. */
 	@Column(name = "viewed_at", nullable = false)
-	private LocalDateTime viewedAt;
+	private Instant viewedAt;
 
 	@Column(nullable = false, length = 255)
 	private String path;

@@ -27,13 +27,16 @@ import space.nebula.nexus.repository.SubscriberRepository;
 import space.nebula.nexus.repository.PageViewRepository;
 import space.nebula.nexus.repository.VisitLogRepository;
 import space.nebula.nexus.service.IAnalyticsService;
+import space.nebula.nexus.service.AnalyticsTime;
 import space.nebula.nexus.mapper.PostMapper;
 import space.nebula.nexus.enums.SubscriberStatus;
 import space.nebula.nexus.enums.TrafficClass;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -60,33 +63,34 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	private final PostLikeRepository postLikeRepository;
 	private final PostFavoriteRepository postFavoriteRepository;
 	private final SubscriberRepository subscriberRepository;
+	private final AnalyticsTime analyticsTime;
 
 	@Override
 	@Transactional(readOnly = true)
 	public ApiResponse<AnalyticsOverviewResponse> retrieveOverviewStats() {
-		LocalDate today = LocalDate.now();
+		LocalDate today = analyticsTime.today();
 		LocalDate yesterday = today.minusDays(1);
-		LocalDate weekAgo = today.minusDays(7);
-		LocalDateTime todayStart = today.atStartOfDay();
-		LocalDateTime todayEnd = today.atTime(LocalTime.MAX);
+		LocalDate weekAgo = today.minusDays(6);
+		Instant todayStart = analyticsTime.startOfDay(today);
+		Instant todayEnd = analyticsTime.startOfDay(today.plusDays(1));
 		long todayPv = pageViewRepository.countViews(todayStart, todayEnd, READER);
 		long todayUv = pageViewRepository.countVisitors(todayStart, todayEnd, READER);
 
-		var yesterdayData = dailyAnalyticsRepository.findByStatDate(yesterday);
-		long yesterdayPv = yesterdayData.map(space.nebula.nexus.entity.DailyAnalytics::getPv)
-				.orElseGet(() -> pageViewRepository.countViews(yesterday.atStartOfDay(), todayStart, READER));
-		long yesterdayUv = yesterdayData.map(space.nebula.nexus.entity.DailyAnalytics::getUv)
-				.orElseGet(() -> pageViewRepository.countVisitors(yesterday.atStartOfDay(), todayStart, READER));
+		long yesterdayPv = pageViewRepository.countViews(analyticsTime.startOfDay(yesterday), todayStart, READER);
+		long yesterdayUv = pageViewRepository.countVisitors(analyticsTime.startOfDay(yesterday), todayStart, READER);
 		double growthRate = growth(todayPv, yesterdayPv);
 
 		List<AnalyticsOverviewResponse.TopContentItem> topContent = pageViewRepository
 				.findTopPaths(todayStart, todayEnd, READER_NAMES).stream().map(this::toTopContentItem).limit(10)
 				.toList();
 
-		List<AnalyticsOverviewResponse.VisitTrendItem> dailyTrends = dailyAnalyticsRepository
-				.findByStatDateGreaterThanEqualOrderByStatDateAsc(weekAgo).stream()
-				.map(daily -> AnalyticsOverviewResponse.VisitTrendItem.builder().date(daily.getStatDate().toString())
-						.pv(daily.getPv()).uv(daily.getUv()).build())
+		// Recent reports use raw events, not older rollups with a different day
+		// boundary.
+		List<AnalyticsOverviewResponse.VisitTrendItem> dailyTrends = pageViewRepository
+				.findDailyTrend(analyticsTime.startOfDay(weekAgo), todayStart, READER_NAMES,
+						analyticsTime.reportingOffsetSeconds(todayStart))
+				.stream().map(row -> AnalyticsOverviewResponse.VisitTrendItem.builder().date(row.getVisitDate())
+						.pv(row.getPv()).uv(row.getUsers()).build())
 				.collect(Collectors.toList());
 		dailyTrends.add(AnalyticsOverviewResponse.VisitTrendItem.builder().date(today.toString()).pv(todayPv)
 				.uv(todayUv).build());
@@ -99,10 +103,10 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	@Override
 	@Transactional(readOnly = true)
 	public ApiResponse<List<TopPageResponse>> getTopPages() {
-		LocalDateTime now = LocalDateTime.now();
-		LocalDateTime todayStart = now.toLocalDate().atStartOfDay();
-		LocalDateTime todayEnd = now.toLocalDate().atTime(LocalTime.MAX);
-		LocalDateTime yesterdayStart = todayStart.minusDays(1);
+		LocalDate today = analyticsTime.today();
+		Instant todayStart = analyticsTime.startOfDay(today);
+		Instant todayEnd = analyticsTime.startOfDay(today.plusDays(1));
+		Instant yesterdayStart = analyticsTime.startOfDay(today.minusDays(1));
 
 		List<Map<String, Object>> todayContent = pageViewRepository.findTopPaths(todayStart, todayEnd, READER_NAMES);
 		Map<String, Long> yesterdayCounts = pageViewRepository.findTopPaths(yesterdayStart, todayStart, READER_NAMES)
@@ -144,8 +148,9 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	@Transactional(readOnly = true)
 	public ApiResponse<ContentFunnelResponse> getContentFunnel(int days, Long postId) {
 		int lookbackDays = normalizeLookback(days);
-		LocalDateTime end = LocalDateTime.now();
-		LocalDateTime start = end.minusDays(lookbackDays).toLocalDate().atStartOfDay();
+		var window = analyticsTime.recentDays(lookbackDays);
+		LocalDateTime start = LocalDateTime.ofInstant(window.start(), ZoneOffset.UTC);
+		LocalDateTime end = LocalDateTime.ofInstant(window.end(), ZoneOffset.UTC);
 
 		long impressions = countMilestone(ContentAnalyticsEventType.POST_IMPRESSION, start, end, postId);
 		long clicks = countMilestone(ContentAnalyticsEventType.POST_CLICK, start, end, postId);
@@ -156,17 +161,20 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 		long likes = postLikeRepository.countCreatedBetween(start, end, postId);
 		long favorites = postFavoriteRepository.countCreatedBetween(start, end, postId);
 		long verifiedSubscriptions = postId == null
-				? subscriberRepository.countByStatusAndVerifiedAtBetween(SubscriberStatus.ACTIVE, start, end)
+				? subscriberRepository.countByStatusAndVerifiedAtGreaterThanEqualAndVerifiedAtLessThan(
+						SubscriberStatus.ACTIVE, start, end)
 				: 0L;
-		long returningVisitors = postId == null ? visitLogRepository.countReturningVisitors(start, end) : 0L;
+		long returningVisitors = postId == null
+				? pageViewRepository.countReturningVisitors(window.start(), window.end(), READER_NAMES)
+				: 0L;
 		double averageReadSeconds = numberOrZero(
 				contentAnalyticsEventRepository.findAverageActiveSecondsByEventTypeAndPeriod(
 						ContentAnalyticsEventType.READ_COMPLETE, start, end, postId));
 
-		return ApiResponse.success(ContentFunnelResponse.builder().postId(postId).start(start).end(end)
-				.impressions(impressions).clicks(clicks).readers25Percent(readers25).readers50Percent(readers50)
-				.readers75Percent(readers75).completedReads(completed).likes(likes).favorites(favorites)
-				.verifiedSubscriptions(verifiedSubscriptions).returningVisitors(returningVisitors)
+		return ApiResponse.success(ContentFunnelResponse.builder().postId(postId).start(window.start())
+				.end(window.end()).impressions(impressions).clicks(clicks).readers25Percent(readers25)
+				.readers50Percent(readers50).readers75Percent(readers75).completedReads(completed).likes(likes)
+				.favorites(favorites).verifiedSubscriptions(verifiedSubscriptions).returningVisitors(returningVisitors)
 				.averageActiveReadSeconds(averageReadSeconds).clickThroughRate(percentage(clicks, impressions))
 				.completionRate(percentage(completed, clicks)).build());
 	}
@@ -174,12 +182,14 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	@Override
 	@Transactional
 	public void aggregateDailyData(LocalDate date) {
-		LocalDateTime start = date.atStartOfDay();
-		LocalDateTime end = date.atTime(LocalTime.MAX);
+		var window = analyticsTime.day(date);
+		Instant start = window.start();
+		Instant end = window.end();
 		long pv = pageViewRepository.countViews(start, end, READER);
 		long uv = pageViewRepository.countVisitors(start, end, READER);
 		long sessions = pageViewRepository.countSessions(start, end, READER);
-		long comments = commentRepository.countByCreatedAtBetween(start, end);
+		long comments = commentRepository.countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+				LocalDateTime.ofInstant(start, ZoneOffset.UTC), LocalDateTime.ofInstant(end, ZoneOffset.UTC));
 		long postViews = pageViewRepository.findTopPaths(start, end, READER_NAMES).stream()
 				.filter(row -> String.valueOf(row.get("path")).startsWith("/single/"))
 				.mapToLong(row -> rowCount(row, "views")).sum();
@@ -204,9 +214,10 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	@Transactional(readOnly = true)
 	public ApiResponse<TrafficStatsResponse> getTrafficStats(int days) {
 		int lookbackDays = normalizeLookback(days);
-		LocalDateTime end = LocalDateTime.now();
-		LocalDateTime start = end.minusDays(lookbackDays).toLocalDate().atStartOfDay();
-		LocalDateTime previousStart = start.minusDays(lookbackDays);
+		var window = analyticsTime.recentDays(lookbackDays);
+		Instant start = window.start();
+		Instant end = window.end();
+		Instant previousStart = window.previous().start();
 
 		long currentSessions = pageViewRepository.countSessions(start, end, READER);
 		long currentUsers = pageViewRepository.countVisitors(start, end, READER);
@@ -236,9 +247,9 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 				.build();
 
 		List<TrafficStatsResponse.TimeSeriesItem> timeSeries = pageViewRepository
-				.findDailyTrend(start, end, READER_NAMES).stream()
-				.map(row -> TrafficStatsResponse.TimeSeriesItem.builder().date(String.valueOf(row.get("visitDate")))
-						.sessions(rowCount(row, "sessions")).users(rowCount(row, "users")).build())
+				.findDailyTrend(start, end, READER_NAMES, analyticsTime.reportingOffsetSeconds(end)).stream()
+				.map(row -> TrafficStatsResponse.TimeSeriesItem.builder().date(row.getVisitDate())
+						.sessions(row.getSessions()).users(row.getUsers()).build())
 				.toList();
 
 		List<TrafficStatsResponse.TrafficMetric> devices = namedMetrics(
@@ -253,8 +264,9 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	@Transactional(readOnly = true)
 	public ApiResponse<List<space.nebula.nexus.payload.response.PostResponse>> getTrendingPosts(int limit) {
 		int safeLimit = Math.clamp(limit, 1, 50);
-		LocalDateTime since = LocalDateTime.now().minusDays(7);
-		List<String> topSlugs = pageViewRepository.findTopPaths(since, LocalDateTime.now(), READER_NAMES).stream()
+		Instant end = analyticsTime.now();
+		Instant since = end.minus(7, ChronoUnit.DAYS);
+		List<String> topSlugs = pageViewRepository.findTopPaths(since, end, READER_NAMES).stream()
 				.map(row -> String.valueOf(row.get("path"))).filter(path -> path.startsWith("/single/"))
 				.map(path -> path.substring("/single/".length())).filter(slug -> !slug.isBlank() && !slug.contains("/"))
 				.distinct().limit(safeLimit).toList();
@@ -270,10 +282,11 @@ public class AnalyticsServiceImpl implements IAnalyticsService {
 	@Override
 	@Transactional
 	public void purgeOldLogs(int daysToKeep) {
-		LocalDateTime cutoff = LocalDateTime.now().minusDays(Math.max(1, daysToKeep));
-		int requestLogsDeleted = visitLogRepository.deleteByVisitTimeBefore(cutoff);
+		Instant cutoff = analyticsTime.now().minus(Math.max(1, daysToKeep), ChronoUnit.DAYS);
+		LocalDateTime legacyCutoff = LocalDateTime.ofInstant(cutoff, ZoneOffset.UTC);
+		int requestLogsDeleted = visitLogRepository.deleteByVisitTimeBefore(legacyCutoff);
 		int pageViewsDeleted = pageViewRepository.deleteByViewedAtBefore(cutoff);
-		long eventsDeleted = contentAnalyticsEventRepository.deleteByCreatedAtBefore(cutoff);
+		long eventsDeleted = contentAnalyticsEventRepository.deleteByCreatedAtBefore(legacyCutoff);
 		log.info("Purged {} request logs, {} page views, and {} content events before {}", requestLogsDeleted,
 				pageViewsDeleted, eventsDeleted, cutoff);
 	}

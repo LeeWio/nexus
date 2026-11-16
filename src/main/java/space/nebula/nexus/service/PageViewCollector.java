@@ -15,7 +15,6 @@ import space.nebula.nexus.utils.IpUtil;
 import space.nebula.nexus.utils.RedisUtil;
 import space.nebula.nexus.utils.UserAgentParser;
 
-import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
@@ -32,6 +31,7 @@ public class PageViewCollector {
 	private final AnalyticsProperties properties;
 	private final PageViewNormalizer normalizer;
 	private final RedisUtil redisUtil;
+	private final AnalyticsTime analyticsTime;
 
 	public boolean collect(PageViewRequest request, String sessionId, HttpServletRequest servletRequest) {
 		String path = normalizer.normalizePath(request.path());
@@ -52,7 +52,7 @@ public class PageViewCollector {
 		User user = SecurityUtil.getCurrentUser();
 
 		PageView view = new PageView();
-		view.setViewedAt(LocalDateTime.now());
+		view.setViewedAt(analyticsTime.now());
 		view.setPath(path);
 		view.setTitle(normalizer.normalizeTitle(request.title()));
 		view.setSessionId(sessionId);

@@ -33,6 +33,6 @@ public interface PostLikeRepository extends JpaRepository<PostLike, PostLikeId> 
 	List<Long> findPreferredCategoryIds(Long userId, PostStatus status, Pageable pageable);
 
 	@Query("SELECT COUNT(postLike) FROM PostLike postLike WHERE postLike.createdAt >= :start "
-			+ "AND postLike.createdAt <= :end AND (:postId IS NULL OR postLike.post.id = :postId)")
+			+ "AND postLike.createdAt < :end AND (:postId IS NULL OR postLike.post.id = :postId)")
 	long countCreatedBetween(LocalDateTime start, LocalDateTime end, Long postId);
 }
