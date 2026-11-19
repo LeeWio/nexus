@@ -32,7 +32,8 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-    validate-on-migrate: false # Bypass legacy checksum mismatches in production
+    # Legacy checksum reconciliation is documented in .github/RELEASE_ENGINEERING.md.
+    validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:false}
     # Legacy databases were managed by Hibernate before Flyway was activated.
     # Baseline them at the last pre-adoption migration; empty databases still run from V1.
     baseline-version: 131

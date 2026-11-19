@@ -7,7 +7,7 @@ Nexus is a modern blog/CMS system backend built with Java and Spring Boot. It pr
 ## Technology Stack
 - **Language:** Java 21
 - **Framework:** Spring Boot
-- **Data Access:** Spring Data JPA (Hibernate), MySQL 9.6
+- **Data Access:** Spring Data JPA (Hibernate), MySQL 8.4 in production and CI, MySQL 9.6 in local Compose
 - **Caching:** Spring Data Redis, Redis 7.4
 - **Security:** Spring Security with JWT (JSON Web Tokens)
 - **Database Migrations:** Flyway
@@ -61,10 +61,11 @@ Or set the environment variable `SEARCH_TYPE=database`.
   ```bash
   ./mvnw test
   ```
-- **API E2E Testing:** A shell script is provided to simulate user actions (register, login, post creation, comment submission, and approval) against a running server:
+- **API Smoke Testing:** A read-only shell script checks liveness, readiness, and representative public API endpoints against a running server. Set `BASE_URL` when the server is not on the default port:
   ```bash
-  ./test-api.sh
+  BASE_URL=http://localhost:8080 ./test-api.sh
   ```
+  It does not create accounts, content, or comments. Stateful authorization flows belong in isolated integration tests with test data and credentials.
 
 ## Coding Conventions
 ### Hutool Utility Library
