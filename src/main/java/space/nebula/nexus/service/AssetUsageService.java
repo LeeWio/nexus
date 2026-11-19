@@ -13,6 +13,7 @@ import space.nebula.nexus.repository.FriendLinkRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.PostSeriesRepository;
 import space.nebula.nexus.repository.PostRevisionRepository;
+import space.nebula.nexus.repository.PostEditorDraftRepository;
 import space.nebula.nexus.repository.ProjectRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.repository.projection.AssetReferenceText;
@@ -33,6 +34,7 @@ public class AssetUsageService {
 	private static final int LOCATION_LIMIT = 25;
 	private final PostRepository posts;
 	private final PostRevisionRepository revisions;
+	private final PostEditorDraftRepository drafts;
 	private final CommentRepository comments;
 	private final UserRepository users;
 	private final ProjectRepository projects;
@@ -45,17 +47,25 @@ public class AssetUsageService {
 				.findAssetReferences(file.getFileName(), thumbnailObjectName(file), Limit.unlimited()).stream()
 				.map(revision -> new Location(Kind.ARTICLE_REVISION, revision.id(),
 						revision.title() + " · v" + revision.versionNumber()));
-		var references = Stream.concat(loadFor(file).locations(file), revisionLocations).toList();
+		var draftLocations = drafts
+				.findAssetReferences(file.getFileName(), thumbnailObjectName(file), Limit.unlimited()).stream()
+				.map(id -> new Location(Kind.EDITOR_DRAFT, id, "Article editor draft"));
+		var references = Stream.concat(loadFor(file).locations(file), Stream.concat(revisionLocations, draftLocations))
+				.toList();
 		return new AssetUsageResponse(references.size(),
 				List.copyOf(references.subList(0, Math.min(references.size(), LOCATION_LIMIT))));
 	}
 
 	public boolean isInUse(FileMetadata file) {
-		return loadFor(file).isInUse(file) || isInArticleHistory(file);
+		return loadFor(file).isInUse(file) || isInArticleHistory(file) || isInEditorDraft(file);
 	}
 
 	public boolean isInArticleHistory(FileMetadata file) {
 		return !revisions.findAssetReferences(file.getFileName(), thumbnailObjectName(file), Limit.of(1)).isEmpty();
+	}
+
+	public boolean isInEditorDraft(FileMetadata file) {
+		return !drafts.findAssetReferences(file.getFileName(), thumbnailObjectName(file), Limit.of(1)).isEmpty();
 	}
 
 	public Snapshot loadSnapshot() {

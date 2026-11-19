@@ -54,6 +54,7 @@ import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostService;
 import space.nebula.nexus.service.ISlugService;
 import space.nebula.nexus.service.PostRankingService;
+import space.nebula.nexus.service.PostEditorDraftService;
 import space.nebula.nexus.service.support.PostCommentCountSupport;
 import space.nebula.nexus.utils.RedisUtil;
 import space.nebula.nexus.utils.PostContentAnalyzer;
@@ -98,6 +99,7 @@ public class PostServiceImpl implements IPostService {
 	private final BlogDiscoveryProperties discoveryProperties;
 	private final ObjectProvider<MeterRegistry> meterRegistryProvider;
 	private final PostCommentCountSupport postCommentCountSupport;
+	private final PostEditorDraftService postEditorDraftService;
 
 	private final space.nebula.nexus.repository.ConfigRepository configRepository;
 	@Override
@@ -129,6 +131,15 @@ public class PostServiceImpl implements IPostService {
 	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
 			CacheConstants.SEO}, allEntries = true)
 	public ApiResponse<PostResponse> createPost(PostRequest request) {
+		return createPost(request, null);
+	}
+
+	@Override
+	@Transactional
+	@LogOperation("Create Blog Post")
+	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
+			CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<PostResponse> createPost(PostRequest request, String editorDraftRevision) {
 		postValidator.validatePostRequest(request);
 		String uniqueSlug = slugService.generateUniqueSlug(request.slug(), request.title(),
 				s -> postRepository.findBySlug(s).isPresent());
@@ -172,6 +183,10 @@ public class PostServiceImpl implements IPostService {
 
 		// Cleanup potential autosave data
 		clearAutosaveData(request.slug());
+		if (editorDraftRevision != null) {
+			postEditorDraftService.consume(currentAuthor.getId(), PostEditorDraftService.NEW_ARTICLE,
+					editorDraftRevision);
+		}
 
 		// Publish event
 		eventPublisher.publishEvent(new PostChangedEvent(this, newPost, PostChangeType.CREATED));
@@ -194,6 +209,16 @@ public class PostServiceImpl implements IPostService {
 	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
 			CacheConstants.SEO}, allEntries = true)
 	public ApiResponse<PostResponse> updatePost(Long id, PostRequest request, Integer expectedRevisionNumber) {
+		return updatePost(id, request, expectedRevisionNumber, null);
+	}
+
+	@Override
+	@Transactional
+	@LogOperation("Update Blog Post")
+	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
+			CacheConstants.SEO}, allEntries = true)
+	public ApiResponse<PostResponse> updatePost(Long id, PostRequest request, Integer expectedRevisionNumber,
+			String editorDraftRevision) {
 		postValidator.validatePostRequest(request);
 		Post existingPost = findPostForUpdateOrThrow(id);
 		postRevisionService.assertExpectedRevision(id, expectedRevisionNumber);
@@ -249,6 +274,10 @@ public class PostServiceImpl implements IPostService {
 		// Cleanup autosave data
 		clearAutosaveData(id.toString());
 		clearAutosaveData(existingPost.getSlug());
+		if (editorDraftRevision != null) {
+			Long userId = SecurityUtil.getCurrentUserOrThrow(userRepository).getId();
+			postEditorDraftService.consume(userId, id.toString(), editorDraftRevision);
+		}
 
 		// Publish event
 		eventPublisher.publishEvent(

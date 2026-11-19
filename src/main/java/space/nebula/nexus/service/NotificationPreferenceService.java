@@ -41,7 +41,7 @@ public class NotificationPreferenceService {
 		Long userId = SecurityUtil.getCurrentUserOrThrow(userRepository).getId();
 		// Serialize complete replacements even when this user has no preference rows
 		// yet.
-		userRepository.findNotificationPreferenceOwnerForUpdate(userId).orElseThrow();
+		userRepository.findByIdForUpdate(userId).orElseThrow();
 		Map<NotificationCategory, NotificationCategoryPreference> existing = new EnumMap<>(NotificationCategory.class);
 		categoryRepository.findByUserId(userId).forEach(row -> existing.put(row.getCategory(), row));
 		for (NotificationCategory category : NotificationCategory.values()) {

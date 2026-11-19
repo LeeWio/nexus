@@ -135,8 +135,8 @@ public class SecurityConfig {
 		CorsConfiguration configuration = new CorsConfiguration();
 		configuration.setAllowedOrigins(webSecurityProperties.getAllowedOrigins());
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-		configuration.setAllowedHeaders(
-				List.of("Authorization", "Content-Type", "X-Trace-Id", "X-Requested-With", "Idempotency-Key"));
+		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Trace-Id", "X-Requested-With",
+				"Idempotency-Key", "X-Editor-Draft-Revision"));
 		configuration.setExposedHeaders(List.of("Authorization"));
 		configuration.setAllowCredentials(true);
 		configuration.setMaxAge(3600L); // Cache preflight for 1 hour

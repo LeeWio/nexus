@@ -20,7 +20,7 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("SELECT u FROM User u WHERE u.id = :id")
-	Optional<User> findNotificationPreferenceOwnerForUpdate(Long id);
+	Optional<User> findByIdForUpdate(Long id);
 	@Query("SELECT DISTINCT u FROM User u JOIN u.roles r WHERE r.code = 'ROLE_ADMIN' AND u.status = 'ACTIVE'")
 	List<User> findActiveAdministrators();
 

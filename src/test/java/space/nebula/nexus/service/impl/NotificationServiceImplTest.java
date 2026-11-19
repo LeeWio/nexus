@@ -73,8 +73,7 @@ class NotificationServiceImplTest {
 		SecurityContextHolder.getContext()
 				.setAuthentication(new UsernamePasswordAuthenticationToken("reader", "password", List.of()));
 		lenient().when(userRepository.findByUsername("reader")).thenReturn(Optional.of(currentUser));
-		lenient().when(userRepository.findNotificationPreferenceOwnerForUpdate(42L))
-				.thenReturn(Optional.of(currentUser));
+		lenient().when(userRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(currentUser));
 		lenient()
 				.when(notificationRepository
 						.findCategoryPublicationEmailNotifications(org.mockito.ArgumentMatchers.anyString()))
