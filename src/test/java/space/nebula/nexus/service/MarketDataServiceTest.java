@@ -207,16 +207,17 @@ class MarketDataServiceTest {
 	}
 
 	@Test
-	void getStockTrend_Success_Us() throws Exception {
+	void getStockTrend_MatchesUsTickerLiterally() throws Exception {
 		when(redisUtil.get(anyString(), eq(StockTrendResponse.class))).thenReturn(java.util.Optional.empty());
 
 		// Mock RestClient for US HQ and US K-Line
 		when(restClient.get()).thenReturn(requestHeadersUriSpec);
-		when(requestHeadersUriSpec.uri(contains("list=gb_aapl"))).thenReturn(requestHeadersSpec);
+		when(requestHeadersUriSpec.uri(contains("list=gb_brk.b"))).thenReturn(requestHeadersSpec);
 		when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
 		when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
 
-		String mockHq = "var hq_str_gb_aapl=\"苹果,175.50,-1.25,2026-08-21 16:00:00,...\";";
+		String mockHq = "var hq_str_gb_brk1b=\"Different symbol,100.00,2.00,2026-08-21 16:00:00,...\";\n"
+				+ "var hq_str_gb_brk.b=\"Berkshire Hathaway Class B,175.50,-1.25,2026-08-21 16:00:00,...\";";
 		when(responseSpec.body(byte[].class)).thenReturn(mockHq.getBytes("GBK"));
 
 		// Mock K-line call
@@ -228,13 +229,13 @@ class MarketDataServiceTest {
 		String mockKline = "[{\"d\":\"2026-08-20\",\"c\":\"176.00\"},{\"d\":\"2026-08-21\",\"c\":\"175.50\"}]";
 		when(responseSpec.body(String.class)).thenReturn(mockKline);
 
-		ApiResponse<StockTrendResponse> response = marketDataService.getStockTrend("AAPL", "1M");
+		ApiResponse<StockTrendResponse> response = marketDataService.getStockTrend("BRK.B", "1M");
 
 		assertNotNull(response);
 		assertEquals(200, response.code());
 		StockTrendResponse trend = response.data();
-		assertEquals("苹果", trend.getName());
-		assertEquals("aapl", trend.getSymbol());
+		assertEquals("Berkshire Hathaway Class B", trend.getName());
+		assertEquals("brk.b", trend.getSymbol());
 		assertEquals(new BigDecimal("175.50"), trend.getCurrent());
 		assertEquals(new BigDecimal("-1.25"), trend.getChangePct());
 		assertEquals(2, trend.getTrendPoints().size());

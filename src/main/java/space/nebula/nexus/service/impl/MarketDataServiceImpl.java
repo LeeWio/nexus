@@ -484,7 +484,7 @@ public class MarketDataServiceImpl implements IMarketDataService {
 			}
 
 			String hqBody = new String(responseBytes, Charset.forName("GBK"));
-			Pattern pattern = Pattern.compile("var hq_str_" + hqKey + "=\"([^\"]+)\";");
+			Pattern pattern = Pattern.compile("var hq_str_" + Pattern.quote(hqKey) + "=\"([^\"]+)\";");
 			Matcher matcher = pattern.matcher(hqBody);
 
 			if (matcher.find()) {
