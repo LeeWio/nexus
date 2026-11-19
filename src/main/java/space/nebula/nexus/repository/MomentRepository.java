@@ -15,6 +15,11 @@ import java.util.List;
 
 @Repository
 public interface MomentRepository extends JpaRepository<Moment, Long> {
+	@Query(value = "SELECT m.* " + MomentBookmarkRepository.VISIBLE_BOOKMARKS
+			+ " ORDER BY b.saved_at DESC, m.id DESC", countQuery = "SELECT COUNT(*) "
+					+ MomentBookmarkRepository.VISIBLE_BOOKMARKS, nativeQuery = true)
+	Page<Moment> findSavedMoments(@Param("userId") Long userId, @Param("username") String username, Pageable pageable);
+
 	@Query("SELECT m FROM Moment m WHERE m.visibility = :publicVisibility "
 			+ "OR (:username IS NOT NULL AND m.createdBy = :username) " + "ORDER BY m.createdAt DESC")
 	Page<Moment> findPublicTimeline(@Param("publicVisibility") MomentVisibility publicVisibility,
