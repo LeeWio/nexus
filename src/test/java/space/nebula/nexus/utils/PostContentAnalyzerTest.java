@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PostContentAnalyzerTest {
 	@Test
-	void analyzeExtractsReadingMetadataAndToc() {
+	void analyzeExtractsReadingMetadataAndTocFromMarkdown() {
 		String content = """
 				# Intro
 				这里是一段中文内容 about Spring Boot.
@@ -37,37 +37,39 @@ class PostContentAnalyzerTest {
 	}
 
 	@Test
-	void analyzeExtractsCleanTextFromJsonBlocks() {
+	void analyzeExtractsVisibleTextAndHeadingsFromTiptapJson() {
 		String jsonContent = """
 				{
-				  "time": 1550476186479,
-				  "blocks": [
-				    {
-				      "id": "abc",
-				      "type": "paragraph",
-				      "data": {
-				        "text": "Hello world from JSON block editor."
-				      }
-				    },
-				    {
-				      "id": "def",
-				      "type": "paragraph",
-				      "data": {
-				        "text": "This is the second block."
-				      }
-				    }
-				  ],
-				  "version": "2.8.1"
+				  "type": "doc",
+				  "content": [
+				    {"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"标题"}]},
+				    {"type":"paragraph","content":[{"type":"text","text":"Hello world"}]},
+				    {"type":"image","attrs":{"src":"https://example.test/image.png"}},
+				    {"type":"paragraph","content":[{"type":"text","text":"正文"}]}
+				  ]
 				}
 				""";
 
 		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze("Title", null, jsonContent,
 				PostContentType.JSON);
 
-		// Clean words count should be: "Hello", "world", "from", "JSON", "block",
-		// "editor", "This", "is", "the", "second", "block" (11 words)
-		// It should NOT include blocks, time, type, data, paragraph, id, version etc.
-		assertEquals(11, metadata.wordCount());
-		assertEquals("Hello world from JSON block editor. This is the second block.", metadata.autoSummary());
+		assertEquals(6, metadata.wordCount());
+		assertEquals("标题 Hello world 正文", metadata.autoSummary());
+		assertTrue(metadata.toc().contains("\"level\":2"));
+		assertTrue(metadata.toc().contains("\"text\":\"标题\""));
+		assertTrue(metadata.toc().contains("\"anchor\":\"标题\""));
+	}
+
+	@Test
+	void analyzeStillReadsLegacyEditorJsJsonWhileUsingNoMetadataAsText() {
+		String jsonContent = """
+				{"blocks":[{"data":{"text":"Hello world from JSON block editor."}},{"data":{"text":"Second block."}}]}
+				""";
+
+		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze("Title", null, jsonContent,
+				PostContentType.JSON);
+
+		assertEquals("Hello world from JSON block editor. Second block.", metadata.autoSummary());
+		assertEquals("[]", metadata.toc());
 	}
 }
