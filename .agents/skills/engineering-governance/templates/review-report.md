@@ -14,4 +14,4 @@
 
 ## Review conclusion
 
-State whether blocking findings remain. State untested areas. This report is advisory and does not approve or merge the PR.
+State whether blocking findings remain. State untested areas. Record this report as AI review and track GitHub approval and merge status separately.
