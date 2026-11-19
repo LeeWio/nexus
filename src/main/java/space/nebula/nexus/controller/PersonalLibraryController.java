@@ -147,7 +147,7 @@ public class PersonalLibraryController {
 
 	/** Returns the current user's favorite posts. */
 	@GetMapping("/favorites")
-	@Operation(summary = "Get favorite posts", description = "Return published posts currently bookmarked by the authenticated user.")
+	@Operation(summary = "Get favorite posts", description = "Return published posts bookmarked by the current user, newest first by default. The public favorite date sort is favoritedAt.")
 	public ApiResponse<PageResult<FavoritePostResponse>> getFavorites(
 			@Parameter(description = "Zero-based request pagination. Responses use a one-based page number.") @PageableDefault(size = 20) Pageable pageable) {
 		return personalLibraryService.getFavorites(pageable);

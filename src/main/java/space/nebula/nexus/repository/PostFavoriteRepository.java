@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 @Repository
 public interface PostFavoriteRepository extends JpaRepository<PostFavorite, PostFavoriteId> {
 	/**
-	 * Returns visible favorite posts for a user in reverse chronological order.
+	 * Returns visible favorite posts for a user in the requested order.
 	 *
 	 * @param userId
 	 *            user identifier
@@ -31,7 +31,7 @@ public interface PostFavoriteRepository extends JpaRepository<PostFavorite, Post
 	 */
 	@EntityGraph(attributePaths = {"post", "post.category", "post.author"})
 	@Query("SELECT favorite FROM PostFavorite favorite WHERE favorite.user.id = :userId "
-			+ "AND favorite.post.status = :status ORDER BY favorite.createdAt DESC")
+			+ "AND favorite.post.status = :status")
 	Page<PostFavorite> findVisibleFavorites(Long userId, PostStatus status, Pageable pageable);
 
 	/**
