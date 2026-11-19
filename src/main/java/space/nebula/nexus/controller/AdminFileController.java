@@ -33,7 +33,7 @@ public class AdminFileController {
 	private final IFileService fileService;
 
 	@GetMapping
-	@Operation(summary = "Search files", description = "Retrieve a paginated list of all uploaded files with optional keyword search.")
+	@Operation(summary = "Search files", description = "List active assets with optional filename search, newest first by default.")
 	public ApiResponse<PageResult<FileResponse>> searchFiles(
 			@Parameter(description = "Keyword to search in original or unique filename") @RequestParam(required = false) String keyword,
 			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20) Pageable pageable) {

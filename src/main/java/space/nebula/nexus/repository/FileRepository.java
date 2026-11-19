@@ -51,8 +51,8 @@ public interface FileRepository extends JpaRepository<FileMetadata, Long>, JpaSp
 	Page<FileMetadata> findAll(@Nullable Specification<FileMetadata> spec, Pageable pageable);
 
 	@EntityGraph(attributePaths = {"uploader"})
-	Page<FileMetadata> findByOriginalNameContainingIgnoreCaseOrFileNameContainingIgnoreCase(String originalName,
-			String fileName, Pageable pageable);
+	Page<FileMetadata> findByIsDeletedFalseAndOriginalNameContainingIgnoreCaseOrIsDeletedFalseAndFileNameContainingIgnoreCase(
+			String originalName, String fileName, Pageable pageable);
 
 	Page<FileMetadata> findByIsDeletedFalse(Pageable pageable);
 

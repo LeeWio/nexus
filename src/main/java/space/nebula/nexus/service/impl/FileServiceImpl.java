@@ -6,6 +6,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -216,15 +217,20 @@ public class FileServiceImpl implements IFileService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<FileResponse>> searchFiles(String keyword,
-			org.springframework.data.domain.Pageable pageable) {
-		org.springframework.data.domain.Page<FileMetadata> page;
-		if (StrUtil.isNotBlank(keyword)) {
-			page = fileRepository.findByOriginalNameContainingIgnoreCaseOrFileNameContainingIgnoreCase(keyword, keyword,
-					pageable);
-		} else {
-			page = fileRepository.findAll(pageable);
+	public ApiResponse<PageResult<FileResponse>> searchFiles(String keyword, Pageable pageable) {
+		var sort = pageable.getSortOr(Sort.by(Sort.Direction.DESC, "createdAt"));
+		if (sort.getOrderFor("id") == null) {
+			sort = sort.and(Sort.by(Sort.Direction.DESC, "id"));
 		}
+		var ordered = pageable.isPaged()
+				? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort)
+				: Pageable.unpaged(sort);
+		String term = StrUtil.trim(keyword);
+		Page<FileMetadata> page = StrUtil.isBlank(term)
+				? fileRepository.findByIsDeletedFalse(ordered)
+				: fileRepository
+						.findByIsDeletedFalseAndOriginalNameContainingIgnoreCaseOrIsDeletedFalseAndFileNameContainingIgnoreCase(
+								term, term, ordered);
 		return ApiResponse.success(PageResult.of(page.map(fileMapper::toResponse)));
 	}
 
