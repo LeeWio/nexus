@@ -106,7 +106,7 @@ public class PublicBlogController {
 	}
 
 	@GetMapping("/posts/{slug}/related")
-	@Operation(summary = "Retrieve related posts", description = "Returns posts related by series, category, tags, and public ranking signals.")
+	@Operation(summary = "Retrieve related posts", description = "Returns a page from a bounded set of public posts ranked by series, category, tags, and engagement.")
 	public ApiResponse<List<PostDigestResponse>> retrieveRelatedPosts(
 			@Parameter(description = "The unique URL slug of the source post") @PathVariable String slug,
 			@Parameter(description = "Pagination parameters") @PageableDefault(size = 6) Pageable pageable) {

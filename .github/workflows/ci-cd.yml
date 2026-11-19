@@ -8,9 +8,6 @@ on:
       - '.gitignore'
   pull_request:
     branches: ["main"]
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
   workflow_dispatch:
 
 permissions:
@@ -29,7 +26,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -53,10 +50,19 @@ jobs:
         run: >-
           ./mvnw -B -ntp clean spotless:check pmd:pmd verify
           -Dspotless.ratchetFrom=${{ steps.formatting-baseline.outputs.ref }}
+          -Dnexus.openapi.output=target/nexus-openapi.json
+
+      - name: Upload Nexus OpenAPI Contract
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: nexus-openapi-${{ github.sha }}
+          path: target/nexus-openapi.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Upload Quality Reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: api-quality-reports-${{ github.run_id }}
           path: |
@@ -68,7 +74,7 @@ jobs:
 
       - name: Upload Test Reports
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: api-test-reports-${{ github.run_id }}
           path: target/surefire-reports
@@ -76,7 +82,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Packaged JAR
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: api-jar-${{ github.sha }}
           path: target/*.jar
@@ -86,7 +92,9 @@ jobs:
   migration-verify:
     name: Verify Flyway Migrations on MySQL 8.4
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      MYSQL_URL: jdbc:mysql://127.0.0.1:3306/nexus_migration_ci?allowPublicKeyRetrieval=true&useSSL=false
     concurrency:
       group: nexus-api-migrations-${{ github.ref }}
       cancel-in-progress: true
@@ -107,14 +115,35 @@ jobs:
           --health-retries=12
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
-      - name: Apply Migrations to Clean MySQL Schema
+      - name: Apply Base Branch Migrations
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          migrations=src/main/resources/db/migration
+          base_snapshot="$(mktemp -d)"
+          git archive "$BASE_SHA" "$migrations" | tar -x -C "$base_snapshot"
+          docker run --rm --network host \
+            -v "$base_snapshot/$migrations:/flyway/sql:ro" \
+            flyway/flyway:11.14.1 \
+            -url="$MYSQL_URL" \
+            -user=nexus \
+            -password=nexus_ci_password \
+            -locations=filesystem:/flyway/sql \
+            -connectRetries=60 \
+            -validateMigrationNaming=true \
+            migrate
+
+      - name: Apply Candidate Migrations
         run: |
           docker run --rm --network host \
             -v "${GITHUB_WORKSPACE}/src/main/resources/db/migration:/flyway/sql:ro" \
             flyway/flyway:11.14.1 \
-            -url="jdbc:mysql://127.0.0.1:3306/nexus_migration_ci?allowPublicKeyRetrieval=true&useSSL=false" \
+            -url="$MYSQL_URL" \
             -user=nexus \
             -password=nexus_ci_password \
             -locations=filesystem:/flyway/sql \
@@ -127,11 +156,27 @@ jobs:
           docker run --rm --network host \
             -v "${GITHUB_WORKSPACE}/src/main/resources/db/migration:/flyway/sql:ro" \
             flyway/flyway:11.14.1 \
-            -url="jdbc:mysql://127.0.0.1:3306/nexus_migration_ci?allowPublicKeyRetrieval=true&useSSL=false" \
+            -url="$MYSQL_URL" \
             -user=nexus \
             -password=nexus_ci_password \
             -locations=filesystem:/flyway/sql \
             validate
+
+      - name: Setup API Environment
+        uses: ./.github/actions/setup-api
+
+      - name: Test Application against the Migrated MySQL Schema
+        run: |
+          ./mvnw -B -ntp -Dtest=AuthControllerIntegrationTest,PublicAnalyticsControllerIntegrationTest \
+            "-Dspring.datasource.url=$MYSQL_URL" \
+            -Dspring.datasource.username=nexus \
+            -Dspring.datasource.password=nexus_ci_password \
+            -Dspring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver \
+            -Dspring.jpa.database-platform=org.hibernate.dialect.MySQLDialect \
+            -Dspring.jpa.hibernate.ddl-auto=validate \
+            -Dspring.flyway.enabled=true \
+            -Dspring.flyway.validate-on-migrate=true \
+            test
 
       - name: Export Migration Report
         if: always()
@@ -139,7 +184,7 @@ jobs:
           docker run --rm --network host \
             -v "${GITHUB_WORKSPACE}/src/main/resources/db/migration:/flyway/sql:ro" \
             flyway/flyway:11.14.1 \
-            -url="jdbc:mysql://127.0.0.1:3306/nexus_migration_ci?allowPublicKeyRetrieval=true&useSSL=false" \
+            -url="$MYSQL_URL" \
             -user=nexus \
             -password=nexus_ci_password \
             -locations=filesystem:/flyway/sql \
@@ -147,7 +192,7 @@ jobs:
 
       - name: Upload Migration Report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: flyway-migration-report-${{ github.run_id }}
           path: flyway-migration-report.txt
@@ -167,26 +212,26 @@ jobs:
       image-digest: ${{ steps.image.outputs.digest }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download Packaged JAR
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: api-jar-${{ github.sha }}
           path: target
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to Aliyun Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ${{ env.ALIYUN_REGISTRY }}
           username: ${{ secrets.ALIYUN_REGISTRY_USER }}
@@ -194,7 +239,7 @@ jobs:
 
       - name: Package Prebuilt JAR and Push Image
         id: image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: ./Dockerfile
@@ -226,7 +271,7 @@ jobs:
 
       - name: Upload Image Security Report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: trivy-image-report-${{ github.run_id }}
           path: trivy-image-report.json
@@ -264,7 +309,7 @@ jobs:
           }
 
       - name: Deploy to Server via SSH
-        uses: appleboy/ssh-action@v1.2.5
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}

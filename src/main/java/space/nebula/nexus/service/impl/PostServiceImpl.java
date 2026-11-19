@@ -718,7 +718,7 @@ public class PostServiceImpl implements IPostService {
 
 	@Override
 	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.BLOG_RELATED, key = "'related:v2:' + #slug + ':' + #pageable.pageNumber + '-' + #pageable.pageSize", sync = true)
+	@Cacheable(value = CacheConstants.BLOG_RELATED, key = "'related:v3:' + #slug + ':' + #pageable", sync = true)
 	public ApiResponse<List<PostDigestResponse>> retrieveRelatedPosts(String slug, Pageable pageable) {
 		Post source = postRepository.findBySlug(slug)
 				.orElseThrow(() -> new ResourceNotFoundException("Post", "slug", slug));
@@ -726,15 +726,26 @@ public class PostServiceImpl implements IPostService {
 				() -> new BusinessException(BusinessCode.FORBIDDEN, "Post is not published"));
 
 		int requestedSize = pageable.isPaged() ? pageable.getPageSize() : sectionSize();
-		int candidateLimit = Math.max(requestedSize * 6, candidateSize());
-		Pageable candidatePage = PageRequest.of(0, candidateLimit);
+		long offset = pageable.isPaged() ? pageable.getOffset() : 0;
+		// Use the same bounded candidate pool for every requested page and size.
+		int candidateLimit = Math.max(120, candidateSize());
+		if (offset >= candidateLimit) {
+			return ApiResponse.success(List.of());
+		}
+
+		Pageable candidatePage = PageRequest.of(0, candidateLimit,
+				Sort.by(Sort.Order.desc("publishedAt"), Sort.Order.desc("id")));
+		record RankedPost(Post post, double score) {
+		}
 		List<Post> relatedCandidates = postRepository.findAll(relatedPostsSpec(source), candidatePage).getContent()
 				.stream()
-				.sorted(Comparator
-						.comparingDouble((Post candidate) -> postRankingService.relatedScore(source, candidate))
-						.reversed().thenComparing(Post::getPublishedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-						.thenComparing(Post::getId, Comparator.nullsLast(Comparator.reverseOrder())))
-				.limit(requestedSize).toList();
+				.map(candidate -> new RankedPost(candidate, postRankingService.relatedScore(source, candidate)))
+				.sorted(Comparator.comparingDouble(RankedPost::score).reversed()
+						.thenComparing(ranked -> ranked.post().getPublishedAt(),
+								Comparator.nullsLast(Comparator.reverseOrder()))
+						.thenComparing(ranked -> ranked.post().getId(),
+								Comparator.nullsLast(Comparator.reverseOrder())))
+				.skip(offset).limit(requestedSize).map(RankedPost::post).toList();
 		postCommentCountSupport.attachApprovedRootCounts(relatedCandidates);
 		List<PostDigestResponse> relatedPosts = relatedCandidates.stream().map(postMapper::toDigestResponse).toList();
 		return ApiResponse.success(relatedPosts);

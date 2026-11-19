@@ -6,6 +6,7 @@
   - host: `liwei@47.122.123.12`
   - path: `/srv/blog/apps/api`
 - Do **not** commit or push from a local workstation copy.
-- Sync local edits to the server (e.g. rsync), then `git add` / `git commit` / `git push` there.
+- Transfer a patch containing only the reviewed changes. Run `git apply --check` before applying it in an isolated branch or worktree on the server, then stage, commit, and push the branch there.
+- Open a PR into `main` and leave approval and merge to eligible human maintainers.
 - Never commit secrets (`.env`, API keys, credential screenshots).
 - Before pushing Java changes, run Spotless (e.g. `./mvnw -B -ntp spotless:apply` / `spotless:check`) so GitHub Actions does not fail.
