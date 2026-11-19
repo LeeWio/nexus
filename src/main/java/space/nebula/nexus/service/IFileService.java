@@ -3,6 +3,7 @@ package space.nebula.nexus.service;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 import space.nebula.nexus.common.ApiResponse;
+import space.nebula.nexus.payload.response.AssetUsageResponse;
 import space.nebula.nexus.payload.response.FileResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.StorageIntegrityResponse;
@@ -12,6 +13,8 @@ public interface IFileService {
 	ApiResponse<FileResponse> uploadFile(MultipartFile file);
 
 	ApiResponse<FileResponse> doUploadFile(MultipartFile file, String fileHash);
+
+	ApiResponse<AssetUsageResponse> getFileUsage(String fileName);
 
 	ApiResponse<Void> deleteFile(String fileName);
 

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import jakarta.persistence.LockModeType;
+import space.nebula.nexus.repository.projection.AssetReferenceText;
 import space.nebula.nexus.enums.UserStatus;
 
 import java.util.List;
@@ -65,8 +66,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 	boolean existsByEmail(String email);
 
-	@org.springframework.data.jpa.repository.Query("SELECT u.avatar FROM User u WHERE u.avatar IS NOT NULL")
-	java.util.List<String> findAllAvatars();
+	@org.springframework.data.jpa.repository.Query("""
+			select new space.nebula.nexus.repository.projection.AssetReferenceText(u.id, u.username, u.avatar)
+			from User u where u.avatar is not null and (:term is null or locate(:term, u.avatar) > 0)
+			order by u.id
+			""")
+	java.util.List<AssetReferenceText> findAssetReferenceText(String term);
 
 	/**
 	 * Loads roles with the account so token issuance stays outside the persistence

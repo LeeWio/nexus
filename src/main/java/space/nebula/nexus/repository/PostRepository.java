@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 import jakarta.persistence.LockModeType;
+import space.nebula.nexus.repository.projection.PostAssetText;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.payload.response.ColumnPostResponse;
@@ -236,11 +237,14 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 	@Query("update Post p set p.favoritesCount = case when p.favoritesCount + :delta < 0 then 0 else p.favoritesCount + :delta end where p.id = :id")
 	void incrementFavorites(Long id, Long delta);
 
-	@Query("SELECT p.content FROM Post p WHERE p.content IS NOT NULL")
-	java.util.List<String> findAllContents();
-
-	@Query("SELECT p.summary FROM Post p WHERE p.summary IS NOT NULL")
-	java.util.List<String> findAllSummaries();
+	@Query("""
+			select new space.nebula.nexus.repository.projection.PostAssetText(p.id, p.title, p.coverImage, p.content, p.summary)
+			from Post p
+			where :term is null or locate(:term, p.coverImage) > 0 or locate(:term, cast(p.content as String)) > 0
+			   or locate(:term, cast(p.summary as String)) > 0
+			order by p.id
+			""")
+	List<PostAssetText> findAssetReferenceText(String term);
 
 	@Query("SELECT SUM(p.views) FROM Post p")
 	Long sumTotalViews();
