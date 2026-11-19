@@ -13,6 +13,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.LogOperation;
 import space.nebula.nexus.common.constant.BusinessCode;
@@ -41,6 +43,7 @@ import space.nebula.nexus.payload.response.CategoryResponse;
 import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostResponse;
+import space.nebula.nexus.payload.response.PostMetadataRebuildResponse;
 import space.nebula.nexus.payload.response.SeriesSummaryResponse;
 import space.nebula.nexus.repository.CategoryRepository;
 import space.nebula.nexus.repository.PostRepository;
@@ -83,6 +86,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements IPostService {
+	@PersistenceContext
+	private EntityManager entityManager;
 	private final PostRepository postRepository;
 	private final CategoryRepository categoryRepository;
 	private final TagRepository tagRepository;
@@ -815,14 +820,50 @@ public class PostServiceImpl implements IPostService {
 	@Override
 	@Transactional
 	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
-			CacheConstants.SEO}, allEntries = true)
-	public ApiResponse<Integer> rebuildPostContentMetadata() {
-		List<Post> posts = postRepository.findAll();
-		for (Post post : posts) {
-			refreshContentMetadata(post);
-		}
-		postRepository.saveAll(posts);
-		return ApiResponse.success("Post content metadata rebuilt", posts.size());
+			CacheConstants.SEO}, allEntries = true, condition = "!#dryRun")
+	public ApiResponse<PostMetadataRebuildResponse> rebuildPostContentMetadata(int batchSize, boolean dryRun) {
+		int page = 0;
+		long processed = 0;
+		long updated = 0;
+		Page<Post> posts;
+		do {
+			posts = postRepository.findAll(PageRequest.of(page, batchSize, Sort.by(Sort.Direction.ASC, "id")));
+			for (Post post : posts) {
+				PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze(post.getTitle(), post.getSummary(),
+						post.getContent(), post.getContentType());
+				if (metadataDiffers(post, metadata)) {
+					updated++;
+					if (!dryRun) {
+						applyContentMetadata(post, metadata);
+					}
+				}
+				processed++;
+			}
+			if (!dryRun && !posts.isEmpty()) {
+				postRepository.saveAll(posts.getContent());
+				entityManager.flush();
+				entityManager.clear();
+			}
+			page++;
+		} while (posts.hasNext());
+		return ApiResponse.success("Post content metadata rebuilt",
+				new PostMetadataRebuildResponse(processed, updated, dryRun));
+	}
+
+	private boolean metadataDiffers(Post post, PostContentAnalyzer.Metadata metadata) {
+		return !java.util.Objects.equals(post.getWordCount(), metadata.wordCount())
+				|| !java.util.Objects.equals(post.getReadingTimeMinutes(), metadata.readingTimeMinutes())
+				|| !java.util.Objects.equals(post.getAutoSummary(), metadata.autoSummary())
+				|| !java.util.Objects.equals(post.getToc(), metadata.toc())
+				|| !java.util.Objects.equals(post.getContentHash(), metadata.contentHash());
+	}
+
+	private void applyContentMetadata(Post post, PostContentAnalyzer.Metadata metadata) {
+		post.setWordCount(metadata.wordCount());
+		post.setReadingTimeMinutes(metadata.readingTimeMinutes());
+		post.setAutoSummary(metadata.autoSummary());
+		post.setToc(metadata.toc());
+		post.setContentHash(metadata.contentHash());
 	}
 
 	private void populateWikiMetadata(PostResponse.PostResponseBuilder builder, PostResponse post) {
@@ -1128,11 +1169,7 @@ public class PostServiceImpl implements IPostService {
 	private void refreshContentMetadata(Post post) {
 		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze(post.getTitle(), post.getSummary(),
 				post.getContent(), post.getContentType());
-		post.setWordCount(metadata.wordCount());
-		post.setReadingTimeMinutes(metadata.readingTimeMinutes());
-		post.setAutoSummary(metadata.autoSummary());
-		post.setToc(metadata.toc());
-		post.setContentHash(metadata.contentHash());
+		applyContentMetadata(post, metadata);
 	}
 
 	private String previewContentHash(Post post) {

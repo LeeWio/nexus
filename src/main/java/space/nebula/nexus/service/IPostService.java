@@ -15,6 +15,7 @@ import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostDigestResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.payload.response.BlogDiscoveryResponse;
+import space.nebula.nexus.payload.response.PostMetadataRebuildResponse;
 
 import java.util.List;
 
@@ -149,7 +150,7 @@ public interface IPostService {
 
 	ApiResponse<PostResponse> retrievePostPreview(String token);
 
-	ApiResponse<Integer> rebuildPostContentMetadata();
+	ApiResponse<PostMetadataRebuildResponse> rebuildPostContentMetadata(int batchSize, boolean dryRun);
 
 	/**
 	 * Returns a compact, curated set of posts for the public discovery page.

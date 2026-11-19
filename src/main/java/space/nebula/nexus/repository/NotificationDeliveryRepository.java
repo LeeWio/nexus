@@ -13,6 +13,7 @@ import space.nebula.nexus.entity.NotificationDelivery;
 import java.util.Optional;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Collection;
 
 public interface NotificationDeliveryRepository extends JpaRepository<NotificationDelivery, Long> {
 	@EntityGraph(attributePaths = "notification")
@@ -51,4 +52,7 @@ public interface NotificationDeliveryRepository extends JpaRepository<Notificati
 			+ "ORDER BY delivery.nextAttemptAt ASC, delivery.id ASC")
 	List<NotificationDelivery> findRetryableDeliveries(List<String> statuses, LocalDateTime before,
 			org.springframework.data.domain.Pageable pageable);
+
+	@Query("SELECT delivery.id FROM NotificationDelivery delivery WHERE delivery.status IN :statuses AND delivery.createdAt < :cutoff ORDER BY delivery.id")
+	List<Long> findRetentionIds(Collection<String> statuses, LocalDateTime cutoff, Pageable pageable);
 }
