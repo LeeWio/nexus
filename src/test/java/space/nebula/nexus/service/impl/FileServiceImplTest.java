@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -52,6 +53,18 @@ class FileServiceImplTest {
 		lenient().when(storageProperties.getMaxFileSize()).thenReturn(10485760L);
 		lenient().when(storageProperties.getAllowedMimeTypes()).thenReturn(Arrays.asList("image/jpeg", "image/png"));
 		org.springframework.test.util.ReflectionTestUtils.setField(fileService, "self", fileService);
+	}
+
+	@Test
+	void searchFilesUsesLatestFirstAndStableTieBreaker() {
+		var ordering = Sort.by(Sort.Direction.DESC, "createdAt", "id");
+		var request = PageRequest.of(1, 20, ordering);
+		when(fileRepository.findByIsDeletedFalse(request)).thenReturn(Page.empty(request));
+
+		var result = fileService.searchFiles(" ", PageRequest.of(1, 20)).data();
+
+		assertEquals(2, result.getPage());
+		verify(fileRepository).findByIsDeletedFalse(request);
 	}
 
 	@Test
