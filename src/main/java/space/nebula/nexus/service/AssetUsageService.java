@@ -1,6 +1,7 @@
 package space.nebula.nexus.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import space.nebula.nexus.entity.FileMetadata;
 import space.nebula.nexus.payload.response.AssetUsageResponse;
@@ -11,6 +12,7 @@ import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.FriendLinkRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.PostSeriesRepository;
+import space.nebula.nexus.repository.PostRevisionRepository;
 import space.nebula.nexus.repository.ProjectRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.repository.projection.AssetReferenceText;
@@ -30,6 +32,7 @@ import static java.util.stream.Collectors.toList;
 public class AssetUsageService {
 	private static final int LOCATION_LIMIT = 25;
 	private final PostRepository posts;
+	private final PostRevisionRepository revisions;
 	private final CommentRepository comments;
 	private final UserRepository users;
 	private final ProjectRepository projects;
@@ -38,13 +41,21 @@ public class AssetUsageService {
 	private final FileRepository files;
 
 	public AssetUsageResponse getUsage(FileMetadata file) {
-		var references = loadFor(file).locations(file).toList();
+		var revisionLocations = revisions
+				.findAssetReferences(file.getFileName(), thumbnailObjectName(file), Limit.unlimited()).stream()
+				.map(revision -> new Location(Kind.ARTICLE_REVISION, revision.id(),
+						revision.title() + " · v" + revision.versionNumber()));
+		var references = Stream.concat(loadFor(file).locations(file), revisionLocations).toList();
 		return new AssetUsageResponse(references.size(),
 				List.copyOf(references.subList(0, Math.min(references.size(), LOCATION_LIMIT))));
 	}
 
 	public boolean isInUse(FileMetadata file) {
-		return loadFor(file).isInUse(file);
+		return loadFor(file).isInUse(file) || isInArticleHistory(file);
+	}
+
+	public boolean isInArticleHistory(FileMetadata file) {
+		return !revisions.findAssetReferences(file.getFileName(), thumbnailObjectName(file), Limit.of(1)).isEmpty();
 	}
 
 	public Snapshot loadSnapshot() {

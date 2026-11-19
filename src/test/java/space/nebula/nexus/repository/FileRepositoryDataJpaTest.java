@@ -12,6 +12,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import space.nebula.nexus.common.storage.StorageProvider;
 import space.nebula.nexus.entity.FriendLink;
 import space.nebula.nexus.entity.Post;
+import space.nebula.nexus.entity.PostRevision;
 import space.nebula.nexus.entity.PostSeries;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.PostStatus;
@@ -38,6 +39,9 @@ class FileRepositoryDataJpaTest {
 
 	@Autowired
 	private PostRepository posts;
+
+	@Autowired
+	private PostRevisionRepository revisions;
 
 	@Autowired
 	private PostSeriesRepository series;
@@ -154,6 +158,66 @@ class FileRepositoryDataJpaTest {
 
 		assertTrue(repository.findById(cover.getId()).isPresent());
 		assertTrue(repository.findById(avatar.getId()).isPresent());
+	}
+
+	@Test
+	void protectsAssetsOnlyPresentInArticleHistory() {
+		var cover = save("old-cover.png", "Old cover", false);
+		var inline = save("old-inline.png", "Old inline image", false);
+		inline.setThumbnailUrl("/files/old-preview.webp?size=320");
+		repository.saveAndFlush(inline);
+		var unused = save("never-used.png", "Unused", false);
+		var now = LocalDateTime.now().minusDays(3);
+		jdbc.update("update sys_file set created_at = ? where id in (?, ?, ?)", java.sql.Timestamp.valueOf(now),
+				cover.getId(), inline.getId(), unused.getId());
+
+		var author = new User();
+		author.setUsername("revision-asset-writer");
+		author.setEmail("revision-asset@example.test");
+		author.setPassword("test");
+		author.setCreatedAt(now);
+		users.save(author);
+
+		var post = new Post();
+		post.setAuthor(author);
+		post.setTitle("Updated article");
+		post.setSlug("updated-article");
+		post.setContent("Current content");
+		post.setContentType(PostContentType.MDX);
+		post.setStatus(PostStatus.PUBLISHED);
+		post.setCreatedAt(now);
+		posts.saveAndFlush(post);
+
+		var legacy = new PostRevision();
+		legacy.setPost(post);
+		legacy.setVersionNumber(1);
+		legacy.setTitle("Original article");
+		legacy.setContentType(PostContentType.MDX);
+		legacy.setContent("![Image](/files/old-preview.webp)");
+		revisions.save(legacy);
+
+		var withCover = new PostRevision();
+		withCover.setPost(post);
+		withCover.setVersionNumber(2);
+		withCover.setTitle("Article with cover");
+		withCover.setContentType(PostContentType.MDX);
+		withCover.setContent("Content without media");
+		withCover.setSnapshotJson("{\"coverImage\":\"/files/old-cover.png\"}");
+		revisions.saveAndFlush(withCover);
+
+		assertEquals(java.util.List.of(new AssetUsageResponse.Location(AssetUsageResponse.Kind.ARTICLE_REVISION,
+				withCover.getId(), "Article with cover · v2")), usage.getUsage(cover).locations());
+		assertEquals(java.util.List.of(new AssetUsageResponse.Location(AssetUsageResponse.Kind.ARTICLE_REVISION,
+				legacy.getId(), "Original article · v1")), usage.getUsage(inline).locations());
+		assertTrue(usage.isInUse(cover));
+		assertTrue(usage.isInUse(inline));
+		assertFalse(usage.isInUse(unused));
+
+		cleanup.cleanAbandonedAssets();
+
+		assertTrue(repository.findById(cover.getId()).isPresent());
+		assertTrue(repository.findById(inline.getId()).isPresent());
+		assertTrue(repository.findById(unused.getId()).isEmpty());
 	}
 
 	private FileMetadata save(String name, String originalName, boolean deleted) {
