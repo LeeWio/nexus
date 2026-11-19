@@ -7,6 +7,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.payload.response.MomentTopicCountResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.repository.FileRepository;
+import space.nebula.nexus.repository.MomentBookmarkRepository;
 import space.nebula.nexus.repository.MomentRepository;
 import space.nebula.nexus.repository.MomentTopicRepository;
 import space.nebula.nexus.repository.UserRepository;
@@ -61,6 +63,7 @@ public class MomentServiceImpl implements IMomentService {
 	private static final int MAX_LIKED_MOMENT_IDS = 100;
 
 	private final MomentRepository momentRepository;
+	private final MomentBookmarkRepository momentBookmarkRepository;
 	private final MomentTopicRepository momentTopicRepository;
 	private final MomentMapper momentMapper;
 	private final FileRepository fileRepository;
@@ -164,11 +167,14 @@ public class MomentServiceImpl implements IMomentService {
 		String currentUsername = SecurityUtil.getCurrentUsername();
 		String slug = topic == null || topic.isBlank() ? null : topic.trim();
 		Page<Moment> moments = timeline(slug, year, month, currentUsername, pageable);
-		Page<MomentResponse> page = moments.map(momentMapper::toResponse);
-		List<MomentResponse> enriched = momentXSyncSupport
-				.withSyncs(momentCommentCountSupport.withCounts(page.getContent()));
-		return ApiResponse.success(new PageResult<>(enriched, page.getTotalElements(), page.getNumber() + 1,
-				page.getSize(), page.getTotalPages()));
+		return ApiResponse.success(toMomentPage(moments));
+	}
+
+	private PageResult<MomentResponse> toMomentPage(Page<Moment> moments) {
+		List<MomentResponse> responses = moments.getContent().stream().map(momentMapper::toResponse).toList();
+		List<MomentResponse> enriched = momentXSyncSupport.withSyncs(momentCommentCountSupport.withCounts(responses));
+		return new PageResult<>(enriched, moments.getTotalElements(), moments.getNumber() + 1, moments.getSize(),
+				moments.getTotalPages());
 	}
 
 	private Page<Moment> timeline(String slug, Integer year, Integer month, String username, Pageable pageable) {
@@ -238,6 +244,50 @@ public class MomentServiceImpl implements IMomentService {
 		return ApiResponse.success(likedMomentIds);
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<MomentResponse>> getSavedMoments(Pageable pageable) {
+		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		PageRequest newestFirst = PageRequest.of(pageable.getPageNumber(), Math.min(pageable.getPageSize(), 100));
+		return ApiResponse.success(
+				toMomentPage(momentRepository.findSavedMoments(user.getId(), user.getUsername(), newestFirst)));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<List<Long>> getSavedMomentIds() {
+		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		return ApiResponse.success(momentBookmarkRepository.findVisibleIds(user.getId(), user.getUsername()));
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<Void> importMomentBookmarks(List<Long> ids) {
+		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		momentBookmarkRepository.importLegacy(user.getId(), user.getUsername(), ids);
+		return ApiResponse.success();
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<Void> saveMomentBookmark(Long id) {
+		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		Moment moment = findMomentOrThrow(id);
+		if (!canViewMoment(moment, user.getUsername())) {
+			throw new ResourceNotFoundException("Moment", "id", id);
+		}
+		momentBookmarkRepository.save(user.getId(), id);
+		return ApiResponse.success();
+	}
+
+	@Override
+	@Transactional
+	public ApiResponse<Void> removeMomentBookmark(Long id) {
+		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		momentBookmarkRepository.remove(user.getId(), user.getUsername(), id);
+		return ApiResponse.success();
+	}
+
 	private MomentResponse enrich(MomentResponse response) {
 		return momentXSyncSupport.withSync(momentCommentCountSupport.withCount(response));
 	}
@@ -248,12 +298,14 @@ public class MomentServiceImpl implements IMomentService {
 
 	private Moment findPublishedMomentOrThrow(Long id) {
 		Moment moment = findMomentOrThrow(id);
-		String currentUsername = SecurityUtil.getCurrentUsername();
-		boolean isVisible = moment.getVisibility() == MomentVisibility.PUBLIC
-				|| (currentUsername != null && currentUsername.equals(moment.getCreatedBy()));
-		Assert.isTrue(isVisible,
+		Assert.isTrue(canViewMoment(moment, SecurityUtil.getCurrentUsername()),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only visible moments can be interacted with"));
 		return moment;
+	}
+
+	private boolean canViewMoment(Moment moment, String username) {
+		return moment.getVisibility() == MomentVisibility.PUBLIC
+				|| (username != null && username.equals(moment.getCreatedBy()));
 	}
 
 	private void validateMomentContent(String content, List<?> images) {

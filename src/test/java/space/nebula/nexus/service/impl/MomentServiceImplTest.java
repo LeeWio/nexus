@@ -22,6 +22,7 @@ import space.nebula.nexus.payload.request.MomentImageRequest;
 import space.nebula.nexus.payload.request.MomentRequest;
 import space.nebula.nexus.payload.response.MomentResponse;
 import space.nebula.nexus.repository.FileRepository;
+import space.nebula.nexus.repository.MomentBookmarkRepository;
 import space.nebula.nexus.repository.MomentRepository;
 import space.nebula.nexus.repository.MomentTopicRepository;
 import space.nebula.nexus.repository.UserRepository;
@@ -57,6 +58,8 @@ class MomentServiceImplTest {
 	@Mock
 	private MomentRepository momentRepository;
 	@Mock
+	private MomentBookmarkRepository momentBookmarkRepository;
+	@Mock
 	private MomentTopicRepository momentTopicRepository;
 	@Mock
 	private MomentMapper momentMapper;
@@ -80,9 +83,9 @@ class MomentServiceImplTest {
 
 	@BeforeEach
 	void setUp() {
-		momentService = new MomentServiceImpl(momentRepository, momentTopicRepository, momentMapper, fileRepository,
-				userRepository, jdbcTemplate, momentCommentCountSupport, momentXSyncSupport, xSyncService,
-				eventPublisher);
+		momentService = new MomentServiceImpl(momentRepository, momentBookmarkRepository, momentTopicRepository,
+				momentMapper, fileRepository, userRepository, jdbcTemplate, momentCommentCountSupport,
+				momentXSyncSupport, xSyncService, eventPublisher);
 		lenient().when(momentCommentCountSupport.withCount(any())).thenAnswer(invocation -> invocation.getArgument(0));
 		lenient().when(momentCommentCountSupport.withCounts(any())).thenAnswer(invocation -> invocation.getArgument(0));
 		lenient().when(momentXSyncSupport.withSync(any())).thenAnswer(invocation -> invocation.getArgument(0));

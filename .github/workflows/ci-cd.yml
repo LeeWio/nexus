@@ -167,7 +167,7 @@ jobs:
 
       - name: Test Application against the Migrated MySQL Schema
         run: |
-          ./mvnw -B -ntp -Dtest=AuthControllerIntegrationTest,PublicAnalyticsControllerIntegrationTest \
+          ./mvnw -B -ntp -Dtest=AuthControllerIntegrationTest,PublicAnalyticsControllerIntegrationTest,MomentBookmarkMySqlIntegrationTest \
             "-Dspring.datasource.url=$MYSQL_URL" \
             -Dspring.datasource.username=nexus \
             -Dspring.datasource.password=nexus_ci_password \

@@ -42,4 +42,15 @@ public interface IMomentService {
 	ApiResponse<Void> unlikeMoment(Long id);
 
 	ApiResponse<Set<Long>> getLikedMomentIds(List<Long> momentIds);
+
+	// Account bookmarks
+	ApiResponse<PageResult<MomentResponse>> getSavedMoments(Pageable pageable);
+
+	ApiResponse<List<Long>> getSavedMomentIds();
+
+	ApiResponse<Void> importMomentBookmarks(List<Long> ids);
+
+	ApiResponse<Void> saveMomentBookmark(Long id);
+
+	ApiResponse<Void> removeMomentBookmark(Long id);
 }
