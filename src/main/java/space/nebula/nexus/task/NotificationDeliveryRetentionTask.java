@@ -40,8 +40,7 @@ public class NotificationDeliveryRetentionTask {
 		long removed = 0;
 		List<Long> ids;
 		do {
-			ids = deliveries.findRetentionIds(TERMINAL_STATUSES, cutoff,
-					PageRequest.of(0, properties.getBatchSize()));
+			ids = deliveries.findRetentionIds(TERMINAL_STATUSES, cutoff, PageRequest.of(0, properties.getBatchSize()));
 			if (!ids.isEmpty()) {
 				deliveries.deleteAllByIdInBatch(ids);
 				removed += ids.size();

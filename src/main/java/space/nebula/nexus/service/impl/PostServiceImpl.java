@@ -820,7 +820,7 @@ public class PostServiceImpl implements IPostService {
 	@Override
 	@Transactional
 	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
-			CacheConstants.SEO}, allEntries = true)
+			CacheConstants.SEO}, allEntries = true, condition = "!#dryRun")
 	public ApiResponse<PostMetadataRebuildResponse> rebuildPostContentMetadata(int batchSize, boolean dryRun) {
 		int page = 0;
 		long processed = 0;
@@ -846,7 +846,8 @@ public class PostServiceImpl implements IPostService {
 			}
 			page++;
 		} while (posts.hasNext());
-		return ApiResponse.success("Post content metadata rebuilt", new PostMetadataRebuildResponse(processed, updated, dryRun));
+		return ApiResponse.success("Post content metadata rebuilt",
+				new PostMetadataRebuildResponse(processed, updated, dryRun));
 	}
 
 	private boolean metadataDiffers(Post post, PostContentAnalyzer.Metadata metadata) {
