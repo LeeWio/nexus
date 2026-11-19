@@ -1,6 +1,8 @@
 package space.nebula.nexus.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -70,9 +72,12 @@ public class AdminWebhookController {
 	}
 
 	@PostMapping("/logs/{deliveryId}/redeliver")
-	@Operation(summary = "Redeliver a failed webhook delivery", description = "Retry one recorded failed delivery. The original delivery ID identifies the payload and destination to retry.")
-	public ApiResponse<Void> redeliverWebhookLog(
-			@Parameter(description = "Webhook Delivery ID") @PathVariable String deliveryId) {
-		return webhookService.redeliverWebhookLog(deliveryId);
+	@Operation(summary = "Redeliver a failed webhook delivery", description = "Retry the recorded payload using the webhook’s current configuration. Return the completed attempt, including receiver failures. The observed attempt count prevents duplicate submissions.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Recorded delivery result", useReturnTypeSchema = true)
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The delivery has changed or is in progress", content = @Content(mediaType = "application/json", schema = @Schema(ref = "#/components/schemas/ApiError")))
+	public ApiResponse<WebhookLogResponse> redeliverWebhookLog(
+			@Parameter(description = "Webhook Delivery ID") @PathVariable String deliveryId,
+			@Parameter(description = "Attempt count from the displayed delivery log") @RequestParam int attemptCount) {
+		return webhookService.redeliverWebhookLog(deliveryId, attemptCount);
 	}
 }
