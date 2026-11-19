@@ -10,7 +10,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.constant.CacheConstants;
@@ -54,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Spy;
@@ -341,7 +344,8 @@ class PostServiceImplTest {
 		sameSeriesAndTags.setTags(new java.util.HashSet<>(List.of(java, spring)));
 
 		when(postRepository.findBySlug("source")).thenReturn(Optional.of(source));
-		when(postRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
+		var candidatePage = PageRequest.of(0, 120, Sort.by(Sort.Order.desc("publishedAt"), Sort.Order.desc("id")));
+		when(postRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(candidatePage)))
 				.thenReturn(new PageImpl<>(List.of(categoryOnly, sameSeriesAndTags)));
 		when(postMapper.toDigestResponse(any(Post.class))).thenAnswer(invocation -> {
 			Post post = invocation.getArgument(0);
@@ -351,10 +355,18 @@ class PostServiceImplTest {
 		});
 
 		ApiResponse<List<PostDigestResponse>> response = postService.retrieveRelatedPosts("source",
-				org.springframework.data.domain.PageRequest.of(0, 2));
+				PageRequest.of(0, 2));
 
 		assertEquals(200, response.code());
 		assertEquals(List.of(12L, 11L), response.data().stream().map(PostDigestResponse::id).toList());
+
+		var firstPage = postService.retrieveRelatedPosts("source", PageRequest.of(0, 1));
+		var secondPage = postService.retrieveRelatedPosts("source", PageRequest.of(1, 1));
+		var exhaustedPage = postService.retrieveRelatedPosts("source", PageRequest.of(120, 1));
+
+		assertEquals(List.of(12L), firstPage.data().stream().map(PostDigestResponse::id).toList());
+		assertEquals(List.of(11L), secondPage.data().stream().map(PostDigestResponse::id).toList());
+		assertEquals(List.of(), exhaustedPage.data());
 	}
 
 	@Test
