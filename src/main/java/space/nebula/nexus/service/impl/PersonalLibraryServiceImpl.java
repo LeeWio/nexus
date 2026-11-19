@@ -265,6 +265,14 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<Boolean> isInReadingList(Long postId) {
+		User user = currentUser();
+		return ApiResponse
+				.success(readingListItemRepository.existsByUserIdAndPostIdAndIsDeletedFalse(user.getId(), postId));
+	}
+
+	@Override
 	@Transactional
 	public ApiResponse<Void> addToReadingList(Long postId) {
 		User user = currentUser();

@@ -43,6 +43,8 @@ public interface IMomentService {
 
 	ApiResponse<Set<Long>> getLikedMomentIds(List<Long> momentIds);
 
+	ApiResponse<PageResult<MomentResponse>> getLikedMoments(Pageable pageable);
+
 	// Account bookmarks
 	ApiResponse<PageResult<MomentResponse>> getSavedMoments(Pageable pageable);
 

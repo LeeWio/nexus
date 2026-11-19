@@ -20,6 +20,17 @@ public interface MomentRepository extends JpaRepository<Moment, Long> {
 					+ MomentBookmarkRepository.VISIBLE_BOOKMARKS, nativeQuery = true)
 	Page<Moment> findSavedMoments(@Param("userId") Long userId, @Param("username") String username, Pageable pageable);
 
+	String VISIBLE_LIKES = """
+			FROM blog_moment_like b
+			JOIN blog_moment m ON m.id = b.moment_id
+			WHERE b.user_id = :userId AND
+			""" + MomentBookmarkRepository.VISIBLE_MOMENT;
+
+	@Query(value = "SELECT m.* " + VISIBLE_LIKES
+			+ " ORDER BY b.created_at DESC, m.id DESC", countQuery = "SELECT COUNT(*) "
+					+ VISIBLE_LIKES, nativeQuery = true)
+	Page<Moment> findLikedMoments(@Param("userId") Long userId, @Param("username") String username, Pageable pageable);
+
 	@Query("SELECT m FROM Moment m WHERE m.visibility = :publicVisibility "
 			+ "OR (:username IS NOT NULL AND m.createdBy = :username) " + "ORDER BY m.createdAt DESC")
 	Page<Moment> findPublicTimeline(@Param("publicVisibility") MomentVisibility publicVisibility,

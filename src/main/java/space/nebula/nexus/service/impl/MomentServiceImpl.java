@@ -246,6 +246,15 @@ public class MomentServiceImpl implements IMomentService {
 
 	@Override
 	@Transactional(readOnly = true)
+	public ApiResponse<PageResult<MomentResponse>> getLikedMoments(Pageable pageable) {
+		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
+		PageRequest newestFirst = PageRequest.of(pageable.getPageNumber(), Math.min(pageable.getPageSize(), 100));
+		return ApiResponse.success(
+				toMomentPage(momentRepository.findLikedMoments(user.getId(), user.getUsername(), newestFirst)));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<MomentResponse>> getSavedMoments(Pageable pageable) {
 		User user = SecurityUtil.getCurrentUserOrThrow(userRepository);
 		PageRequest newestFirst = PageRequest.of(pageable.getPageNumber(), Math.min(pageable.getPageSize(), 100));

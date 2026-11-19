@@ -201,6 +201,13 @@ public class PersonalLibraryController {
 		return personalLibraryService.getReadingList(pageable);
 	}
 
+	@GetMapping("/reading-list/{postId}")
+	@Operation(summary = "Check whether a post is in the reading list", description = "Returns the authenticated user's current reading-list membership for the given post.")
+	public ApiResponse<Boolean> isInReadingList(
+			@Parameter(description = "Published post ID") @PathVariable Long postId) {
+		return personalLibraryService.isInReadingList(postId);
+	}
+
 	/** Adds one published post to the later-reading queue. */
 	@PutMapping("/reading-list/{postId}")
 	@Operation(summary = "Add post to reading list", description = "Queue one published post for later reading. Repeating the request does not create a duplicate.")

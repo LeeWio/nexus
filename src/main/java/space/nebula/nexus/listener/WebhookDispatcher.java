@@ -99,12 +99,13 @@ public class WebhookDispatcher {
 	/**
 	 * Triggered manually for testing.
 	 */
-	public void dispatchPayload(Webhook webhook, Dict payload) {
+	public String dispatchPayload(Webhook webhook, Dict payload) {
 		var message = space.nebula.nexus.payload.request.WebhookMessage.builder().webhookId(webhook.getId())
 				.deliveryId(cn.hutool.core.util.IdUtil.fastSimpleUUID()).event(payload.getStr("event")).payload(payload)
 				.build();
 
 		rabbitTemplate.convertAndSend(space.nebula.nexus.config.RabbitMQConfig.WEBHOOK_EXCHANGE,
 				space.nebula.nexus.config.RabbitMQConfig.WEBHOOK_ROUTING_KEY, message);
+		return message.getDeliveryId();
 	}
 }

@@ -8,6 +8,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.payload.request.WebhookRequest;
+import space.nebula.nexus.payload.request.WebhookUpdateRequest;
+import space.nebula.nexus.payload.response.WebhookLogResponse;
+import space.nebula.nexus.payload.response.WebhookTestResponse;
 import space.nebula.nexus.payload.response.WebhookResponse;
 import space.nebula.nexus.service.IWebhookService;
 import org.springframework.data.domain.Pageable;
@@ -40,9 +43,9 @@ public class AdminWebhookController {
 	}
 
 	@PutMapping("/{id}")
-	@Operation(summary = "Update a webhook", description = "Replace the editable configuration for one webhook. Use the returned enabled state to keep management UI state synchronized.")
+	@Operation(summary = "Update a webhook", description = "Replace the editable configuration for one webhook. Omit the signing secret to retain the current secret.")
 	public ApiResponse<WebhookResponse> updateWebhook(@Parameter(description = "Webhook ID") @PathVariable Long id,
-			@Valid @RequestBody WebhookRequest request) {
+			@Valid @RequestBody WebhookUpdateRequest request) {
 		return webhookService.updateWebhook(id, request);
 	}
 
@@ -53,14 +56,14 @@ public class AdminWebhookController {
 	}
 
 	@PostMapping("/{id}/test")
-	@Operation(summary = "Send a webhook test delivery", description = "Trigger a test delivery to validate one webhook target and its configuration. Inspect the delivery log for the resulting status.")
-	public ApiResponse<Void> testWebhook(@Parameter(description = "Webhook ID") @PathVariable Long id) {
+	@Operation(summary = "Send a webhook test delivery", description = "Trigger a test delivery to validate one webhook target and its configuration. Returns the delivery ID to match against delivery history.")
+	public ApiResponse<WebhookTestResponse> testWebhook(@Parameter(description = "Webhook ID") @PathVariable Long id) {
 		return webhookService.triggerTestWebhook(id);
 	}
 
 	@GetMapping("/{id}/logs")
 	@Operation(summary = "Get webhook logs", description = "Retrieve a paginated list of delivery logs for a specific webhook.")
-	public ApiResponse<PageResult<space.nebula.nexus.entity.WebhookLog>> getWebhookLogs(
+	public ApiResponse<PageResult<WebhookLogResponse>> getWebhookLogs(
 			@Parameter(description = "Webhook ID") @PathVariable Long id,
 			@Parameter(description = "Pagination parameters") @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 		return webhookService.retrieveWebhookLogs(id, pageable);

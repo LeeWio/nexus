@@ -111,6 +111,31 @@ class MomentBookmarkMySqlIntegrationTest {
 				.content("{\"ids\":[0,null]}")).andExpect(status().isBadRequest());
 	}
 
+	@Test
+	void likedMomentsArePaginatedScopedAndVisible() throws Exception {
+		final String liked = "/api/v1/user/moments/liked";
+		Long first = moment(MomentVisibility.PUBLIC, OTHER);
+		Long recent = moment(MomentVisibility.PUBLIC, OTHER);
+		Long privateMoment = moment(MomentVisibility.PRIVATE, OTHER);
+		Long readerId = users.findByUsername(READER).orElseThrow().getId();
+		String insert = "INSERT INTO blog_moment_like (user_id,moment_id,created_at) VALUES (?,?,?)";
+		jdbc.update(insert, readerId, first, "2026-10-01 01:00:00");
+		jdbc.update(insert, readerId, recent, "2026-10-02 01:00:00");
+		jdbc.update(insert, readerId, privateMoment, "2026-10-03 01:00:00");
+
+		mvc.perform(get(liked)).andExpect(status().isUnauthorized());
+		mvc.perform(get(liked).with(user(OTHER))).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.list").isEmpty());
+		mvc.perform(get(liked).with(user(READER)).param("size", "1")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.total").value(2))
+				.andExpect(jsonPath("$.data.list[0].id").value(recent.intValue()));
+		mvc.perform(get(liked).with(user(READER)).param("size", "1").param("page", "1")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.list[0].id").value(first.intValue()));
+		jdbc.update("UPDATE blog_moment SET is_deleted = true WHERE id = ?", recent);
+		mvc.perform(get(liked).with(user(READER))).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.total").value(1));
+	}
+
 	private void importBookmarks(String username, String ids) throws Exception {
 		mvc.perform(post(SAVED + "/import").with(user(username)).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"ids\":[" + ids + "]}")).andExpect(status().isOk());

@@ -13,6 +13,9 @@ import space.nebula.nexus.common.exception.ResourceNotFoundException;
 import space.nebula.nexus.entity.Webhook;
 import space.nebula.nexus.mapper.WebhookMapper;
 import space.nebula.nexus.payload.request.WebhookRequest;
+import space.nebula.nexus.payload.request.WebhookUpdateRequest;
+import space.nebula.nexus.payload.response.WebhookLogResponse;
+import space.nebula.nexus.payload.response.WebhookTestResponse;
 import space.nebula.nexus.payload.response.WebhookResponse;
 import space.nebula.nexus.repository.WebhookRepository;
 import space.nebula.nexus.service.IWebhookService;
@@ -64,11 +67,14 @@ public class WebhookServiceImpl implements IWebhookService {
 	@Transactional
 	@LogOperation(value = "Update Webhook", logArgs = false)
 	@org.springframework.cache.annotation.CacheEvict(value = space.nebula.nexus.common.constant.CacheConstants.SYS_CONFIG, key = "'active_webhooks'")
-	public ApiResponse<WebhookResponse> updateWebhook(Long id, WebhookRequest request) {
+	public ApiResponse<WebhookResponse> updateWebhook(Long id, WebhookUpdateRequest request) {
 		outboundUrlValidator.validate(request.url());
 		Webhook webhook = webhookRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Webhook", "id", id));
 		webhookMapper.updateEntity(webhook, request);
+		if (StrUtil.isNotBlank(request.secret())) {
+			webhook.setSecret(request.secret());
+		}
 		webhookRepository.save(webhook);
 		log.info("Updated webhook: {}", webhook.getName());
 		return ApiResponse.success("Webhook updated successfully", webhookMapper.toResponse(webhook));
@@ -86,24 +92,30 @@ public class WebhookServiceImpl implements IWebhookService {
 	}
 
 	@Override
-	public ApiResponse<Void> triggerTestWebhook(Long id) {
+	public ApiResponse<WebhookTestResponse> triggerTestWebhook(Long id) {
 		Webhook webhook = webhookRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Webhook", "id", id));
+
+		Assert.isTrue(Boolean.TRUE.equals(webhook.getIsActive()),
+				() -> new space.nebula.nexus.common.exception.BusinessException(
+						space.nebula.nexus.common.constant.BusinessCode.BAD_REQUEST,
+						"Enable the webhook before testing"));
 
 		Dict payload = Dict.create().set("event", "ping").set("timestamp", System.currentTimeMillis()).set("message",
 				"Nexus Webhook Test Ping");
 
-		webhookDispatcher.dispatchPayload(webhook, payload);
+		String deliveryId = webhookDispatcher.dispatchPayload(webhook, payload);
 
-		return ApiResponse.success("Test webhook task dispatched", null);
+		return ApiResponse.success("Test webhook task dispatched", new WebhookTestResponse(deliveryId));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public ApiResponse<space.nebula.nexus.payload.response.PageResult<space.nebula.nexus.entity.WebhookLog>> retrieveWebhookLogs(
-			Long id, org.springframework.data.domain.Pageable pageable) {
+	public ApiResponse<space.nebula.nexus.payload.response.PageResult<WebhookLogResponse>> retrieveWebhookLogs(Long id,
+			org.springframework.data.domain.Pageable pageable) {
 		var logs = webhookLogRepository.findByWebhookId(id, pageable);
-		return ApiResponse.success(space.nebula.nexus.payload.response.PageResult.of(logs));
+		return ApiResponse
+				.success(space.nebula.nexus.payload.response.PageResult.of(logs.map(WebhookLogResponse::from)));
 	}
 
 	@Override

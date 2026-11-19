@@ -111,6 +111,8 @@ public interface IPersonalLibraryService {
 	/** Returns the current user's visible later-reading queue. */
 	ApiResponse<PageResult<ReadingListPostResponse>> getReadingList(Pageable pageable);
 
+	ApiResponse<Boolean> isInReadingList(Long postId);
+
 	/** Adds a published post to the current user's later-reading queue. */
 	ApiResponse<Void> addToReadingList(Long postId);
 

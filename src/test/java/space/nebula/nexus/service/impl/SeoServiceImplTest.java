@@ -11,7 +11,6 @@ import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.repository.*;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,10 +23,6 @@ class SeoServiceImplTest {
 
 	@Mock
 	private PostRepository postRepository;
-	@Mock
-	private CategoryRepository categoryRepository;
-	@Mock
-	private TagRepository tagRepository;
 	@Mock
 	private PostSeriesRepository seriesRepository;
 	@Mock
@@ -46,14 +41,12 @@ class SeoServiceImplTest {
 		post.setSlug("test-post?a=1&b=2");
 		when(postRepository.findAllByStatus(any(), any())).thenReturn(new PageImpl<>(List.of(post)));
 
-		when(categoryRepository.findAll()).thenReturn(Collections.emptyList());
-		when(tagRepository.findAll()).thenReturn(Collections.emptyList());
-		when(seriesRepository.findByIsPublishedTrueOrderByCreatedAtDesc()).thenReturn(Collections.emptyList());
+		when(seriesRepository.findByIsPublishedTrueOrderByCreatedAtDesc()).thenReturn(List.of());
 
 		String xml = seoService.generateSitemapXml();
 
 		assertNotNull(xml);
-		assertTrue(xml.contains("<loc>http://example.com/posts/test-post?a=1&amp;b=2</loc>"));
+		assertTrue(xml.contains("<loc>http://example.com/single/test-post%3Fa%3D1%26b%3D2</loc>"));
 	}
 
 	@Test
@@ -90,6 +83,6 @@ class SeoServiceImplTest {
 		String txt = seoService.generateRobotsTxt();
 
 		assertNotNull(txt);
-		assertTrue(txt.contains("Sitemap: http://example.com/api/v1/public/seo/sitemap.xml"));
+		assertTrue(txt.contains("Sitemap: http://example.com/sitemap.xml"));
 	}
 }
