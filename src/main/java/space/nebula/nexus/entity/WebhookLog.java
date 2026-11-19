@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @Entity
@@ -37,4 +39,9 @@ public class WebhookLog extends BaseEntity {
 
 	@Column(name = "attempt_count", nullable = false)
 	private Integer attemptCount = 1;
+
+	// An unfinished attempt can be recovered after a worker or API process exits.
+	public boolean isInProgress(LocalDateTime now) {
+		return isSuccess == null && getUpdatedAt() != null && getUpdatedAt().plusMinutes(5).isAfter(now);
+	}
 }

@@ -21,7 +21,7 @@ public interface IWebhookService {
 
 	ApiResponse<WebhookTestResponse> triggerTestWebhook(Long id);
 
-	ApiResponse<Void> redeliverWebhookLog(String deliveryId);
+	ApiResponse<WebhookLogResponse> redeliverWebhookLog(String deliveryId, int attemptCount);
 
 	ApiResponse<space.nebula.nexus.payload.response.PageResult<WebhookLogResponse>> retrieveWebhookLogs(Long id,
 			org.springframework.data.domain.Pageable pageable);

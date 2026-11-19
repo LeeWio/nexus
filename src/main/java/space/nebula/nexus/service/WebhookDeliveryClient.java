@@ -30,14 +30,17 @@ public class WebhookDeliveryClient {
 	 *            HMAC signature
 	 * @param jsonPayload
 	 *            serialized payload
+	 * @param deliveryId
+	 *            stable identifier across attempts, for receiver deduplication
 	 * @return delivery result
 	 */
-	public DeliveryResult post(String url, String event, String signature, String jsonPayload) {
+	public DeliveryResult post(String url, String event, String signature, String jsonPayload, String deliveryId) {
 		Timer.Sample sample = Timer.start(meterRegistry);
 		String outcome = "error";
 		try (HttpResponse response = HttpRequest.post(url).setFollowRedirects(false)
 				.header("Content-Type", "application/json").header("X-Nexus-Signature", signature)
-				.header("X-Nexus-Event", event).body(jsonPayload).timeout(10000).execute()) {
+				.header("X-Nexus-Event", event).header("X-Nexus-Delivery", deliveryId).body(jsonPayload).timeout(10000)
+				.execute()) {
 			outcome = response.isOk() ? "success" : "http_error";
 			return new DeliveryResult(response.getStatus(), StrUtil.maxLength(response.body(), 16000), response.isOk());
 		} finally {
