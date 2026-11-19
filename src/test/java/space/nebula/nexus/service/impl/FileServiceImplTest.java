@@ -19,6 +19,7 @@ import space.nebula.nexus.payload.response.StorageIntegrityResponse;
 import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.utils.FileUtil;
+import space.nebula.nexus.service.AssetUsageService;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +37,9 @@ class FileServiceImplTest {
 	private StorageProvider storageProvider;
 	@Mock
 	private FileRepository fileRepository;
+
+	@Mock
+	private AssetUsageService assetUsageService;
 	@Mock
 	private UserRepository userRepository;
 	@Mock
@@ -144,19 +148,20 @@ class FileServiceImplTest {
 	}
 
 	@Test
-	void deleteFile_RejectsAssetsAttachedToMoments() {
+	void deleteFile_RejectsReferencedAssetsBeforeChangingReferenceCount() {
 		String fileName = "moment.jpg";
 		FileMetadata metadata = new FileMetadata();
 		metadata.setId(7L);
 		metadata.setFileName(fileName);
 		metadata.setReferenceCount(1);
 		when(fileRepository.findByFileName(fileName)).thenReturn(Optional.of(metadata));
-		when(fileRepository.isReferencedByMoment(7L)).thenReturn(true);
+		when(assetUsageService.isInUse(metadata)).thenReturn(true);
 
 		var exception = assertThrows(space.nebula.nexus.common.exception.BusinessException.class,
 				() -> fileService.deleteFile(fileName));
 
-		assertEquals("File is attached to a moment and cannot be deleted", exception.getMessage());
+		assertEquals("File is in use and cannot be deleted", exception.getMessage());
+		assertEquals(1, metadata.getReferenceCount());
 		verify(fileRepository, never()).delete(any(FileMetadata.class));
 		verify(storageProvider, never()).delete(anyString());
 	}

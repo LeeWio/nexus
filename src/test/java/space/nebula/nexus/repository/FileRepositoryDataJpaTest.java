@@ -5,19 +5,49 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import space.nebula.nexus.common.storage.StorageProvider;
+import space.nebula.nexus.entity.Post;
+import space.nebula.nexus.entity.User;
+import space.nebula.nexus.enums.PostStatus;
+import space.nebula.nexus.enums.PostContentType;
+import space.nebula.nexus.payload.response.AssetUsageResponse;
+import space.nebula.nexus.service.AssetUsageService;
+import space.nebula.nexus.task.AbandonedAssetsCleanupTask;
 import space.nebula.nexus.entity.FileMetadata;
 
 import java.time.LocalDateTime;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest(showSql = false)
 @ActiveProfiles("test")
+@Import({AssetUsageService.class, AbandonedAssetsCleanupTask.class})
 class FileRepositoryDataJpaTest {
 
 	@Autowired
 	private FileRepository repository;
+
+	@Autowired
+	private JdbcTemplate jdbc;
+
+	@Autowired
+	private PostRepository posts;
+
+	@Autowired
+	private UserRepository users;
+
+	@Autowired
+	private AssetUsageService usage;
+
+	@Autowired
+	private AbandonedAssetsCleanupTask cleanup;
+
+	@MockitoBean
+	private StorageProvider storageProvider;
 
 	@Test
 	void listsAndSearchesOnlyActiveAssets() {
@@ -35,6 +65,51 @@ class FileRepositoryDataJpaTest {
 		assertEquals(newest.getId(), matching.getContent().getFirst().getId());
 	}
 
+	@Test
+	void articleCoversAndStandaloneThumbnailReferencesSurviveCleanup() {
+		var cover = save("protected-cover.png", "Cover", false);
+		var thumbnailOwner = save("protected-image.png", "Inline image", false);
+		thumbnailOwner.setThumbnailUrl("/files/thumb_protected-image.jpg?version=2");
+		var unused = save("unused-asset.png", "Unused", false);
+		var now = LocalDateTime.now().minusDays(3);
+		repository.saveAndFlush(thumbnailOwner);
+		// Persist the cleanup age regardless of whether an earlier test enabled JPA
+		// auditing.
+		jdbc.update("update sys_file set created_at = ? where id in (?, ?, ?)", java.sql.Timestamp.valueOf(now),
+				cover.getId(), thumbnailOwner.getId(), unused.getId());
+
+		var writer = new User();
+		writer.setUsername("asset-coverage-writer");
+		writer.setEmail("asset-writer@example.test");
+		writer.setPassword("test");
+		writer.setCreatedAt(now);
+		users.save(writer);
+
+		var post = new Post();
+		post.setAuthor(writer);
+		post.setTitle("Cover-only asset");
+		post.setSlug("cover-only-asset");
+		post.setCoverImage("/files/" + cover.getFileName());
+		post.setContent("![Inline](/files/thumb_protected-image.jpg)");
+		post.setContentType(PostContentType.MDX);
+		post.setStatus(PostStatus.PUBLISHED);
+		post.setCreatedAt(now);
+		posts.saveAndFlush(post);
+
+		assertEquals(java.util.List.of(
+				new AssetUsageResponse.Location(AssetUsageResponse.Kind.ARTICLE_COVER, post.getId(), post.getTitle())),
+				usage.getUsage(cover).locations());
+		assertEquals(java.util.List.of(new AssetUsageResponse.Location(AssetUsageResponse.Kind.ARTICLE_CONTENT,
+				post.getId(), post.getTitle())), usage.getUsage(thumbnailOwner).locations());
+		assertTrue(usage.isInUse(cover));
+
+		cleanup.cleanAbandonedAssets();
+
+		assertTrue(repository.findById(cover.getId()).isPresent());
+		assertTrue(repository.findById(thumbnailOwner.getId()).isPresent());
+		assertTrue(repository.findById(unused.getId()).isEmpty());
+	}
+
 	private FileMetadata save(String name, String originalName, boolean deleted) {
 		var file = new FileMetadata();
 		file.setFileName(name);
@@ -43,7 +118,7 @@ class FileRepositoryDataJpaTest {
 		file.setFileType("application/pdf");
 		file.setFileSize(10L);
 		file.setIsDeleted(deleted);
-		var time = LocalDateTime.of(2026, 11, 19, 12, 0);
+		var time = LocalDateTime.now().minusDays(3);
 		file.setCreatedAt(time);
 		file.setUpdatedAt(time);
 		return repository.save(file);

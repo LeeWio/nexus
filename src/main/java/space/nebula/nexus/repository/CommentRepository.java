@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
+import space.nebula.nexus.repository.projection.AssetReferenceText;
 import space.nebula.nexus.entity.Comment;
 import space.nebula.nexus.enums.CommentStatus;
 
@@ -233,8 +234,12 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpec
 	long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(java.time.LocalDateTime start,
 			java.time.LocalDateTime end);
 
-	@org.springframework.data.jpa.repository.Query("SELECT c.content FROM Comment c WHERE c.content IS NOT NULL")
-	java.util.List<String> findAllContents();
+	@Query("""
+			select new space.nebula.nexus.repository.projection.AssetReferenceText(c.id, null, c.content)
+			from Comment c where c.content is not null and (:term is null or locate(:term, cast(c.content as String)) > 0)
+			order by c.id
+			""")
+	List<AssetReferenceText> findAssetReferenceText(String term);
 
 	boolean existsByContentContaining(String keyword);
 

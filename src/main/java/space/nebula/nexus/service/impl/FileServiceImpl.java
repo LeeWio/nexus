@@ -23,6 +23,7 @@ import space.nebula.nexus.common.storage.StorageProvider;
 import space.nebula.nexus.entity.FileMetadata;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.mapper.FileMapper;
+import space.nebula.nexus.payload.response.AssetUsageResponse;
 import space.nebula.nexus.payload.response.FileResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.StorageIntegrityResponse;
@@ -30,6 +31,7 @@ import space.nebula.nexus.payload.response.StorageInventoryResponse;
 import space.nebula.nexus.repository.FileRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
+import space.nebula.nexus.service.AssetUsageService;
 import space.nebula.nexus.service.IFileService;
 import space.nebula.nexus.utils.FileUtil;
 
@@ -58,6 +60,7 @@ public class FileServiceImpl implements IFileService {
 
 	private final StorageProvider storageProvider;
 	private final FileRepository fileRepository;
+	private final AssetUsageService assetUsageService;
 	private final UserRepository userRepository;
 	private final FileMapper fileMapper;
 	private final FileUtil fileUtil;
@@ -258,11 +261,9 @@ public class FileServiceImpl implements IFileService {
 				missingObjects.add(new StorageIntegrityResponse.MissingObject(asset.getId(), "original"));
 			}
 
-			if (StringUtils.hasText(asset.getThumbnailUrl())) {
-				String thumbnailName = extractFileNameFromUrl(asset.getThumbnailUrl());
-				if (!storageProvider.exists(thumbnailName)) {
-					missingObjects.add(new StorageIntegrityResponse.MissingObject(asset.getId(), "thumbnail"));
-				}
+			String thumbnailName = AssetUsageService.thumbnailObjectName(asset);
+			if (thumbnailName != null && !storageProvider.exists(thumbnailName)) {
+				missingObjects.add(new StorageIntegrityResponse.MissingObject(asset.getId(), "thumbnail"));
 			}
 		}
 
@@ -280,18 +281,27 @@ public class FileServiceImpl implements IFileService {
 	}
 
 	@Override
-	@Transactional
-	@LogOperation("Delete File")
-	public ApiResponse<Void> deleteFile(String fileName) {
+	@Transactional(readOnly = true)
+	public ApiResponse<AssetUsageResponse> getFileUsage(String fileName) {
+		return ApiResponse.success(assetUsageService.getUsage(findActiveAsset(fileName)));
+	}
+
+	private FileMetadata findActiveAsset(String fileName) {
 		var sanitizedName = StringUtils.cleanPath(fileName);
 		Assert.isFalse(sanitizedName.contains(".."),
 				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Invalid file path"));
-
-		var metadata = fileRepository.findByFileName(sanitizedName)
+		return fileRepository.findByFileName(sanitizedName).filter(file -> !Boolean.TRUE.equals(file.getIsDeleted()))
 				.orElseThrow(() -> new ResourceNotFoundException("File", "name", sanitizedName));
-		Assert.isFalse(fileRepository.isReferencedByMoment(metadata.getId()),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"File is attached to a moment and cannot be deleted"));
+	}
+
+	@Override
+	@Transactional
+	@LogOperation("Delete File")
+	public ApiResponse<Void> deleteFile(String fileName) {
+		var metadata = findActiveAsset(fileName);
+		String sanitizedName = metadata.getFileName();
+		Assert.isFalse(assetUsageService.isInUse(metadata),
+				() -> new BusinessException(BusinessCode.BAD_REQUEST, "File is in use and cannot be deleted"));
 
 		// 1. Decrement reference count
 		metadata.setReferenceCount(metadata.getReferenceCount() - 1);
@@ -308,8 +318,8 @@ public class FileServiceImpl implements IFileService {
 		// file.
 		List<String> filesToDelete = new ArrayList<>();
 		filesToDelete.add(sanitizedName);
-		if (StrUtil.isNotBlank(metadata.getThumbnailUrl())) {
-			var thumbnailName = extractFileNameFromUrl(metadata.getThumbnailUrl());
+		String thumbnailName = AssetUsageService.thumbnailObjectName(metadata);
+		if (thumbnailName != null) {
 			filesToDelete.add(thumbnailName);
 		}
 
@@ -359,10 +369,6 @@ public class FileServiceImpl implements IFileService {
 	private String fileStem(String filename) {
 		int dotIndex = filename.lastIndexOf('.');
 		return dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
-	}
-
-	private String extractFileNameFromUrl(String url) {
-		return url.substring(url.lastIndexOf('/') + 1);
 	}
 
 	private String formatFileSize(long size) {

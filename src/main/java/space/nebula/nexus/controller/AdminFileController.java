@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.annotation.RateLimit;
+import space.nebula.nexus.payload.response.AssetUsageResponse;
 import space.nebula.nexus.payload.response.FileResponse;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.StorageIntegrityResponse;
@@ -61,8 +62,15 @@ public class AdminFileController {
 		return fileService.uploadFile(file);
 	}
 
+	@GetMapping("/{fileName}/usage")
+	@Operation(summary = "Inspect asset usage", description = "Report the locations in Nexus that prevent this asset from being deleted.")
+	public ApiResponse<AssetUsageResponse> getFileUsage(
+			@Parameter(description = "The unique stored name of the file") @PathVariable String fileName) {
+		return fileService.getFileUsage(fileName);
+	}
+
 	@DeleteMapping("/{fileName}")
-	@Operation(summary = "Delete a file", description = "Permanently removes a file and its associated metadata from storage.")
+	@Operation(summary = "Delete a file", description = "Removes a file reference and purges an unused file when its reference count reaches zero.")
 	public ApiResponse<Void> deleteFile(
 			@Parameter(description = "The unique stored name of the file") @PathVariable String fileName) {
 		return fileService.deleteFile(fileName);
