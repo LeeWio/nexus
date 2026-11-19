@@ -72,4 +72,20 @@ class PostContentAnalyzerTest {
 		assertEquals("Hello world from JSON block editor. Second block.", metadata.autoSummary());
 		assertEquals("[]", metadata.toc());
 	}
+
+	@Test
+	void analyzePreservesFrontendHeadingAnchors() {
+		String jsonContent = """
+				{"type":"doc","content":[
+				 {"type":"heading","attrs":{"level":2,"data-toc-id":"intro"},"content":[{"type":"text","text":"Intro"}]},
+				 {"type":"heading","attrs":{"level":2,"data-toc-id":"intro-2"},"content":[{"type":"text","text":"Intro"}]}
+				]}
+				""";
+
+		PostContentAnalyzer.Metadata metadata = PostContentAnalyzer.analyze("Title", null, jsonContent,
+				PostContentType.JSON);
+
+		assertTrue(metadata.toc().contains("\"anchor\":\"intro\""));
+		assertTrue(metadata.toc().contains("\"anchor\":\"intro-2\""));
+	}
 }

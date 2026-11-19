@@ -23,6 +23,7 @@ import space.nebula.nexus.payload.request.PostScheduleRequest;
 import space.nebula.nexus.payload.response.PageResult;
 import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostDiffResponse;
+import space.nebula.nexus.payload.response.PostMetadataRebuildResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.payload.response.PostRevisionResponse;
 import space.nebula.nexus.payload.response.PostRevisionDetailResponse;
@@ -203,9 +204,11 @@ public class AdminPostController {
 
 	@PostMapping("/rebuild-metadata")
 	@PreAuthorize("hasAnyRole('ADMIN', 'EDITOR')")
-	@Operation(summary = "Rebuild post metadata", description = "Recomputes summaries, table of contents, content hashes, word counts, and reading time.")
-	public ApiResponse<Integer> rebuildPostMetadata() {
-		return postService.rebuildPostContentMetadata();
+	@Operation(summary = "Rebuild post metadata", description = "Recomputes summaries, table of contents, content hashes, word counts, and reading time in bounded batches. Use dryRun before a production rebuild.")
+	public ApiResponse<PostMetadataRebuildResponse> rebuildPostMetadata(
+			@RequestParam(defaultValue = "100") @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(500) int batchSize,
+			@RequestParam(defaultValue = "false") boolean dryRun) {
+		return postService.rebuildPostContentMetadata(batchSize, dryRun);
 	}
 
 	@GetMapping("/autosave/{identifier}")
