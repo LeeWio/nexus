@@ -3,6 +3,7 @@ package space.nebula.nexus.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.web.util.UriUtils;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.Tag;
@@ -18,6 +19,7 @@ import space.nebula.nexus.repository.ProjectRepository;
 import space.nebula.nexus.repository.TagRepository;
 import space.nebula.nexus.service.IPostSearchService;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -46,12 +48,12 @@ public abstract class AbstractPostSearchService implements IPostSearchService {
 
 		var categories = categoryRepository.findByNameContainingIgnoreCase(keyword).stream().limit(3)
 				.map(c -> new QuickSearchResponse.SearchResultItem(c.getId().toString(), c.getName(),
-						"/categories/" + c.getSlug()))
+						route("/single/categories/", c.getSlug())))
 				.toList();
 
 		var tags = tagRepository.findByNameContainingIgnoreCase(keyword).stream().limit(3)
 				.map(t -> new QuickSearchResponse.SearchResultItem(t.getId().toString(), t.getName(),
-						"/tags/" + t.getSlug()))
+						route("/single/tags/", t.getSlug())))
 				.toList();
 
 		return ApiResponse.success(new QuickSearchResponse(posts, categories, tags));
@@ -92,8 +94,8 @@ public abstract class AbstractPostSearchService implements IPostSearchService {
 
 		List<UnifiedSearchResponse.SearchResultItem> items = recentPosts.getContent().stream()
 				.map(p -> UnifiedSearchResponse.SearchResultItem.builder().id("post:" + p.getId()).title(p.getTitle())
-						.subtitle(formatSubtitle(p)).url("/post/" + p.getSlug()).icon("clock").iconColor("#3b82f6")
-						.type("POST").build())
+						.subtitle(formatSubtitle(p)).url(route("/single/", p.getSlug())).icon("clock")
+						.iconColor("#3b82f6").type("POST").build())
 				.collect(Collectors.toList());
 
 		if (!items.isEmpty()) {
@@ -104,11 +106,11 @@ public abstract class AbstractPostSearchService implements IPostSearchService {
 
 	protected void searchProjectsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups) {
 		List<UnifiedSearchResponse.SearchResultItem> items = projectRepository
-				.findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCaseAndIsPublishedTrue(keyword, keyword)
-				.stream().limit(3)
+				.searchPublishedProjects(keyword, PageRequest.of(0, 3)).stream()
 				.map(p -> UnifiedSearchResponse.SearchResultItem.builder().id("project:" + p.getId()).title(p.getName())
-						.subtitle("Personal Project").description(p.getDescription()).url("/project/" + p.getSlug())
-						.icon("layout").iconColor("#8b5cf6").type("PROJECT").build())
+						.subtitle("Personal Project").description(p.getDescription())
+						.url(route("/projects?q=", p.getSlug())).icon("layout").iconColor("#8b5cf6").type("PROJECT")
+						.build())
 				.collect(Collectors.toList());
 
 		if (!items.isEmpty()) {
@@ -121,8 +123,8 @@ public abstract class AbstractPostSearchService implements IPostSearchService {
 		List<UnifiedSearchResponse.SearchResultItem> items = categoryRepository.findByNameContainingIgnoreCase(keyword)
 				.stream().limit(3)
 				.map(c -> UnifiedSearchResponse.SearchResultItem.builder().id("category:" + c.getId())
-						.title(c.getName()).subtitle("Category").url("/category/" + c.getSlug()).icon("folder")
-						.iconColor("#10b981").type("CATEGORY").build())
+						.title(c.getName()).subtitle("Category").url(route("/single/categories/", c.getSlug()))
+						.icon("folder").iconColor("#10b981").type("CATEGORY").build())
 				.collect(Collectors.toList());
 
 		if (!items.isEmpty()) {
@@ -135,8 +137,8 @@ public abstract class AbstractPostSearchService implements IPostSearchService {
 		List<UnifiedSearchResponse.SearchResultItem> items = tagRepository.findByNameContainingIgnoreCase(keyword)
 				.stream().limit(3)
 				.map(t -> UnifiedSearchResponse.SearchResultItem.builder().id("tag:" + t.getId()).title(t.getName())
-						.subtitle("Tag").url("/tag/" + t.getSlug()).icon("tag").iconColor("#f59e0b").type("TAG")
-						.build())
+						.subtitle("Tag").url(route("/single/tags/", t.getSlug())).icon("tag").iconColor("#f59e0b")
+						.type("TAG").build())
 				.collect(Collectors.toList());
 
 		if (!items.isEmpty()) {
@@ -149,7 +151,7 @@ public abstract class AbstractPostSearchService implements IPostSearchService {
 		List<UnifiedSearchResponse.SearchResultItem> items = momentRepository
 				.findByContentContainingIgnoreCaseAndVisibility(keyword, MomentVisibility.PUBLIC).stream().limit(3)
 				.map(m -> UnifiedSearchResponse.SearchResultItem.builder().id("moment:" + m.getId())
-						.title(truncateContent(m.getContent())).subtitle("Moment").url("/moment/" + m.getId())
+						.title(truncateContent(m.getContent())).subtitle("Moment").url("/moments#moment-" + m.getId())
 						.icon("message-square").iconColor("#6366f1").type("MOMENT").build())
 				.collect(Collectors.toList());
 
@@ -170,6 +172,10 @@ public abstract class AbstractPostSearchService implements IPostSearchService {
 
 		return UnifiedSearchResponse.SearchGroup.builder().type("ACTION").label("Quick Actions").priority(100)
 				.items(actions).build();
+	}
+
+	protected static String route(String prefix, String slug) {
+		return prefix + UriUtils.encode(slug, StandardCharsets.UTF_8);
 	}
 
 	protected String formatSubtitle(Post p) {

@@ -51,16 +51,16 @@ public class UnifiedSearchResponse {
 		@Schema(description = "Unique identifier with prefix (e.g., post:1)")
 		private String id;
 
-		@Schema(description = "Primary display title")
+		@Schema(description = "Primary display title as plain text")
 		private String title;
 
 		@Schema(description = "Secondary descriptive text or professional snippet")
 		private String subtitle;
 
-		@Schema(description = "Longer description for detailed views or tooltips")
+		@Schema(description = "Longer description or matched excerpt as plain text")
 		private String description;
 
-		@Schema(description = "Absolute navigation path for Next.js (e.g., /post/slug)")
+		@Schema(description = "Site-relative navigation path (e.g., /single/slug)")
 		private String url;
 
 		@Schema(description = "Optional icon identifier (Lucide icon name)")

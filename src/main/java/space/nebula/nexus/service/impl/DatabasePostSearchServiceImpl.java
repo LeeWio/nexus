@@ -23,6 +23,7 @@ import cn.hutool.core.util.StrUtil;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -88,7 +89,7 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService {
 	protected List<QuickSearchResponse.SearchResultItem> searchQuickPosts(String keyword) {
 		return postRepository.findTop5ByTitleContainingIgnoreCaseAndStatus(keyword, PostStatus.PUBLISHED).stream()
 				.map(p -> new QuickSearchResponse.SearchResultItem(p.getId().toString(), p.getTitle(),
-						"/posts/" + p.getSlug()))
+						route("/single/", p.getSlug())))
 				.toList();
 	}
 
@@ -103,13 +104,14 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService {
 							cb.like(root.get("content"), rawPattern)));
 		};
 
+		Pattern match = keywordPattern(keyword);
 		List<UnifiedSearchResponse.SearchResultItem> items = postRepository
 				.findAll(postSpec, org.springframework.data.domain.PageRequest.of(0, 5)).stream()
-				.map(this::mapToDocument).map(doc -> highlightDocument(doc, keyword))
+				.map(this::mapToDocument)
 				.map(p -> UnifiedSearchResponse.SearchResultItem.builder().id("post:" + p.getId()).title(p.getTitle())
 						.subtitle(p.getPublishedAt() != null ? p.getPublishedAt().toLocalDate().toString() : "")
-						.description(p.getSummary()).url("/post/" + p.getSlug()).icon("book-text").iconColor("#3b82f6")
-						.type("POST").build())
+						.description(searchExcerpt(p, match)).url(route("/single/", p.getSlug())).icon("book-text")
+						.iconColor("#3b82f6").type("POST").build())
 				.collect(Collectors.toList());
 
 		if (!items.isEmpty()) {
@@ -128,46 +130,39 @@ public class DatabasePostSearchServiceImpl extends AbstractPostSearchService {
 			return doc;
 		}
 
-		String escapedKeyword = java.util.regex.Pattern.quote(keyword);
-		java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(?i)(" + escapedKeyword + ")");
-
-		// 1. Highlight Title
-		if (StrUtil.isNotBlank(doc.getTitle())) {
-			java.util.regex.Matcher m = pattern.matcher(doc.getTitle());
-			if (m.find()) {
-				doc.setTitle(m.replaceAll("<mark class=\"search-highlight\">$1</mark>"));
-			}
+		Pattern pattern = keywordPattern(keyword);
+		String excerpt = searchExcerpt(doc, pattern);
+		String highlight = "<mark class=\"search-highlight\">$0</mark>";
+		if (doc.getTitle() != null) {
+			doc.setTitle(pattern.matcher(doc.getTitle()).replaceAll(highlight));
 		}
-
-		// 2. Highlight Summary & fallback to Content snippet
-		boolean summaryHasKeyword = false;
-		if (StrUtil.isNotBlank(doc.getSummary())) {
-			java.util.regex.Matcher m = pattern.matcher(doc.getSummary());
-			if (m.find()) {
-				doc.setSummary(m.replaceAll("<mark class=\"search-highlight\">$1</mark>"));
-				summaryHasKeyword = true;
-			}
+		if (excerpt != null) {
+			doc.setSummary(pattern.matcher(excerpt).replaceAll(highlight));
 		}
-
-		if (!summaryHasKeyword && StrUtil.isNotBlank(doc.getContent())) {
-			java.util.regex.Matcher m = pattern.matcher(doc.getContent());
-			if (m.find()) {
-				int matchIndex = m.start();
-				int start = Math.max(0, matchIndex - 45);
-				int end = Math.min(doc.getContent().length(), matchIndex + keyword.length() + 45);
-
-				String snippet = doc.getContent().substring(start, end);
-				String prefix = start > 0 ? "... " : "";
-				String suffix = end < doc.getContent().length() ? " ..." : "";
-
-				java.util.regex.Matcher snippetMatcher = pattern.matcher(snippet);
-				String highlightedSnippet = snippetMatcher.replaceAll("<mark class=\"search-highlight\">$1</mark>");
-
-				doc.setSummary(prefix + highlightedSnippet + suffix);
-			}
-		}
-
 		return doc;
+	}
+
+	private Pattern keywordPattern(String keyword) {
+		return Pattern.compile(Pattern.quote(keyword), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+	}
+
+	private String searchExcerpt(PostDocument doc, Pattern pattern) {
+		String summary = doc.getSummary();
+		String content = doc.getContent();
+		if ((summary != null && pattern.matcher(summary).find()) || StrUtil.isBlank(content)) {
+			return summary;
+		}
+
+		var match = pattern.matcher(content);
+		if (!match.find()) {
+			return summary;
+		}
+
+		int start = Math.max(0, match.start() - 45);
+		int end = Math.min(content.length(), match.end() + 45);
+		String prefix = start > 0 ? "... " : "";
+		String suffix = end < content.length() ? " ..." : "";
+		return prefix + content.substring(start, end) + suffix;
 	}
 
 	private String normalizedLikePattern(String keyword) {

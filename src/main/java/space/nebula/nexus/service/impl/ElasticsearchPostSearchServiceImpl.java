@@ -220,7 +220,7 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 		SearchHits<PostDocument> hits = elasticsearchOperations.search(query, PostDocument.class);
 		return hits.getSearchHits().stream()
 				.map(hit -> new QuickSearchResponse.SearchResultItem(hit.getContent().getId(),
-						hit.getContent().getTitle(), "/posts/" + hit.getContent().getSlug()))
+						hit.getContent().getTitle(), route("/single/", hit.getContent().getSlug())))
 				.toList();
 	}
 
@@ -228,29 +228,27 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 	protected void searchPostsProfessional(String keyword, List<UnifiedSearchResponse.SearchGroup> groups) {
 		var query = NativeQuery.builder().withQuery(
 				q -> q.multiMatch(m -> m.fields("title^8", "summary^3", "content^1").query(keyword).fuzziness("AUTO")))
-				.withHighlightQuery(new HighlightQuery(new Highlight(List.of(new HighlightField("title"),
-						new HighlightField("summary"), new HighlightField("content"))), PostDocument.class))
+				.withHighlightQuery(new HighlightQuery(
+						new Highlight(List.of(new HighlightField("summary"), new HighlightField("content"))),
+						PostDocument.class))
 				.withPageable(org.springframework.data.domain.PageRequest.of(0, 5)).build();
 
 		SearchHits<PostDocument> searchHits = elasticsearchOperations.search(query, PostDocument.class);
 
 		List<UnifiedSearchResponse.SearchResultItem> items = searchHits.getSearchHits().stream().map(hit -> {
 			PostDocument p = hit.getContent();
-			String displayTitle = p.getTitle();
 			String displayDesc = p.getSummary();
 
 			var highlights = hit.getHighlightFields();
-			if (highlights.containsKey("title"))
-				displayTitle = String.join("", highlights.get("title"));
 			if (highlights.containsKey("summary")) {
-				displayDesc = String.join(" ... ", highlights.get("summary"));
+				displayDesc = plainExcerpt(highlights.get("summary"));
 			} else if (highlights.containsKey("content")) {
-				displayDesc = "... " + String.join(" ... ", highlights.get("content")) + " ...";
+				displayDesc = "... " + plainExcerpt(highlights.get("content")) + " ...";
 			}
 
-			return UnifiedSearchResponse.SearchResultItem.builder().id("post:" + p.getId()).title(displayTitle)
+			return UnifiedSearchResponse.SearchResultItem.builder().id("post:" + p.getId()).title(p.getTitle())
 					.subtitle(p.getPublishedAt() != null ? p.getPublishedAt().toLocalDate().toString() : "")
-					.description(displayDesc).url("/post/" + p.getSlug()).icon("book-text").iconColor("#3b82f6")
+					.description(displayDesc).url(route("/single/", p.getSlug())).icon("book-text").iconColor("#3b82f6")
 					.type("POST").score((double) hit.getScore()).build();
 		}).toList();
 
@@ -258,5 +256,8 @@ public class ElasticsearchPostSearchServiceImpl extends AbstractPostSearchServic
 			groups.add(UnifiedSearchResponse.SearchGroup.builder().type("POST").label("Articles").priority(10)
 					.items(items).build());
 		}
+	}
+	private String plainExcerpt(List<String> fragments) {
+		return String.join(" ... ", fragments).replace("<em>", "").replace("</em>", "");
 	}
 }

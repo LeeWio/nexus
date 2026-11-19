@@ -7,6 +7,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
 import space.nebula.nexus.entity.Moment;
 import space.nebula.nexus.entity.Post;
+import space.nebula.nexus.entity.Project;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.MomentVisibility;
 import space.nebula.nexus.enums.PostContentType;
@@ -21,6 +22,7 @@ import space.nebula.nexus.repository.UserRepository;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
@@ -58,8 +60,12 @@ class DatabasePostSearchServiceDataJpaTest {
 		var response = searchService.unifiedSearch("LowerOnClobRegression");
 
 		assertEquals(1, response.data().getTotalHits());
-		assertTrue(response.data().getGroups().stream().anyMatch(
-				group -> group.getItems().stream().anyMatch(item -> item.getId().equals("post:" + post.getId()))));
+		var result = response.data().getGroups().getFirst().getItems().getFirst();
+		assertEquals("post:" + post.getId(), result.getId());
+		assertEquals("/single/" + post.getSlug(), result.getUrl());
+		assertEquals(post.getTitle(), result.getTitle());
+		assertTrue(result.getDescription().contains("LowerOnClobRegression"));
+		assertFalse(result.getDescription().contains("<mark"));
 	}
 
 	@Test
@@ -73,8 +79,32 @@ class DatabasePostSearchServiceDataJpaTest {
 		var response = searchService.unifiedSearch("momenttextcaseregression");
 
 		assertEquals(1, response.data().getTotalHits());
-		assertTrue(response.data().getGroups().stream().anyMatch(
-				group -> group.getItems().stream().anyMatch(item -> item.getId().equals("moment:" + moment.getId()))));
+		var result = response.data().getGroups().getFirst().getItems().getFirst();
+		assertEquals("moment:" + moment.getId(), result.getId());
+		assertEquals("/moments#moment-" + moment.getId(), result.getUrl());
+	}
+
+	@Test
+	void unifiedSearchLimitsProjectsToPublishedMatchesAndEncodesProjectFilter() {
+		saveProject("Private project route example", "private-route", null, false);
+		saveProject("Public project", "连接 & 读者", "A project route example", true);
+
+		var response = searchService.unifiedSearch("project route example");
+
+		assertEquals(1, response.data().getTotalHits());
+		var result = response.data().getGroups().getFirst().getItems().getFirst();
+		assertEquals("Public project", result.getTitle());
+		assertEquals("/projects?q=%E8%BF%9E%E6%8E%A5%20%26%20%E8%AF%BB%E8%80%85", result.getUrl());
+	}
+
+	private void saveProject(String name, String slug, String description, boolean published) {
+		Project project = new Project();
+		project.setName(name);
+		project.setSlug(slug);
+		project.setDescription(description);
+		project.setIsPublished(published);
+		project.setCreatedAt(LocalDateTime.now());
+		projectRepository.save(project);
 	}
 
 	private User user() {
