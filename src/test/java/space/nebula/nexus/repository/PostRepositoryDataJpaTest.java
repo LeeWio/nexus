@@ -4,8 +4,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import space.nebula.nexus.entity.Post;
+import space.nebula.nexus.entity.PostFavorite;
+import space.nebula.nexus.entity.PostFavoriteId;
 import space.nebula.nexus.entity.PostLike;
 import space.nebula.nexus.entity.PostLikeId;
 import space.nebula.nexus.entity.Category;
@@ -25,6 +28,8 @@ class PostRepositoryDataJpaTest {
 
 	@Autowired
 	private PostRepository postRepository;
+	@Autowired
+	private PostFavoriteRepository favorites;
 	@Autowired
 	private UserRepository userRepository;
 	@Autowired
@@ -117,6 +122,40 @@ class PostRepositoryDataJpaTest {
 
 		assertEquals(1, page.getTotalElements());
 		assertEquals(post.getId(), page.getContent().getFirst().getId());
+	}
+
+	@Test
+	void favoritePagesAreStableWhenDatesTie() {
+		User reader = user();
+		User otherReader = user();
+		Post olderId = postRepository.save(post(reader, "First", "Summary", "Body"));
+		Post newerId = postRepository.save(post(reader, "Second", "Summary", "Body"));
+		Post other = postRepository.save(post(otherReader, "Other reader", "Summary", "Body"));
+		var savedAt = LocalDateTime.of(2026, 9, 1, 12, 0);
+		favorite(reader, olderId, savedAt);
+		favorite(reader, newerId, savedAt);
+		favorite(otherReader, other, savedAt);
+
+		var descending = Sort.by(Sort.Direction.DESC, "createdAt", "id.postId");
+		var page1 = favorites.findVisibleFavorites(reader.getId(), PostStatus.PUBLISHED,
+				PageRequest.of(0, 1, descending));
+		var page2 = favorites.findVisibleFavorites(reader.getId(), PostStatus.PUBLISHED,
+				PageRequest.of(1, 1, descending));
+		var ascending = favorites.findVisibleFavorites(reader.getId(), PostStatus.PUBLISHED,
+				PageRequest.of(0, 1, descending.ascending()));
+		assertEquals(2, page1.getTotalElements());
+		assertEquals(newerId.getId(), page1.getContent().getFirst().getPost().getId());
+		assertEquals(olderId.getId(), page2.getContent().getFirst().getPost().getId());
+		assertEquals(olderId.getId(), ascending.getContent().getFirst().getPost().getId());
+	}
+
+	private void favorite(User reader, Post post, LocalDateTime createdAt) {
+		var favorite = new PostFavorite();
+		favorite.setId(new PostFavoriteId(post.getId(), reader.getId()));
+		favorite.setUser(reader);
+		favorite.setPost(post);
+		favorite.setCreatedAt(createdAt);
+		favorites.saveAndFlush(favorite);
 	}
 
 	private User user() {

@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import space.nebula.nexus.common.ApiResponse;
@@ -98,7 +99,7 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 				.collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
 
 		List<FavoritePostResponse> recentFavorites = favoriteRepository
-				.findVisibleFavorites(user.getId(), PostStatus.PUBLISHED, sectionCandidates).stream()
+				.findVisibleFavorites(user.getId(), PostStatus.PUBLISHED, favoritePage(sectionCandidates)).stream()
 				.filter(favorite -> selectedPostIds.add(favorite.getPost().getId())).limit(OVERVIEW_SECTION_SIZE)
 				.map(favorite -> new FavoritePostResponse(toDigest(favorite.getPost()), favorite.getCreatedAt()))
 				.toList();
@@ -184,9 +185,26 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<FavoritePostResponse>> getFavorites(Pageable pageable) {
 		User user = currentUser();
-		var favorites = favoriteRepository.findVisibleFavorites(user.getId(), PostStatus.PUBLISHED, pageable)
+		var favorites = favoriteRepository
+				.findVisibleFavorites(user.getId(), PostStatus.PUBLISHED, favoritePage(pageable))
 				.map(favorite -> new FavoritePostResponse(toDigest(favorite.getPost()), favorite.getCreatedAt()));
 		return ApiResponse.success(PageResult.of(favorites));
+	}
+
+	private Pageable favoritePage(Pageable pageable) {
+		var sort = Sort.by(pageable.getSort().stream()
+				.map(order -> "favoritedAt".equals(order.getProperty()) ? order.withProperty("createdAt") : order)
+				.toList());
+		if (sort.isUnsorted()) {
+			sort = Sort.by(Sort.Direction.DESC, "createdAt");
+		}
+		if (sort.getOrderFor("id.postId") == null) {
+			var timeOrder = sort.getOrderFor("createdAt");
+			sort = sort.and(Sort.by(timeOrder == null ? Sort.Direction.DESC : timeOrder.getDirection(), "id.postId"));
+		}
+		return pageable.isPaged()
+				? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort)
+				: Pageable.unpaged(sort);
 	}
 
 	@Override

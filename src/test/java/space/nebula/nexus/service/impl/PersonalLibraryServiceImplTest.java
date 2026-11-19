@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
@@ -134,7 +135,8 @@ class PersonalLibraryServiceImplTest {
 
 		when(readingHistoryRepository.findContinuableHistory(42L, PostStatus.PUBLISHED, candidatePage))
 				.thenReturn(List.of(history));
-		when(favoriteRepository.findVisibleFavorites(42L, PostStatus.PUBLISHED, candidatePage))
+		when(favoriteRepository.findVisibleFavorites(42L, PostStatus.PUBLISHED,
+				candidatePage.withSort(Sort.Direction.DESC, "createdAt", "id.postId")))
 				.thenReturn(new PageImpl<>(List.of(duplicateFavorite, distinctFavorite), candidatePage, 2));
 		when(favoriteRepository.findPreferredCategoryIds(42L, PostStatus.PUBLISHED, preferencePage))
 				.thenReturn(List.of(3L));
@@ -190,14 +192,15 @@ class PersonalLibraryServiceImplTest {
 	}
 
 	@Test
-	void favoritesAreReturnedInRepositoryOrder() {
+	void favoritesMapThePublicSortToTheEntityFieldAndAddATieBreaker() {
 		Post post = publishedPost(9L);
 		PostFavorite favorite = new PostFavorite();
 		favorite.setPost(post);
 		favorite.setCreatedAt(LocalDateTime.now());
-		var pageable = PageRequest.of(0, 20);
-		when(favoriteRepository.findVisibleFavorites(42L, PostStatus.PUBLISHED, pageable))
-				.thenReturn(new PageImpl<>(List.of(favorite), pageable, 1));
+		var pageable = PageRequest.of(0, 20, Sort.Direction.ASC, "favoritedAt");
+		var ordered = pageable.withSort(Sort.Direction.ASC, "createdAt", "id.postId");
+		when(favoriteRepository.findVisibleFavorites(42L, PostStatus.PUBLISHED, ordered))
+				.thenReturn(new PageImpl<>(List.of(favorite), ordered, 1));
 		when(postMapper.toDigestResponse(post)).thenReturn(digest(9L));
 
 		var response = personalLibraryService.getFavorites(pageable);
