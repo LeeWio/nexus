@@ -18,4 +18,4 @@
 
 ## Discovery conclusion
 
-State the chosen target branch, safe implementation location, and what must remain blocked until a human decision or platform capability is available.
+State the chosen target branch, safe implementation location, and any concrete missing authorization or platform capability that blocks delivery.

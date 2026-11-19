@@ -39,8 +39,7 @@
 - [ ] No unrelated files or secrets
 - [ ] AI self-review completed
 - [ ] Required conversations are resolved or explicitly blocked
-- [ ] Auto-merge is disabled
-- [ ] Human approval is still required
+- [ ] GitHub merge readiness and any outstanding platform approval are recorded
 
 ## PR identity
 
