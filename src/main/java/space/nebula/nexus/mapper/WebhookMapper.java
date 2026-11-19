@@ -7,6 +7,7 @@ import org.mapstruct.Named;
 import space.nebula.nexus.entity.Webhook;
 import space.nebula.nexus.enums.WebhookEvent;
 import space.nebula.nexus.payload.request.WebhookRequest;
+import space.nebula.nexus.payload.request.WebhookUpdateRequest;
 import space.nebula.nexus.payload.response.WebhookResponse;
 
 import java.util.Arrays;
@@ -32,7 +33,8 @@ public interface WebhookMapper {
 	@Mapping(target = "createdBy", ignore = true)
 	@Mapping(target = "lastModifiedBy", ignore = true)
 	@Mapping(target = "isDeleted", ignore = true)
-	void updateEntity(@org.mapstruct.MappingTarget Webhook webhook, WebhookRequest request);
+	@Mapping(target = "secret", ignore = true)
+	void updateEntity(@org.mapstruct.MappingTarget Webhook webhook, WebhookUpdateRequest request);
 
 	@Mapping(target = "events", source = "events", qualifiedByName = "stringToEvents")
 	WebhookResponse toResponse(Webhook webhook);

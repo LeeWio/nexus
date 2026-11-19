@@ -46,6 +46,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -282,6 +283,13 @@ class PersonalLibraryServiceImplTest {
 
 		assertEquals(1, response.data().getTotal());
 		assertEquals(9L, response.data().getList().getFirst().post().id());
+	}
+
+	@Test
+	void readingListMembershipOnlyChecksTheCurrentAccount() {
+		when(readingListItemRepository.existsByUserIdAndPostIdAndIsDeletedFalse(42L, 9L)).thenReturn(true);
+		assertTrue(personalLibraryService.isInReadingList(9L).data());
+		assertFalse(personalLibraryService.isInReadingList(10L).data());
 	}
 
 	@Test
