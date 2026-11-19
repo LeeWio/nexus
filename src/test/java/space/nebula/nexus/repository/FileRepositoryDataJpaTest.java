@@ -10,7 +10,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import space.nebula.nexus.common.storage.StorageProvider;
+import space.nebula.nexus.entity.FriendLink;
 import space.nebula.nexus.entity.Post;
+import space.nebula.nexus.entity.PostSeries;
 import space.nebula.nexus.entity.User;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.enums.PostContentType;
@@ -36,6 +38,12 @@ class FileRepositoryDataJpaTest {
 
 	@Autowired
 	private PostRepository posts;
+
+	@Autowired
+	private PostSeriesRepository series;
+
+	@Autowired
+	private FriendLinkRepository friendLinks;
 
 	@Autowired
 	private UserRepository users;
@@ -108,6 +116,44 @@ class FileRepositoryDataJpaTest {
 		assertTrue(repository.findById(cover.getId()).isPresent());
 		assertTrue(repository.findById(thumbnailOwner.getId()).isPresent());
 		assertTrue(repository.findById(unused.getId()).isEmpty());
+	}
+
+	@Test
+	void unpublishedSeriesCoversAndFriendLinkAvatarsSurviveCleanup() {
+		var cover = save("series-cover.png", "Series", false);
+		var avatar = save("friend-link-avatar.png", "Friend link", false);
+		var now = LocalDateTime.now().minusDays(3);
+		repository.flush();
+		jdbc.update("update sys_file set created_at = ? where id in (?, ?)", java.sql.Timestamp.valueOf(now),
+				cover.getId(), avatar.getId());
+
+		var column = new PostSeries();
+		column.setName("Draft column");
+		column.setSlug("draft-column");
+		column.setIsPublished(false);
+		column.setCoverImage(cover.getFileUrl());
+		column.setCreatedAt(now);
+		series.saveAndFlush(column);
+
+		var link = new FriendLink();
+		link.setName("Friend");
+		link.setUrl("https://friend.example.test");
+		link.setIsPublished(false);
+		link.setAvatar(avatar.getFileUrl());
+		link.setCreatedAt(now);
+		friendLinks.saveAndFlush(link);
+
+		assertEquals(java.util.List.of(new AssetUsageResponse.Location(AssetUsageResponse.Kind.SERIES_COVER,
+				column.getId(), column.getName())), usage.getUsage(cover).locations());
+		assertEquals(java.util.List.of(new AssetUsageResponse.Location(AssetUsageResponse.Kind.FRIEND_LINK_AVATAR,
+				link.getId(), link.getName())), usage.getUsage(avatar).locations());
+		assertTrue(usage.isInUse(cover));
+		assertTrue(usage.isInUse(avatar));
+
+		cleanup.cleanAbandonedAssets();
+
+		assertTrue(repository.findById(cover.getId()).isPresent());
+		assertTrue(repository.findById(avatar.getId()).isPresent());
 	}
 
 	private FileMetadata save(String name, String originalName, boolean deleted) {

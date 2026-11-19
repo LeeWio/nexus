@@ -8,7 +8,9 @@ import space.nebula.nexus.payload.response.AssetUsageResponse.Kind;
 import space.nebula.nexus.payload.response.AssetUsageResponse.Location;
 import space.nebula.nexus.repository.CommentRepository;
 import space.nebula.nexus.repository.FileRepository;
+import space.nebula.nexus.repository.FriendLinkRepository;
 import space.nebula.nexus.repository.PostRepository;
+import space.nebula.nexus.repository.PostSeriesRepository;
 import space.nebula.nexus.repository.ProjectRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.repository.projection.AssetReferenceText;
@@ -31,6 +33,8 @@ public class AssetUsageService {
 	private final CommentRepository comments;
 	private final UserRepository users;
 	private final ProjectRepository projects;
+	private final PostSeriesRepository series;
+	private final FriendLinkRepository friendLinks;
 	private final FileRepository files;
 
 	public AssetUsageResponse getUsage(FileMetadata file) {
@@ -60,6 +64,7 @@ public class AssetUsageService {
 	private Snapshot load(String term, Long fileId) {
 		return new Snapshot(posts.findAssetReferenceText(term), comments.findAssetReferenceText(term),
 				users.findAssetReferenceText(term), projects.findAssetReferenceText(term),
+				series.findAssetReferenceText(term), friendLinks.findAssetReferenceText(term),
 				files.findMomentAssetReferences(fileId).stream()
 						.collect(groupingBy(FileRepository.MomentAssetReference::getFileId,
 								mapping(FileRepository.MomentAssetReference::getMomentId, toList()))));
@@ -83,7 +88,8 @@ public class AssetUsageService {
 	}
 
 	public record Snapshot(List<PostAssetText> posts, List<AssetReferenceText> comments, List<AssetReferenceText> users,
-			List<AssetReferenceText> projects, Map<Long, List<Long>> moments) {
+			List<AssetReferenceText> projects, List<AssetReferenceText> series, List<AssetReferenceText> friendLinks,
+			Map<Long, List<Long>> moments) {
 
 		public boolean isInUse(FileMetadata file) {
 			return locations(file).findAny().isPresent();
@@ -112,7 +118,9 @@ public class AssetUsageService {
 							.map(id -> new Location(Kind.MOMENT, id, null)),
 					articleUses, matchingLocations(comments, Kind.COMMENT, matches),
 					matchingLocations(users, Kind.USER_AVATAR, matches),
-					matchingLocations(projects, Kind.PROJECT_COVER, matches)).flatMap(stream -> stream);
+					matchingLocations(projects, Kind.PROJECT_COVER, matches),
+					matchingLocations(series, Kind.SERIES_COVER, matches),
+					matchingLocations(friendLinks, Kind.FRIEND_LINK_AVATAR, matches)).flatMap(stream -> stream);
 		}
 
 		private Stream<Location> matchingLocations(List<AssetReferenceText> values, Kind kind,
