@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -29,6 +30,9 @@ class FileRepositoryDataJpaTest {
 
 	@Autowired
 	private FileRepository repository;
+
+	@Autowired
+	private JdbcTemplate jdbc;
 
 	@Autowired
 	private PostRepository posts;
@@ -69,6 +73,10 @@ class FileRepositoryDataJpaTest {
 		var unused = save("unused-asset.png", "Unused", false);
 		var now = LocalDateTime.now().minusDays(3);
 		repository.saveAndFlush(thumbnailOwner);
+		// Persist the cleanup age regardless of whether an earlier test enabled JPA
+		// auditing.
+		jdbc.update("update sys_file set created_at = ? where id in (?, ?, ?)", java.sql.Timestamp.valueOf(now),
+				cover.getId(), thumbnailOwner.getId(), unused.getId());
 
 		var writer = new User();
 		writer.setUsername("asset-coverage-writer");
