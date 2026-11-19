@@ -44,8 +44,8 @@ public class AbandonedAssetsCleanupTask {
 			return;
 		}
 
-		// Batch current references. Check revision history only for files with no
-		// current references.
+		// Batch public and saved content references before querying revisions and
+		// editor drafts.
 		var usage = assetUsageService.loadSnapshot();
 
 		long purgedCount = 0;
@@ -54,7 +54,8 @@ public class AbandonedAssetsCleanupTask {
 		for (FileMetadata file : potentialOrphans) {
 			String fileName = file.getFileName();
 
-			if (!usage.isInUse(file) && !assetUsageService.isInArticleHistory(file)) {
+			if (!usage.isInUse(file) && !assetUsageService.isInArticleHistory(file)
+					&& !assetUsageService.isInEditorDraft(file)) {
 				try {
 					// Delete metadata in the transaction first. Physical objects are removed only
 					// after commit so a database rollback cannot leave a live row without a file.

@@ -163,7 +163,7 @@ public class NotificationServiceImpl implements INotificationService {
 	@Transactional
 	public ApiResponse<NotificationPreferenceResponse> updateMyPreferences(NotificationPreferenceRequest request) {
 		User currentUser = SecurityUtil.getCurrentUserOrThrow(userRepository);
-		userRepository.findNotificationPreferenceOwnerForUpdate(currentUser.getId()).orElseThrow();
+		userRepository.findByIdForUpdate(currentUser.getId()).orElseThrow();
 		NotificationPreference preference = notificationPreferenceRepository.findByUserId(currentUser.getId())
 				.orElseGet(() -> {
 					NotificationPreference created = new NotificationPreference();

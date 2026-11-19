@@ -26,6 +26,8 @@ public interface IPostService {
 
 	ApiResponse<PostResponse> createPost(PostRequest request);
 
+	ApiResponse<PostResponse> createPost(PostRequest request, String editorDraftRevision);
+
 	ApiResponse<PostResponse> updatePost(Long id, PostRequest request);
 
 	/**
@@ -33,6 +35,9 @@ public interface IPostService {
 	 * revision. A {@code null} expected revision keeps legacy clients compatible.
 	 */
 	ApiResponse<PostResponse> updatePost(Long id, PostRequest request, Integer expectedRevisionNumber);
+
+	ApiResponse<PostResponse> updatePost(Long id, PostRequest request, Integer expectedRevisionNumber,
+			String editorDraftRevision);
 
 	ApiResponse<Void> deletePost(Long id);
 

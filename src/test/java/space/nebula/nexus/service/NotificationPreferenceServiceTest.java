@@ -56,7 +56,7 @@ class NotificationPreferenceServiceTest {
 	void replacementClearsOmittedCategoriesAndStoresExplicitOverrides() {
 		User user = new User();
 		user.setId(4L);
-		when(userRepository.findNotificationPreferenceOwnerForUpdate(4L)).thenReturn(Optional.of(user));
+		when(userRepository.findByIdForUpdate(4L)).thenReturn(Optional.of(user));
 		NotificationCategoryPreference existing = override(NotificationCategory.REPORT, true, false);
 		when(categoryRepository.findByUserId(4L)).thenReturn(List.of(existing), List.of());
 		Map<NotificationCategory, NotificationCategoryPreferenceRequest.Channels> overrides = new EnumMap<>(

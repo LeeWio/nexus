@@ -94,8 +94,10 @@ public class AdminPostController {
 	@PreAuthorize("isAuthenticated()")
 	@Operation(summary = "Create a new post", description = "Initializes a new blog post with provided metadata and content.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Post created successfully")
-	public ApiResponse<PostResponse> createPost(@Valid @RequestBody PostRequest request) {
-		return postService.createPost(request);
+	public ApiResponse<PostResponse> createPost(
+			@RequestHeader(value = "X-Editor-Draft-Revision", required = false) String editorDraftRevision,
+			@Valid @RequestBody PostRequest request) {
+		return postService.createPost(request, editorDraftRevision);
 	}
 
 	@PutMapping("/{id}")
@@ -107,8 +109,9 @@ public class AdminPostController {
 	public ApiResponse<PostResponse> updatePost(
 			@Parameter(description = "ID of the post to update") @PathVariable Long id,
 			@Parameter(description = "Optional current revision version. Accepts 3 or \"revision-3\" and rejects stale writes with HTTP 409.") @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+			@RequestHeader(value = "X-Editor-Draft-Revision", required = false) String editorDraftRevision,
 			@Valid @RequestBody PostRequest request) {
-		return postService.updatePost(id, request, parseExpectedRevision(ifMatch));
+		return postService.updatePost(id, request, parseExpectedRevision(ifMatch), editorDraftRevision);
 	}
 
 	@DeleteMapping("/{id}")
