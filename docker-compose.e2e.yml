@@ -1,0 +1,109 @@
+services:
+  nexus-app:
+    build:
+      context: .
+      target: default
+    image: nexus-api:notification-reading-e2e
+    environment:
+      SPRING_PROFILES_ACTIVE: common,dev
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SEARCH_TYPE: database
+      DEV_DB_HOST: nexus-db
+      DEV_DB_PORT: 3306
+      DEV_DB_NAME: nexus_e2e
+      DEV_DB_USERNAME: root
+      DEV_DB_PASSWORD: nexus_e2e_password
+      DEV_REDIS_HOST: nexus-redis
+      DEV_REDIS_PORT: 6379
+      DEV_REDIS_PASSWORD: ""
+      RABBITMQ_HOST: nexus-rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: nexus
+      RABBITMQ_PASSWORD: nexus_e2e_password
+      DEV_MAIL_HOST: nexus-mail
+      DEV_MAIL_PORT: 1025
+      DEV_MAIL_USERNAME: e2e@nexus.test
+      DEV_MAIL_PASSWORD: e2e-password
+      DEV_MAIL_AUTH: "false"
+      DEV_MAIL_SSL: "false"
+      DEV_MAIL_STARTTLS: "false"
+      BOOTSTRAP_ADMIN_ENABLED: "true"
+      BOOTSTRAP_ADMIN_USERNAME: e2e-admin
+      BOOTSTRAP_ADMIN_EMAIL: e2e-admin@nexus.test
+      BOOTSTRAP_ADMIN_PASSWORD: e2e-admin-password
+      APP_BASE_URL: http://127.0.0.1:3100
+      CORS_ALLOWED_ORIGINS: http://127.0.0.1:3100
+      JWT_SECRET: e2e-only-jwt-secret-that-is-long-enough
+      ANALYTICS_HASH_SALT: e2e-only-analytics-salt
+      GITHUB_TOKEN: e2e-token
+      GITHUB_OAUTH_CLIENT_ID: e2e-client
+      GITHUB_OAUTH_CLIENT_SECRET: e2e-client-secret
+      GOOGLE_OAUTH_CLIENT_ID: e2e-google-client
+      GOOGLE_OAUTH_CLIENT_SECRET: e2e-google-client-secret
+      OAUTH2_REDIRECT_URI: http://127.0.0.1:3100/oauth2/redirect
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+    ports:
+      - "18080:8080"
+    depends_on:
+      nexus-db:
+        condition: service_healthy
+      nexus-redis:
+        condition: service_healthy
+      nexus-rabbitmq:
+        condition: service_healthy
+      nexus-mail:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 45s
+    networks:
+      - nexus-e2e
+
+  nexus-db:
+    image: mysql:8.4.9
+    environment:
+      MYSQL_DATABASE: nexus_e2e
+      MYSQL_ROOT_PASSWORD: nexus_e2e_password
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -pnexus_e2e_password --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks:
+      - nexus-e2e
+
+  nexus-redis:
+    image: redis:7.4-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - nexus-e2e
+
+  nexus-rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: nexus
+      RABBITMQ_DEFAULT_PASS: nexus_e2e_password
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - nexus-e2e
+
+  nexus-mail:
+    image: axllent/mailpit:v1.27.8
+    networks:
+      - nexus-e2e
+
+networks:
+  nexus-e2e:
+    name: nexus-notification-reading-e2e
