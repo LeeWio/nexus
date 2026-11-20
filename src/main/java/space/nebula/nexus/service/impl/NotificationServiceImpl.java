@@ -143,7 +143,7 @@ public class NotificationServiceImpl implements INotificationService {
 		String title = "New post in " + categoryName;
 		String content = "\"" + post.getTitle() + "\" is now available in a category you follow.";
 		int inserted = notificationRepository.insertCategoryPublicationNotifications(post.getCategory().getId(),
-				post.getAuthor().getId(), post.getId(), title, content, "/post/" + post.getSlug());
+				post.getAuthor().getId(), post.getId(), title, content, "/single/" + post.getSlug());
 		notificationRepository.findCategoryPublicationEmailNotifications("CATEGORY_POST:" + post.getId() + ":")
 				.forEach(notification -> dispatchEmail(notification, notification.getRecipient(),
 						notification.getTitle(), notification.getContent(), notification.getLink()));
