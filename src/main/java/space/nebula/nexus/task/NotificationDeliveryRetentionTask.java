@@ -28,25 +28,28 @@ public class NotificationDeliveryRetentionTask {
 	@Transactional
 	public void purgeExpiredRecords() {
 		LocalDateTime now = LocalDateTime.now();
-		long deliveryCount = purgeDeliveries(now.minusDays(properties.getDeliveryDays()));
-		long retryCount = purgeRetries(now.minusDays(properties.getRetryAuditDays()));
+		PurgeCounts deliveryPurge = purgeDeliveries(now.minusDays(properties.getDeliveryDays()));
+		long deliveryCount = deliveryPurge.deliveries();
+		long retryCount = deliveryPurge.retries() + purgeRetries(now.minusDays(properties.getRetryAuditDays()));
 		if (deliveryCount > 0 || retryCount > 0) {
 			log.info("Purged expired notification delivery records. deliveries={}, retryAudits={}", deliveryCount,
 					retryCount);
 		}
 	}
 
-	private long purgeDeliveries(LocalDateTime cutoff) {
-		long removed = 0;
+	private PurgeCounts purgeDeliveries(LocalDateTime cutoff) {
+		long deliveriesRemoved = 0;
+		long retriesRemoved = 0;
 		List<Long> ids;
 		do {
 			ids = deliveries.findRetentionIds(TERMINAL_STATUSES, cutoff, PageRequest.of(0, properties.getBatchSize()));
 			if (!ids.isEmpty()) {
+				retriesRemoved += retries.deleteByDeliveryIdIn(ids);
 				deliveries.deleteAllByIdInBatch(ids);
-				removed += ids.size();
+				deliveriesRemoved += ids.size();
 			}
 		} while (!ids.isEmpty());
-		return removed;
+		return new PurgeCounts(deliveriesRemoved, retriesRemoved);
 	}
 
 	private long purgeRetries(LocalDateTime cutoff) {
@@ -60,5 +63,8 @@ public class NotificationDeliveryRetentionTask {
 			}
 		} while (!ids.isEmpty());
 		return removed;
+	}
+
+	private record PurgeCounts(long deliveries, long retries) {
 	}
 }

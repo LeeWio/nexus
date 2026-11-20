@@ -33,6 +33,7 @@ class NotificationDeliveryRetentionTaskTest {
 		task.purgeExpiredRecords();
 
 		var order = inOrder(deliveries, retries);
+		order.verify(retries).deleteByDeliveryIdIn(List.of(1L, 2L));
 		order.verify(deliveries).deleteAllByIdInBatch(List.of(1L, 2L));
 		order.verify(retries).deleteAllByIdInBatch(List.of(3L));
 	}
