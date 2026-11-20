@@ -102,14 +102,14 @@ class NotificationServiceImplTest {
 		when(postRepository.findPublicationNotificationPost(7L)).thenReturn(Optional.of(post));
 		when(notificationRepository.insertCategoryPublicationNotifications(3L, 9L, 7L, "New post in Architecture",
 				"\"Designing Reliable Services\" is now available in a category you follow.",
-				"/post/designing-reliable-services")).thenReturn(12);
+				"/single/designing-reliable-services")).thenReturn(12);
 
 		int recipients = notificationService.sendCategoryPublication(7L);
 
 		assertEquals(12, recipients);
 		verify(notificationRepository).insertCategoryPublicationNotifications(3L, 9L, 7L, "New post in Architecture",
 				"\"Designing Reliable Services\" is now available in a category you follow.",
-				"/post/designing-reliable-services");
+				"/single/designing-reliable-services");
 	}
 
 	@Test

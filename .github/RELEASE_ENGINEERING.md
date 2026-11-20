@@ -80,3 +80,10 @@ profile keeps the existing compatibility setting until that history is verified.
    and validate application startup, migration history and the API smoke test.
    Enable it in production through a separately approved rollout after these
    checks pass with the actual release artifact.
+
+The read-only validation command is available at
+`scripts/validate-flyway-history.sh`. Run it against the restored copy with
+`MYSQL_URL`, `MYSQL_USER`, and `MYSQL_PASSWORD`; it performs `info` and
+`validate` through the pinned Flyway Docker image and never runs `repair` or
+changes the database. The command is evidence for the reconciliation review,
+not a substitute for the protected backup and restore rehearsal.
