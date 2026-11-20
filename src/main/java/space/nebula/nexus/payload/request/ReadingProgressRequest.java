@@ -4,7 +4,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
+
+import java.time.Instant;
 
 /**
  * Request for recording a user's resumable reading position.
@@ -17,5 +20,6 @@ import jakarta.validation.constraints.Size;
 @Schema(description = "Reading progress update")
 public record ReadingProgressRequest(
 		@NotNull @Min(0) @Max(100) @Schema(description = "Reading progress percentage", example = "65") Integer progressPercent,
-		@Size(max = 500) @Schema(description = "Stable frontend reading position") String positionAnchor) {
+		@Size(max = 500) @Schema(description = "Stable frontend reading position") String positionAnchor,
+		@NotNull @PastOrPresent @Schema(description = "Time at which the browser observed this position", example = "2026-11-19T15:00:00Z") Instant observedAt) {
 }

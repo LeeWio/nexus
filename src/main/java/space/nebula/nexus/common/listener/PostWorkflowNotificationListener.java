@@ -46,7 +46,7 @@ public class PostWorkflowNotificationListener {
 				type = NotificationType.POST_PUBLISHED;
 				title = "Post published";
 				content = "\"" + post.getTitle() + "\" is now published.";
-				link = "/post/" + post.getSlug();
+				link = "/single/" + post.getSlug();
 			}
 			case SCHEDULED -> {
 				type = NotificationType.POST_SCHEDULED;

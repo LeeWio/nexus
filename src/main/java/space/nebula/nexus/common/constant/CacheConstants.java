@@ -43,7 +43,6 @@ public final class CacheConstants {
 	public static final String PUBLIC_SERIES_TREE_KEY = "'series_tree:' + #slug";
 	public static final String POST_SLUG_KEY = "'slug:' + #slug";
 	public static final String POST_SLUG_PREFIX = "nexus:post:slug:";
-	public static final String POST_AUTOSAVE_PREFIX = "nexus:post:autosave:";
 	public static final String POST_PREVIEW_PREFIX = "nexus:post:preview:";
 	public static final String POST_VIEW_EXTRA_HASH = "nexus:post:views:extra";
 

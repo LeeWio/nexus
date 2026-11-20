@@ -163,7 +163,7 @@ public class PersonalLibraryController {
 
 	/** Returns resumable reading history. */
 	@GetMapping("/history")
-	@Operation(summary = "Get reading history", description = "Return resumable reading sessions for the current user, including the latest stored percentage and frontend position anchor.")
+	@Operation(summary = "Get reading history", description = "Return resumable reading sessions for the current user, including the latest position and furthest progress reached.")
 	public ApiResponse<PageResult<ReadingHistoryResponse>> getReadingHistory(
 			@PageableDefault(size = 20) Pageable pageable) {
 		return personalLibraryService.getReadingHistory(pageable);
@@ -171,7 +171,7 @@ public class PersonalLibraryController {
 
 	/** Records reading progress for a published post. */
 	@PutMapping("/posts/{postId}/progress")
-	@Operation(summary = "Save reading progress", description = "Create or replace the current user's progress for a published post. positionAnchor is frontend-defined and should remain stable across renders.")
+	@Operation(summary = "Save reading progress", description = "Save the browser's observed position for a published post. The server keeps the latest position and furthest progress independently; observedAt orders delayed browser events.")
 	public ApiResponse<ReadingHistoryResponse> recordReadingProgress(
 			@Parameter(description = "Published post ID") @PathVariable Long postId,
 			@Valid @RequestBody ReadingProgressRequest request) {

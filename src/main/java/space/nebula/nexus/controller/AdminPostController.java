@@ -15,13 +15,11 @@ import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.enums.PostReportStatus;
 import space.nebula.nexus.payload.request.BatchDeleteRequest;
-import space.nebula.nexus.payload.request.PostAutosaveRequest;
 import space.nebula.nexus.payload.request.PostArchiveRequest;
 import space.nebula.nexus.payload.request.PostReportResolutionRequest;
 import space.nebula.nexus.payload.request.PostRequest;
 import space.nebula.nexus.payload.request.PostScheduleRequest;
 import space.nebula.nexus.payload.response.PageResult;
-import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostDiffResponse;
 import space.nebula.nexus.payload.response.PostMetadataRebuildResponse;
 import space.nebula.nexus.payload.response.PostResponse;
@@ -31,13 +29,15 @@ import space.nebula.nexus.payload.response.PostRevisionSummaryResponse;
 import space.nebula.nexus.payload.response.PostReportResponse;
 import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostReportService;
+import space.nebula.nexus.service.IPostPublicationService;
+import space.nebula.nexus.service.IPublicPostQueryService;
 import space.nebula.nexus.service.IPostService;
 
 import java.util.List;
 
 /**
  * Controller for administrative blog post management. Handles CRUD operations,
- * autosave, and content revisions.
+ * database-backed drafts, and content revisions.
  */
 @Tag(name = "Admin Post Management", description = "Endpoints for authors to manage blog posts")
 @RestController
@@ -46,6 +46,8 @@ import java.util.List;
 public class AdminPostController {
 
 	private final IPostService postService;
+	private final IPostPublicationService publicationService;
+	private final IPublicPostQueryService publicPostQueryService;
 	private final IPostRevisionService postRevisionService;
 	private final IPostReportService postReportService;
 	private final space.nebula.nexus.service.IStaticGenerationService staticGenerationService;
@@ -142,14 +144,14 @@ public class AdminPostController {
 	@PreAuthorize("hasPermission(#id, 'Post', 'SUBMIT')")
 	@Operation(summary = "Submit for review", description = "Submit a draft post for editorial review.")
 	public ApiResponse<Void> submitForReview(@PathVariable Long id) {
-		return postService.submitForReview(id);
+		return publicationService.submitForReview(id);
 	}
 
 	@PostMapping("/{id}/withdraw")
 	@PreAuthorize("hasPermission(#id, 'Post', 'SUBMIT')")
 	@Operation(summary = "Withdraw from review", description = "Return a pending post to draft status for revision.")
 	public ApiResponse<Void> withdrawFromReview(@PathVariable Long id) {
-		return postService.withdrawFromReview(id);
+		return publicationService.withdrawFromReview(id);
 	}
 
 	@PostMapping("/{id}/review")
@@ -157,49 +159,42 @@ public class AdminPostController {
 	@Operation(summary = "Review post", description = "Approve or reject a submitted post.")
 	public ApiResponse<Void> reviewPost(@PathVariable Long id,
 			@Valid @RequestBody space.nebula.nexus.payload.request.PostReviewRequest request) {
-		return postService.reviewPost(id, request.approved(), request.reviewComment());
+		return publicationService.reviewPost(id, request.approved(), request.reviewComment());
 	}
 
 	@PostMapping("/{id}/schedule")
 	@PreAuthorize("hasPermission(#id, 'Post', 'APPROVE')")
 	@Operation(summary = "Schedule publication", description = "Approve a pending post and schedule it for future publication.")
 	public ApiResponse<Void> schedulePost(@PathVariable Long id, @Valid @RequestBody PostScheduleRequest request) {
-		return postService.schedulePost(id, request);
+		return publicationService.schedulePost(id, request);
 	}
 
 	@DeleteMapping("/{id}/schedule")
 	@PreAuthorize("hasPermission(#id, 'Post', 'APPROVE')")
 	@Operation(summary = "Cancel scheduled publication", description = "Return a scheduled post to editorial review without publishing it.")
 	public ApiResponse<Void> cancelScheduledPost(@PathVariable Long id) {
-		return postService.cancelScheduledPost(id);
+		return publicationService.cancelScheduledPost(id);
 	}
 
 	@PostMapping("/{id}/archive")
 	@PreAuthorize("hasPermission(#id, 'Post', 'APPROVE')")
 	@Operation(summary = "Archive published post", description = "Remove a published post from public visibility while retaining its audit history.")
 	public ApiResponse<Void> archivePost(@PathVariable Long id, @Valid @RequestBody PostArchiveRequest request) {
-		return postService.archivePost(id, request);
+		return publicationService.archivePost(id, request);
 	}
 
 	@PostMapping("/{id}/restore")
 	@PreAuthorize("hasPermission(#id, 'Post', 'APPROVE')")
 	@Operation(summary = "Restore archived post", description = "Return an archived post to draft status for revision and a new review cycle.")
 	public ApiResponse<Void> restoreArchivedPost(@PathVariable Long id) {
-		return postService.restoreArchivedPost(id);
-	}
-
-	@PostMapping("/autosave")
-	@PreAuthorize("isAuthenticated()")
-	@Operation(summary = "Autosave content", description = "Non-persistent saving of content to Redis to prevent data loss during editing.")
-	public ApiResponse<Void> autosavePost(@Valid @RequestBody PostAutosaveRequest request) {
-		return postService.autosavePostContent(request);
+		return publicationService.restoreArchivedPost(id);
 	}
 
 	@PostMapping("/{id}/preview-token")
 	@PreAuthorize("hasPermission(#id, 'Post', 'READ') or hasAnyRole('ADMIN', 'EDITOR')")
 	@Operation(summary = "Create preview token", description = "Creates a short-lived token for previewing a non-public post.")
 	public ApiResponse<String> createPreviewToken(@PathVariable Long id) {
-		return postService.createPreviewToken(id);
+		return publicPostQueryService.createPreviewToken(id);
 	}
 
 	@PostMapping("/rebuild-metadata")
@@ -209,14 +204,6 @@ public class AdminPostController {
 			@RequestParam(defaultValue = "100") @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(500) int batchSize,
 			@RequestParam(defaultValue = "false") boolean dryRun) {
 		return postService.rebuildPostContentMetadata(batchSize, dryRun);
-	}
-
-	@GetMapping("/autosave/{identifier}")
-	@PreAuthorize("isAuthenticated()")
-	@Operation(summary = "Retrieve autosaved content", description = "Get the last autosaved version using the identifier (ID or UUID).")
-	public ApiResponse<PostAutosaveResponse> retrieveAutosave(
-			@Parameter(description = "Identifier for the autosave session") @PathVariable String identifier) {
-		return postService.retrieveAutosavedContent(identifier);
 	}
 
 	@GetMapping("/{id}/revisions")

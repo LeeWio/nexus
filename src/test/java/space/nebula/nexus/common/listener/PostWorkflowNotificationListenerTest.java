@@ -33,7 +33,7 @@ class PostWorkflowNotificationListenerTest {
 		var event = new PostChangedEvent(this, post, PostChangeType.PUBLISHED);
 		new PostWorkflowNotificationListener(notifications).onPostChanged(event);
 		verify(notifications).sendOnce(post.getAuthor(), "Post published", "\"Example\" is now published.",
-				NotificationType.POST_PUBLISHED, "/post/example", event.getNotificationEventId(),
+				NotificationType.POST_PUBLISHED, "/single/example", event.getNotificationEventId(),
 				new NotificationContext(POST, 7L, event.getNotificationActorId(), VIEW));
 	}
 
@@ -78,7 +78,7 @@ class PostWorkflowNotificationListenerTest {
 		var event = new PostChangedEvent(this, post, PostChangeType.CREATED);
 		new PostWorkflowNotificationListener(notifications).onPostChanged(event);
 		verify(notifications).sendOnce(post.getAuthor(), "Post published", "\"Example\" is now published.",
-				NotificationType.POST_PUBLISHED, "/post/example", event.getNotificationEventId(),
+				NotificationType.POST_PUBLISHED, "/single/example", event.getNotificationEventId(),
 				new NotificationContext(POST, 7L, event.getNotificationActorId(), VIEW));
 	}
 

@@ -5,10 +5,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import space.nebula.nexus.entity.ReadingHistory;
 import space.nebula.nexus.enums.PostStatus;
+
+import jakarta.persistence.LockModeType;
 
 import java.util.Optional;
 import java.util.List;
@@ -18,8 +21,11 @@ import java.util.List;
  */
 @Repository
 public interface ReadingHistoryRepository extends JpaRepository<ReadingHistory, Long> {
-	/** Returns the unique reading state for a user and post. */
-	Optional<ReadingHistory> findByUserIdAndPostIdAndIsDeletedFalse(Long userId, Long postId);
+	/** Locks one reading state so first creation and updates are serialized. */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT history FROM ReadingHistory history WHERE history.user.id = :userId "
+			+ "AND history.post.id = :postId AND history.isDeleted = false")
+	Optional<ReadingHistory> findForUpdate(Long userId, Long postId);
 
 	/** Returns visible reading history in most-recently-read order. */
 	@EntityGraph(attributePaths = {"post", "post.category", "post.author"})

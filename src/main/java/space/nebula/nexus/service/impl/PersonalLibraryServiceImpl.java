@@ -52,6 +52,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 /**
  * Transactional implementation of the authenticated user's personal content
@@ -228,11 +230,13 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	@Override
 	@Transactional
 	public ApiResponse<ReadingHistoryResponse> recordReadingProgress(Long postId, ReadingProgressRequest request) {
-		User user = currentUser();
+		User user = userRepository.findByIdForUpdate(currentUser().getId())
+				.orElseThrow(() -> new ResourceNotFoundException("User", "id", currentUser().getId()));
 		Post post = findPublishedPost(postId);
-		ReadingHistory history = readingHistoryRepository.findByUserIdAndPostIdAndIsDeletedFalse(user.getId(), postId)
+		ReadingHistory history = readingHistoryRepository.findForUpdate(user.getId(), postId)
 				.orElseGet(() -> newReadingHistory(user, post));
-		history.recordProgress(request.progressPercent(), normalizeOptional(request.positionAnchor()));
+		history.recordProgress(request.progressPercent(), normalizeOptional(request.positionAnchor()),
+				LocalDateTime.ofInstant(request.observedAt(), ZoneOffset.UTC));
 		ReadingHistory saved = readingHistoryRepository.save(history);
 		return ApiResponse.success("Reading progress saved", toReadingHistoryResponse(saved));
 	}
@@ -403,8 +407,9 @@ public class PersonalLibraryServiceImpl implements IPersonalLibraryService {
 	}
 
 	private ReadingHistoryResponse toReadingHistoryResponse(ReadingHistory history) {
-		return new ReadingHistoryResponse(toDigest(history.getPost()), history.getProgressPercent(),
-				history.getPositionAnchor(), history.getLastReadAt(), history.getCompletedAt());
+		return new ReadingHistoryResponse(toDigest(history.getPost()), history.getCurrentProgressPercent(),
+				history.getProgressPercent(), history.getPositionAnchor(), history.getLastReadAt(),
+				history.getCompletedAt());
 	}
 
 	private List<Long> preferredCategoryIds(Long userId, List<Long> followedCategoryIds) {

@@ -32,11 +32,17 @@ public class ReadingHistory extends BaseEntity {
 	@Column(name = "progress_percent", nullable = false)
 	private Integer progressPercent = 0;
 
+	@Column(name = "current_progress_percent", nullable = false)
+	private Integer currentProgressPercent = 0;
+
 	@Column(name = "position_anchor", length = 500)
 	private String positionAnchor;
 
 	@Column(name = "last_read_at", nullable = false)
 	private LocalDateTime lastReadAt;
+
+	@Column(name = "last_observed_at", nullable = false)
+	private LocalDateTime lastObservedAt;
 
 	@Column(name = "completed_at")
 	private LocalDateTime completedAt;
@@ -52,13 +58,17 @@ public class ReadingHistory extends BaseEntity {
 	 *            Progress is monotonic so a stale browser report cannot erase more
 	 *            advanced reading history.
 	 */
-	public void recordProgress(Integer progressPercent, String positionAnchor) {
-		if (this.progressPercent != null && progressPercent < this.progressPercent) {
+	public void recordProgress(Integer progressPercent, String positionAnchor, LocalDateTime observedAt) {
+		if (this.lastObservedAt != null && observedAt.isBefore(this.lastObservedAt)) {
 			return;
 		}
-		this.progressPercent = progressPercent;
+		this.currentProgressPercent = progressPercent;
 		this.positionAnchor = positionAnchor;
-		this.lastReadAt = LocalDateTime.now();
-		this.completedAt = progressPercent == 100 ? this.lastReadAt : null;
+		this.lastReadAt = observedAt;
+		this.lastObservedAt = observedAt;
+		this.progressPercent = Math.max(this.progressPercent == null ? 0 : this.progressPercent, progressPercent);
+		if (this.progressPercent >= 100 && this.completedAt == null) {
+			this.completedAt = observedAt;
+		}
 	}
 }
