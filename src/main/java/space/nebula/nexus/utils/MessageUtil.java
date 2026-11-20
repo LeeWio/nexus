@@ -3,6 +3,7 @@ package space.nebula.nexus.utils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Component;
+import org.springframework.context.i18n.LocaleContextHolder;
 
 import java.util.Locale;
 
@@ -26,7 +27,7 @@ public class MessageUtil {
 	 * Get a localized message for the given key and arguments.
 	 */
 	public String get(String key, Object... args) {
-		return messageSource.getMessage(key, args, Locale.ENGLISH);
+		return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
 	}
 
 	/**
@@ -40,6 +41,6 @@ public class MessageUtil {
 	 * Get the current locale.
 	 */
 	public Locale getLocale() {
-		return Locale.ENGLISH;
+		return LocaleContextHolder.getLocale();
 	}
 }

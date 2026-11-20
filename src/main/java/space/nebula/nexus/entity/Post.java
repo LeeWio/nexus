@@ -10,6 +10,7 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
@@ -22,6 +23,8 @@ import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
 @Getter
@@ -147,6 +150,10 @@ public class Post extends BaseEntity {
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(name = "blog_post_tag", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
 	private Set<Tag> tags = new HashSet<>();
+
+	@OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+	@jakarta.persistence.MapKey(name = "locale")
+	private Map<String, PostTranslation> translations = new LinkedHashMap<>();
 
 	@Version
 	@Column(name = "lock_version", nullable = false)

@@ -36,9 +36,20 @@ public class WebConfig implements WebMvcConfigurer {
 		}
 	};
 
+	private final HandlerInterceptor localeResponseInterceptor = new HandlerInterceptor() {
+		@Override
+		public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+			String language = request.getLocale() == null ? "zh" : request.getLocale().toLanguageTag();
+			response.setHeader("Content-Language", language);
+			response.addHeader("Vary", "Accept-Language");
+			return true;
+		}
+	};
+
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
 		registry.addInterceptor(traceInterceptor).addPathPatterns("/**").order(-1); // Highest priority
+		registry.addInterceptor(localeResponseInterceptor).addPathPatterns("/api/**").order(-2);
 
 		registry.addInterceptor(analyticsInterceptor).addPathPatterns("/api/v1/public/**")
 				.excludePathPatterns("/api/v1/public/files/**", "/api/v1/public/seo/**");

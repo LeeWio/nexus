@@ -9,6 +9,11 @@ import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import jakarta.persistence.FetchType;
+import jakarta.persistence.OneToMany;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 @Getter
 @Setter
 @Entity
@@ -23,4 +28,8 @@ public class Tag extends BaseEntity {
 
 	@Column(nullable = false, unique = true, length = 50)
 	private String slug;
+
+	@OneToMany(mappedBy = "tag", fetch = FetchType.LAZY, cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+	@jakarta.persistence.MapKey(name = "locale")
+	private Map<String, TagTranslation> translations = new LinkedHashMap<>();
 }

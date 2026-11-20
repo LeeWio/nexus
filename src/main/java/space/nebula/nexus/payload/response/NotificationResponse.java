@@ -3,6 +3,7 @@ package space.nebula.nexus.payload.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * Safe API representation of a user notification without recipient account
@@ -10,8 +11,11 @@ import java.time.LocalDateTime;
  */
 @Schema(description = "One in-app notification owned by the current user")
 public record NotificationResponse(@Schema(description = "Notification ID") Long id,
-		@Schema(description = "Short notification heading") String title,
-		@Schema(description = "Notification body") String content,
+		@Schema(description = "Legacy rendered heading; null when a message key is available") String title,
+		@Schema(description = "Legacy rendered body; null when a message key is available") String content,
+		@Schema(description = "Frontend translation key for the heading") String titleKey,
+		@Schema(description = "Frontend translation key for the body") String contentKey,
+		@Schema(description = "Interpolation arguments for the frontend translation keys") Map<String, Object> messageArgs,
 		@Schema(description = "Stable notification type, such as COMMENT_REPLY, POST_COMMENT, CATEGORY_POST, or HEALTH_CHECK") String type,
 		@Schema(description = "Whether the notification has been read") Boolean read,
 		@Schema(description = "Whether the notification is saved for later review") Boolean saved,

@@ -31,6 +31,7 @@ import space.nebula.nexus.enums.NotificationCategory;
 import space.nebula.nexus.payload.response.NotificationContext;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -289,8 +290,11 @@ public class NotificationServiceImpl implements INotificationService {
 	}
 
 	private NotificationResponse toResponse(Notification notification) {
-		return new NotificationResponse(notification.getId(), notification.getTitle(), notification.getContent(),
-				notification.getType(), notification.getIsRead(), notification.getIsSaved(), notification.getReadAt(),
+		String type = notification.getType();
+		String titleKey = type == null ? null : "notification." + type + ".title";
+		String contentKey = type == null ? null : "notification." + type + ".content";
+		return new NotificationResponse(notification.getId(), null, null, titleKey, contentKey, Map.of(), type,
+				notification.getIsRead(), notification.getIsSaved(), notification.getReadAt(),
 				notification.getCompletedAt(), notification.getLink(), notification.getCreatedAt(),
 				NotificationContexts.from(notification));
 	}

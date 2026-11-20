@@ -22,6 +22,7 @@ import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.TagRepository;
 import space.nebula.nexus.service.ITagService;
 import space.nebula.nexus.utils.RedisUtil;
+import space.nebula.nexus.utils.TranslationSync;
 
 import java.util.List;
 
@@ -36,6 +37,7 @@ public class TagServiceImpl implements ITagService {
 	private final RedisUtil redisUtil;
 
 	@Override
+	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.TAGS, key = "'all'", sync = true)
 	public ApiResponse<List<TagResponse>> getAllTags() {
 		return ApiResponse.success(tagMapper.toResponseList(tagRepository.findAll()));
@@ -55,6 +57,7 @@ public class TagServiceImpl implements ITagService {
 				if (Boolean.TRUE.equals(tag.getIsDeleted())) {
 					tag.setIsDeleted(false);
 					tagMapper.updateEntity(tag, request);
+					TranslationSync.tag(tag, request.translations());
 					tagRepository.save(tag);
 					log.info("Restored soft-deleted tag by name: {}", tag.getName());
 					return ApiResponse.success("Tag created successfully", tagMapper.toResponse(tag));
@@ -72,6 +75,7 @@ public class TagServiceImpl implements ITagService {
 				if (Boolean.TRUE.equals(tag.getIsDeleted())) {
 					tag.setIsDeleted(false);
 					tagMapper.updateEntity(tag, request);
+					TranslationSync.tag(tag, request.translations());
 					tagRepository.save(tag);
 					log.info("Restored soft-deleted tag by slug: {}", tag.getName());
 					return ApiResponse.success("Tag created successfully", tagMapper.toResponse(tag));
@@ -84,6 +88,7 @@ public class TagServiceImpl implements ITagService {
 
 		Tag tag = new Tag();
 		tagMapper.updateEntity(tag, request);
+		TranslationSync.tag(tag, request.translations());
 
 		tagRepository.save(tag);
 		log.info("Tag created: {}", tag.getName());
@@ -100,6 +105,7 @@ public class TagServiceImpl implements ITagService {
 		validateUniqueConstraints(existingTag, request);
 
 		tagMapper.updateEntity(existingTag, request);
+		TranslationSync.tag(existingTag, request.translations());
 		tagRepository.save(existingTag);
 
 		log.info("Tag updated: {}", existingTag.getName());

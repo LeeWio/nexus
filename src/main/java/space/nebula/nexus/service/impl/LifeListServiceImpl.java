@@ -1,6 +1,6 @@
 package space.nebula.nexus.service.impl;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,6 +17,7 @@ import space.nebula.nexus.entity.LifeListItem;
 import space.nebula.nexus.entity.LifeListMemory;
 import space.nebula.nexus.enums.LifeListStatus;
 import space.nebula.nexus.enums.LifeListVisibility;
+import space.nebula.nexus.mapper.LifeListCategoryMapper;
 import space.nebula.nexus.payload.request.LifeListCategoryRequest;
 import space.nebula.nexus.payload.request.LifeListItemRequest;
 import space.nebula.nexus.payload.request.LifeListMemoryRequest;
@@ -32,6 +33,7 @@ import space.nebula.nexus.repository.LifeListMemoryRepository;
 import space.nebula.nexus.service.ILifeListService;
 import space.nebula.nexus.utils.LifeListStatusPolicy;
 import space.nebula.nexus.utils.SlugUtil;
+import space.nebula.nexus.utils.TranslationSync;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -40,12 +42,26 @@ import java.util.Locale;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class LifeListServiceImpl implements ILifeListService {
 
 	private final LifeListCategoryRepository categoryRepository;
 	private final LifeListItemRepository itemRepository;
 	private final LifeListMemoryRepository memoryRepository;
+	private final LifeListCategoryMapper categoryMapper;
+
+	@Autowired
+	public LifeListServiceImpl(LifeListCategoryRepository categoryRepository, LifeListItemRepository itemRepository,
+			LifeListMemoryRepository memoryRepository, LifeListCategoryMapper categoryMapper) {
+		this.categoryRepository = categoryRepository;
+		this.itemRepository = itemRepository;
+		this.memoryRepository = memoryRepository;
+		this.categoryMapper = categoryMapper;
+	}
+
+	public LifeListServiceImpl(LifeListCategoryRepository categoryRepository, LifeListItemRepository itemRepository,
+			LifeListMemoryRepository memoryRepository) {
+		this(categoryRepository, itemRepository, memoryRepository, null);
+	}
 
 	@Override
 	@Transactional(readOnly = true)
@@ -273,6 +289,7 @@ public class LifeListServiceImpl implements ILifeListService {
 		} else if (creating) {
 			category.setSortOrder(categoryRepository.findMaxSortOrder() + 10);
 		}
+		TranslationSync.lifeListCategory(category, request.translations());
 	}
 
 	private String resolveSlug(String requested, String name, Long currentId) {
@@ -362,8 +379,10 @@ public class LifeListServiceImpl implements ILifeListService {
 	}
 
 	private LifeListCategoryResponse toCategory(LifeListCategory category) {
-		return new LifeListCategoryResponse(category.getId(), category.getName(), category.getSlug(),
-				category.getSortOrder() == null ? 0 : category.getSortOrder());
+		return categoryMapper == null
+				? new LifeListCategoryResponse(category.getId(), category.getName(), category.getSlug(),
+						category.getSortOrder() == null ? 0 : category.getSortOrder(), java.util.Map.of())
+				: categoryMapper.toResponse(category);
 	}
 
 	private List<LifeListCategoryResponse> categories() {

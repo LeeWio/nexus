@@ -26,6 +26,7 @@ public interface KanbanMapper {
 	List<KanbanColumnResponse> toColumnResponseList(List<KanbanColumn> columns);
 
 	@Mapping(target = "columnId", source = "column.id")
+	@Mapping(target = "tags", qualifiedByName = "localizedTag")
 	KanbanItemResponse toResponse(KanbanItem item);
 
 	List<KanbanItemResponse> toItemResponseList(List<KanbanItem> items);

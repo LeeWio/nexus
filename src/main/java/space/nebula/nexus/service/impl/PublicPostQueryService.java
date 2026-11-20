@@ -23,6 +23,7 @@ import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.mapper.PostMapper;
+import space.nebula.nexus.mapper.CategoryMapper;
 import space.nebula.nexus.payload.response.BlogDiscoveryResponse;
 import space.nebula.nexus.payload.response.BlogFacetResponse;
 import space.nebula.nexus.payload.response.CategoryResponse;
@@ -59,6 +60,7 @@ public class PublicPostQueryService implements IPublicPostQueryService {
 	private final PostRepository postRepository;
 	private final PostSeriesRepository seriesRepository;
 	private final PostMapper postMapper;
+	private final CategoryMapper categoryMapper;
 	private final RedisUtil redisUtil;
 	private final IInteractionService interactionService;
 	private final PostRankingService postRankingService;
@@ -374,9 +376,7 @@ public class PublicPostQueryService implements IPublicPostQueryService {
 	}
 
 	private CategoryResponse toCategoryResponse(Post post) {
-		var category = post.getCategory();
-		return new CategoryResponse(category.getId(), category.getName(), category.getSlug(), category.getDescription(),
-				category.getIcon(), category.getCreatedAt());
+		return categoryMapper.toResponse(post.getCategory());
 	}
 
 	private int sectionSize() {

@@ -9,6 +9,7 @@ import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 
 import java.util.Set;
+import java.util.Map;
 
 /**
  * Post request payload using Java 21 Record.
@@ -41,9 +42,18 @@ public record PostRequest(
 
 		@Schema(description = "ID of the parent post for Wiki hierarchy", example = "100") Long parentId,
 
-		@Schema(description = "Set of tag IDs to associate with this post", example = "[1, 2, 5]") Set<Long> tagIds) {
+		@Schema(description = "Set of tag IDs to associate with this post", example = "[1, 2, 5]") Set<Long> tagIds,
+
+		@Schema(description = "Localized post fields keyed by BCP-47 locale") Map<String, PostTranslationRequest> translations) {
 	public PostRequest {
 		if (isFeatured == null)
 			isFeatured = false;
+	}
+
+	public PostRequest(String title, String slug, String coverImage, String shaderPreset, String summary,
+			String content, PostContentType contentType, PostStatus status, Boolean isFeatured, Long categoryId,
+			Long seriesId, Integer seriesOrder, Long parentId, Set<Long> tagIds) {
+		this(title, slug, coverImage, shaderPreset, summary, content, contentType, status, isFeatured, categoryId,
+				seriesId, seriesOrder, parentId, tagIds, null);
 	}
 }
