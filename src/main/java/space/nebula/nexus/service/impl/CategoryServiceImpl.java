@@ -21,6 +21,7 @@ import space.nebula.nexus.repository.CategoryRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.service.ICategoryService;
 import space.nebula.nexus.utils.RedisUtil;
+import space.nebula.nexus.utils.TranslationSync;
 
 import java.util.List;
 
@@ -35,6 +36,7 @@ public class CategoryServiceImpl implements ICategoryService {
 	private final RedisUtil redisUtil;
 
 	@Override
+	@Transactional(readOnly = true)
 	@Cacheable(value = CacheConstants.CATEGORIES, key = "'all'", sync = true)
 	public ApiResponse<List<CategoryResponse>> retrieveAllCategories() {
 		List<Category> allCategories = categoryRepository.findAll();
@@ -55,6 +57,7 @@ public class CategoryServiceImpl implements ICategoryService {
 				if (Boolean.TRUE.equals(category.getIsDeleted())) {
 					category.setIsDeleted(false);
 					categoryMapper.updateEntity(category, request);
+					TranslationSync.category(category, request.translations());
 					categoryRepository.save(category);
 					log.info("Restored soft-deleted category by name: {}", category.getName());
 					return ApiResponse.success("Category created successfully", categoryMapper.toResponse(category));
@@ -72,6 +75,7 @@ public class CategoryServiceImpl implements ICategoryService {
 				if (Boolean.TRUE.equals(category.getIsDeleted())) {
 					category.setIsDeleted(false);
 					categoryMapper.updateEntity(category, request);
+					TranslationSync.category(category, request.translations());
 					categoryRepository.save(category);
 					log.info("Restored soft-deleted category by slug: {}", category.getName());
 					return ApiResponse.success("Category created successfully", categoryMapper.toResponse(category));
@@ -84,6 +88,7 @@ public class CategoryServiceImpl implements ICategoryService {
 
 		Category newCategory = new Category();
 		categoryMapper.updateEntity(newCategory, request);
+		TranslationSync.category(newCategory, request.translations());
 
 		categoryRepository.save(newCategory);
 		log.info("New category created: {}", newCategory.getName());
@@ -101,6 +106,7 @@ public class CategoryServiceImpl implements ICategoryService {
 		validateUniqueConstraints(existingCategory, request);
 
 		categoryMapper.updateEntity(existingCategory, request);
+		TranslationSync.category(existingCategory, request.translations());
 		categoryRepository.save(existingCategory);
 
 		log.info("Category updated: {}", existingCategory.getName());

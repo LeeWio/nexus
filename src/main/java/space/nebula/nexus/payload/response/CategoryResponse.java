@@ -5,6 +5,7 @@ import lombok.Builder;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * Category response payload.
@@ -21,6 +22,15 @@ public record CategoryResponse(@Schema(description = "Category ID") Long id,
 
 		@Schema(description = "Category icon") String icon,
 
-		@Schema(description = "Creation time") LocalDateTime createdAt) implements Serializable {
+		@Schema(description = "Creation time") LocalDateTime createdAt,
+
+		@Schema(description = "Localized category fields keyed by BCP-47 locale") Map<String, CategoryTranslationResponse> translations)
+		implements
+			Serializable {
 	private static final long serialVersionUID = 1L;
+
+	public CategoryResponse(Long id, String name, String slug, String description, String icon,
+			LocalDateTime createdAt) {
+		this(id, name, slug, description, icon, createdAt, Map.of());
+	}
 }

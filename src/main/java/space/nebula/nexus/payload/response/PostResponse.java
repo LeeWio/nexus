@@ -8,6 +8,7 @@ import space.nebula.nexus.enums.PostStatus;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.Map;
 
 /**
  * Post response payload using Java 21 Record.
@@ -96,7 +97,11 @@ public record PostResponse(@Schema(description = "Post ID") Long id,
 
 		@Schema(description = "SEO and OpenGraph metadata") SeoMetadata seo,
 
-		@Schema(description = "Navigation links to adjacent posts") Navigation navigation) implements Serializable {
+		@Schema(description = "Navigation links to adjacent posts") Navigation navigation,
+
+		@Schema(description = "Localized post fields keyed by BCP-47 locale") Map<String, PostTranslationResponse> translations)
+		implements
+			Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/**

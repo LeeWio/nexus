@@ -45,6 +45,7 @@ import space.nebula.nexus.service.PostEditorDraftService;
 import space.nebula.nexus.utils.RedisUtil;
 import space.nebula.nexus.utils.PostContentAnalyzer;
 import space.nebula.nexus.utils.SlugUtil;
+import space.nebula.nexus.utils.TranslationSync;
 
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
@@ -120,6 +121,7 @@ public class PostServiceImpl implements IPostService {
 
 		Post newPost = new Post();
 		postMapper.updateEntity(newPost, request);
+		TranslationSync.post(newPost, request.translations());
 		newPost.setSlug(uniqueSlug);
 		newPost.setAuthor(currentAuthor);
 
@@ -213,6 +215,7 @@ public class PostServiceImpl implements IPostService {
 		}
 
 		postMapper.updateEntity(existingPost, request);
+		TranslationSync.post(existingPost, request.translations());
 
 		// Only administrators may change workflow or featured state through the
 		// general edit payload. Other users must use the dedicated review flow.

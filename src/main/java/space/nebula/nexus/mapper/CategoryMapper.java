@@ -4,6 +4,7 @@ import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.Named;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import space.nebula.nexus.entity.Category;
 import space.nebula.nexus.payload.request.CategoryRequest;
@@ -12,9 +13,11 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 
 import java.util.List;
 
-@Mapper(config = CentralMapperConfig.class)
+@Mapper(config = CentralMapperConfig.class, uses = CategoryTranslationMapper.class)
 public interface CategoryMapper {
 
+	@Mapping(target = "translations", source = "translations")
+	@Named("localizedCategory")
 	CategoryResponse toResponse(Category category);
 
 	List<CategoryResponse> toResponseList(List<Category> categories);
@@ -26,5 +29,6 @@ public interface CategoryMapper {
 	@Mapping(target = "updatedAt", ignore = true)
 	@Mapping(target = "lastModifiedBy", ignore = true)
 	@Mapping(target = "isDeleted", ignore = true)
+	@Mapping(target = "translations", ignore = true)
 	void updateEntity(@MappingTarget Category category, CategoryRequest request);
 }

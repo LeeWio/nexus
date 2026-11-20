@@ -7,8 +7,8 @@ server:
 
 spring:
   web:
-    locale: en
-    locale-resolver: fixed
+    locale: zh
+    locale-resolver: accept-header
   threads:
     virtual:
       enabled: true

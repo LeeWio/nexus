@@ -16,11 +16,15 @@ import space.nebula.nexus.mapper.config.CentralMapperConfig;
 import java.util.List;
 
 @Mapper(config = CentralMapperConfig.class, uses = {CategoryMapper.class, TagMapper.class, PostSeriesMapper.class,
-		UserAvatarMapper.class})
+		UserAvatarMapper.class, PostTranslationMapper.class})
 public interface PostMapper {
+
+	@Mapping(target = "translations", source = "translations")
 
 	@Mapping(target = "authorName", source = "author", qualifiedByName = "mapAuthorName")
 	@Mapping(target = "authorAvatar", source = "author", qualifiedByName = "resolveUserAvatar")
+	@Mapping(target = "category", qualifiedByName = "localizedCategory")
+	@Mapping(target = "tags", qualifiedByName = "localizedTag")
 	@Mapping(target = "series", source = "series", qualifiedByName = "toResponse")
 	@Mapping(target = "parentId", source = "parent.id")
 	@Mapping(target = "reviewerName", source = "reviewedBy", qualifiedByName = "mapAuthorName")
@@ -37,6 +41,8 @@ public interface PostMapper {
 
 	@Mapping(target = "authorName", source = "author", qualifiedByName = "mapAuthorName")
 	@Mapping(target = "authorAvatar", source = "author", qualifiedByName = "resolveUserAvatar")
+	@Mapping(target = "category", qualifiedByName = "localizedCategory")
+	@Mapping(target = "translations", source = "translations")
 	PostDigestResponse toDigestResponse(Post post);
 
 	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
@@ -72,6 +78,7 @@ public interface PostMapper {
 	@Mapping(target = "isDeleted", ignore = true)
 	@Mapping(target = "parent", ignore = true)
 	@Mapping(target = "path", ignore = true)
+	@Mapping(target = "translations", ignore = true)
 	void updateEntity(@MappingTarget Post post, PostRequest request);
 
 	@Named("mapAuthorName")
