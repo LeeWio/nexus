@@ -99,6 +99,10 @@ class PostServiceImplTest {
 	private PostRankingService postRankingService = new PostRankingService(discoveryProperties);
 	@InjectMocks
 	private PostServiceImpl postService;
+	@InjectMocks
+	private PostPublicationService publicationService;
+	@InjectMocks
+	private PublicPostQueryService publicPostQueryService;
 
 	@Test
 	@DisplayName("Should return paginated admin posts")
@@ -262,7 +266,7 @@ class PostServiceImplTest {
 					post.getCommentsCount(), post.getPublishedAt());
 		});
 
-		ApiResponse<BlogDiscoveryResponse> response = postService.retrievePublicDiscovery();
+		ApiResponse<BlogDiscoveryResponse> response = publicPostQueryService.retrievePublicDiscovery();
 
 		assertEquals(1L, response.data().spotlight().id());
 		assertEquals(List.of(2L, 3L), response.data().latest().stream().map(PostDigestResponse::id).toList());
@@ -293,7 +297,7 @@ class PostServiceImplTest {
 					post.getCommentsCount(), post.getPublishedAt());
 		});
 
-		ApiResponse<BlogDiscoveryResponse> response = postService.retrievePublicDiscovery();
+		ApiResponse<BlogDiscoveryResponse> response = publicPostQueryService.retrievePublicDiscovery();
 
 		assertEquals(1L, response.data().spotlight().id());
 		assertEquals(List.of(2L, 3L), response.data().curated().stream().map(PostDigestResponse::id).toList());
@@ -309,7 +313,8 @@ class PostServiceImplTest {
 		when(postMapper.toDigestResponse(featured)).thenReturn(new PostDigestResponse(1L, "Featured", "featured", null,
 				null, null, null, null, null, 0L, 0L, 0L, null));
 
-		ApiResponse<PageResult<PostDigestResponse>> response = postService.retrieveFeaturedPublicPosts(pageable);
+		ApiResponse<PageResult<PostDigestResponse>> response = publicPostQueryService
+				.retrieveFeaturedPublicPosts(pageable);
 
 		assertEquals(200, response.code());
 		assertEquals(List.of(1L), response.data().getList().stream().map(PostDigestResponse::id).toList());
@@ -354,15 +359,15 @@ class PostServiceImplTest {
 					post.getCommentsCount(), post.getPublishedAt());
 		});
 
-		ApiResponse<List<PostDigestResponse>> response = postService.retrieveRelatedPosts("source",
+		ApiResponse<List<PostDigestResponse>> response = publicPostQueryService.retrieveRelatedPosts("source",
 				PageRequest.of(0, 2));
 
 		assertEquals(200, response.code());
 		assertEquals(List.of(12L, 11L), response.data().stream().map(PostDigestResponse::id).toList());
 
-		var firstPage = postService.retrieveRelatedPosts("source", PageRequest.of(0, 1));
-		var secondPage = postService.retrieveRelatedPosts("source", PageRequest.of(1, 1));
-		var exhaustedPage = postService.retrieveRelatedPosts("source", PageRequest.of(120, 1));
+		var firstPage = publicPostQueryService.retrieveRelatedPosts("source", PageRequest.of(0, 1));
+		var secondPage = publicPostQueryService.retrieveRelatedPosts("source", PageRequest.of(1, 1));
+		var exhaustedPage = publicPostQueryService.retrieveRelatedPosts("source", PageRequest.of(120, 1));
 
 		assertEquals(List.of(12L), firstPage.data().stream().map(PostDigestResponse::id).toList());
 		assertEquals(List.of(11L), secondPage.data().stream().map(PostDigestResponse::id).toList());
@@ -380,7 +385,7 @@ class PostServiceImplTest {
 		when(postMapper.toDigestResponse(archivedPost)).thenReturn(new PostDigestResponse(13L, "Archived by month",
 				"archived-by-month", null, null, null, null, null, null, 0L, 0L, 0L, archivedPost.getPublishedAt()));
 
-		ApiResponse<PageResult<PostDigestResponse>> response = postService.retrievePublicArchive(2026, 7,
+		ApiResponse<PageResult<PostDigestResponse>> response = publicPostQueryService.retrievePublicArchive(2026, 7,
 				org.springframework.data.domain.PageRequest.of(0, 10));
 
 		assertEquals(200, response.code());
@@ -390,7 +395,7 @@ class PostServiceImplTest {
 	@Test
 	@DisplayName("Should reject archive month without year")
 	void retrievePublicArchive_RejectsMonthWithoutYear() {
-		BusinessException exception = assertThrows(BusinessException.class, () -> postService
+		BusinessException exception = assertThrows(BusinessException.class, () -> publicPostQueryService
 				.retrievePublicArchive(null, 7, org.springframework.data.domain.PageRequest.of(0, 10)));
 
 		assertEquals("Archive month requires a year", exception.getMessage());
@@ -411,7 +416,7 @@ class PostServiceImplTest {
 		when(postRepository.countPublishedPostsByContentType(PostStatus.PUBLISHED))
 				.thenReturn(Collections.singletonList(new Object[]{PostContentType.MDX, 1L}));
 
-		ApiResponse<BlogFacetResponse> response = postService.retrievePublicFacets();
+		ApiResponse<BlogFacetResponse> response = publicPostQueryService.retrievePublicFacets();
 
 		assertEquals(200, response.code());
 		assertEquals(3L, response.data().totalPublishedCount());
@@ -434,7 +439,7 @@ class PostServiceImplTest {
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(reviewer);
 
-			ApiResponse<Void> response = postService.schedulePost(11L, new PostScheduleRequest(scheduledAt));
+			ApiResponse<Void> response = publicationService.schedulePost(11L, new PostScheduleRequest(scheduledAt));
 
 			assertEquals(200, response.code());
 			assertEquals(PostStatus.SCHEDULED, post.getStatus());
@@ -456,7 +461,7 @@ class PostServiceImplTest {
 		post.setReviewedBy(new User());
 		when(postRepository.findByIdForUpdate(12L)).thenReturn(Optional.of(post));
 
-		ApiResponse<Void> response = postService.cancelScheduledPost(12L);
+		ApiResponse<Void> response = publicationService.cancelScheduledPost(12L);
 
 		assertEquals(200, response.code());
 		assertEquals(PostStatus.PENDING_REVIEW, post.getStatus());
@@ -482,7 +487,7 @@ class PostServiceImplTest {
 		when(postRepository.findScheduledPublicationBatch(PostStatus.SCHEDULED, List.of(21L, 22L)))
 				.thenReturn(List.of(first, second));
 
-		int published = postService.publishDueScheduledPosts(cutoff, 100);
+		int published = publicationService.publishDueScheduledPosts(cutoff, 100);
 
 		assertEquals(2, published);
 		assertAll(() -> assertEquals(PostStatus.PUBLISHED, first.getStatus()),
@@ -501,7 +506,7 @@ class PostServiceImplTest {
 		post.setReviewComment("Previous review");
 		when(postRepository.findByIdForUpdate(31L)).thenReturn(Optional.of(post));
 
-		ApiResponse<Void> response = postService.withdrawFromReview(31L);
+		ApiResponse<Void> response = publicationService.withdrawFromReview(31L);
 
 		assertEquals(200, response.code());
 		assertEquals(PostStatus.DRAFT, post.getStatus());
@@ -523,7 +528,7 @@ class PostServiceImplTest {
 		try (MockedStatic<SecurityUtil> mockedSecurity = mockStatic(SecurityUtil.class)) {
 			mockedSecurity.when(() -> SecurityUtil.getCurrentUserOrThrow(userRepository)).thenReturn(editor);
 
-			ApiResponse<Void> response = postService.archivePost(32L,
+			ApiResponse<Void> response = publicationService.archivePost(32L,
 					new PostArchiveRequest("  Requires substantial revision  "));
 
 			assertEquals(200, response.code());
@@ -546,7 +551,7 @@ class PostServiceImplTest {
 		post.archive("Outdated", new User());
 		when(postRepository.findByIdForUpdate(33L)).thenReturn(Optional.of(post));
 
-		ApiResponse<Void> response = postService.restoreArchivedPost(33L);
+		ApiResponse<Void> response = publicationService.restoreArchivedPost(33L);
 
 		assertEquals(200, response.code());
 		assertEquals(PostStatus.DRAFT, post.getStatus());
@@ -694,7 +699,7 @@ class PostServiceImplTest {
 		when(postRepository.findById(70L)).thenReturn(Optional.of(post));
 		when(redisUtil.set(anyString(), any(PostPreviewToken.class), eq(30L), eq(TimeUnit.MINUTES))).thenReturn(true);
 
-		ApiResponse<String> response = postService.createPreviewToken(70L);
+		ApiResponse<String> response = publicPostQueryService.createPreviewToken(70L);
 
 		ArgumentCaptor<PostPreviewToken> previewTokenCaptor = ArgumentCaptor.forClass(PostPreviewToken.class);
 		verify(redisUtil).set(startsWith(CacheConstants.POST_PREVIEW_PREFIX), previewTokenCaptor.capture(), eq(30L),
@@ -733,7 +738,7 @@ class PostServiceImplTest {
 		when(postRepository.findById(71L)).thenReturn(Optional.of(post));
 		when(postMapper.toResponse(post)).thenReturn(mappedResponse);
 
-		ApiResponse<PostResponse> response = postService.retrievePostPreview(token);
+		ApiResponse<PostResponse> response = publicPostQueryService.retrievePostPreview(token);
 
 		assertEquals(200, response.code());
 		assertEquals(71L, response.data().id());
@@ -754,7 +759,7 @@ class PostServiceImplTest {
 		when(postRepository.findById(72L)).thenReturn(Optional.of(post));
 
 		BusinessException exception = assertThrows(BusinessException.class,
-				() -> postService.retrievePostPreview(token));
+				() -> publicPostQueryService.retrievePostPreview(token));
 
 		assertEquals("Preview token is invalid or expired", exception.getMessage());
 		verify(redisUtil).delete(previewKey);
@@ -775,7 +780,7 @@ class PostServiceImplTest {
 		when(postRepository.findById(73L)).thenReturn(Optional.of(post));
 
 		BusinessException exception = assertThrows(BusinessException.class,
-				() -> postService.retrievePostPreview(token));
+				() -> publicPostQueryService.retrievePostPreview(token));
 
 		assertEquals("Preview token is invalid or expired", exception.getMessage());
 		verify(redisUtil).delete(previewKey);
@@ -796,7 +801,7 @@ class PostServiceImplTest {
 		when(postRepository.findById(74L)).thenReturn(Optional.of(post));
 
 		BusinessException exception = assertThrows(BusinessException.class,
-				() -> postService.retrievePostPreview(token));
+				() -> publicPostQueryService.retrievePostPreview(token));
 
 		assertEquals("Preview token is invalid or expired", exception.getMessage());
 		verify(redisUtil).delete(previewKey);
@@ -810,7 +815,7 @@ class PostServiceImplTest {
 		when(redisUtil.get(previewKey, PostPreviewToken.class)).thenReturn(Optional.empty());
 
 		BusinessException exception = assertThrows(BusinessException.class,
-				() -> postService.retrievePostPreview(token));
+				() -> publicPostQueryService.retrievePostPreview(token));
 
 		assertEquals("Preview token is invalid or expired", exception.getMessage());
 		verify(postRepository, never()).findById(anyLong());
@@ -826,7 +831,8 @@ class PostServiceImplTest {
 		when(postRepository.findById(75L)).thenReturn(Optional.of(post));
 		when(redisUtil.set(anyString(), any(PostPreviewToken.class), eq(30L), eq(TimeUnit.MINUTES))).thenReturn(false);
 
-		BusinessException exception = assertThrows(BusinessException.class, () -> postService.createPreviewToken(75L));
+		BusinessException exception = assertThrows(BusinessException.class,
+				() -> publicPostQueryService.createPreviewToken(75L));
 
 		assertEquals("Preview service is temporarily unavailable", exception.getMessage());
 	}
@@ -834,14 +840,15 @@ class PostServiceImplTest {
 	@Test
 	@DisplayName("Should verify that public search and retrieve methods are annotated with @Transactional to prevent LazyInitializationException")
 	void verifyTransactionalAnnotations() throws NoSuchMethodException {
-		java.lang.reflect.Method searchMethod = PostServiceImpl.class.getMethod("searchPublicPosts", Long.class,
+		java.lang.reflect.Method searchMethod = PublicPostQueryService.class.getMethod("searchPublicPosts", Long.class,
 				Long.class, String.class, Pageable.class);
 		org.springframework.transaction.annotation.Transactional searchAnnotation = searchMethod
 				.getAnnotation(org.springframework.transaction.annotation.Transactional.class);
 		assertNotNull(searchAnnotation, "searchPublicPosts must be annotated with @Transactional");
 		assertTrue(searchAnnotation.readOnly(), "searchPublicPosts @Transactional must be readOnly = true");
 
-		java.lang.reflect.Method retrieveMethod = PostServiceImpl.class.getMethod("retrievePostBySlug", String.class);
+		java.lang.reflect.Method retrieveMethod = PublicPostQueryService.class.getMethod("retrievePostBySlug",
+				String.class);
 		org.springframework.transaction.annotation.Transactional retrieveAnnotation = retrieveMethod
 				.getAnnotation(org.springframework.transaction.annotation.Transactional.class);
 		assertNotNull(retrieveAnnotation, "retrievePostBySlug must be annotated with @Transactional");

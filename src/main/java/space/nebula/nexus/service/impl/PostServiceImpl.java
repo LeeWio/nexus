@@ -1,16 +1,12 @@
 package space.nebula.nexus.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import io.micrometer.core.instrument.MeterRegistry;
-import org.springframework.beans.factory.ObjectProvider;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.persistence.EntityManager;
@@ -24,27 +20,16 @@ import space.nebula.nexus.common.event.PostChangeType;
 import space.nebula.nexus.common.event.PostDeletedEvent;
 import space.nebula.nexus.common.exception.BusinessException;
 import space.nebula.nexus.common.exception.ResourceNotFoundException;
-import space.nebula.nexus.config.BlogDiscoveryProperties;
 import space.nebula.nexus.entity.Post;
 import space.nebula.nexus.entity.User;
-import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostRevisionKind;
 import space.nebula.nexus.enums.PostStatus;
 import space.nebula.nexus.payload.request.BatchDeleteRequest;
 import space.nebula.nexus.mapper.PostMapper;
-import space.nebula.nexus.payload.request.PostAutosaveRequest;
-import space.nebula.nexus.payload.request.PostArchiveRequest;
 import space.nebula.nexus.payload.request.PostRequest;
-import space.nebula.nexus.payload.request.PostScheduleRequest;
 import space.nebula.nexus.payload.response.PageResult;
-import space.nebula.nexus.payload.response.BlogDiscoveryResponse;
-import space.nebula.nexus.payload.response.BlogFacetResponse;
-import space.nebula.nexus.payload.response.CategoryResponse;
-import space.nebula.nexus.payload.response.PostDigestResponse;
-import space.nebula.nexus.payload.response.PostAutosaveResponse;
 import space.nebula.nexus.payload.response.PostResponse;
 import space.nebula.nexus.payload.response.PostMetadataRebuildResponse;
-import space.nebula.nexus.payload.response.SeriesSummaryResponse;
 import space.nebula.nexus.repository.CategoryRepository;
 import space.nebula.nexus.repository.PostRepository;
 import space.nebula.nexus.repository.PostSeriesRepository;
@@ -56,9 +41,7 @@ import space.nebula.nexus.service.IInteractionService;
 import space.nebula.nexus.service.IPostRevisionService;
 import space.nebula.nexus.service.IPostService;
 import space.nebula.nexus.service.ISlugService;
-import space.nebula.nexus.service.PostRankingService;
 import space.nebula.nexus.service.PostEditorDraftService;
-import space.nebula.nexus.service.support.PostCommentCountSupport;
 import space.nebula.nexus.utils.RedisUtil;
 import space.nebula.nexus.utils.PostContentAnalyzer;
 import space.nebula.nexus.utils.SlugUtil;
@@ -67,20 +50,11 @@ import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 
 import java.util.HashSet;
-import java.time.Instant;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
- * Professional implementation of IPostService with Event-Driven decoupling,
- * MapStruct, and Autosave.
+ * Handles editorial post commands and database-backed editor drafts.
  */
 @Slf4j
 @Service
@@ -99,14 +73,8 @@ public class PostServiceImpl implements IPostService {
 	private final IInteractionService interactionService;
 	private final IPostRevisionService postRevisionService;
 	private final ISlugService slugService;
-	private final PostRankingService postRankingService;
 	private final space.nebula.nexus.common.validator.PostValidator postValidator;
-	private final BlogDiscoveryProperties discoveryProperties;
-	private final ObjectProvider<MeterRegistry> meterRegistryProvider;
-	private final PostCommentCountSupport postCommentCountSupport;
 	private final PostEditorDraftService postEditorDraftService;
-
-	private final space.nebula.nexus.repository.ConfigRepository configRepository;
 	@Override
 	@Transactional(readOnly = true)
 	public ApiResponse<PageResult<PostResponse>> searchPostsForAdmin(PostStatus status, Long categoryId, String keyword,
@@ -186,8 +154,6 @@ public class PostServiceImpl implements IPostService {
 
 		log.info("Blog post created: {} by {}", newPost.getTitle(), currentAuthor.getUsername());
 
-		// Cleanup potential autosave data
-		clearAutosaveData(request.slug());
 		if (editorDraftRevision != null) {
 			postEditorDraftService.consume(currentAuthor.getId(), PostEditorDraftService.NEW_ARTICLE,
 					editorDraftRevision);
@@ -276,9 +242,6 @@ public class PostServiceImpl implements IPostService {
 
 		log.info("Blog post updated: {}", existingPost.getTitle());
 
-		// Cleanup autosave data
-		clearAutosaveData(id.toString());
-		clearAutosaveData(existingPost.getSlug());
 		if (editorDraftRevision != null) {
 			Long userId = SecurityUtil.getCurrentUserOrThrow(userRepository).getId();
 			postEditorDraftService.consume(userId, id.toString(), editorDraftRevision);
@@ -392,433 +355,6 @@ public class PostServiceImpl implements IPostService {
 
 	@Override
 	@Transactional
-	@LogOperation("Submit Post For Review")
-	public ApiResponse<Void> submitForReview(Long id) {
-		Post post = findPostForUpdateOrThrow(id);
-		Assert.isTrue(post.getStatus() == PostStatus.DRAFT || post.getStatus() == PostStatus.REJECTED,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Only Draft or Rejected posts can be submitted for review"));
-
-		post.setStatus(PostStatus.PENDING_REVIEW);
-		post.setReviewComment(null);
-		post.setReviewedAt(null);
-		post.setReviewedBy(null);
-		postRepository.save(post);
-		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.SUBMITTED_FOR_REVIEW));
-		log.info("Post '{}' submitted for review by {}", post.getTitle(),
-				SecurityUtil.getCurrentUserOrThrow(userRepository).getUsername());
-		return ApiResponse.success("Post submitted for review successfully", null);
-	}
-
-	@Override
-	@Transactional
-	@LogOperation("Withdraw Post From Review")
-	public ApiResponse<Void> withdrawFromReview(Long id) {
-		Post post = findPostForUpdateOrThrow(id);
-		Assert.isTrue(post.getStatus() == PostStatus.PENDING_REVIEW,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post is not pending review"));
-
-		post.withdrawFromReview();
-		postRepository.save(post);
-		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.WITHDRAWN_FROM_REVIEW));
-		log.info("Post '{}' withdrawn from review", post.getTitle());
-		return ApiResponse.success("Post withdrawn from review", null);
-	}
-
-	@Override
-	@Transactional
-	@LogOperation("Review Post")
-	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
-			CacheConstants.SEO}, allEntries = true)
-	public ApiResponse<Void> reviewPost(Long id, boolean approved, String reviewComment) {
-		Post post = findPostForUpdateOrThrow(id);
-		Assert.isTrue(post.getStatus() == PostStatus.PENDING_REVIEW,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post is not pending review"));
-		if (!approved) {
-			Assert.notBlank(reviewComment,
-					() -> new BusinessException(BusinessCode.BAD_REQUEST, "A rejection reason is required"));
-		}
-		User reviewer = SecurityUtil.getCurrentUserOrThrow(userRepository);
-		post.setReviewComment(StrUtil.blankToDefault(reviewComment, null));
-		post.setReviewedAt(java.time.LocalDateTime.now());
-		post.setReviewedBy(reviewer);
-
-		if (approved) {
-			post.publish();
-			log.info("Post '{}' approved and published", post.getTitle());
-			eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.PUBLISHED));
-		} else {
-			post.reject();
-			// Normally, store the reviewComment in a post_audit or comment field
-			log.info("Post '{}' rejected. Reason: {}", post.getTitle(), reviewComment);
-		}
-
-		postRepository.save(post);
-		if (!approved) {
-			eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.REJECTED));
-		}
-		return ApiResponse.success(approved ? "Post approved and published" : "Post rejected", null);
-	}
-
-	@Override
-	@Transactional
-	@LogOperation("Schedule Post Publication")
-	public ApiResponse<Void> schedulePost(Long id, PostScheduleRequest request) {
-		Assert.notNull(request,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "A publication schedule is required"));
-		Assert.notNull(request.scheduledAt(),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "A publication time is required"));
-		Assert.isTrue(request.scheduledAt().isAfter(java.time.LocalDateTime.now()),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "The publication time must be in the future"));
-		Post post = findPostForUpdateOrThrow(id);
-		Assert.isTrue(post.getStatus() == PostStatus.PENDING_REVIEW || post.getStatus() == PostStatus.SCHEDULED,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST,
-						"Only posts awaiting review or already scheduled can be scheduled"));
-
-		User reviewer = SecurityUtil.getCurrentUserOrThrow(userRepository);
-		post.schedule(request.scheduledAt());
-		post.setReviewComment(null);
-		post.setReviewedAt(java.time.LocalDateTime.now());
-		post.setReviewedBy(reviewer);
-		postRepository.save(post);
-		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.SCHEDULED));
-		log.info("Post '{}' scheduled for publication at {} by {}", post.getTitle(), request.scheduledAt(),
-				reviewer.getUsername());
-		return ApiResponse.success("Post publication scheduled", null);
-	}
-
-	@Override
-	@Transactional
-	@LogOperation("Cancel Scheduled Post Publication")
-	public ApiResponse<Void> cancelScheduledPost(Long id) {
-		Post post = findPostForUpdateOrThrow(id);
-		Assert.isTrue(post.getStatus() == PostStatus.SCHEDULED,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post is not scheduled for publication"));
-
-		post.cancelSchedule();
-		post.setReviewComment(null);
-		post.setReviewedAt(null);
-		post.setReviewedBy(null);
-		postRepository.save(post);
-		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.SCHEDULE_CANCELED));
-		log.info("Scheduled publication canceled for post '{}'", post.getTitle());
-		return ApiResponse.success("Scheduled publication canceled", null);
-	}
-
-	@Override
-	@Transactional
-	@LogOperation("Archive Published Post")
-	public ApiResponse<Void> archivePost(Long id, PostArchiveRequest request) {
-		Assert.notNull(request,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "An archive request is required"));
-		Assert.notBlank(request.reason(),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "An archive reason is required"));
-		Assert.isTrue(request.reason().trim().length() <= 1000, () -> new BusinessException(BusinessCode.BAD_REQUEST,
-				"The archive reason must not exceed 1000 characters"));
-
-		Post post = findPostForUpdateOrThrow(id);
-		Assert.isTrue(post.getStatus() == PostStatus.PUBLISHED,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Only published posts can be archived"));
-		User editor = SecurityUtil.getCurrentUserOrThrow(userRepository);
-		post.archive(request.reason().trim(), editor);
-		postRepository.save(post);
-		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.ARCHIVED));
-		log.info("Post '{}' archived by {}", post.getTitle(), editor.getUsername());
-		return ApiResponse.success("Post archived", null);
-	}
-
-	@Override
-	@Transactional
-	@LogOperation("Restore Archived Post")
-	public ApiResponse<Void> restoreArchivedPost(Long id) {
-		Post post = findPostForUpdateOrThrow(id);
-		Assert.isTrue(post.getStatus() == PostStatus.ARCHIVED,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Post is not archived"));
-
-		post.restoreToDraft();
-		postRepository.save(post);
-		postRevisionService.saveRevision(post, PostRevisionKind.RESTORED,
-				"Archived post restored for a new editing cycle");
-		eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.RESTORED_TO_DRAFT));
-		log.info("Archived post '{}' restored to draft", post.getTitle());
-		return ApiResponse.success("Post restored to draft", null);
-	}
-
-	@Override
-	@Transactional
-	public int publishDueScheduledPosts(java.time.LocalDateTime now, int batchSize) {
-		Assert.notNull(now, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Publication cutoff is required"));
-		Assert.isTrue(batchSize >= 1 && batchSize <= 100, () -> new BusinessException(BusinessCode.BAD_REQUEST,
-				"Publication batch size must be between 1 and 100"));
-
-		List<Long> duePostIds = postRepository.findDueScheduledPostIds(PostStatus.SCHEDULED, now,
-				PageRequest.of(0, batchSize));
-		if (duePostIds.isEmpty()) {
-			return 0;
-		}
-		List<Post> duePosts = postRepository.findScheduledPublicationBatch(PostStatus.SCHEDULED, duePostIds).stream()
-				.sorted(java.util.Comparator.comparing(Post::getScheduledAt).thenComparing(Post::getId)).toList();
-		for (Post post : duePosts) {
-			post.publish();
-		}
-		postRepository.saveAll(duePosts);
-		for (Post post : duePosts) {
-			eventPublisher.publishEvent(new PostChangedEvent(this, post, PostChangeType.PUBLISHED));
-		}
-		if (!duePosts.isEmpty()) {
-			log.info("Published {} scheduled posts at {}", duePosts.size(), now);
-		}
-		return duePosts.size();
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.BLOG_POSTS, key = CacheConstants.POST_LIST_KEY, sync = true)
-	public ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
-			Pageable pageable) {
-		return searchPublicPosts(categoryId, tagId, null, keyword, null, null, null, pageable);
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String keyword,
-			Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable) {
-		return searchPublicPosts(categoryId, tagId, null, keyword, featuredOnly, hasCover, contentType, pageable);
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<PostResponse>> searchPublicPosts(Long categoryId, Long tagId, String authorName,
-			String keyword, Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable) {
-		var spec = PostSpecification.filterPublicPosts(categoryId, tagId, authorName, keyword, featuredOnly, hasCover,
-				contentType);
-		Page<Post> publishedPosts = postRepository.findAll(spec, pageable);
-
-		return ApiResponse.success(PageResult.of(publishedPosts.map(postMapper::toResponse)));
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<PostDigestResponse>> searchPublicPostDigests(Long categoryId, Long tagId,
-			String keyword, Boolean featuredOnly, Boolean hasCover, PostContentType contentType, Pageable pageable) {
-		return searchPublicPostDigests(categoryId, tagId, null, keyword, featuredOnly, hasCover, contentType, pageable);
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<PostDigestResponse>> searchPublicPostDigests(Long categoryId, Long tagId,
-			String authorName, String keyword, Boolean featuredOnly, Boolean hasCover, PostContentType contentType,
-			Pageable pageable) {
-		var spec = PostSpecification.filterPublicPosts(categoryId, tagId, authorName, keyword, featuredOnly, hasCover,
-				contentType);
-		Page<Post> publishedPosts = postRepository.findAll(spec, pageable);
-		postCommentCountSupport.attachApprovedRootCounts(publishedPosts.getContent());
-		return ApiResponse.success(PageResult.of(publishedPosts.map(postMapper::toDigestResponse)));
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public ApiResponse<PageResult<PostDigestResponse>> retrievePublicArchive(Integer year, Integer month,
-			Pageable pageable) {
-		Assert.isTrue(month == null || year != null,
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Archive month requires a year"));
-		Assert.isTrue(month == null || (month >= 1 && month <= 12),
-				() -> new BusinessException(BusinessCode.BAD_REQUEST, "Archive month must be between 1 and 12"));
-		Page<Post> archivePosts = postRepository.findAll(archiveSpec(year, month), pageable);
-		postCommentCountSupport.attachApprovedRootCounts(archivePosts.getContent());
-		Page<PostDigestResponse> archivePage = archivePosts.map(postMapper::toDigestResponse);
-		return ApiResponse.success(PageResult.of(archivePage));
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.BLOG_POSTS, key = "'facets'", sync = true)
-	public ApiResponse<BlogFacetResponse> retrievePublicFacets() {
-		long totalPublishedCount = postRepository.countByStatus(PostStatus.PUBLISHED);
-		List<BlogFacetResponse.CategoryFacet> categories = postRepository
-				.countPublishedPostsByCategory(PostStatus.PUBLISHED).stream()
-				.map(row -> new BlogFacetResponse.CategoryFacet(asLong(row[0]), (String) row[1], (String) row[2],
-						asLong(row[3])))
-				.toList();
-		List<BlogFacetResponse.TagFacet> tags = postRepository.countPublishedPostsByTag(PostStatus.PUBLISHED).stream()
-				.map(row -> new BlogFacetResponse.TagFacet(asLong(row[0]), (String) row[1], (String) row[2],
-						asLong(row[3])))
-				.toList();
-		List<BlogFacetResponse.ArchiveFacet> archives = postRepository
-				.countPublishedPostsByArchiveMonth(PostStatus.PUBLISHED).stream()
-				.map(row -> new BlogFacetResponse.ArchiveFacet(asInt(row[0]), asInt(row[1]), asLong(row[2]))).toList();
-		List<BlogFacetResponse.ContentTypeFacet> contentTypes = postRepository
-				.countPublishedPostsByContentType(PostStatus.PUBLISHED).stream()
-				.map(row -> new BlogFacetResponse.ContentTypeFacet((PostContentType) row[0], asLong(row[1]))).toList();
-		return ApiResponse
-				.success(new BlogFacetResponse(totalPublishedCount, categories, tags, archives, contentTypes));
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.BLOG_POSTS, key = "'featured-' + #pageable.pageNumber + '-' + #pageable.pageSize", sync = true)
-	public ApiResponse<PageResult<PostDigestResponse>> retrieveFeaturedPublicPosts(Pageable pageable) {
-		Page<Post> featuredPosts = postRepository.findProminentPublicPosts(PostStatus.PUBLISHED, pageable);
-		postCommentCountSupport.attachApprovedRootCounts(featuredPosts.getContent());
-		Page<PostDigestResponse> page = featuredPosts.map(postMapper::toDigestResponse);
-		return ApiResponse.success(PageResult.of(page));
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.BLOG_DISCOVERY, key = CacheConstants.BLOG_DISCOVERY_KEY, sync = true)
-	public ApiResponse<BlogDiscoveryResponse> retrievePublicDiscovery() {
-		List<Post> discoveryCandidates = postRepository.findDiscoveryCandidates(PostStatus.PUBLISHED,
-				PageRequest.of(0, candidateSize()));
-		MeterRegistry meterRegistry = meterRegistryProvider == null ? null : meterRegistryProvider.getIfAvailable();
-		if (meterRegistry != null) {
-			meterRegistry.counter("nexus.blog.discovery.snapshots").increment();
-			meterRegistry.counter("nexus.blog.discovery.candidates").increment(discoveryCandidates.size());
-			if (discoveryCandidates.isEmpty()) {
-				meterRegistry.counter("nexus.blog.discovery.empty").increment();
-			}
-		}
-		List<Post> scoredCandidates = discoveryCandidates.stream()
-				.sorted(Comparator.comparingDouble(postRankingService::discoveryScore).reversed()
-						.thenComparing(Post::getId, Comparator.nullsLast(Comparator.reverseOrder())))
-				.toList();
-
-		Sort latestFirst = Sort.by(Sort.Order.desc("publishedAt"), Sort.Order.desc("id"));
-		List<Post> latestCandidates = postRepository
-				.findAllByStatus(PostStatus.PUBLISHED, PageRequest.of(0, candidateSize(), latestFirst)).getContent();
-
-		Post spotlight = postRepository
-				.findAllByStatusAndIsFeaturedTrue(PostStatus.PUBLISHED, PageRequest.of(0, 1, latestFirst)).stream()
-				.findFirst().orElseGet(() -> scoredCandidates.stream().findFirst().orElse(null));
-
-		Set<Long> selectedPostIds = new LinkedHashSet<>();
-		if (spotlight != null) {
-			selectedPostIds.add(spotlight.getId());
-		}
-
-		List<PostDigestResponse> curated = selectDistinctDigests(scoredCandidates, selectedPostIds, sectionSize());
-		List<PostDigestResponse> latest = selectDistinctDigests(latestCandidates, selectedPostIds, sectionSize());
-		List<PostDigestResponse> trending = selectDistinctDigests(
-				scoredCandidates.stream()
-						.sorted(Comparator.comparingDouble(postRankingService::trendingScore).reversed()
-								.thenComparing(Post::getPublishedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-								.thenComparing(Post::getId, Comparator.nullsLast(Comparator.reverseOrder())))
-						.toList(),
-				selectedPostIds, sectionSize());
-
-		Sort mostReadFirst = Sort.by(Sort.Order.desc("views"), Sort.Order.desc("likesCount"),
-				Sort.Order.desc("publishedAt"), Sort.Order.desc("id"));
-		List<Post> mostReadCandidates = postRepository
-				.findAllByStatus(PostStatus.PUBLISHED, PageRequest.of(0, candidateSize(), mostReadFirst)).getContent();
-		List<PostDigestResponse> mostRead = selectDistinctDigests(mostReadCandidates, selectedPostIds, sectionSize());
-
-		if (spotlight != null) {
-			postCommentCountSupport.attachApprovedRootCounts(List.of(spotlight));
-		}
-		PostDigestResponse spotlightResponse = spotlight == null ? null : postMapper.toDigestResponse(spotlight);
-		return ApiResponse.success(new BlogDiscoveryResponse(spotlightResponse, curated, latest, trending, mostRead,
-				buildPublicSeriesSummaries(), buildCategoryGroups(scoredCandidates, selectedPostIds), Instant.now(),
-				discoveryProperties.getAlgorithmVersion()));
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public ApiResponse<PostResponse> retrievePostBySlug(String slug) {
-		String cacheKey = CacheConstants.POST_SLUG_PREFIX + slug;
-		PostResponse postResponse = redisUtil.get(cacheKey, PostResponse.class).orElseGet(() -> {
-			Post post = postRepository.findBySlug(slug)
-					.orElseThrow(() -> new ResourceNotFoundException("Post", "slug", slug));
-
-			Assert.isTrue(post.isPublished(),
-					() -> new BusinessException(BusinessCode.FORBIDDEN, "Post is not published"));
-			PostResponse mappedResponse = postMapper.toResponse(post);
-			redisUtil.set(cacheKey, mappedResponse, 1, java.util.concurrent.TimeUnit.HOURS);
-			return mappedResponse;
-		});
-
-		// Async view count increment using Hash for easier batch sync
-		redisUtil.hashIncrement(CacheConstants.POST_VIEW_EXTRA_HASH, postResponse.id().toString(), 1L);
-
-		// Populate real-time and interaction data
-		PostResponse.PostResponseBuilder responseBuilder = postResponse.toBuilder();
-		responseBuilder.views(mergeRealtimeViews(postResponse.id(), postResponse.views()));
-		interactionService.populateInteractionData(responseBuilder, postResponse.id());
-
-		// Populate Wiki-specific metadata
-		populateWikiMetadata(responseBuilder, postResponse);
-
-		return ApiResponse.success(responseBuilder.build());
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	@Cacheable(value = CacheConstants.BLOG_RELATED, key = "'related:v3:' + #slug + ':' + #pageable", sync = true)
-	public ApiResponse<List<PostDigestResponse>> retrieveRelatedPosts(String slug, Pageable pageable) {
-		Post source = postRepository.findBySlug(slug)
-				.orElseThrow(() -> new ResourceNotFoundException("Post", "slug", slug));
-		Assert.isTrue(source.isPublished(),
-				() -> new BusinessException(BusinessCode.FORBIDDEN, "Post is not published"));
-
-		int requestedSize = pageable.isPaged() ? pageable.getPageSize() : sectionSize();
-		long offset = pageable.isPaged() ? pageable.getOffset() : 0;
-		// Use the same bounded candidate pool for every requested page and size.
-		int candidateLimit = Math.max(120, candidateSize());
-		if (offset >= candidateLimit) {
-			return ApiResponse.success(List.of());
-		}
-
-		Pageable candidatePage = PageRequest.of(0, candidateLimit,
-				Sort.by(Sort.Order.desc("publishedAt"), Sort.Order.desc("id")));
-		record RankedPost(Post post, double score) {
-		}
-		List<Post> relatedCandidates = postRepository.findAll(relatedPostsSpec(source), candidatePage).getContent()
-				.stream()
-				.map(candidate -> new RankedPost(candidate, postRankingService.relatedScore(source, candidate)))
-				.sorted(Comparator.comparingDouble(RankedPost::score).reversed()
-						.thenComparing(ranked -> ranked.post().getPublishedAt(),
-								Comparator.nullsLast(Comparator.reverseOrder()))
-						.thenComparing(ranked -> ranked.post().getId(),
-								Comparator.nullsLast(Comparator.reverseOrder())))
-				.skip(offset).limit(requestedSize).map(RankedPost::post).toList();
-		postCommentCountSupport.attachApprovedRootCounts(relatedCandidates);
-		List<PostDigestResponse> relatedPosts = relatedCandidates.stream().map(postMapper::toDigestResponse).toList();
-		return ApiResponse.success(relatedPosts);
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public ApiResponse<String> createPreviewToken(Long id) {
-		Post post = findPostOrThrow(id);
-		String token = UUID.randomUUID().toString();
-		String previewKey = CacheConstants.POST_PREVIEW_PREFIX + token;
-		PostPreviewToken previewToken = new PostPreviewToken(post.getId(), previewContentHash(post), post.getStatus(),
-				post.getLockVersion());
-		if (!redisUtil.set(previewKey, previewToken, 30, TimeUnit.MINUTES)) {
-			throw new BusinessException(BusinessCode.ERROR, "Preview service is temporarily unavailable");
-		}
-		return ApiResponse.success("Preview token created", token);
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public ApiResponse<PostResponse> retrievePostPreview(String token) {
-		Assert.notBlank(token, () -> new BusinessException(BusinessCode.BAD_REQUEST, "Preview token is required"));
-		String previewKey = CacheConstants.POST_PREVIEW_PREFIX + token;
-		PostPreviewToken previewToken = redisUtil.get(previewKey, PostPreviewToken.class).orElseThrow(
-				() -> new BusinessException(BusinessCode.NOT_FOUND, "Preview token is invalid or expired"));
-		Post post = findPostOrThrow(previewToken.postId());
-		if (!previewToken.matches(post.getId(), previewContentHash(post), post.getStatus(), post.getLockVersion())) {
-			redisUtil.delete(previewKey);
-			throw new BusinessException(BusinessCode.NOT_FOUND, "Preview token is invalid or expired");
-		}
-		PostResponse response = postMapper.toResponse(post);
-		PostResponse.PostResponseBuilder responseBuilder = response.toBuilder();
-		populateWikiMetadata(responseBuilder, response);
-		return ApiResponse.success(responseBuilder.build());
-	}
-
-	@Override
-	@Transactional
 	@org.springframework.cache.annotation.CacheEvict(value = {CacheConstants.BLOG_POSTS,
 			CacheConstants.SEO}, allEntries = true, condition = "!#dryRun")
 	public ApiResponse<PostMetadataRebuildResponse> rebuildPostContentMetadata(int batchSize, boolean dryRun) {
@@ -866,71 +402,6 @@ public class PostServiceImpl implements IPostService {
 		post.setContentHash(metadata.contentHash());
 	}
 
-	private void populateWikiMetadata(PostResponse.PostResponseBuilder builder, PostResponse post) {
-		// 1. Build Breadcrumbs
-		if (StrUtil.isNotBlank(post.path())) {
-			String[] parts = post.path().split("/");
-			java.util.List<String> ancestorPaths = new java.util.ArrayList<>();
-			StringBuilder sb = new StringBuilder();
-			for (String part : parts) {
-				if (StrUtil.isNotBlank(part)) {
-					sb.append("/").append(part).append("/");
-					ancestorPaths.add(sb.toString());
-				}
-			}
-
-			if (!ancestorPaths.isEmpty()) {
-				var ancestors = postRepository.findByPathInOrderByPathAsc(ancestorPaths);
-				var breadcrumbs = ancestors.stream()
-						.map(p -> new PostResponse.Breadcrumb(p.getId(), p.getTitle(), p.getSlug()))
-						.collect(Collectors.toList());
-				builder.breadcrumbs(breadcrumbs);
-			}
-		}
-
-		// 2. Build Navigation (Prev/Next)
-		if (post.series() != null) {
-			Long seriesId = post.series().id();
-			Integer currentOrder = post.seriesOrder();
-
-			var prev = postRepository.findPreviousInSeries(seriesId, currentOrder);
-			var next = postRepository.findNextInSeries(seriesId, currentOrder);
-
-			PostResponse.Navigation navigation = new PostResponse.Navigation(
-					prev.map(p -> new PostResponse.Navigation.Neighbor(p.getTitle(), p.getSlug())).orElse(null),
-					next.map(p -> new PostResponse.Navigation.Neighbor(p.getTitle(), p.getSlug())).orElse(null));
-			builder.navigation(navigation);
-		}
-
-		// 3. Build SEO Metadata
-		String siteUrl = configRepository.findByConfigKey("site_url")
-				.map(space.nebula.nexus.entity.Config::getConfigValue).orElse("http://localhost:3000");
-		String fullUrl = siteUrl + "/post/" + post.slug();
-
-		PostResponse.SeoMetadata seo = new PostResponse.SeoMetadata(post.title(),
-				StrUtil.blankToDefault(post.summary(), post.autoSummary()), post.coverImage(), "article", fullUrl,
-				"summary_large_image", fullUrl);
-		builder.seo(seo);
-	}
-
-	@Override
-	public ApiResponse<Void> autosavePostContent(PostAutosaveRequest request) {
-		String autosaveKey = autosaveKey(request.identifier());
-		PostAutosaveResponse autosaveData = new PostAutosaveResponse(request.content(), request.contentType());
-		redisUtil.set(autosaveKey, autosaveData, 24, TimeUnit.HOURS);
-		log.debug("Autosaved content for identifier: {}", request.identifier());
-		return ApiResponse.success("Content autosaved.", null);
-	}
-
-	@Override
-	public ApiResponse<PostAutosaveResponse> retrieveAutosavedContent(String identifier) {
-		String autosaveKey = autosaveKey(identifier);
-		return redisUtil.get(autosaveKey, PostAutosaveResponse.class).map(ApiResponse::success).orElse(ApiResponse
-				.error(BusinessCode.NOT_FOUND.getCode(), "No autosaved content was found for this identifier"));
-	}
-
-	// --- Private Helper Methods ---
-
 	private Long mergeRealtimeViews(Long postId, Long dbViews) {
 		Long totalViews = dbViews != null ? dbViews : 0L;
 		Object extraViews = redisUtil.hashGet(CacheConstants.POST_VIEW_EXTRA_HASH, postId.toString());
@@ -938,141 +409,6 @@ public class PostServiceImpl implements IPostService {
 			totalViews += extraViewCount.longValue();
 		}
 		return totalViews;
-	}
-
-	private List<PostDigestResponse> selectDistinctDigests(List<Post> candidates, Set<Long> selectedPostIds,
-			int limit) {
-		List<Post> selected = candidates.stream()
-				.filter(post -> post.getId() != null && selectedPostIds.add(post.getId())).limit(limit).toList();
-		postCommentCountSupport.attachApprovedRootCounts(selected);
-		return selected.stream().map(postMapper::toDigestResponse).toList();
-	}
-
-	private List<BlogDiscoveryResponse.CategoryGroup> buildCategoryGroups(List<Post> candidates,
-			Set<Long> selectedPostIds) {
-		Map<Long, List<Post>> byCategory = candidates.stream()
-				.filter(post -> post.getId() != null && !selectedPostIds.contains(post.getId()))
-				.filter(post -> post.getCategory() != null && post.getCategory().getId() != null)
-				.collect(Collectors.groupingBy(post -> post.getCategory().getId()));
-		List<BlogDiscoveryResponse.CategoryGroup> groups = new ArrayList<>();
-		for (List<Post> posts : byCategory.values()) {
-			List<Post> rankedPosts = posts.stream()
-					.sorted(Comparator.comparingDouble(postRankingService::discoveryScore).reversed())
-					.limit(categoryPostSize()).toList();
-			if (rankedPosts.isEmpty()) {
-				continue;
-			}
-			postCommentCountSupport.attachApprovedRootCounts(rankedPosts);
-			double score = rankedPosts.stream().mapToDouble(postRankingService::discoveryScore).sum();
-			groups.add(new BlogDiscoveryResponse.CategoryGroup(toCategoryResponse(rankedPosts.getFirst()),
-					rankedPosts.stream().map(postMapper::toDigestResponse).toList(), score));
-		}
-		return groups.stream().sorted(Comparator.comparingDouble(BlogDiscoveryResponse.CategoryGroup::score).reversed())
-				.limit(categoryGroupSize()).toList();
-	}
-
-	private CategoryResponse toCategoryResponse(Post post) {
-		var category = post.getCategory();
-		return new CategoryResponse(category.getId(), category.getName(), category.getSlug(), category.getDescription(),
-				category.getIcon(), category.getCreatedAt());
-	}
-
-	private int sectionSize() {
-		return positive(discoveryProperties.getSectionSize(), 6);
-	}
-
-	private int categoryGroupSize() {
-		return positive(discoveryProperties.getCategoryGroupSize(), 3);
-	}
-
-	private int categoryPostSize() {
-		return positive(discoveryProperties.getCategoryPostSize(), 4);
-	}
-
-	private int seriesSize() {
-		return positive(discoveryProperties.getSeriesSize(), 4);
-	}
-
-	private int candidateSize() {
-		return positive(discoveryProperties.getCandidateSize(), 48);
-	}
-
-	private List<SeriesSummaryResponse> buildPublicSeriesSummaries() {
-		return java.util.Optional.ofNullable(seriesRepository.findPublicColumnSummaries(PostStatus.PUBLISHED))
-				.orElseGet(List::of).stream().limit(seriesSize())
-				.map(series -> new SeriesSummaryResponse(series.getId(), series.getName(), series.getSlug(),
-						series.getDescription(), series.getCoverImage(), Math.toIntExact(series.getPostsCount()),
-						series.getCreatedAt()))
-				.toList();
-	}
-
-	private int positive(int configured, int fallback) {
-		return configured > 0 ? configured : fallback;
-	}
-
-	private Specification<Post> relatedPostsSpec(Post source) {
-		return (root, query, cb) -> {
-			query.distinct(true);
-			List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
-			predicates.add(cb.equal(root.get("status"), PostStatus.PUBLISHED));
-			predicates.add(cb.notEqual(root.get("id"), source.getId()));
-
-			List<jakarta.persistence.criteria.Predicate> relationPredicates = new ArrayList<>();
-			if (source.getCategory() != null && source.getCategory().getId() != null) {
-				relationPredicates.add(cb.equal(root.get("category").get("id"), source.getCategory().getId()));
-			}
-			if (source.getSeries() != null && source.getSeries().getId() != null) {
-				relationPredicates.add(cb.equal(root.get("series").get("id"), source.getSeries().getId()));
-			}
-			if (source.getContentType() != null) {
-				relationPredicates.add(cb.equal(root.get("contentType"), source.getContentType()));
-			}
-			Set<Long> tagIds = source.getTags().stream().filter(tag -> tag.getId() != null)
-					.map(space.nebula.nexus.entity.Tag::getId).collect(Collectors.toSet());
-			if (!tagIds.isEmpty()) {
-				var tagJoin = root.join("tags", jakarta.persistence.criteria.JoinType.LEFT);
-				relationPredicates.add(tagJoin.get("id").in(tagIds));
-			}
-			if (!relationPredicates.isEmpty()) {
-				predicates.add(cb.or(relationPredicates.toArray(jakarta.persistence.criteria.Predicate[]::new)));
-			}
-			return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
-		};
-	}
-
-	private Specification<Post> archiveSpec(Integer year, Integer month) {
-		return (root, query, cb) -> {
-			List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
-			predicates.add(cb.equal(root.get("status"), PostStatus.PUBLISHED));
-			predicates.add(cb.isNotNull(root.get("publishedAt")));
-			if (year != null) {
-				predicates.add(cb.equal(cb.function("year", Integer.class, root.get("publishedAt")), year));
-			}
-			if (month != null) {
-				predicates.add(cb.equal(cb.function("month", Integer.class, root.get("publishedAt")), month));
-			}
-			return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
-		};
-	}
-
-	private Long asLong(Object value) {
-		return value instanceof Number number ? number.longValue() : 0L;
-	}
-
-	private int asInt(Object value) {
-		return value instanceof Number number ? number.intValue() : 0;
-	}
-
-	private void clearAutosaveData(String identifier) {
-		if (identifier != null) {
-			redisUtil.delete(autosaveKey(identifier));
-		}
-	}
-
-	private String autosaveKey(String identifier) {
-		String username = SecurityUtil.getCurrentUsername();
-		Assert.notBlank(username, () -> new BusinessException(BusinessCode.UNAUTHORIZED, "Authentication required"));
-		return CacheConstants.POST_AUTOSAVE_PREFIX + username + ":" + identifier;
 	}
 
 	private Post findPostOrThrow(Long id) {
@@ -1096,7 +432,7 @@ public class PostServiceImpl implements IPostService {
 	}
 
 	private String generateCopySlug(Post source, String copiedTitle) {
-		String suffix = "-copy-" + UUID.randomUUID().toString().substring(0, 8);
+		String suffix = "-copy-" + java.util.UUID.randomUUID().toString().substring(0, 8);
 		String sourceSlug = StrUtil.blankToDefault(source.getSlug(), SlugUtil.toSlug(source.getTitle()));
 		int maxBaseLength = 200 - suffix.length();
 		String requestedSlug = sourceSlug.length() <= maxBaseLength
@@ -1106,19 +442,11 @@ public class PostServiceImpl implements IPostService {
 				candidate -> postRepository.findBySlug(candidate).isPresent());
 	}
 
-	private String validateAndGenerateSlug(String requestedSlug, String title) {
-		String slug = StrUtil.isBlank(requestedSlug) ? SlugUtil.toSlug(title) : SlugUtil.toSlug(requestedSlug);
-		Assert.isFalse(postRepository.findBySlug(slug).isPresent(),
-				() -> new BusinessException(BusinessCode.DUPLICATE_KEY, "Post slug is already in use: " + slug));
-		return slug;
-	}
-
 	private void syncParentPost(Post post, PostRequest request) {
 		if (request.parentId() != null) {
 			if (post.getId() != null && request.parentId().equals(post.getId())) {
 				throw new BusinessException(BusinessCode.BAD_REQUEST, "A post cannot be its own parent");
 			}
-
 			Post parent = findPostOrThrow(request.parentId());
 			if (post.getId() != null && parent.getPath() != null
 					&& parent.getPath().contains("/" + post.getId() + "/")) {
@@ -1134,15 +462,12 @@ public class PostServiceImpl implements IPostService {
 	}
 
 	private void syncCategoryAndTags(Post post, PostRequest request) {
-		// Sync Category
 		if (request.categoryId() != null) {
 			post.setCategory(categoryRepository.findById(request.categoryId())
 					.orElseThrow(() -> new ResourceNotFoundException("Category", "id", request.categoryId())));
 		} else {
 			post.setCategory(null);
 		}
-
-		// Sync Series
 		if (request.seriesId() != null) {
 			post.setSeries(seriesRepository.findById(request.seriesId())
 					.orElseThrow(() -> new ResourceNotFoundException("Series", "id", request.seriesId())));
@@ -1151,8 +476,6 @@ public class PostServiceImpl implements IPostService {
 			post.setSeries(null);
 			post.setSeriesOrder(0);
 		}
-
-		// Sync Tags - Fix: handle empty/null tagIds correctly to clear existing tags
 		if (request.tagIds() != null) {
 			if (request.tagIds().isEmpty()) {
 				post.setTags(new HashSet<>());
@@ -1172,11 +495,4 @@ public class PostServiceImpl implements IPostService {
 		applyContentMetadata(post, metadata);
 	}
 
-	private String previewContentHash(Post post) {
-		if (StrUtil.isNotBlank(post.getContentHash())) {
-			return post.getContentHash();
-		}
-		return PostContentAnalyzer.analyze(post.getTitle(), post.getSummary(), post.getContent(), post.getContentType())
-				.contentHash();
-	}
 }

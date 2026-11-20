@@ -805,7 +805,7 @@ class CommentServiceImplTest {
 		assertEquals(3L, event.getPostAuthorId());
 		assertEquals("Professional Comments", event.getPostTitle());
 		assertEquals(CommentStatus.APPROVED, event.getStatus());
-		assertEquals("/posts/professional-comments#comment-20", event.getLink());
+		assertEquals("/single/professional-comments#comment-20", event.getLink());
 		verify(governanceService).recordModeration(reply, CommentStatus.PENDING, CommentStatus.APPROVED,
 				CommentModerationAction.STATUS_CHANGED, "MANUAL_MODERATION", null, null);
 		verify(governanceService).resolveOpenReports(20L, CommentReportStatus.DISMISSED,

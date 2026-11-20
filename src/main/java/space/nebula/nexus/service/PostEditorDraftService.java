@@ -6,10 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import space.nebula.nexus.common.constant.CacheConstants;
 import space.nebula.nexus.entity.PostEditorDraft;
-import space.nebula.nexus.payload.response.PostAutosaveResponse;
-import space.nebula.nexus.utils.RedisUtil;
 import space.nebula.nexus.repository.PostEditorDraftRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
@@ -29,13 +26,10 @@ public class PostEditorDraftService {
 
 	private final PostEditorDraftRepository drafts;
 	private final UserRepository users;
-	private final RedisUtil redis;
 
 	@Transactional(readOnly = true)
 	public Snapshot retrieve(String identifier) {
-		return drafts.findByUserIdAndIdentifier(currentUserId(), identifier).map(Snapshot::from)
-				.orElseGet(() -> redis.get(legacyKey(identifier), PostAutosaveResponse.class)
-						.map(draft -> new Snapshot(draft.content(), Map.of(), null, null)).orElse(null));
+		return drafts.findByUserIdAndIdentifier(currentUserId(), identifier).map(Snapshot::from).orElse(null);
 	}
 
 	@Transactional
@@ -69,7 +63,6 @@ public class PostEditorDraftService {
 			verifyRevision(draft, revision);
 			drafts.delete(draft);
 		}
-		redis.delete(legacyKey(identifier));
 	}
 
 	/**
@@ -85,11 +78,6 @@ public class PostEditorDraftService {
 		verifyRevision(draft, "none".equals(revision) ? null : revision);
 		if (draft != null)
 			drafts.delete(draft);
-		redis.delete(legacyKey(identifier));
-	}
-
-	private String legacyKey(String identifier) {
-		return CacheConstants.POST_AUTOSAVE_PREFIX + SecurityUtil.getCurrentUsername() + ":" + identifier;
 	}
 
 	private void lockOwner(Long userId) {

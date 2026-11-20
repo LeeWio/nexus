@@ -40,6 +40,7 @@ import space.nebula.nexus.repository.ReadingHistoryRepository;
 import space.nebula.nexus.repository.UserRepository;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,6 +51,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -97,6 +99,7 @@ class PersonalLibraryServiceImplTest {
 		SecurityContextHolder.getContext()
 				.setAuthentication(new UsernamePasswordAuthenticationToken("reader", "password", List.of()));
 		when(userRepository.findByUsername("reader")).thenReturn(Optional.of(currentUser));
+		lenient().when(userRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(currentUser));
 	}
 
 	@AfterEach
@@ -130,7 +133,7 @@ class PersonalLibraryServiceImplTest {
 
 		ReadingHistory history = new ReadingHistory();
 		history.setPost(continuingPost);
-		history.recordProgress(45, "domain-model");
+		history.recordProgress(45, "domain-model", LocalDateTime.of(2026, 11, 19, 12, 0));
 		PostFavorite duplicateFavorite = favorite(continuingPost);
 		PostFavorite distinctFavorite = favorite(favoritePost);
 
@@ -232,15 +235,16 @@ class PersonalLibraryServiceImplTest {
 	void readingProgressCreatesAResumableCompletedEntry() {
 		Post post = publishedPost(9L);
 		when(postRepository.findById(9L)).thenReturn(Optional.of(post));
-		when(readingHistoryRepository.findByUserIdAndPostIdAndIsDeletedFalse(42L, 9L)).thenReturn(Optional.empty());
+		when(readingHistoryRepository.findForUpdate(42L, 9L)).thenReturn(Optional.empty());
 		when(readingHistoryRepository.save(any(ReadingHistory.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 		when(postMapper.toDigestResponse(post)).thenReturn(digest(9L));
 
 		var response = personalLibraryService.recordReadingProgress(9L,
-				new ReadingProgressRequest(100, "section-conclusion"));
+				new ReadingProgressRequest(100, "section-conclusion", Instant.parse("2026-11-19T12:00:00Z")));
 
-		assertEquals(100, response.data().progressPercent());
+		assertEquals(100, response.data().currentProgressPercent());
+		assertEquals(100, response.data().furthestProgressPercent());
 		assertEquals("section-conclusion", response.data().positionAnchor());
 		assertNotNull(response.data().completedAt());
 		verify(readingHistoryRepository).save(any(ReadingHistory.class));
@@ -252,20 +256,48 @@ class PersonalLibraryServiceImplTest {
 		ReadingHistory history = new ReadingHistory();
 		history.setPost(post);
 		history.setProgressPercent(60);
+		history.setCurrentProgressPercent(60);
 		history.setPositionAnchor("section-middle");
+		history.setLastObservedAt(LocalDateTime.of(2026, 11, 19, 12, 0));
+		history.setLastReadAt(LocalDateTime.of(2026, 11, 19, 12, 0));
 		history.setCompletedAt(null);
 		when(postRepository.findById(9L)).thenReturn(Optional.of(post));
-		when(readingHistoryRepository.findByUserIdAndPostIdAndIsDeletedFalse(42L, 9L)).thenReturn(Optional.of(history));
+		when(readingHistoryRepository.findForUpdate(42L, 9L)).thenReturn(Optional.of(history));
 		when(readingHistoryRepository.save(any(ReadingHistory.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));
 		when(postMapper.toDigestResponse(post)).thenReturn(digest(9L));
 
 		var response = personalLibraryService.recordReadingProgress(9L,
-				new ReadingProgressRequest(30, "section-start"));
+				new ReadingProgressRequest(30, "section-start", Instant.parse("2026-11-19T12:01:00Z")));
 
-		assertEquals(60, response.data().progressPercent());
-		assertEquals("section-middle", response.data().positionAnchor());
+		assertEquals(30, response.data().currentProgressPercent());
+		assertEquals(60, response.data().furthestProgressPercent());
+		assertEquals("section-start", response.data().positionAnchor());
 		assertEquals(null, response.data().completedAt());
+	}
+
+	@Test
+	void staleReadingEventCannotReplaceTheLatestPosition() {
+		Post post = publishedPost(9L);
+		ReadingHistory history = new ReadingHistory();
+		history.setPost(post);
+		history.setProgressPercent(80);
+		history.setCurrentProgressPercent(40);
+		history.setPositionAnchor("section-latest");
+		history.setLastObservedAt(LocalDateTime.of(2026, 11, 19, 12, 5));
+		history.setLastReadAt(LocalDateTime.of(2026, 11, 19, 12, 5));
+		when(postRepository.findById(9L)).thenReturn(Optional.of(post));
+		when(readingHistoryRepository.findForUpdate(42L, 9L)).thenReturn(Optional.of(history));
+		when(readingHistoryRepository.save(any(ReadingHistory.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+		when(postMapper.toDigestResponse(post)).thenReturn(digest(9L));
+
+		var response = personalLibraryService.recordReadingProgress(9L,
+				new ReadingProgressRequest(20, "section-stale", Instant.parse("2026-11-19T12:04:00Z")));
+
+		assertEquals(40, response.data().currentProgressPercent());
+		assertEquals(80, response.data().furthestProgressPercent());
+		assertEquals("section-latest", response.data().positionAnchor());
 	}
 
 	@Test

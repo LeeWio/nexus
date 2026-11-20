@@ -88,8 +88,12 @@ class NotificationTransactionIntegrationTest {
 
 	@Test
 	void businessCommitAlsoCommitsNotificationAndMailSnapshot() {
-		transaction.executeWithoutResult(
-				status -> events.publishEvent(new PostChangedEvent(this, post(), PostChangeType.PUBLISHED)));
+		String[] publishedSlug = new String[1];
+		transaction.executeWithoutResult(status -> {
+			Post publishedPost = post();
+			publishedSlug[0] = publishedPost.getSlug();
+			events.publishEvent(new PostChangedEvent(this, publishedPost, PostChangeType.PUBLISHED));
+		});
 		var inbox = notifications.findInboxByRecipientId(reader.getId(), false, null, PageRequest.of(0, 10));
 		assertEquals(1, inbox.getTotalElements());
 		var delivery = deliveries.findByNotificationIdAndChannel(inbox.getContent().getFirst().getId(), "EMAIL")
@@ -98,6 +102,7 @@ class NotificationTransactionIntegrationTest {
 		assertEquals("Post published", delivery.getTitle());
 		assertEquals("POST", inbox.getContent().getFirst().getObjectType());
 		assertEquals("VIEW", inbox.getContent().getFirst().getAction());
+		assertEquals("/single/" + publishedSlug[0], inbox.getContent().getFirst().getLink());
 		assertNotNull(delivery.getNextAttemptAt());
 		assertTrue(committedEmails.ids.contains(delivery.getId()));
 	}

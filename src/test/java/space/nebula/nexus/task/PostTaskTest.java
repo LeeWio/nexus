@@ -5,7 +5,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import space.nebula.nexus.service.IPostService;
+import space.nebula.nexus.service.IPostPublicationService;
 
 import java.time.LocalDateTime;
 
@@ -19,7 +19,7 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class PostTaskTest {
 	@Mock
-	private IPostService postService;
+	private IPostPublicationService publicationService;
 
 	@InjectMocks
 	private PostTask postTask;
@@ -28,6 +28,6 @@ class PostTaskTest {
 	void delegatesDuePublicationToBusinessService() {
 		postTask.publishScheduledPosts();
 
-		verify(postService).publishDueScheduledPosts(any(LocalDateTime.class), eq(100));
+		verify(publicationService).publishDueScheduledPosts(any(LocalDateTime.class), eq(100));
 	}
 }

@@ -201,6 +201,6 @@ public class CommentModerationService {
 		if (comment.getMoment() != null) {
 			return "/moments" + anchor;
 		}
-		return comment.getPost() == null ? "/guestbook" + anchor : "/posts/" + comment.getPost().getSlug() + anchor;
+		return comment.getPost() == null ? "/guestbook" + anchor : "/single/" + comment.getPost().getSlug() + anchor;
 	}
 }

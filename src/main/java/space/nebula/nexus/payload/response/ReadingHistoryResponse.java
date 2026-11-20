@@ -9,8 +9,10 @@ import java.time.LocalDateTime;
  *
  * @param post
  *            compact post information
- * @param progressPercent
- *            last recorded progress percentage
+ * @param currentProgressPercent
+ *            progress at the latest observed position
+ * @param furthestProgressPercent
+ *            furthest progress reached by the reader
  * @param positionAnchor
  *            frontend-defined stable reading position
  * @param lastReadAt
@@ -19,6 +21,6 @@ import java.time.LocalDateTime;
  *            time at which reading reached 100 percent
  */
 @Schema(description = "Reading history entry")
-public record ReadingHistoryResponse(PostDigestResponse post, Integer progressPercent, String positionAnchor,
-		LocalDateTime lastReadAt, LocalDateTime completedAt) {
+public record ReadingHistoryResponse(PostDigestResponse post, Integer currentProgressPercent,
+		Integer furthestProgressPercent, String positionAnchor, LocalDateTime lastReadAt, LocalDateTime completedAt) {
 }
