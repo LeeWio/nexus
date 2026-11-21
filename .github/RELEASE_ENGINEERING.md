@@ -11,6 +11,15 @@
   an unexpected revision, deployment restores the image that backed the prior
   API container. This is an availability safeguard for the current single-slot
   Compose topology, not a zero-downtime rollout.
+- Before pulling, the deploy job warns at 80% filesystem usage. Under Docker
+  storage pressure it removes at most 25 old Nexus mirror references on the
+  host. The newest 20 images, the last seven calendar days, and current, pinned,
+  rollback, or incoming images are retained. Other repositories, volumes, and
+  registry copies are not affected. A successful replacement leaves the prior
+  image tagged as `ghcr.io/leewio/nexus-api:rollback`.
+- If Docker storage still has less than 1 GiB available, or a required filesystem
+  has no available space, the job stops before pulling. These are deployment
+  annotations rather than continuous monitoring.
 - Protect the `production` GitHub Environment with a required maintainer review
   and restrict deployment branches to `main`. Repository maintainers configure
   these settings in GitHub. The workflow binds the deploy job to this environment.
