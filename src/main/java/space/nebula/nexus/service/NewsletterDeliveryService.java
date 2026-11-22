@@ -15,6 +15,7 @@ import space.nebula.nexus.entity.Subscriber;
 import space.nebula.nexus.payload.request.TemplateMailMessage;
 import space.nebula.nexus.repository.NewsletterDeliveryBatchRepository;
 import space.nebula.nexus.repository.NewsletterDeliveryRepository;
+import space.nebula.nexus.service.support.EmailDeliveryRetry;
 import space.nebula.nexus.payload.response.NewsletterDeliveryBatchResponse;
 import space.nebula.nexus.payload.response.NewsletterDeliveryResponse;
 import space.nebula.nexus.payload.response.PageResult;
@@ -30,7 +31,6 @@ import org.springframework.data.domain.Pageable;
 @Service
 @RequiredArgsConstructor
 public class NewsletterDeliveryService {
-	private static final int MAX_DELIVERY_ATTEMPTS = 5;
 	private final NewsletterDeliveryBatchRepository batchRepository;
 	private final NewsletterDeliveryRepository deliveryRepository;
 	private final RabbitTemplate rabbitTemplate;
@@ -148,7 +148,7 @@ public class NewsletterDeliveryService {
 	private void recordFailure(NewsletterDelivery delivery, Exception error) {
 		int attempts = currentAttempts(delivery) + 1;
 		delivery.setAttempts(attempts);
-		delivery.setStatus(attempts >= MAX_DELIVERY_ATTEMPTS ? "ABANDONED" : "FAILED");
+		delivery.setStatus(attempts >= EmailDeliveryRetry.MAX_ATTEMPTS ? "ABANDONED" : "FAILED");
 		String message = error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
 		delivery.setLastError(message.substring(0, Math.min(1000, message.length())));
 		deliveryRepository.save(delivery);

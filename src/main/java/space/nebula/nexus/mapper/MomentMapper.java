@@ -22,6 +22,7 @@ public interface MomentMapper {
 
 	@Mapping(target = "id", ignore = true)
 	@Mapping(target = "likesCount", ignore = true)
+	@Mapping(target = "publishedOnce", ignore = true)
 	@Mapping(target = "createdAt", ignore = true)
 	@Mapping(target = "createdBy", ignore = true)
 	@Mapping(target = "updatedAt", ignore = true)
@@ -75,6 +76,7 @@ public interface MomentMapper {
 	@BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE, ignoreUnmappedSourceProperties = "shareToX")
 	@Mapping(target = "id", ignore = true)
 	@Mapping(target = "likesCount", ignore = true)
+	@Mapping(target = "publishedOnce", ignore = true)
 	@Mapping(target = "createdAt", ignore = true)
 	@Mapping(target = "createdBy", ignore = true)
 	@Mapping(target = "updatedAt", ignore = true)

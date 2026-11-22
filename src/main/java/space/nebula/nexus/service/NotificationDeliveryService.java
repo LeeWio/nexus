@@ -8,6 +8,7 @@ import space.nebula.nexus.common.event.NotificationEmailRequestedEvent;
 import space.nebula.nexus.entity.Notification;
 import space.nebula.nexus.entity.NotificationDelivery;
 import space.nebula.nexus.repository.NotificationDeliveryRepository;
+import space.nebula.nexus.service.support.EmailDeliveryRetry;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,7 +18,6 @@ import org.springframework.data.domain.PageRequest;
 @Service
 @RequiredArgsConstructor
 public class NotificationDeliveryService {
-	private static final int DELIVERY_LEASE_MINUTES = 10;
 	private final NotificationDeliveryRepository deliveryRepository;
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -41,7 +41,7 @@ public class NotificationDeliveryService {
 		if (deliveryRepository.findByDeduplicationKey(key).isPresent())
 			return;
 		deliveryRepository.insertEmailOnce(notificationId, recipient, title, content, link, key,
-				LocalDateTime.now().plusMinutes(DELIVERY_LEASE_MINUTES));
+				LocalDateTime.now().plus(EmailDeliveryRetry.LEASE));
 		deliveryRepository.findByDeduplicationKey(key).ifPresent(this::publish);
 	}
 
@@ -62,7 +62,7 @@ public class NotificationDeliveryService {
 			}
 			delivery.setStatus("SENDING");
 			delivery.setAttempts(currentAttempts(delivery) + 1);
-			delivery.setNextAttemptAt(LocalDateTime.now().plusMinutes(DELIVERY_LEASE_MINUTES));
+			delivery.setNextAttemptAt(LocalDateTime.now().plus(EmailDeliveryRetry.LEASE));
 			return Optional.of(new DeliveryClaim(delivery.getId(), delivery.getAttempts(), delivery.getRecipient(),
 					delivery.getTitle(), delivery.getContent(), delivery.getLink()));
 		});
@@ -125,7 +125,7 @@ public class NotificationDeliveryService {
 	public void requeue(NotificationDelivery delivery) {
 		delivery.setStatus("QUEUED");
 		delivery.setEnqueueGeneration(Math.incrementExact(delivery.getEnqueueGeneration()));
-		delivery.setNextAttemptAt(LocalDateTime.now().plusMinutes(DELIVERY_LEASE_MINUTES));
+		delivery.setNextAttemptAt(LocalDateTime.now().plus(EmailDeliveryRetry.LEASE));
 		publish(delivery);
 	}
 
@@ -136,7 +136,7 @@ public class NotificationDeliveryService {
 	private void fail(NotificationDelivery delivery, Exception error) {
 		int attempts = currentAttempts(delivery);
 		delivery.setStatus(attempts >= delivery.getMaxAttempts() ? "ABANDONED" : "FAILED");
-		delivery.setNextAttemptAt(LocalDateTime.now().plusMinutes(Math.min(60, 1L << Math.min(attempts, 6))));
+		delivery.setNextAttemptAt(LocalDateTime.now().plus(EmailDeliveryRetry.backoff(attempts)));
 		// Store only an error class; SMTP exception text can contain addresses or
 		// credentials.
 		delivery.setLastError(error.getClass().getSimpleName());

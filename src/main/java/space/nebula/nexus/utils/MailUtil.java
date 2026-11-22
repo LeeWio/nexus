@@ -12,6 +12,7 @@ import org.thymeleaf.context.Context;
 import space.nebula.nexus.common.constant.BusinessCode;
 import space.nebula.nexus.common.exception.BusinessException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -45,10 +46,15 @@ public class MailUtil {
 	 *            variables to be used in the template
 	 */
 	public void sendTemplateMail(String to, String subject, String templateName, Map<String, Object> variables) {
+		sendTemplateMail(to, subject, templateName, variables, Map.of());
+	}
+
+	public void sendTemplateMail(String to, String subject, String templateName, Map<String, Object> variables,
+			Map<String, String> headers) {
 		Context context = new Context();
 		context.setVariables(variables);
 		String htmlContent = templateEngine.process("email/" + templateName, context);
-		sendHtmlMail(to, subject, htmlContent);
+		sendHtmlMail(to, subject, htmlContent, headers);
 	}
 
 	/**
@@ -89,13 +95,20 @@ public class MailUtil {
 	 *            HTML email content
 	 */
 	public void sendHtmlMail(String to, String subject, String htmlContent) {
+		sendHtmlMail(to, subject, htmlContent, Map.of());
+	}
+
+	private void sendHtmlMail(String to, String subject, String htmlContent, Map<String, String> headers) {
 		MimeMessage message = mailSender.createMimeMessage();
 		try {
-			MimeMessageHelper helper = new MimeMessageHelper(message, true);
+			MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
 			helper.setFrom(from);
 			helper.setTo(to);
 			helper.setSubject(subject);
 			helper.setText(htmlContent, true);
+			for (var header : headers.entrySet()) {
+				message.setHeader(header.getKey(), header.getValue());
+			}
 
 			mailSender.send(message);
 			log.info("HTML email sent to {}", to);

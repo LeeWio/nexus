@@ -28,6 +28,8 @@ public interface IMomentService {
 	ApiResponse<PageResult<MomentResponse>> getPublicMoments(String topic, Integer year, Integer month,
 			Pageable pageable);
 
+	ApiResponse<MomentResponse> getPublicMoment(Long id);
+
 	ApiResponse<List<MomentTopicCountResponse>> getPublicTopics();
 
 	/**

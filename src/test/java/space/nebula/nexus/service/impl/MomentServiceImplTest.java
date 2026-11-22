@@ -28,6 +28,7 @@ import space.nebula.nexus.repository.MomentTopicRepository;
 import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IXSyncService;
+import space.nebula.nexus.service.MomentEmailDeliveryService;
 import space.nebula.nexus.service.support.MomentCommentCountSupport;
 import space.nebula.nexus.service.support.MomentXSyncSupport;
 import space.nebula.nexus.utils.MomentCadence;
@@ -77,6 +78,8 @@ class MomentServiceImplTest {
 	private IXSyncService xSyncService;
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
+	@Mock
+	private MomentEmailDeliveryService momentEmailDelivery;
 
 	private MomentServiceImpl momentService;
 	private User user;
@@ -85,7 +88,7 @@ class MomentServiceImplTest {
 	void setUp() {
 		momentService = new MomentServiceImpl(momentRepository, momentBookmarkRepository, momentTopicRepository,
 				momentMapper, fileRepository, userRepository, jdbcTemplate, momentCommentCountSupport,
-				momentXSyncSupport, xSyncService, eventPublisher);
+				momentXSyncSupport, xSyncService, eventPublisher, momentEmailDelivery);
 		lenient().when(momentCommentCountSupport.withCount(any())).thenAnswer(invocation -> invocation.getArgument(0));
 		lenient().when(momentCommentCountSupport.withCounts(any())).thenAnswer(invocation -> invocation.getArgument(0));
 		lenient().when(momentXSyncSupport.withSync(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -184,6 +187,7 @@ class MomentServiceImplTest {
 		assertEquals(MomentChangeType.CREATED, event.getChangeType());
 		assertTrue(event.isShareToX());
 		verify(xSyncService).enqueueOnCreate(moment, true);
+		verify(momentEmailDelivery).enqueuePublication(eq(42L), any(LocalDateTime.class));
 	}
 
 	@Test

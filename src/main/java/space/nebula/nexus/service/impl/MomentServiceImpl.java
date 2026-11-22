@@ -41,6 +41,7 @@ import space.nebula.nexus.repository.UserRepository;
 import space.nebula.nexus.security.util.SecurityUtil;
 import space.nebula.nexus.service.IMomentService;
 import space.nebula.nexus.service.IXSyncService;
+import space.nebula.nexus.service.MomentEmailDeliveryService;
 import space.nebula.nexus.service.support.MomentCommentCountSupport;
 import space.nebula.nexus.service.support.MomentXSyncSupport;
 import space.nebula.nexus.utils.MomentCadence;
@@ -48,6 +49,7 @@ import space.nebula.nexus.utils.MomentContentPolicy;
 import space.nebula.nexus.utils.MomentTopicPolicy;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -73,6 +75,7 @@ public class MomentServiceImpl implements IMomentService {
 	private final MomentXSyncSupport momentXSyncSupport;
 	private final IXSyncService xSyncService;
 	private final ApplicationEventPublisher eventPublisher;
+	private final MomentEmailDeliveryService momentEmailDelivery;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -102,6 +105,7 @@ public class MomentServiceImpl implements IMomentService {
 		replaceImages(moment, request.images(), false);
 		replaceTopics(moment, request.topicSlugs(), false);
 		momentRepository.save(moment);
+		recordFirstPublication(moment);
 
 		boolean shareToX = xSyncService.enqueueOnCreate(moment, request.shareToX());
 		eventPublisher.publishEvent(new MomentChangedEvent(this, moment.getId(), MomentChangeType.CREATED,
@@ -116,7 +120,11 @@ public class MomentServiceImpl implements IMomentService {
 	@CacheEvict(value = CacheConstants.MOMENTS, allEntries = true)
 	@LogOperation("Update Moment")
 	public ApiResponse<MomentResponse> updateMoment(Long id, MomentRequest request) {
-		Moment moment = findMomentOrThrow(id);
+		Moment moment = momentRepository.findForUpdate(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Moment", "id", id));
+		if (moment.getVisibility() == MomentVisibility.PUBLIC) {
+			moment.setPublishedOnce(true);
+		}
 		validateMomentContent(request.content(), request.images() == null ? moment.getImages() : request.images());
 		momentMapper.updateEntity(moment, request);
 		if (request.images() != null) {
@@ -126,6 +134,7 @@ public class MomentServiceImpl implements IMomentService {
 			replaceTopics(moment, request.topicSlugs(), true);
 		}
 		momentRepository.save(moment);
+		recordFirstPublication(moment);
 
 		eventPublisher.publishEvent(
 				new MomentChangedEvent(this, moment.getId(), MomentChangeType.UPDATED, moment.getVisibility(), false));
@@ -168,6 +177,21 @@ public class MomentServiceImpl implements IMomentService {
 		String slug = topic == null || topic.isBlank() ? null : topic.trim();
 		Page<Moment> moments = timeline(slug, year, month, currentUsername, pageable);
 		return ApiResponse.success(toMomentPage(moments));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ApiResponse<MomentResponse> getPublicMoment(Long id) {
+		Moment moment = momentRepository.findByIdAndVisibility(id, MomentVisibility.PUBLIC)
+				.orElseThrow(() -> new ResourceNotFoundException("Moment", "id", id));
+		return ApiResponse.success(momentCommentCountSupport.withCount(momentMapper.toResponse(moment)));
+	}
+
+	private void recordFirstPublication(Moment moment) {
+		if (moment.getVisibility() == MomentVisibility.PUBLIC && !moment.isPublishedOnce()) {
+			moment.setPublishedOnce(true);
+			momentEmailDelivery.enqueuePublication(moment.getId(), LocalDateTime.now(ZoneOffset.UTC));
+		}
 	}
 
 	private PageResult<MomentResponse> toMomentPage(Page<Moment> moments) {
