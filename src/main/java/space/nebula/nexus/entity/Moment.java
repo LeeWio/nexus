@@ -42,6 +42,9 @@ public class Moment extends BaseEntity {
 	@Column(name = "visibility", nullable = false, length = 20)
 	private MomentVisibility visibility = MomentVisibility.PUBLIC;
 
+	@Column(name = "published_once", nullable = false)
+	private boolean publishedOnce;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id")
 	private User user;

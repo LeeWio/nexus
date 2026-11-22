@@ -39,6 +39,12 @@ public class PublicMomentController {
 		return momentService.getPublicMoments(topic, year, month, pageable);
 	}
 
+	@GetMapping("/{id}")
+	@Operation(summary = "Get a public Moment by ID", description = "Returns a public Moment or 404 if it is private, deleted, or missing.")
+	public ApiResponse<MomentResponse> getPublicMoment(@PathVariable Long id) {
+		return momentService.getPublicMoment(id);
+	}
+
 	@GetMapping("/topics")
 	@Operation(summary = "List public moment topics", description = "Returns each topic used by a published public moment, with its count.")
 	public ApiResponse<List<MomentTopicCountResponse>> getPublicTopics() {

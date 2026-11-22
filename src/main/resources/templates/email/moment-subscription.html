@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <title th:text="${heading}">Moments</title>
+</head>
+<body>
+  <div style="margin: 0 auto; max-width: 36rem; padding: 1rem; font-family: sans-serif; line-height: 1.6">
+    <h1 th:text="${heading}">Moments</h1>
+    <p th:text="${summary}"></p>
+    <p><a th:href="${actionUrl}" th:text="${actionLabel}"></a></p>
+    <p th:if="${unsubscribeUrl != null}"><a th:href="${unsubscribeUrl}" th:text="${unsubscribeLabel}"></a></p>
+  </div>
+</body>
+</html>
