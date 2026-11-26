@@ -4,12 +4,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.format.FormatterRegistry;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import space.nebula.nexus.common.aspect.AnalyticsInterceptor;
 import space.nebula.nexus.common.aspect.TraceInterceptor;
+import space.nebula.nexus.enums.LifeListStatus;
 
 import java.nio.file.Paths;
 
@@ -45,6 +47,11 @@ public class WebConfig implements WebMvcConfigurer {
 			return true;
 		}
 	};
+
+	@Override
+	public void addFormatters(FormatterRegistry registry) {
+		registry.addConverter(String.class, LifeListStatus.class, LifeListStatus::fromQueryParameter);
+	}
 
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {

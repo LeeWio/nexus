@@ -21,6 +21,7 @@ import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import space.nebula.nexus.common.ApiResponse;
 import space.nebula.nexus.common.constant.BusinessCode;
@@ -123,6 +124,16 @@ public class GlobalExceptionHandler {
 		log.warn("[TraceId: {}] Validation failed: {}", org.slf4j.MDC.get("traceId"), message);
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 				.body(ApiResponse.error(BusinessCode.VALIDATION_FAILED, "Validation failed: " + message));
+	}
+
+	/**
+	 * Handle request parameters whose values cannot be converted to the declared
+	 * type.
+	 */
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<ApiResponse<Void>> handleArgumentTypeMismatch(MethodArgumentTypeMismatchException e) {
+		return ResponseEntity.badRequest()
+				.body(ApiResponse.error(BusinessCode.BAD_REQUEST, "Invalid value for parameter '" + e.getName() + "'"));
 	}
 
 	/**
