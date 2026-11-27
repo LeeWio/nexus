@@ -1,5 +1,6 @@
 package space.nebula.nexus.repository;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -21,11 +22,14 @@ import space.nebula.nexus.repository.specification.PostSpecification;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
 @ActiveProfiles("test")
 class PostRepositoryDataJpaTest {
 
+	@Autowired
+	private EntityManager entityManager;
 	@Autowired
 	private PostRepository postRepository;
 	@Autowired
@@ -38,6 +42,27 @@ class PostRepositoryDataJpaTest {
 	private CategoryRepository categoryRepository;
 	@Autowired
 	private TagRepository tagRepository;
+
+	@Test
+	void archivedPostWithUpdatedVersionIsSoftDeleted() {
+		User author = user();
+		Post post = postRepository.saveAndFlush(post(author, "Archived article", "Summary", "Content"));
+		long initialVersion = post.getLockVersion();
+		post.archive("Retired", author);
+		postRepository.flush();
+		assertTrue(post.getLockVersion() > initialVersion);
+
+		Long postId = post.getId();
+		postRepository.delete(post);
+		postRepository.flush();
+		entityManager.clear();
+
+		assertTrue(postRepository.findById(postId).isEmpty());
+		assertEquals(1L,
+				((Number) entityManager
+						.createNativeQuery("SELECT COUNT(*) FROM blog_post WHERE id = :id AND is_deleted = true")
+						.setParameter("id", postId).getSingleResult()).longValue());
+	}
 
 	@Test
 	void publicKeywordSearchMatchesLobContentWithoutLowerFunction() {
