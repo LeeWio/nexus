@@ -19,6 +19,7 @@ import lombok.Setter;
 import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.jdbc.Expectation;
 import space.nebula.nexus.enums.PostContentType;
 import space.nebula.nexus.enums.PostStatus;
 
@@ -32,7 +33,7 @@ import java.util.Set;
 @Entity
 @DynamicUpdate
 @Table(name = "blog_post")
-@SQLDelete(sql = "UPDATE blog_post SET is_deleted = true WHERE id = ?")
+@SQLDelete(sql = "UPDATE blog_post SET is_deleted = true WHERE id = ? AND lock_version = ?", verify = Expectation.RowCount.class)
 @SQLRestriction("is_deleted = false")
 public class Post extends BaseEntity {
 
